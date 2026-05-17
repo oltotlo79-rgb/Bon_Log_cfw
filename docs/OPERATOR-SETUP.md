@@ -175,9 +175,10 @@ https://bon-log.oltotlo81.workers.dev/
 | 結果 | 意味 | 次のアクション |
 |------|------|---------------|
 | 200 OK + ログイン画面表示 | 🎉 runtime も含めて動作 | Step 2 (機能別 env) へ |
-| 500 Internal Server Error | DB 接続失敗の可能性大 | Step 3 (Hyperdrive 設定) へ進む |
+| 500 Internal Server Error | DB 接続失敗の可能性大 | Step 2 で `SUPABASE_CA_CERT` を設定 → Step 3 (Hyperdrive 設定) へ進む |
 | 真っ白画面 / 静的 chunk エラー | build artifact 配信問題 | wrangler tail でログ確認 → 共有 |
 | `NEXT_PUBLIC_APP_URL` 関連エラー | env 値の typo | 値を再確認 (https:// プレフィックス必須) |
+| **「Hello world」のみ表示** | (旧 commit で出ていた問題、`d4f53de` で解決) | 最新 commit が deploy されているか確認 → されていなければ Retry deployment |
 
 **ログ監視** (別ターミナルで実行推奨):
 
