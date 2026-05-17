@@ -31,7 +31,9 @@ const mockStripeInvoicesRetrieve = vi.fn()
 vi.mock('@/lib/stripe', () => ({
   stripe: {
     webhooks: {
-      constructEvent: (...args: unknown[]) => mockStripeWebhooksConstructEvent(...args),
+      // Cloudflare Workers 対応で route.ts は constructEventAsync を使用 (Web Crypto)。
+      // sync mock の戻り値は await 経由でも解決されるため、戻り値生成ロジックは流用する。
+      constructEventAsync: (...args: unknown[]) => mockStripeWebhooksConstructEvent(...args),
     },
     subscriptions: {
       retrieve: (...args: unknown[]) => mockStripeSubscriptionsRetrieve(...args),

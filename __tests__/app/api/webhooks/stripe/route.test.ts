@@ -4,7 +4,8 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/stripe', () => ({
   stripe: {
-    webhooks: { constructEvent: vi.fn() },
+    // Cloudflare Workers 対応で route.ts は constructEventAsync を使用 (Web Crypto)
+    webhooks: { constructEventAsync: vi.fn() },
     subscriptions: { retrieve: vi.fn() },
     invoices: { retrieve: vi.fn() },
   },
@@ -122,7 +123,7 @@ describe('Stripe Webhook API', () => {
 
   it('returns 400 when signature verification fails', async () => {
     const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockImplementation(() => {
+    vi.mocked(stripe.webhooks.constructEventAsync).mockImplementation(async () => {
       throw new Error('Invalid signature')
     })
 
@@ -150,7 +151,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     // 実際の Stripe API は id / status を必ず返すため、テストでも同様に模擬する。
     // （webhook route の Zod スキーマが id / status を required にしているため）
     vi.mocked(stripe.subscriptions.retrieve).mockResolvedValue({
@@ -201,7 +202,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-1' } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
 
@@ -242,7 +243,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-1' } as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
@@ -274,7 +275,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     mockEnsureWebhookEventOnce.mockResolvedValueOnce({ alreadyProcessed: true })
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
@@ -293,7 +294,7 @@ describe('Stripe Webhook API', () => {
       data: { object: {} },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
@@ -314,7 +315,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
@@ -339,7 +340,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
@@ -365,7 +366,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-1' } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
 
@@ -398,7 +399,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
@@ -427,7 +428,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-1' } as never)
     vi.mocked(prisma.payment.create).mockResolvedValue({} as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
@@ -472,7 +473,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
@@ -499,7 +500,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
@@ -526,7 +527,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
@@ -551,7 +552,7 @@ describe('Stripe Webhook API', () => {
       },
     }
 
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(stripe.webhooks.constructEventAsync).mockResolvedValue(mockEvent as never)
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
