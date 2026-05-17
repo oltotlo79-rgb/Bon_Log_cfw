@@ -41,6 +41,30 @@ interface SentryEventHint {
   [key: string]: unknown
 }
 
+/**
+ * `beforeSend` に渡される Sentry イベント (@sentry/nextjs 互換)。
+ * 呼び出し側コード (instrumentation-client.ts 等) が参照するフィールドのみ
+ * 緩く型付けする。詳細は @sentry/types の Event interface を参照。
+ */
+interface SentryExceptionValue {
+  type?: string
+  value?: string
+  stacktrace?: unknown
+}
+
+interface SentryEvent {
+  exception?: {
+    values?: SentryExceptionValue[]
+  }
+  message?: string
+  level?: LogLevel
+  tags?: Record<string, string | number | boolean | undefined | null>
+  extra?: Record<string, unknown>
+  user?: Record<string, unknown>
+  contexts?: Record<string, Record<string, unknown>>
+  [key: string]: unknown
+}
+
 interface SentryInitConfig {
   dsn?: string
   enabled?: boolean
@@ -48,8 +72,8 @@ interface SentryInitConfig {
   release?: string
   tracesSampleRate?: number
   debug?: boolean
-  // @sentry/nextjs の本 SDK は (event, hint) の 2 引数。互換性のため hint 引数を提供する。
-  beforeSend?: (event: unknown, hint: SentryEventHint) => unknown
+  // @sentry/nextjs の本 SDK は (event, hint) の 2 引数。互換性のため event/hint を弱型付けで露出。
+  beforeSend?: (event: SentryEvent, hint: SentryEventHint) => SentryEvent | null | PromiseLike<SentryEvent | null>
   ignoreErrors?: (string | RegExp)[]
   [key: string]: unknown
 }
