@@ -125,7 +125,7 @@
     "typescript": "^5",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.0.18",
-    "wrangler": "^3.95.0"
+    "wrangler": "^4.86.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
