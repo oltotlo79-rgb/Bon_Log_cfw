@@ -56,10 +56,59 @@ const loginSchema = z.object({
  *
  * 参考: https://authjs.dev/getting-started/installation#configure
  */
+/**
+ * GoogleProvider を有効化する条件:
+ *   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET が **両方 set かつ非空** のとき。
+ *
+ * Why: NextAuth v5 は providers に空 clientId / clientSecret の OAuth provider が
+ * 含まれていると `Configuration` error を返す。Workers 環境では env が未設定の
+ * 場合もあり得るため、credentials がない時は GoogleProvider を含めない方針にする。
+ */
+function buildGoogleProvider() {
+  const cfg = getGoogleOAuthConfig()
+  if (!cfg.clientId || !cfg.clientSecret) return null
+  return GoogleProvider({
+    clientId: cfg.clientId,
+    clientSecret: cfg.clientSecret,
+    /**
+     * ⚠ SECURITY: `allowDangerousEmailAccountLinking` は NextAuth 既定の
+     *   アカウント連携保護をバイパスする。攻撃者が任意の email を返す OAuth プロバイダーを
+     *   制御できれば、同 email のアカウントを乗っ取れる。
+     *   Google は検証済み email を保証するため本プロジェクトでは許容するが、
+     *   未検証 email を返す可能性のあるプロバイダーを追加する際は必ず再評価すること。
+     *
+     * @see VERIFIED_EMAIL_OAUTH_PROVIDERS でのランタイム白名単
+     */
+    allowDangerousEmailAccountLinking: true,
+    profile(profile) {
+      return {
+        id: profile.sub,
+        name: profile.name,
+        email: profile.email,
+        image: profile.picture,
+      }
+    },
+  })
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth(() => ({
   ...authConfig,
 
   adapter: PrismaAdapter(prisma),
+
+  /**
+   * NextAuth v5 は X-Forwarded-Host / Host ヘッダの検証を厳格化しており、
+   * Vercel 以外のホスティングではデフォルトで信頼しない。Cloudflare Workers は
+   * `*.workers.dev` や custom domain で動くため明示的に許可しないと
+   * 「Untrusted Host」由来の Configuration error を返す。
+   */
+  trustHost: true,
+
+  /**
+   * NEXTAUTH_SECRET を request 時に明示的に読む。NextAuth は env から自動取得もするが、
+   * Workers の env 注入タイミングで取りこぼされる可能性があるため明示する。
+   */
+  secret: process.env.NEXTAUTH_SECRET,
 
   // JWT 戦略: ステートレスで Serverless 相性が良いため採用。
   // セッションの即時失効が必要な場合は DB 戦略に切替検討（現状は要件上不要）。
@@ -74,30 +123,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth(() => ({
 
   // `allowDangerousEmailAccountLinking` を指定するプロバイダーは
   // `assertSafeOAuthLinking()` により起動時にホワイトリスト検証される。
+  // GoogleProvider は credentials が両方 set のときのみ含める (空 clientId は Configuration error の原因)。
   providers: assertSafeOAuthLinking([
-    /**
-     * Google OAuth プロバイダー。
-     *
-     * ⚠ SECURITY: `allowDangerousEmailAccountLinking` は NextAuth 既定の
-     *   アカウント連携保護をバイパスする。攻撃者が任意の email を返す OAuth プロバイダーを
-     *   制御できれば、同 email のアカウントを乗っ取れる。
-     *   Google は検証済み email を保証するため本プロジェクトでは許容するが、
-     *   未検証 email を返す可能性のあるプロバイダーを追加する際は必ず再評価すること。
-     *
-     * @see VERIFIED_EMAIL_OAUTH_PROVIDERS でのランタイム白名単
-     */
-    GoogleProvider({
-      ...getGoogleOAuthConfig(),
-      allowDangerousEmailAccountLinking: true,
-      profile(profile) {
-        return {
-          id: profile.sub,
-          name: profile.name,
-          email: profile.email,
-          image: profile.picture,
-        }
-      },
-    }),
+    ...(buildGoogleProvider() ? [buildGoogleProvider()!] : []),
     CredentialsProvider({
       name: 'credentials',
       /**
