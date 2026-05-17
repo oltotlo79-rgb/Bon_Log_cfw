@@ -27,7 +27,15 @@ const nextConfig: NextConfig = {
   // standalone も Vercel 用最適化もどちらも不要。Next.js 既定の出力に任せる。
   // 旧 Vercel/Docker のための分岐は CFW 移行で全削除。
 
-  // Vercel 専用の outputFileTracing* も削除 (OpenNext は esbuild で独自バンドル)
+  // nft (node-file-tracer) は pg/lib/stream.js の動的 require('pg-cloudflare')
+  // を辿りきれず dist/* を trace しない。OpenNext が `.open-next/server-functions/default/`
+  // へ copy するときに dist/index.js が漏れて esbuild bundle が失敗するため、
+  // ここで明示的に trace 対象に含める (Workers 環境の TCP socket 実装に必須)。
+  outputFileTracingIncludes: {
+    '*': [
+      'node_modules/pg-cloudflare/**',
+    ],
+  },
 
   images: {
     // Why this is computed: production では R2 ホスト名を必ず指定させ、未設定時は
