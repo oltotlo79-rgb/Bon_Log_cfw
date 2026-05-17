@@ -6,32 +6,33 @@
  *
  * ## 背景
  *
- * `engineType = "client"` で生成された `.prisma/client/wasm-worker-loader.mjs` は:
- *     export default import('./query_compiler_bg.wasm')
- * と、`.wasm` ファイルの動的 import を行う。
- *
- * OpenNext for Cloudflare の esbuild は `.wasm` を `external` でマークし
- * 静的 path に変換するが、Workers ランタイムには filesystem が無いため
- * `import('/path/to/file.wasm')` → unenv の `fs.readFileSync` stub →
- * `[unenv] fs.readFileSync is not implemented yet!` で起動時に失敗する。
+ * `.prisma/client/wasm.js` の `config.compilerWasm.getQueryCompilerWasmModule()` が
+ *     const loader = (await import('#wasm-compiler-loader')).default
+ *     const compiler = (await loader).default
+ * という流れで subpath import `#wasm-compiler-loader` を経由し、最終的に
+ * `wasm-worker-loader.mjs` の `export default import('./query_compiler_bg.wasm')`
+ * を呼ぶ。OpenNext の esbuild が `.wasm` 動的 import を `external` でマークするが、
+ * Workers ランタイムには filesystem が無く、unenv の `fs.readFileSync` stub が
+ * 呼ばれて以下で起動失敗:
+ *     [unenv] fs.readFileSync is not implemented yet!
  *
  * ## 対処
  *
- * `prisma generate` の **直後** に本スクリプトが:
- *   1. `query_compiler_bg.wasm` を読み bytes を Base64 化した sibling JS module を作る
- *   2. `wasm-worker-loader.mjs` / `wasm-edge-light-loader.mjs` を `WebAssembly.compile`
- *      ベースの実装に書き換える (`.wasm` 動的 import を経由しない)
+ * `prisma generate` 後に以下を行う:
+ *   1. `query_compiler_bg.wasm` を Base64 化した sibling JS module を生成
+ *   2. **`wasm.js` の `getQueryCompilerWasmModule` 本体を直接書換え**、
+ *      subpath import を経由せず WebAssembly.compile(Uint8Array) で生成する
+ *   3. 念のため `wasm-worker-loader.mjs` も同様にパッチ (subpath 経由 fallback も塞ぐ)
  *
- * これにより esbuild は **通常の JS 文字列** として WASM bytes を bundle に含め、
- * Workers ランタイムで `WebAssembly.compile(Uint8Array)` で安全に instantiate できる。
+ * これで `.wasm` 動的 import を一切経由せず、bundle 内の通常 JS 文字列として
+ * embed され、Workers で安全に `WebAssembly.Module` を生成できる。
  *
  * ## 副作用
  *
- * Worker bundle が WASM サイズ (約 2 MB) 分大きくなる。Workers の 10 MB 上限まで
- * は余裕がある (現状の bundle は約 7 MB / gzip)。
+ * Worker bundle が WASM サイズ (約 2 MB) 分大きくなる。
  *
- * Phase 5 で `provider = "prisma-client"` (Prisma 6.7+ TypeScript-first 生成、WASM 不要)
- * への移行を検討する。それまでは本パッチで凌ぐ。
+ * Phase 5 で `provider = "prisma-client"` (Prisma 6.7+ TS-first 生成、WASM 不要)
+ * への移行を検討する。
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -42,38 +43,36 @@ const WASM_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm')
 const BASE64_MODULE_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm.base64.mjs')
 const WORKER_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-worker-loader.mjs')
 const EDGE_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-edge-light-loader.mjs')
+const WASM_JS_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm.js')
 
 const PATCH_MARKER = '// AUTO-PATCHED-BY: scripts/patch-prisma-wasm-loader.mjs'
 
+function log(msg) {
+  console.log(`[patch-prisma-wasm] ${msg}`)
+}
+
 if (!existsSync(WASM_PATH)) {
-  console.log('[patch-prisma-wasm] WASM file not found at', WASM_PATH, '- skipping (prisma generate not yet run?)')
+  log(`WASM file not found at ${WASM_PATH} - skipping`)
   process.exit(0)
 }
 
-const existingLoader = existsSync(WORKER_LOADER_PATH) ? readFileSync(WORKER_LOADER_PATH, 'utf-8') : ''
-if (existingLoader.includes(PATCH_MARKER)) {
-  console.log('[patch-prisma-wasm] already patched, skipping')
-  process.exit(0)
-}
-
-console.log('[patch-prisma-wasm] reading WASM:', WASM_PATH)
+// ====== 1. Base64 module ======
 const wasmBytes = readFileSync(WASM_PATH)
 const base64 = wasmBytes.toString('base64')
-console.log('[patch-prisma-wasm] WASM size:', wasmBytes.byteLength, 'bytes,', base64.length, 'base64 chars')
+log(`WASM size: ${wasmBytes.byteLength} bytes, ${base64.length} base64 chars`)
 
 const base64ModuleContent = `${PATCH_MARKER}
 // Generated from query_compiler_bg.wasm. Do not edit directly.
 export default ${JSON.stringify(base64)}
 `
 writeFileSync(BASE64_MODULE_PATH, base64ModuleContent)
-console.log('[patch-prisma-wasm] wrote base64 module:', BASE64_MODULE_PATH)
+log(`wrote base64 module: ${BASE64_MODULE_PATH}`)
 
+// ====== 2. wasm-worker-loader.mjs を inline base64 loader に置換 ======
 const loaderContent = `${PATCH_MARKER}
-// Original: \`export default import('./query_compiler_bg.wasm')\` is incompatible
-// with Cloudflare Workers (no fs). Replaced with inline base64 → WebAssembly.compile.
 import base64 from './query_compiler_bg.wasm.base64.mjs'
 
-function base64ToUint8Array(b64) {
+function _base64ToBytes(b64) {
   const bin = atob(b64)
   const len = bin.length
   const bytes = new Uint8Array(len)
@@ -81,18 +80,54 @@ function base64ToUint8Array(b64) {
   return bytes
 }
 
-// Prisma の呼び出し側は \`(await loader).default\` で WebAssembly.Module を取り出すため
-// \`{ default: <module> }\` 形状の Promise を default export する。
-const compiledModulePromise = WebAssembly.compile(base64ToUint8Array(base64)).then((mod) => ({ default: mod }))
-export default compiledModulePromise
+const _compiled = WebAssembly.compile(_base64ToBytes(base64)).then((mod) => ({ default: mod }))
+export default _compiled
 `
-
 writeFileSync(WORKER_LOADER_PATH, loaderContent)
-console.log('[patch-prisma-wasm] patched:', WORKER_LOADER_PATH)
+log(`patched: ${WORKER_LOADER_PATH}`)
 
 if (existsSync(EDGE_LOADER_PATH)) {
   writeFileSync(EDGE_LOADER_PATH, loaderContent)
-  console.log('[patch-prisma-wasm] patched:', EDGE_LOADER_PATH)
+  log(`patched: ${EDGE_LOADER_PATH}`)
 }
 
-console.log('[patch-prisma-wasm] done')
+// ====== 3. wasm.js の getQueryCompilerWasmModule 本体を直接書換え ======
+if (!existsSync(WASM_JS_PATH)) {
+  log(`wasm.js not found at ${WASM_JS_PATH} - skipping wasm.js patch`)
+  process.exit(0)
+}
+
+let wasmJs = readFileSync(WASM_JS_PATH, 'utf-8')
+
+if (wasmJs.includes(PATCH_MARKER)) {
+  log('wasm.js already patched, skipping')
+  process.exit(0)
+}
+
+// Prisma が生成する getQueryCompilerWasmModule の典型形:
+//   getQueryCompilerWasmModule: async () => {
+//     const loader = (await import('#wasm-compiler-loader')).default
+//     const compiler = (await loader).default
+//     return compiler
+//   }
+const subpathImportRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?import\(\s*['"`]#wasm-compiler-loader['"`]\s*\)[^}]*?\}/m
+const replacement = `getQueryCompilerWasmModule: async () => {
+    ${PATCH_MARKER}
+    // Inline Base64 → WebAssembly.compile (Cloudflare Workers compatibility)
+    const { default: __prismaWasmBase64 } = await import('./query_compiler_bg.wasm.base64.mjs')
+    const __bin = atob(__prismaWasmBase64)
+    const __bytes = new Uint8Array(__bin.length)
+    for (let __i = 0; __i < __bin.length; __i++) __bytes[__i] = __bin.charCodeAt(__i)
+    return await WebAssembly.compile(__bytes)
+  }`
+
+if (!subpathImportRegex.test(wasmJs)) {
+  log('WARNING: getQueryCompilerWasmModule pattern not found in wasm.js')
+  log('Prisma generator output may have changed. Inspect the file to update the patch.')
+  process.exit(1)
+}
+
+wasmJs = wasmJs.replace(subpathImportRegex, replacement)
+writeFileSync(WASM_JS_PATH, wasmJs)
+log(`patched: ${WASM_JS_PATH}`)
+log('done')
