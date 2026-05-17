@@ -13,6 +13,15 @@ import { prisma } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 
 /**
+ * Build version 識別用の sentinel。bundle が再生成されているかをユーザー側で
+ * 確認できるよう、commit ごとに人手で更新する。
+ *
+ * Cloudflare のビルド出力キャッシュが古い worker.js を serve している場合、
+ * ここの値が更新されていても /api/ping のレスポンスは古いまま (= cache 配信)。
+ */
+const BUILD_VERSION = 'v6-prisma-wasm-inline-2026-05-18-patch3'
+
+/**
  * Workers の env 注入タイミング検証用 (存在チェックのみ)。
  *
  * 値・プレフィックス・サフィックスは一切出さない。
@@ -78,6 +87,7 @@ export async function GET(request: Request): Promise<Response> {
       JSON.stringify({
         ok: true,
         runtime: 'Cloudflare-Workers',
+        buildVersion: BUILD_VERSION,
         timestamp: new Date().toISOString(),
         db: dbResult,
       }),
