@@ -41,7 +41,22 @@ const loginSchema = z.object({
   password: z.string().min(8, 'パスワードは8文字以上である必要があります'),
 })
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+/**
+ * NextAuth 設定を関数として渡すことで **per-request 評価** にする。
+ *
+ * Why: Cloudflare Workers では env vars は per-request の `env` 引数として注入され、
+ * OpenNext がそれを `process.env` に伝播するのは fetch handler 入口のタイミング。
+ * `NextAuth({ ... })` の object literal 形式だと module init 時に
+ * `getGoogleOAuthConfig()` / NEXTAUTH_SECRET 等を読み込むが、その時点では
+ * process.env が空のため Google clientId / clientSecret が "" になり、NextAuth が
+ * 「Configuration error」を返す。
+ *
+ * 関数形式 `NextAuth(() => ({ ... }))` は request ごとに評価されるため、
+ * 関数の中で process.env を読めば確実に populated な値が取れる。
+ *
+ * 参考: https://authjs.dev/getting-started/installation#configure
+ */
+export const { handlers, signIn, signOut, auth } = NextAuth(() => ({
   ...authConfig,
 
   adapter: PrismaAdapter(prisma),
@@ -214,7 +229,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     },
   },
-})
+}))
 
 /**
  * 新規ユーザーを DB に登録する。
