@@ -73,7 +73,7 @@
 | 4 | `DATABASE_URL` | **Secret** | (build 時) `postgresql://dummy:dummy@localhost:5432/dummy`<br/>(runtime) Supabase URL | Prisma 接続 |
 | 5 | `DIRECT_URL` | **Secret** | 上記と同じ | Prisma migrate 用 |
 | 6 | `TWO_FACTOR_ENCRYPTION_KEY` | **Secret** | 64 文字 hex (= 32 byte) | 2FA AES-256-GCM 鍵 |
-| 7 | `SKIP_DB_CONNECTION` | **Plaintext** | `true` | build 中の DB 接続スキップ (Hyperdrive 未接続段階で必須) |
+| 7 | `SKIP_DB_CONNECTION` | **Plaintext** | `true` | build 中の DB 接続スキップ。**`NEXT_PHASE === 'phase-production-build'` の build 中のみ尊重され、runtime では自動的に無視される**ためそのままで OK |
 
 ### 1.2.0 `NEXTAUTH_SECRET` の生成方法
 
@@ -161,6 +161,32 @@ Cloudflare Workers の Preview URL は予測不能なため、Preview での OAu
 - または GitHub に空 commit を push (`git commit --allow-empty -m "trigger retry"` → push)
 
 build が **`Success`** になれば次の Step へ。
+
+### 1.5 build 成功直後の動作確認 (重要)
+
+build 成功直後に、Worker URL にアクセスして runtime も動くか確認:
+
+```
+https://bon-log.oltotlo81.workers.dev/
+```
+
+**予想される結果と意味**:
+
+| 結果 | 意味 | 次のアクション |
+|------|------|---------------|
+| 200 OK + ログイン画面表示 | 🎉 runtime も含めて動作 | Step 2 (機能別 env) へ |
+| 500 Internal Server Error | DB 接続失敗の可能性大 | Step 3 (Hyperdrive 設定) へ進む |
+| 真っ白画面 / 静的 chunk エラー | build artifact 配信問題 | wrangler tail でログ確認 → 共有 |
+| `NEXT_PUBLIC_APP_URL` 関連エラー | env 値の typo | 値を再確認 (https:// プレフィックス必須) |
+
+**ログ監視** (別ターミナルで実行推奨):
+
+```powershell
+cd C:\Users\oltot\Documents\git-projects\Bon_Log_cfw
+wrangler tail
+```
+
+ブラウザでアクセスするとリクエストごとにログが流れます。500 エラーの詳細スタックトレースもここに出ます。
 
 ---
 

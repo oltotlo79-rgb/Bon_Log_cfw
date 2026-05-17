@@ -46,11 +46,20 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
 /**
  * CI/テスト/ビルド環境判定: DATABASE_URLが未設定またはダミーの場合は実接続しない。
+ *
+ * `SKIP_DB_CONNECTION=true` は **build phase でのみ有効**。
+ * Cloudflare Workers では build/runtime の env を分離できないため、runtime まで
+ * skip が効くと全機能が死亡する。`NEXT_PHASE === 'phase-production-build'` で
+ * build 中のみに限定する。
  */
 const DUMMY_DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
+const NEXT_BUILD_PHASE = 'phase-production-build'
+const isBuildPhase = process.env.NEXT_PHASE === NEXT_BUILD_PHASE
+const hasHyperdriveBinding = !!(globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
+const skipByEnv = isBuildPhase && process.env.SKIP_DB_CONNECTION === 'true'
 const isDummyDatabase =
-  process.env.SKIP_DB_CONNECTION === 'true' ||
-  (!process.env.DATABASE_URL && !(globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__) ||
+  skipByEnv ||
+  (!process.env.DATABASE_URL && !hasHyperdriveBinding) ||
   process.env.DATABASE_URL === DUMMY_DATABASE_URL
 
 /** Supabase CA証明書をBase64環境変数からデコード */
