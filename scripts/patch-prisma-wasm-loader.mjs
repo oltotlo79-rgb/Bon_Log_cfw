@@ -38,7 +38,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-const PRISMA_CLIENT_DIR = path.join('node_modules', '.prisma', 'client')
+const PATCH_MARKER = '// AUTO-PATCHED-BY: scripts/patch-prisma-wasm-loader.mjs'
+
+// patch 対象は複数箇所:
+//   - node_modules/.prisma/client/        ← prisma generate 直後
+//   - .next/standalone/node_modules/.prisma/client/  ← next build 後、OpenNext が bundle する場所
+// 第 1 引数で .prisma/client へのパスを指定可能 (省略時は node_modules 直下)。
+const PRISMA_CLIENT_DIR = process.argv[2] ?? path.join('node_modules', '.prisma', 'client')
 const WASM_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm')
 // CJS module (require できる形式) で base64 を持たせる。
 // esbuild は require() を静的解析でインライン化できるが、await import() は
@@ -48,8 +54,6 @@ const BASE64_ESM_MODULE_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.w
 const WORKER_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-worker-loader.mjs')
 const EDGE_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-edge-light-loader.mjs')
 const WASM_JS_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm.js')
-
-const PATCH_MARKER = '// AUTO-PATCHED-BY: scripts/patch-prisma-wasm-loader.mjs'
 
 function log(msg) {
   console.log(`[patch-prisma-wasm] ${msg}`)

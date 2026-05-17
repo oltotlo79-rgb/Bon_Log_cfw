@@ -5,9 +5,9 @@
   "scripts": {
     "postinstall": "prisma generate && node scripts/patch-prisma-wasm-loader.mjs",
     "dev": "next dev",
-    "build": "prisma generate && node scripts/patch-prisma-wasm-loader.mjs && next build",
+    "build": "prisma generate && node scripts/patch-prisma-wasm-loader.mjs && next build && node scripts/patch-prisma-wasm-all.mjs",
     "analyze": "ANALYZE=true npm run build",
-    "build:deploy": "prisma generate && node scripts/patch-prisma-wasm-loader.mjs && prisma migrate deploy && next build",
+    "build:deploy": "prisma generate && node scripts/patch-prisma-wasm-loader.mjs && prisma migrate deploy && next build && node scripts/patch-prisma-wasm-all.mjs",
     "start": "next start",
     "lint": "eslint",
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
