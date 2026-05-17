@@ -29,17 +29,22 @@ directory = ".open-next/assets"
 binding = "ASSETS"
 
 # ------------------------------------------------------------
-# Hyperdrive: Supabase Postgres への TCP 接続プロキシ
+# Hyperdrive: Supabase Postgres への TCP 接続プロキシ (Phase 4 で導入)
 # ------------------------------------------------------------
-# Phase 4 で以下を実行して ID を取得:
-#   wrangler hyperdrive create bon-log-hyperdrive `
-#     --connection-string="postgresql://postgres.[ref]:[password]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
-# 出力された id を下記 placeholder (00000000-...) に置換すること。
-[[hyperdrive]]
-binding = "HYPERDRIVE"
-id = "00000000-0000-0000-0000-000000000000"
-# ローカル開発時は localhost Postgres を使う
-localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
+# 暫定では pg + pg-cloudflare を Workers Sockets 経由で Supabase pooler に
+# 直接接続させる (Vercel と同じ DATABASE_URL を使用)。
+# プレースホルダー ID では Cloudflare API が provision に失敗するため、
+# 実 Hyperdrive を作成してから wrangler.toml に追加すること。
+#
+# Phase 4 (本番運用前) で有効化:
+#   1. wrangler hyperdrive create bon-log-hyperdrive `
+#        --connection-string="postgresql://postgres.[ref]:[password]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+#   2. 出力された id を下記の binding に貼り付け、コメントアウトを解除
+#   3. lib/db.ts で env.HYPERDRIVE.connectionString を優先するよう既に実装済
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "REPLACE_WITH_REAL_HYPERDRIVE_ID"
+# localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 # ------------------------------------------------------------
 # R2 binding (既存の R2 バケット)
@@ -76,10 +81,10 @@ name = "bon-log-staging"
 # Phase 4 で DNS を追加してから enable:
 # route = { pattern = "staging.bon-log.com/*", zone_name = "bon-log.com" }
 
-[[env.staging.hyperdrive]]
-binding = "HYPERDRIVE"
-id = "00000000-0000-0000-0000-000000000000"
-localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
+# [[env.staging.hyperdrive]]  # Phase 4 で実 Hyperdrive ID 取得後に有効化
+# binding = "HYPERDRIVE"
+# id = "REPLACE_WITH_REAL_HYPERDRIVE_ID"
+# localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 [[env.staging.r2_buckets]]
 binding = "R2_BUCKET"
@@ -93,10 +98,10 @@ bucket_name = "bon-log-uploads-placeholder"
 name = "bon-log-prod"
 # route = { pattern = "bon-log.com/*", zone_name = "bon-log.com" }
 
-[[env.production.hyperdrive]]
-binding = "HYPERDRIVE"
-id = "00000000-0000-0000-0000-000000000000"
-localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
+# [[env.production.hyperdrive]]  # Phase 6 のカットオーバー前に実 Hyperdrive ID を設定
+# binding = "HYPERDRIVE"
+# id = "REPLACE_WITH_REAL_HYPERDRIVE_ID"
+# localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 [[env.production.r2_buckets]]
 binding = "R2_BUCKET"
