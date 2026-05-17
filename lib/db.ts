@@ -1,20 +1,26 @@
 /**
  * Prisma + PostgreSQL 接続のシングルトン管理 (Cloudflare Workers 対応版)
  *
- * Vercel 版との差分:
- *  - DB 接続文字列を **Hyperdrive binding (`env.HYPERDRIVE.connectionString`) から優先取得**
- *    することで Workers から TCP 経由で Supabase に到達できるようにする。
- *  - Hyperdrive が無い実行環境 (Next.js dev / vitest / scripts) では従来通り
- *    `process.env.DATABASE_URL` を使う (localhost or Supabase direct)。
- *  - 各 fetch ハンドラごとに Prisma client をキャッシュ可能だが、Phase 2 では
- *    `globalForPrisma` シングルトンを維持して挙動互換を確保する。
- *
  * @module lib/db
+ *
+ * ## なぜ lazy initialization か
+ *
+ * Cloudflare Workers では env vars は **per-request の `env` 引数** として注入される。
+ * OpenNext がそれを `process.env` にマージするのは fetch handler の入口であり、
+ * **module init 時 (= 各 lib/* の top-level 評価時)** には `process.env.DATABASE_URL`
+ * 等は undefined。
+ *
+ * Vercel 移行前は module init で `new Pool(...)` を作って差し支えなかったが、
+ * Workers でこれをやると DUMMY URL で Pool が作られ、その後 env が流れ込んでも
+ * Pool は dummy のままで全 query が失敗する。
+ *
+ * よって Pool / PrismaClient は **最初に prisma.* が呼ばれた瞬間に作る** (lazy)。
+ * その時点では Worker fetch handler 内なので process.env は populated。
  */
 
-// Next.jsビルド時のみserver-onlyを適用（スクリプト直接実行時はスキップ）
+// Next.js ビルド時のみ server-only を適用（スクリプト直接実行時はスキップ）
 if (typeof process !== 'undefined' && process.env.NEXT_RUNTIME) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 条件付きインポートにはrequireが必要
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- 条件付き import には require が必要
   require('server-only')
 }
 import { PrismaClient } from '@prisma/client'
@@ -26,51 +32,46 @@ import {
   DB_POOL_MAX_DEFAULT,
 } from '@/lib/constants/limits'
 
+const DUMMY_DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
+const NEXT_BUILD_PHASE = 'phase-production-build'
+
 /**
- * Cloudflare Workers 環境で Hyperdrive binding から接続文字列を取得する。
+ * Cloudflare Workers の Hyperdrive binding (Phase 4 で導入予定) から接続文字列を取得する。
  *
  * 優先順位:
- *  1. `globalThis.__BON_LOG_HYPERDRIVE_CONNECTION_STRING__` (Workers fetch handler 内で
- *     `lib/cloudflare-context.ts` がセット)
- *  2. `process.env.DATABASE_URL` (Node.js dev / vitest / scripts)
- *  3. ダミー DB URL (build 時のフォールバック)
+ *  1. `globalThis.__BON_LOG_HYPERDRIVE_CONNECTION_STRING__`
+ *     (worker fetch handler 内で lib/cloudflare-context.ts がセット)
+ *  2. `process.env.DATABASE_URL`
+ *  3. dummy URL (build 時 / 完全に env が空のときのフォールバック)
  */
 function resolveConnectionString(): string {
   const hyperdrive = (globalThis as unknown as {
     __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string
   }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
-  return hyperdrive || process.env.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/dummy'
+  return hyperdrive || process.env.DATABASE_URL || DUMMY_DATABASE_URL
 }
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
-
 /**
- * CI/テスト/ビルド環境判定: DATABASE_URLが未設定またはダミーの場合は実接続しない。
+ * dummy 判定: build 中の SKIP_DB_CONNECTION=true、または DATABASE_URL 完全欠落、
+ * または明示的に dummy URL がセットされている場合。
  *
- * `SKIP_DB_CONNECTION=true` は **build phase でのみ有効**。
- * Cloudflare Workers では build/runtime の env を分離できないため、runtime まで
- * skip が効くと全機能が死亡する。`NEXT_PHASE === 'phase-production-build'` で
- * build 中のみに限定する。
+ * `SKIP_DB_CONNECTION=true` は build phase のみで尊重する。runtime で true でも
+ * 無視する (Cloudflare では build/runtime の env vars が同じ source なため誤って
+ * runtime まで届いた場合の安全装置)。
  */
-const DUMMY_DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
-const NEXT_BUILD_PHASE = 'phase-production-build'
-const isBuildPhase = process.env.NEXT_PHASE === NEXT_BUILD_PHASE
-const hasHyperdriveBinding = !!(globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
-const skipByEnv = isBuildPhase && process.env.SKIP_DB_CONNECTION === 'true'
-const isDummyDatabase =
-  skipByEnv ||
-  (!process.env.DATABASE_URL && !hasHyperdriveBinding) ||
-  process.env.DATABASE_URL === DUMMY_DATABASE_URL
+function isDummyDatabaseRuntime(): boolean {
+  const hasHyperdriveBinding = !!(globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string })
+    .__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
+  const isBuildPhase = process.env.NEXT_PHASE === NEXT_BUILD_PHASE
+  const skipByEnv = isBuildPhase && process.env.SKIP_DB_CONNECTION === 'true'
+  return (
+    skipByEnv ||
+    (!process.env.DATABASE_URL && !hasHyperdriveBinding) ||
+    process.env.DATABASE_URL === DUMMY_DATABASE_URL
+  )
+}
 
-/** Supabase CA証明書をBase64環境変数からデコード */
-const supabaseCaCert = process.env.SUPABASE_CA_CERT
-  ? Buffer.from(process.env.SUPABASE_CA_CERT, 'base64').toString('utf-8')
-  : undefined
-
-/**
- * ローカル接続（localhost/127.0.0.1）ではSSLを要求しない。
- * Hyperdrive 経由の接続文字列は `default` host になるため SSL は内部で処理される。
- */
+/** ローカル接続 (localhost / 127.0.0.1 / ::1) では SSL を要求しない。 */
 function isLocalConnection(connectionString: string): boolean {
   try {
     const { hostname } = new URL(connectionString)
@@ -80,41 +81,56 @@ function isLocalConnection(connectionString: string): boolean {
   }
 }
 
-const connectionString = isDummyDatabase ? DUMMY_DATABASE_URL : resolveConnectionString()
-const isLocal = isLocalConnection(connectionString)
+/** SUPABASE_CA_CERT (Base64) を PEM へデコード。未設定なら undefined。 */
+function getSupabaseCaCert(): string | undefined {
+  const raw = process.env.SUPABASE_CA_CERT
+  if (!raw) return undefined
+  return Buffer.from(raw, 'base64').toString('utf-8')
+}
 
 /**
- * Hyperdrive 経由か直接 Supabase 接続かに応じて SSL 設定を切り替える。
+ * Lazy 初期化された PrismaClient を返す。
  *
- * - Hyperdrive: Cloudflare が edge 側で SSL 終端するため Worker → Hyperdrive は平文 (内部閉域網)
- * - direct Supabase: rejectUnauthorized + CA 必須
- * - localhost: SSL なし
+ * 1 つの Worker instance 内では最初の prisma.* 呼び出しで作られて以降キャッシュされる。
+ * Worker instance ごとに独立した singleton になるため Workers のライフサイクルと整合。
  */
-const pool = new Pool({
-  connectionString,
-  ssl: (!isDummyDatabase && process.env.NODE_ENV === 'production' && !isLocal)
-    ? { rejectUnauthorized: true, ca: supabaseCaCert }
-    : false,
-  // Serverless環境（Workers）では同時接続が急増しやすいため、
-  // プールサイズを制限。Hyperdrive 自身もプーリングするため Worker 側は控えめに。
-  max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
-  idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
-  connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
-})
+let cachedPrisma: PrismaClient | undefined
+function getPrismaClient(): PrismaClient {
+  if (cachedPrisma) return cachedPrisma
 
-// プールのエラーハンドラ（接続切断等を検知しログに記録）
-pool.on('error', (err) => {
-  console.error('[db] Unexpected pool error:', err.message)
-})
+  const isDummy = isDummyDatabaseRuntime()
+  const connectionString = isDummy ? DUMMY_DATABASE_URL : resolveConnectionString()
+  const isLocal = isLocalConnection(connectionString)
 
-const adapter = new PrismaPg(pool)
+  const pool = new Pool({
+    connectionString,
+    ssl:
+      !isDummy && process.env.NODE_ENV === 'production' && !isLocal
+        ? { rejectUnauthorized: true, ca: getSupabaseCaCert() }
+        : false,
+    max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
+    idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
+    connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
+  })
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
+  pool.on('error', (err) => {
+    console.error('[db] Unexpected pool error:', err.message)
+  })
+
+  cachedPrisma = new PrismaClient({
+    adapter: new PrismaPg(pool),
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   })
 
-// 開発環境ではグローバルに保存してホットリロード時の接続増殖を防止
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+  return cachedPrisma
+}
+
+/**
+ * 既存呼び出し側 (`import { prisma } from '@/lib/db'` → `prisma.user.findMany(...)`)
+ * との後方互換のため Proxy で公開する。プロパティアクセス時に lazy 初期化が走る。
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getPrismaClient(), prop, receiver)
+  },
+}) as PrismaClient
