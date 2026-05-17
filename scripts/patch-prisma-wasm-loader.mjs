@@ -40,7 +40,11 @@ import path from 'node:path'
 
 const PRISMA_CLIENT_DIR = path.join('node_modules', '.prisma', 'client')
 const WASM_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm')
-const BASE64_MODULE_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm.base64.mjs')
+// CJS module (require できる形式) で base64 を持たせる。
+// esbuild は require() を静的解析でインライン化できるが、await import() は
+// dynamic require / fs.readFileSync に倒れることがあるため CJS にする。
+const BASE64_CJS_MODULE_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm.base64.js')
+const BASE64_ESM_MODULE_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.wasm.base64.mjs')
 const WORKER_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-worker-loader.mjs')
 const EDGE_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-edge-light-loader.mjs')
 const WASM_JS_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm.js')
@@ -56,19 +60,28 @@ if (!existsSync(WASM_PATH)) {
   process.exit(0)
 }
 
-// ====== 1. Base64 module ======
+// ====== 1. Base64 module (CJS + ESM の両方) ======
 const wasmBytes = readFileSync(WASM_PATH)
 const base64 = wasmBytes.toString('base64')
 log(`WASM size: ${wasmBytes.byteLength} bytes, ${base64.length} base64 chars`)
 
-const base64ModuleContent = `${PATCH_MARKER}
+// CJS 版 (require で静的バンドル可能)
+const base64CjsContent = `${PATCH_MARKER}
+// Generated from query_compiler_bg.wasm. Do not edit directly.
+module.exports = ${JSON.stringify(base64)}
+`
+writeFileSync(BASE64_CJS_MODULE_PATH, base64CjsContent)
+log(`wrote base64 CJS module: ${BASE64_CJS_MODULE_PATH}`)
+
+// ESM 版 (sibling loader mjs から import される)
+const base64EsmContent = `${PATCH_MARKER}
 // Generated from query_compiler_bg.wasm. Do not edit directly.
 export default ${JSON.stringify(base64)}
 `
-writeFileSync(BASE64_MODULE_PATH, base64ModuleContent)
-log(`wrote base64 module: ${BASE64_MODULE_PATH}`)
+writeFileSync(BASE64_ESM_MODULE_PATH, base64EsmContent)
+log(`wrote base64 ESM module: ${BASE64_ESM_MODULE_PATH}`)
 
-// ====== 2. wasm-worker-loader.mjs を inline base64 loader に置換 ======
+// ====== 2. wasm-worker-loader.mjs / wasm-edge-light-loader.mjs ======
 const loaderContent = `${PATCH_MARKER}
 import base64 from './query_compiler_bg.wasm.base64.mjs'
 
@@ -110,11 +123,17 @@ if (wasmJs.includes(PATCH_MARKER)) {
 //     const compiler = (await loader).default
 //     return compiler
 //   }
+//
+// 静的 require() を使う理由: esbuild は require() を build 時に解決して
+// インライン化するが、`await import(...)` は dynamic require / fs.readFileSync
+// に倒れて Workers で `[unenv] fs.readFileSync is not implemented yet!` を
+// 引き起こす。CJS の require で静的バンドルを保証する。
 const subpathImportRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?import\(\s*['"`]#wasm-compiler-loader['"`]\s*\)[^}]*?\}/m
 const replacement = `getQueryCompilerWasmModule: async () => {
     ${PATCH_MARKER}
     // Inline Base64 → WebAssembly.compile (Cloudflare Workers compatibility)
-    const { default: __prismaWasmBase64 } = await import('./query_compiler_bg.wasm.base64.mjs')
+    // 静的 require で base64 を bundle 時に inline させる (dynamic import 回避)
+    const __prismaWasmBase64 = require('./query_compiler_bg.wasm.base64.js')
     const __bin = atob(__prismaWasmBase64)
     const __bytes = new Uint8Array(__bin.length)
     for (let __i = 0; __i < __bin.length; __i++) __bytes[__i] = __bin.charCodeAt(__i)
