@@ -154,9 +154,30 @@ Cloudflare Workers の Preview URL は予測不能なため、Preview での OAu
    - PR プレビュー機能を使うなら **「Preview」** にもチェック
 6. **「Save」** で保存
 
+### 1.3.5 ⚠ Cloudflare の Build command を `npx opennextjs-cloudflare build` に変更 (1 回限りの設定)
+
+デフォルトの Build command (`npm run build`) は `next build` だけで終わり、
+Cloudflare Workers が読み込める `.open-next/worker.js` を生成しません。
+これを変えないと **Hello world のままになる** ので必ず設定変更してください。
+
+#### 手順
+
+1. Cloudflare Dashboard → Workers & Pages → **bon-log** をクリック
+2. **「Settings」** タブ → **「Build」** セクションを開く
+3. **「Build command」** の欄を編集:
+   - 修正前: `npm run build`
+   - **修正後**: `npx opennextjs-cloudflare build`
+4. **「Save」** をクリック
+
+#### なぜこうするのか (技術背景)
+
+- `opennextjs-cloudflare build` は内部で `npm run build` を呼んで `next build` を実行する仕組み
+- `package.json` の `build` は **`prisma generate && next build`** のまま (OpenNext が内部で呼ぶ用)
+- もし `build` を `opennextjs-cloudflare build` にすると **自分自身を呼ぶ無限再帰**になって SIGTERM で殺される
+
 ### 1.4 retry deployment
 
-7 変数登録後、Cloudflare Dashboard の **「Deployments」** タブから:
+7 変数登録 + Build command 変更後、Cloudflare Dashboard の **「Deployments」** タブから:
 - 最新の失敗デプロイの **「Retry deployment」** をクリック
 - または GitHub に空 commit を push (`git commit --allow-empty -m "trigger retry"` → push)
 

@@ -5,10 +5,9 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "build": "prisma generate && opennextjs-cloudflare build",
-    "build:next-only": "prisma generate && next build",
+    "build": "prisma generate && next build",
     "analyze": "ANALYZE=true npm run build",
-    "build:deploy": "prisma generate && prisma migrate deploy && opennextjs-cloudflare build",
+    "build:deploy": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

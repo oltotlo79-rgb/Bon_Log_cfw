@@ -37,6 +37,27 @@ git commit -m "chore: regenerate package-lock.json"
 git push
 ```
 
+### 症状 2.5: build が `SIGTERM` で無限に repeat (`signal: 'SIGTERM'` + 多数の `Error: Command failed: npm run build`)
+
+エラー例:
+```
+Error: Command failed: npm run build
+    at buildNextjsApp (...buildNextApp.js:15:8)
+    at build (...build.js:63:9)
+  signal: 'SIGTERM',
+  ...
+Error: The operation was canceled
+```
+
+#### 原因
+`package.json` の `build` script が `opennextjs-cloudflare build` を呼んでいる場合、
+OpenNext が内部で `npm run build` を再帰呼び出しして無限ループになる。
+
+#### 対処
+- `package.json` の `"build"` は **`prisma generate && next build`** にする
+- Cloudflare Dashboard → bon-log → Settings → Build → **Build command** を
+  `npx opennextjs-cloudflare build` に変更 (再帰しない)
+
 ### 症状 3: build が peer dependency conflict で失敗
 
 エラー例:
