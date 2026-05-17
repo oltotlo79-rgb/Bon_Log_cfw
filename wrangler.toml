@@ -2,13 +2,14 @@
 # Cloudflare Workers 設定
 # ============================================================
 #
-# Phase 1 時点のスケルトン。Phase 2 以降で実装担当が値を埋めます。
-# 詳細: docs/CFW-MIGRATION.md / bonnsa-sns/docs/plans/cloudflare-workers-migration-2026-05-17.md
+# プレースホルダーの値は wrangler のバリデーションを通る形式にしてあるが、
+# Phase 4 で実際の値に差し替えるまで本番デプロイは失敗する。
+# 詳細: docs/CFW-MIGRATION.md / docs/MIGRATION-PLAN.md
 #
 # あなたが Phase 4 で実施することは:
 #  1. `wrangler hyperdrive create bon-log-hyperdrive --connection-string="..."` で ID 取得
-#  2. 下記 [[hyperdrive]] の id に出力された ID を貼り付け
-#  3. R2 バケット名を環境に合わせて確認
+#  2. 下記 [[hyperdrive]] の id (00000000-... プレースホルダー) を実 ID に置換 (3 箇所)
+#  3. r2_buckets[].bucket_name の `bon-log-uploads-placeholder` を実バケット名に置換 (3 箇所)
 #  4. `wrangler secret put XXX --env staging` で各 secret を登録
 # ============================================================
 
@@ -33,9 +34,10 @@ binding = "ASSETS"
 # Phase 4 で以下を実行して ID を取得:
 #   wrangler hyperdrive create bon-log-hyperdrive `
 #     --connection-string="postgresql://postgres.[ref]:[password]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+# 出力された id を下記 placeholder (00000000-...) に置換すること。
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-id = "TODO_REPLACE_AFTER_wrangler_hyperdrive_create"
+id = "00000000-0000-0000-0000-000000000000"
 # ローカル開発時は localhost Postgres を使う
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
@@ -46,7 +48,7 @@ localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sn
 # 暫定では process.env.R2_* の AccessKey 経由でも動作する。
 [[r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "TODO_REPLACE_WITH_ACTUAL_BUCKET_NAME"
+bucket_name = "bon-log-uploads-placeholder"
 
 # ------------------------------------------------------------
 # Cron Triggers (vercel.json の crons の代替)
@@ -76,12 +78,12 @@ name = "bon-log-cfw-staging"
 
 [[env.staging.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "TODO_REPLACE_AFTER_wrangler_hyperdrive_create"
+id = "00000000-0000-0000-0000-000000000000"
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 [[env.staging.r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "TODO_REPLACE_WITH_ACTUAL_BUCKET_NAME"
+bucket_name = "bon-log-uploads-placeholder"
 
 # ------------------------------------------------------------
 # 本番環境
@@ -93,12 +95,12 @@ name = "bon-log-cfw-prod"
 
 [[env.production.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "TODO_REPLACE_AFTER_wrangler_hyperdrive_create"
+id = "00000000-0000-0000-0000-000000000000"
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 [[env.production.r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "TODO_REPLACE_WITH_ACTUAL_BUCKET_NAME"
+bucket_name = "bon-log-uploads-placeholder"
 
 # 本番でのみ cron を有効化 (Phase 6 のカットオーバー直前にコメントアウト解除)
 # [env.production.triggers]

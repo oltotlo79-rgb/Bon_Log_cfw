@@ -30,6 +30,17 @@ interface CaptureContext {
   contexts?: Record<string, Record<string, unknown>>
 }
 
+/**
+ * `beforeSend` の hint 引数 (@sentry/nextjs 互換)。
+ * 元 SDK では `EventHint` だが、shim では呼び出し側コードがアクセスするフィールドだけ拾えれば十分なので
+ * 必須プロパティを `unknown` 寄りに緩めている。
+ */
+interface SentryEventHint {
+  originalException?: unknown
+  syntheticException?: unknown
+  [key: string]: unknown
+}
+
 interface SentryInitConfig {
   dsn?: string
   enabled?: boolean
@@ -37,7 +48,8 @@ interface SentryInitConfig {
   release?: string
   tracesSampleRate?: number
   debug?: boolean
-  beforeSend?: (event: unknown) => unknown
+  // @sentry/nextjs の本 SDK は (event, hint) の 2 引数。互換性のため hint 引数を提供する。
+  beforeSend?: (event: unknown, hint: SentryEventHint) => unknown
   ignoreErrors?: (string | RegExp)[]
   [key: string]: unknown
 }
@@ -113,6 +125,18 @@ export function close(_timeout?: number): Promise<boolean> {
 }
 
 /**
+ * Next.js 16+ の `instrumentation-client.ts` で `export const onRouterTransitionStart`
+ * として再エクスポートされるルーター遷移計測 hook (`@sentry/nextjs` 互換)。
+ * shim では計測しないため no-op。
+ */
+export function captureRouterTransitionStart(
+  _href: string,
+  _navigationType: 'push' | 'replace' | 'traverse',
+): void {
+  // no-op
+}
+
+/**
  * `withSentryConfig` の no-op 実装。
  * `next.config.ts` で `withSentryConfig(config, options)` の wrap を残せるが、
  * 単純に config をそのまま返す。
@@ -127,6 +151,7 @@ const sentryShim = {
   init,
   captureException,
   captureMessage,
+  captureRouterTransitionStart,
   withScope,
   setTag,
   setUser,

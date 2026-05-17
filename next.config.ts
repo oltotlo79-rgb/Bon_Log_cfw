@@ -4,11 +4,19 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import { SERVER_ACTION_BODY_SIZE_LIMIT } from "./lib/constants/limits";
 import { buildImageRemotePatterns } from "./lib/config/image-remote-patterns";
 
-// OpenNext for Cloudflare の dev integration を有効化。
-// next dev 実行時に Workers の env binding (R2 / Hyperdrive / Secrets) を
-// process.env / getCloudflareContext() 経由で参照できるようにする。
-// 本番 build / wrangler deploy 時は no-op になるため副作用なし。
-initOpenNextCloudflareForDev();
+// `initOpenNextCloudflareForDev()` は `next dev` 起動時に wrangler.toml を読み込んで
+// R2 / Hyperdrive / Secrets binding を `getCloudflareContext()` 経由で利用可能にする。
+//
+// Why guard:
+//   CI / `next build` 中にも next.config.ts は評価されるが、その時点では
+//   wrangler.toml に実 Hyperdrive ID / R2 バケット名が入っていなかった場合
+//   wrangler 内部 validation で build が落ちる。
+//   `NEXT_PHASE === 'phase-development-server'` (next dev 起動時のみ true) で
+//   ガードすることで build / production runtime には副作用ゼロにする。
+//   ref: https://nextjs.org/docs/app/api-reference/config/next-config-js#async-configuration
+if (process.env.NEXT_PHASE === 'phase-development-server') {
+  initOpenNextCloudflareForDev();
+}
 
 const analyzeBundles = withBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
