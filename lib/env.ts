@@ -32,6 +32,31 @@ const LOCALHOST_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1'])
  *   - Vercel: project settings の Environment Variables で本番 URL を設定
  *   - 開発: `.env.local.example` を参照
  */
+/**
+ * Cloudflare Workers Builds が自動で提供する env を探って fallback URL を組み立てる。
+ *
+ * Cloudflare Workers Builds は build 時に以下の env を提供する (公式仕様):
+ *   - `CF_PAGES_URL` (legacy / Pages 互換): 例 `https://<branch>.<project>.pages.dev`
+ *   - `WORKERS_CI_BRANCH`: 現在の branch 名
+ *
+ * Workers Builds (新製品) では公式 fallback env は限定的なので、
+ * NEXT_PUBLIC_APP_URL を Build variables に登録するのが正規ルート。
+ * 本関数は最終 fallback として `CF_PAGES_URL` を試す。
+ */
+function tryCloudflareBuildFallbackUrl(): string | null {
+  const cfPagesUrl = process.env.CF_PAGES_URL?.trim()
+  if (cfPagesUrl) {
+    try {
+      // valid URL かだけ確認
+      new URL(cfPagesUrl)
+      return cfPagesUrl
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 export function getAppUrl(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL?.trim()
   const isProd = process.env.NODE_ENV === 'production'
@@ -39,8 +64,20 @@ export function getAppUrl(): string {
 
   if (!raw) {
     if (isProd) {
+      // Cloudflare Workers Builds の build 時 fallback を試す
+      const cfFallback = tryCloudflareBuildFallbackUrl()
+      if (cfFallback) {
+        // 本物の URL ではないため warn しつつ通す (build 通過用)
+        // runtime は env-validation.ts で別途 strict チェック済
+        console.warn(
+          `[env] NEXT_PUBLIC_APP_URL not set, using Cloudflare fallback: ${cfFallback}. ` +
+            `Set NEXT_PUBLIC_APP_URL in Build variables for correct canonical / sitemap.`,
+        )
+        return cfFallback
+      }
       throw new Error(
-        'NEXT_PUBLIC_APP_URL must be set in production (used for metadataBase / sitemap / canonical URLs).',
+        'NEXT_PUBLIC_APP_URL must be set in production (used for metadataBase / sitemap / canonical URLs). ' +
+          'For Cloudflare Workers, add it as a Build variable (not just runtime Secret) in your project settings.',
       )
     }
     return APP_URL_DEFAULT

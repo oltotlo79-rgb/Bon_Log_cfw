@@ -50,20 +50,33 @@
 
 `https://github.com/oltotlo79-rgb/Bon_Log_cfw` から `bon-log` プロジェクトに deploy されている前提です。
 
-### 1.1 設定画面に行く
+### 1.1 ⚠ Build 用と Runtime 用は別々に設定 (重要)
+
+Cloudflare Workers Builds (GitHub 連携) のプロジェクトには **2 種類の env var 設定**があり、混同しがち:
+
+| 設定箇所 | いつ参照される | ここに入れるもの |
+|---------|--------------|----------------|
+| **Settings → Build → Variables and secrets** | `npm install` / `npm run build` 中 | `NEXT_PUBLIC_*` (bundle 焼付)、`SKIP_DB_CONNECTION`、build 用ダミー値 |
+| **Settings → Variables and Secrets** (Build セクション外) | Worker runtime (リクエスト処理) | DB 接続文字列の実値、API キー、機密 secret |
+
+⚠ **`NEXT_PUBLIC_APP_URL` などの `NEXT_PUBLIC_*` プレフィックスは Build 用にも必須**。
+これらは `next build` 時に静的バンドルへ inline されるため、Build 用に登録しないと
+「`NEXT_PUBLIC_APP_URL must be set in production`」エラーで build が落ちる。
+
+### 1.1.1 設定画面に行く
 
 1. https://dash.cloudflare.com にログイン
 2. 左サイドバーから **「Workers & Pages」** をクリック
 3. プロジェクト一覧から **`bon-log`** をクリック
 4. 上部タブ **「Settings」** をクリック
-5. 左の中段カラムまたは設定セクションから以下のいずれかを開く:
-   - **「Variables and Secrets」** (新 UI)
-   - または **「Environment Variables」** (旧 UI)
-   - または **「Build」** ページの **「Build Variables」** セクション
+5. 2 箇所の Variables 設定セクションを把握:
+   - **「Build」** セクションの中の **「Variables and secrets」** (build 時用)
+   - 別の独立した **「Variables and Secrets」** (runtime 用) ※ Workers Builds の新 UI では同居していることもある
 
 ### 1.2 build 必須環境変数 (これがないと build が失敗する)
 
-⚠ **最低限以下 7 変数を「Production」スコープで登録してください**:
+⚠ **以下 7 変数を「Build」セクションの「Variables and secrets」に登録**してください
+(Worker runtime の Variables and Secrets だけに入れると、build 時に見えず失敗します):
 
 | # | Variable Name | Type | Value (例) | 説明 |
 |---|---------------|------|-----------|------|
