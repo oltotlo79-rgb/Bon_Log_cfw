@@ -132,20 +132,73 @@ export const { handlers, signIn, signOut, auth } = NextAuth(() => ({
        * メール + パスワード認証。
        * Zod → ゲスト判定 → DB 検索 → bcrypt 比較 の順で検証し、
        * どの段階で失敗しても `null` を返してタイミングサイドチャネルを最小化する。
+       *
+       * 診断ログは「失敗の段階」のみ出力する (email / password / hash は **絶対に出さない**)。
+       * staging 検証完了後 Phase 5 で削除する。
        */
       async authorize(credentials) {
         const result = loginSchema.safeParse(credentials)
-        if (!result.success) return null
+        if (!result.success) {
+          console.warn('[auth-diag] login zod validation failed', {
+            issues: result.error.issues.map((i) => ({ path: i.path, code: i.code })),
+          })
+          return null
+        }
 
         const { email, password } = result.data
 
-        // ゲストログイン（共有アカウント）。
-        // `GUEST_PASSWORD` 未設定時は無効（開発中の誤配信を防ぐ）。
-        if (email === GUEST_EMAIL) {
-          const guestPassword = getGuestPassword()
-          if (!guestPassword) return null
-          const guestUser = await prisma.user.findUnique({
-            where: { email: GUEST_EMAIL },
+        try {
+          // ゲストログイン（共有アカウント）。
+          // `GUEST_PASSWORD` 未設定時は無効（開発中の誤配信を防ぐ）。
+          if (email === GUEST_EMAIL) {
+            const guestPassword = getGuestPassword()
+            if (!guestPassword) {
+              console.warn('[auth-diag] guest login attempted but GUEST_PASSWORD not set')
+              return null
+            }
+            const guestUser = await prisma.user.findUnique({
+              where: { email: GUEST_EMAIL },
+              select: {
+                id: true,
+                email: true,
+                password: true,
+                nickname: true,
+                avatarUrl: true,
+                isSuspended: true,
+                emailVerified: true,
+              },
+            })
+            if (!guestUser) {
+              console.warn('[auth-diag] guest user not found in DB')
+              return null
+            }
+            if (!guestUser.password) {
+              console.warn('[auth-diag] guest user has no password set')
+              return null
+            }
+            if (!guestUser.emailVerified) {
+              console.warn('[auth-diag] guest user emailVerified is null')
+              return null
+            }
+            if (guestUser.isSuspended) {
+              console.warn('[auth-diag] guest user is suspended')
+              return null
+            }
+            const match = await bcrypt.compare(password, guestUser.password)
+            if (!match) {
+              console.warn('[auth-diag] guest password mismatch')
+              return null
+            }
+            return {
+              id: guestUser.id,
+              email: guestUser.email,
+              name: guestUser.nickname,
+              image: guestUser.avatarUrl,
+            }
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { email },
             select: {
               id: true,
               email: true,
@@ -156,49 +209,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth(() => ({
               emailVerified: true,
             },
           })
-          if (
-            !guestUser ||
-            !guestUser.password ||
-            !guestUser.emailVerified ||
-            guestUser.isSuspended
-          )
+
+          if (!user) {
+            console.warn('[auth-diag] user not found for given email')
             return null
-          const match = await bcrypt.compare(password, guestUser.password)
-          if (!match) return null
-          return {
-            id: guestUser.id,
-            email: guestUser.email,
-            name: guestUser.nickname,
-            image: guestUser.avatarUrl,
           }
-        }
+          // password == null は OAuth 経由のユーザー（メール/パスワード未設定）。
+          if (!user.password) {
+            console.warn('[auth-diag] user has no password (OAuth-only?)')
+            return null
+          }
+          if (!user.emailVerified) {
+            console.warn('[auth-diag] user emailVerified is null (verify-email pending?)')
+            return null
+          }
+          if (user.isSuspended) {
+            console.warn('[auth-diag] user is suspended')
+            return null
+          }
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-          select: {
-            id: true,
-            email: true,
-            password: true,
-            nickname: true,
-            avatarUrl: true,
-            isSuspended: true,
-            emailVerified: true,
-          },
-        })
+          const passwordMatch = await bcrypt.compare(password, user.password)
+          if (!passwordMatch) {
+            console.warn('[auth-diag] password mismatch')
+            return null
+          }
 
-        // password == null は OAuth 経由のユーザー（メール/パスワード未設定）。
-        if (!user || !user.password) return null
-        if (!user.emailVerified) return null
-        if (user.isSuspended) return null
-
-        const passwordMatch = await bcrypt.compare(password, user.password)
-        if (!passwordMatch) return null
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.nickname,
-          image: user.avatarUrl,
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.nickname,
+            image: user.avatarUrl,
+          }
+        } catch (err) {
+          console.error('[auth-diag] authorize threw unexpectedly', {
+            name: err instanceof Error ? err.name : 'unknown',
+            message: err instanceof Error ? err.message : String(err),
+          })
+          return null
         }
       },
     }),
