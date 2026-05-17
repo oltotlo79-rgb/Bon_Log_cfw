@@ -7,7 +7,34 @@
  *
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
+
+/**
+ * Cloudflare Workers ランタイム判定。
+ *
+ * Why: OpenNext は build 時に `process.env.NEXT_RUNTIME = "nodejs"` /
+ * `NODE_ENV = "production"` を埋め込むため、Workers 上でも本来 nodejs ランタイム用の
+ * 起動時処理が走ってしまう。Workers では `env` 引数が per-request で渡される設計のため、
+ * 起動時点では `process.env` にユーザー env vars が流れ込んでおらず、env 検証は必ず失敗する。
+ *
+ * `globalThis.navigator.userAgent === 'Cloudflare-Workers'` は workerd 公式で
+ * 必ず true になる ID 文字列。本判定で起動時検証を per-request 検証へフォールバックさせる。
+ */
+function isCloudflareWorkers(): boolean {
+  return (
+    typeof globalThis !== 'undefined' &&
+    typeof (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent === 'string' &&
+    (globalThis as { navigator: { userAgent: string } }).navigator.userAgent === 'Cloudflare-Workers'
+  )
+}
+
 export async function register() {
+  // Workers では env が per-request 注入のため、起動時の process.env では検証できない。
+  // 検証ロジックは下流 (Server Action / Route Handler / middleware) の実行時に動く同等の
+  // ガードに委ねる。
+  if (isCloudflareWorkers()) {
+    return
+  }
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // 環境変数の起動時バリデーション（不正な設定を早期検出）
     const { validateEnv } = await import('./lib/env-validation')
