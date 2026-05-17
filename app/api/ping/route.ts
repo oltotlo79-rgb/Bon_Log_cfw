@@ -30,6 +30,21 @@ function probe(name: string): { exists: boolean; len?: number } {
  * DB 接続を最小クエリで試し、エラー詳細を返す。
  * 値そのもの (DATABASE_URL / password) は返さず、error.name / message / code だけ返す。
  */
+/**
+ * スタックトレースから path と行番号だけ抽出 (最大 12 行)。
+ * 値・引数・絶対パス内のユーザー名等は含まない。
+ */
+function sanitizeStack(stack: string | undefined): string[] {
+  if (!stack) return []
+  return stack
+    .split('\n')
+    .slice(0, 15)
+    .map((line) => line.replace(/file:\/\/[^\s)]+/g, (m) => {
+      const idx = m.lastIndexOf('/')
+      return idx >= 0 ? m.slice(idx) : m
+    }))
+}
+
 async function probeDb(): Promise<unknown> {
   try {
     const rows = (await prisma.$queryRaw`SELECT 1 AS ok`) as unknown[]
@@ -40,11 +55,15 @@ async function probeDb(): Promise<unknown> {
         ok: false,
         name: err.name,
         message: err.message,
-        // pg や Prisma が乗せる追加プロパティ
         code: (err as Error & { code?: string }).code,
         cause: err.cause instanceof Error
-          ? { name: err.cause.name, message: err.cause.message }
+          ? {
+              name: err.cause.name,
+              message: err.cause.message,
+              stack: sanitizeStack(err.cause.stack),
+            }
           : err.cause,
+        stack: sanitizeStack(err.stack),
       }
     }
     return { ok: false, message: String(err) }
