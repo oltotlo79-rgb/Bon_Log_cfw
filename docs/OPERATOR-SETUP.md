@@ -67,13 +67,37 @@
 
 | # | Variable Name | Type | Value (例) | 説明 |
 |---|---------------|------|-----------|------|
-| 1 | `NEXT_PUBLIC_APP_URL` | **Plaintext** | `https://bon-log.<your-account>.workers.dev` または `https://www.bon-log.com` | アプリの公開 URL。canonical / sitemap / OG に焼き付くため**実 URL** が必要 |
+| 1 | `NEXT_PUBLIC_APP_URL` | **Plaintext** | **Phase 4 初期**: `https://bon-log.<your-account>.workers.dev` (Worker の direct URL)<br/>**Phase 4 後半**: `https://staging.bon-log.com` (DNS 切替後)<br/>**Phase 6**: `https://www.bon-log.com` (本番カットオーバー時のみ) | canonical / sitemap / OG に焼き付くため**実際に使うアクセス URL** を設定。⚠ 本番ドメイン (www.bon-log.com) は **Vercel が運用中** のため Phase 6 まで設定不可 (OAuth callback 等が Vercel に流れる事故が起きる) |
 | 2 | `NEXTAUTH_URL` | **Plaintext** | 上記と同じ値 | NextAuth コールバック検証 |
 | 3 | `NEXTAUTH_SECRET` | **Secret** | 32 文字以上のランダム文字列 | JWT 署名キー。`openssl rand -base64 32` で生成 |
 | 4 | `DATABASE_URL` | **Secret** | (build 時) `postgresql://dummy:dummy@localhost:5432/dummy`<br/>(runtime) Supabase URL | Prisma 接続 |
 | 5 | `DIRECT_URL` | **Secret** | 上記と同じ | Prisma migrate 用 |
 | 6 | `TWO_FACTOR_ENCRYPTION_KEY` | **Secret** | 64 文字 hex (= 32 byte) | 2FA AES-256-GCM 鍵 |
 | 7 | `SKIP_DB_CONNECTION` | **Plaintext** | `true` | build 中の DB 接続スキップ (Hyperdrive 未接続段階で必須) |
+
+### 1.2.1 ⚠ `NEXT_PUBLIC_APP_URL` の値はフェーズで変える
+
+このプロジェクトのドメイン (`www.bon-log.com`) は **Phase 6 まで Vercel が運用中**。
+CFW 側にもこの URL を設定すると以下の事故が起きます:
+
+- canonical / sitemap が CFW 側で生成されるが Vercel のページにリンクしてしまう
+- OAuth callback (Google ログイン) が `www.bon-log.com/api/auth/callback/google` → Vercel に飛ぶ
+- Stripe redirect も Vercel に流れる
+
+正しい段階別の値:
+
+| Phase | NEXT_PUBLIC_APP_URL の値 | タイミング |
+|-------|--------------------------|------------|
+| Phase 4 初期 | `https://bon-log.<your-account>.workers.dev` | Worker の direct URL。**今ここ** |
+| Phase 4 後半 | `https://staging.bon-log.com` | DNS で staging サブドメインを CFW に向けた後 (Step 4 完了後) |
+| Phase 6 | `https://www.bon-log.com` | 本番 DNS を CFW に切り替える瞬間 |
+
+各 Phase 移行時は **`NEXT_PUBLIC_APP_URL` と `NEXTAUTH_URL` を同時に更新 + 再ビルド** が必要。
+
+Worker の direct URL の確認方法:
+1. Cloudflare Dashboard → Workers & Pages → bon-log
+2. **「Settings」 → 「Domains & Routes」** または **「Triggers」**
+3. `*.workers.dev` で終わる URL がそれ
 
 ### 1.3 登録手順 (1 件あたり 20 秒)
 
