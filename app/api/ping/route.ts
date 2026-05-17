@@ -2,16 +2,13 @@
  * @module app/api/ping/route
  *
  * Cloudflare Workers ランタイム診断専用エンドポイント。
- * 一切の app-level import (prisma / auth / sentry / redis) を持たず、
- * Web 標準の `Response` だけを返す。
- *
- * 動作仕様:
- *   - `GET /api/ping` が 200 を返せば Worker 自体は健全
- *   - それでも `Server failed to respond` が出るなら OpenNext bundle 自体の
- *     初期化で例外が起きている (Next.js / Prisma / NextAuth init などより前段)
+ * `?probe=db` を付けると DB 接続のエラー詳細を返す。それ以外は app-level import なしの
+ * 軽量応答 (Worker 自体の生存確認用)。
  *
  * Phase 5 で staging 検証後に削除予定。
  */
+
+import { prisma } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +26,49 @@ function probe(name: string): { exists: boolean; len?: number } {
   return { exists: true, len: v.length }
 }
 
-export function GET(): Response {
+/**
+ * DB 接続を最小クエリで試し、エラー詳細を返す。
+ * 値そのもの (DATABASE_URL / password) は返さず、error.name / message / code だけ返す。
+ */
+async function probeDb(): Promise<unknown> {
+  try {
+    const rows = (await prisma.$queryRaw`SELECT 1 AS ok`) as unknown[]
+    return { ok: true, rowCount: rows.length }
+  } catch (err) {
+    if (err instanceof Error) {
+      return {
+        ok: false,
+        name: err.name,
+        message: err.message,
+        // pg や Prisma が乗せる追加プロパティ
+        code: (err as Error & { code?: string }).code,
+        cause: err.cause instanceof Error
+          ? { name: err.cause.name, message: err.cause.message }
+          : err.cause,
+      }
+    }
+    return { ok: false, message: String(err) }
+  }
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const url = new URL(request.url)
+  if (url.searchParams.get('probe') === 'db') {
+    const dbResult = await probeDb()
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        runtime: 'Cloudflare-Workers',
+        timestamp: new Date().toISOString(),
+        db: dbResult,
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  return getLite()
+}
+
+function getLite(): Response {
   return new Response(
     JSON.stringify({
       ok: true,
