@@ -10,6 +10,17 @@
 
 import { prisma } from '@/lib/db'
 
+// Build 時に scripts/patch-prisma-wasm-loader.mjs が生成する sentinel。
+// Cloudflare build 環境で patch が実際に走ったかを runtime レスポンスで判別する。
+// 生成失敗時のためファイル欠落を許容する。
+let prismaWasmPatchState: Record<string, unknown> | { error: string }
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  prismaWasmPatchState = require('@/lib/generated/prisma-wasm-patch-state').PRISMA_WASM_PATCH_STATE
+} catch (err) {
+  prismaWasmPatchState = { error: err instanceof Error ? err.message : String(err) }
+}
+
 export const dynamic = 'force-dynamic'
 
 /**
@@ -19,7 +30,7 @@ export const dynamic = 'force-dynamic'
  * Cloudflare のビルド出力キャッシュが古い worker.js を serve している場合、
  * ここの値が更新されていても /api/ping のレスポンスは古いまま (= cache 配信)。
  */
-const BUILD_VERSION = 'v7-prisma-wasm-static-require-2026-05-18-patch4'
+const BUILD_VERSION = 'v8-prisma-wasm-sentinel-2026-05-18-patch5'
 
 /**
  * Workers の env 注入タイミング検証用 (存在チェックのみ)。
@@ -88,6 +99,7 @@ export async function GET(request: Request): Promise<Response> {
         ok: true,
         runtime: 'Cloudflare-Workers',
         buildVersion: BUILD_VERSION,
+        prismaWasmPatchState,
         timestamp: new Date().toISOString(),
         db: dbResult,
       }),
