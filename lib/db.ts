@@ -1,9 +1,13 @@
 /**
- * Prisma + PostgreSQL 接続のシングルトン管理
+ * Prisma + PostgreSQL 接続のシングルトン管理 (Cloudflare Workers 対応版)
  *
- * - 開発環境: グローバル変数でホットリロード時の接続リーク防止
- * - 本番環境: Serverless向けプールサイズ制限（DB_POOL_MAX, デフォルト5）
- * - CI/テスト: ダミーURL検出時はPool作成をスキップ
+ * Vercel 版との差分:
+ *  - DB 接続文字列を **Hyperdrive binding (`env.HYPERDRIVE.connectionString`) から優先取得**
+ *    することで Workers から TCP 経由で Supabase に到達できるようにする。
+ *  - Hyperdrive が無い実行環境 (Next.js dev / vitest / scripts) では従来通り
+ *    `process.env.DATABASE_URL` を使う (localhost or Supabase direct)。
+ *  - 各 fetch ハンドラごとに Prisma client をキャッシュ可能だが、Phase 2 では
+ *    `globalForPrisma` シングルトンを維持して挙動互換を確保する。
  *
  * @module lib/db
  */
@@ -22,58 +26,68 @@ import {
   DB_POOL_MAX_DEFAULT,
 } from '@/lib/constants/limits'
 
+/**
+ * Cloudflare Workers 環境で Hyperdrive binding から接続文字列を取得する。
+ *
+ * 優先順位:
+ *  1. `globalThis.__BON_LOG_HYPERDRIVE_CONNECTION_STRING__` (Workers fetch handler 内で
+ *     `lib/cloudflare-context.ts` がセット)
+ *  2. `process.env.DATABASE_URL` (Node.js dev / vitest / scripts)
+ *  3. ダミー DB URL (build 時のフォールバック)
+ */
+function resolveConnectionString(): string {
+  const hyperdrive = (globalThis as unknown as {
+    __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string
+  }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
+  return hyperdrive || process.env.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/dummy'
+}
+
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
 /**
  * CI/テスト/ビルド環境判定: DATABASE_URLが未設定またはダミーの場合は実接続しない。
- *
- * SKIP_DB_CONNECTION=true（明示的フラグ）またはダミーURL完全一致で判定。
- * 従来の `.includes('dummy')` は正規URLにdummyを含むテーブル名等で誤判定する恐れがあったため廃止。
  */
 const DUMMY_DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
 const isDummyDatabase =
   process.env.SKIP_DB_CONNECTION === 'true' ||
-  !process.env.DATABASE_URL ||
+  (!process.env.DATABASE_URL && !(globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__) ||
   process.env.DATABASE_URL === DUMMY_DATABASE_URL
 
-/** Supabase CA証明書をBase64環境変数からデコード（Vercel serverless対応） */
+/** Supabase CA証明書をBase64環境変数からデコード */
 const supabaseCaCert = process.env.SUPABASE_CA_CERT
   ? Buffer.from(process.env.SUPABASE_CA_CERT, 'base64').toString('utf-8')
   : undefined
 
 /**
  * ローカル接続（localhost/127.0.0.1）ではSSLを要求しない。
- * `next build` が NODE_ENV=production を設定してもローカルDB（Docker Postgres 等）で
- * ビルドが通るよう、ホスト名ベースで判定する（Supabase等のリモートDBは必ずSSL必須）。
+ * Hyperdrive 経由の接続文字列は `default` host になるため SSL は内部で処理される。
  */
-const isLocalDatabase = (() => {
-  const url = process.env.DATABASE_URL
-  if (!url) return false
+function isLocalConnection(connectionString: string): boolean {
   try {
-    const { hostname } = new URL(url)
+    const { hostname } = new URL(connectionString)
     return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
   } catch {
     return false
   }
-})()
+}
+
+const connectionString = isDummyDatabase ? DUMMY_DATABASE_URL : resolveConnectionString()
+const isLocal = isLocalConnection(connectionString)
 
 /**
- * ダミー/未設定時でもPrismaClient初期化を成功させるため、
- * engineType="client"では常にアダプターが必要。
- * DATABASE_URL未設定時はlocalhostへのダミーPoolを作成する（実際の接続はクエリ時に発生）。
+ * Hyperdrive 経由か直接 Supabase 接続かに応じて SSL 設定を切り替える。
+ *
+ * - Hyperdrive: Cloudflare が edge 側で SSL 終端するため Worker → Hyperdrive は平文 (内部閉域網)
+ * - direct Supabase: rejectUnauthorized + CA 必須
+ * - localhost: SSL なし
  */
 const pool = new Pool({
-  connectionString: isDummyDatabase
-    ? 'postgresql://dummy:dummy@localhost:5432/dummy'
-    : process.env.DATABASE_URL,
-  // 本番(リモートDB): CA証明書による完全なSSL検証（MITM防止）
-  // SUPABASE_CA_CERT 未設定時は rejectUnauthorized:true + ca:undefined → 接続失敗（fail-closed）
-  // ローカルDB(localhost)は NODE_ENV=production であってもSSLを強制しない
-  ssl: (!isDummyDatabase && process.env.NODE_ENV === 'production' && !isLocalDatabase)
+  connectionString,
+  ssl: (!isDummyDatabase && process.env.NODE_ENV === 'production' && !isLocal)
     ? { rejectUnauthorized: true, ca: supabaseCaCert }
     : false,
-  // Serverless環境（Vercel）では同時接続が急増しやすいため、
-  // プールサイズを制限してSupabaseの接続上限を保護する
+  // Serverless環境（Workers）では同時接続が急増しやすいため、
+  // プールサイズを制限。Hyperdrive 自身もプーリングするため Worker 側は控えめに。
   max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
   idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
   connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,

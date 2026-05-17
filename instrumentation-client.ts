@@ -8,7 +8,7 @@
  *
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
  */
-import * as Sentry from '@sentry/nextjs'
+import * as Sentry from '@/lib/sentry-shim'
 
 if (typeof window !== 'undefined') {
   (window as typeof window & { Sentry: typeof Sentry }).Sentry = Sentry

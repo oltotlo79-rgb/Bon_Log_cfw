@@ -15,7 +15,7 @@ vi.mock('./sentry.server.config', () => ({}))
 vi.mock('./sentry.edge.config', () => ({}))
 
 const mockCaptureException = vi.fn()
-vi.mock('@sentry/nextjs', () => ({
+vi.mock('@/lib/sentry-shim', () => ({
   captureException: mockCaptureException,
 }))
 

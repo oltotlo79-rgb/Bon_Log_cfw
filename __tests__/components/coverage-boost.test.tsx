@@ -35,7 +35,7 @@ vi.mock('@/lib/actions/follow-request', () => ({
 }))
 
 // Sentry
-vi.mock('@sentry/nextjs', () => ({
+vi.mock('@/lib/sentry-shim', () => ({
   captureException: vi.fn(),
 }))
 
@@ -81,7 +81,7 @@ import { NotificationBadge } from '@/components/notification/NotificationBadge'
 import GlobalError from '@/app/global-error'
 import { MaintenanceLogoutButton } from '@/app/maintenance/logout-button'
 import { useQuery } from '@tanstack/react-query'
-import * as Sentry from '@sentry/nextjs'
+import * as Sentry from '@/lib/sentry-shim'
 import { signOut } from 'next-auth/react'
 
 const mockUseQuery = useQuery as ReturnType<typeof vi.fn>

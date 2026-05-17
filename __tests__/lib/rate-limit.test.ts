@@ -300,7 +300,7 @@ describe('Rate Limit Module', () => {
 
     it('NODE_ENV=test では Sentry を呼び出さない（dynamic import がスキップされる）', async () => {
       const captureException = vi.fn()
-      vi.doMock('@sentry/nextjs', () => ({ captureException }))
+      vi.doMock('@/lib/sentry-shim', () => ({ captureException }))
 
       const { rateLimit } = await import('@/lib/rate-limit')
       mockRedis.incr.mockRejectedValue(new Error('Redis down'))

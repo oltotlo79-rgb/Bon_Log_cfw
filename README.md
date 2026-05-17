@@ -8,10 +8,14 @@
 >
 > | Phase | 内容 | 状況 |
 > |-------|------|------|
-> | 0 | 意思決定・アカウント準備 | ✅ 着手 |
-> | 1 | 新規プロジェクト雛形作成 | 🚧 進行中 |
-> | 2 | コード移植 (lib/db.ts, proxy.ts, sentry, 2FA, web-push, stripe webhook, cron) | ⏳ 未着手 |
-> | 3〜7 | ローカル検証〜本番カットオーバー | ⏳ 未着手 |
+> | 0 | 意思決定・アカウント準備 | 🚧 進行中 (Workers Paid 契約 / Hyperdrive 作成待ち) |
+> | 1 | 新規プロジェクト雛形作成 | ✅ 完了 |
+> | 2 | コード移植 | 🚧 進行中 (db / sentry shim / stripe webhook / worker entry 完了。2FA / web-push 未着手) |
+> | 3 | ローカル動作確認 | ⏳ 未着手 |
+> | 4 | CFW Preview デプロイ (staging) | ⏳ Hyperdrive 作成 + secrets 登録待ち |
+> | 5 | ステージング E2E 検証 | ⏳ 未着手 |
+> | 6 | 本番カットオーバー | ⏳ 未着手 |
+> | 7 | 旧 Vercel 環境停止 | ⏳ 未着手 |
 
 ---
 

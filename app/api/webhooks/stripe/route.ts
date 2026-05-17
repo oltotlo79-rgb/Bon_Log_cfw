@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    // Why constructEventAsync: 同期版は内部で Node `crypto` を使うため Cloudflare
+    // Workers では実行できない。async 版は Web Crypto (Workers ネイティブ) で
+    // HMAC-SHA256 検証を行う。Node ランタイム実行時も挙動互換。
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
   } catch (err) {
     logger.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: API_ERR_INVALID_SIGNATURE }, { status: 400 })

@@ -264,7 +264,7 @@ function warnIfRelationLimitApproaching(userId: string, kind: string, count: num
 
   // 動的 import で Edge Runtime ビルドに混入させない（lib/actions/utils.ts は Node 限定）。
   // 失敗しても本処理を阻害しないよう catch して握りつぶす。
-  void import('@sentry/nextjs')
+  void import('@/lib/sentry-shim')
     .then((Sentry) => {
       Sentry.captureMessage('Relation fetch approaching MAX_RELATION_FETCH', {
         level: 'warning',

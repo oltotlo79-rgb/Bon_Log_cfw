@@ -31,7 +31,7 @@ export function PageError({
 }: PageErrorProps) {
   useEffect(() => {
     if (error?.message) {
-      import('@sentry/nextjs').then((Sentry) => {
+      import('@/lib/sentry-shim').then((Sentry) => {
         Sentry.captureException(error)
       })
     }

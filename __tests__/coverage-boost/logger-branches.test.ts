@@ -12,7 +12,7 @@ const mockCaptureMessage = vi.fn()
 
 vi.unmock('@/lib/logger')
 
-vi.mock('@sentry/nextjs', () => ({
+vi.mock('@/lib/sentry-shim', () => ({
   captureException: (...args: unknown[]) => mockCaptureException(...args),
   captureMessage: (...args: unknown[]) => mockCaptureMessage(...args),
 }))

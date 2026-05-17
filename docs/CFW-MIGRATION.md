@@ -13,15 +13,16 @@
 
 | 領域 | bonnsa-sns (Vercel) | Bon_Log_cfw (CFW) | 状態 |
 |------|---------------------|-------------------|------|
-| `lib/db.ts` | `pg.Pool` + `process.env.DATABASE_URL` | `pg.Pool` + Hyperdrive binding | ⏳ Phase 2a |
-| `proxy.ts` | Next.js 16 規約 | `middleware.ts` に rename | ⏳ Phase 2b |
-| Sentry | `@sentry/nextjs` (7 ファイル) | `@sentry/cloudflare` | ⏳ Phase 2c |
+| `lib/db.ts` | `pg.Pool` + `process.env.DATABASE_URL` | `pg.Pool` + Hyperdrive binding (globalThis 経由) | ✅ Phase 2a |
+| `proxy.ts` | Next.js 16 規約 | そのまま維持 (Next.js 16 標準) | ✅ rename 不要と判断 |
+| Sentry | `@sentry/nextjs` (11 ファイル) | `lib/sentry-shim.ts` no-op (本実装は後続 Phase) | ✅ Phase 2c (一時 stub) |
 | 2FA AES-GCM | Node `crypto.createCipheriv` | Web Crypto `crypto.subtle` | ⏳ Phase 2d |
 | Web Push | `web-push` (Node 依存) | Web Crypto ベースの fork or 自前実装 | ⏳ Phase 2e |
-| Stripe webhook | `constructEvent` (sync) | `constructEventAsync` | ⏳ Phase 2f |
-| Cron Triggers | `vercel.json` | `wrangler.toml [triggers]` | ⏳ Phase 2g |
+| Stripe webhook | `constructEvent` (sync) | `constructEventAsync` (Web Crypto) | ✅ Phase 2f |
+| Cron Triggers | `vercel.json` | `wrangler.toml [triggers]` (Phase 6 で有効化) | ⏳ Phase 2g |
 | seed/migration | `app/api/admin/seed*` (maxDuration=300) | Vercel 環境に残置 (CFW 非対応) | ⏳ Phase 2h |
-| `next.config.ts` | `withSentryConfig` + Vercel 専用最適化 | OpenNext config | ⏳ Phase 2 |
+| `next.config.ts` | `withSentryConfig` + Vercel 専用最適化 | OpenNext config | ✅ Phase 2 |
+| Workers エントリ | (Vercel が自動生成) | `worker.ts` で `installCloudflareContext` を挟む | ✅ Phase 2 |
 | Static assets | Vercel CDN | Workers Static Assets (`[assets]`) | ⏳ Phase 2 |
 | Image optimization | Vercel `next/image` | Cloudflare Images (検討中) | ⏳ Phase 2 |
 

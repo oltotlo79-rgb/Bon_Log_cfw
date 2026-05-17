@@ -2,7 +2,8 @@
  * Next.js Instrumentation
  *
  * サーバーサイドの初期化処理を行います。
- * Sentryの初期化やその他のサーバーサイドツールの設定に使用します。
+ * CFW 移行に伴い `sentry.{server,edge}.config.ts` への動的 import は削除済 (Phase 2)。
+ * 再導入時は `@sentry/cloudflare` の register 方式に従う。
  *
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
@@ -12,15 +13,9 @@ export async function register() {
     const { validateEnv } = await import('./lib/env-validation')
     validateEnv()
 
-    await import('./sentry.server.config')
-
     // セキュリティチェックを実行（Node.jsランタイムのみ）
     const { enforceSecurityInProduction } = await import('./lib/security-checks')
     enforceSecurityInProduction()
-  }
-
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config')
   }
 }
 
@@ -44,7 +39,7 @@ export const onRequestError = async (
   }
 ) => {
   // Sentryにエラーを報告
-  const Sentry = await import('@sentry/nextjs')
+  const Sentry = await import('@/lib/sentry-shim')
 
   Sentry.captureException(err, {
     extra: {

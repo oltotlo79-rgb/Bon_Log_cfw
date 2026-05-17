@@ -109,7 +109,7 @@ async function reportRateLimitFailure(
   if (process.env.NODE_ENV !== 'production') return
   if (typeof window !== 'undefined') return
   try {
-    const Sentry = await import('@sentry/nextjs')
+    const Sentry = await import('@/lib/sentry-shim')
     Sentry.captureException(error, {
       tags: { component: 'rate-limit', failOpen: String(failOpen) },
       extra: { identifier },
