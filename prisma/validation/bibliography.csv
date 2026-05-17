@@ -1,0 +1,17 @@
+sourceKey,title,authors,year,publisher,doi,url,page,notes
+maff-2026,農薬登録情報提供システム,農林水産省消費・安全局,2026,農林水産省,,https://pesticide.maff.go.jp/,,日本国内農薬の唯一の公式登録データベース。製品名・登録番号・有効成分・含有量・適用病害虫・希釈倍数・使用回数等を確認できる。
+frac-2025,FRAC Code List 2025,Fungicide Resistance Action Committee,2025,CropLife International,,https://www.frac.info/publications/all-downloads/,,殺菌剤の作用機序 (Mode of Action) を分類する国際標準コードリスト。年次更新。本プロジェクトの ingredients.csv の fracCode はこの 2025 年版を参照。
+irac-v11-5,IRAC Mode of Action Classification V11.5,Insecticide Resistance Action Committee,2026,IRAC International,,https://irac-online.org/teams/mode-of-action/documents/,,殺虫剤・殺ダニ剤の作用機序分類。本プロジェクトの ingredients.csv の iracCode は V11.5 (Feb '26) を参照。
+pubchem-iaa,Indole-3-acetic acid (IAA) PubChem record,National Center for Biotechnology Information,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/802,,オーキシン代表分子。PubChem CID 802。
+pubchem-ga3,Gibberellic acid (GA3) PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/6466,,ジベレリン代表分子。PubChem CID 6466。
+pubchem-zeatin,trans-Zeatin PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/449093,,サイトカイニン代表分子。PubChem CID 449093。
+pubchem-aba,Abscisic acid (ABA) PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/5280896,,アブシシン酸 PubChem CID 5280896。
+pubchem-ethylene,Ethylene PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/6325,,エチレン PubChem CID 6325。
+pubchem-ja,Jasmonic acid (JA) PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/5281166,,ジャスモン酸 PubChem CID 5281166。
+pubchem-sa,Salicylic acid (SA) PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/338,,サリチル酸 PubChem CID 338。
+pubchem-br,Brassinolide PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/443055,,ブラシノステロイド代表分子。PubChem CID 443055。
+pubchem-strigol,Strigol PubChem record,NCBI,,NIH,,https://pubchem.ncbi.nlm.nih.gov/compound/5281396,,ストリゴラクトン代表分子。PubChem CID 5281396。
+tamu-essential-nutrients,Essential Nutrients for Plants,Texas A&M AgriLife Extension Service,,Texas A&M AgriLife Extension,,https://agrilifeextension.tamu.edu/library/gardening/essential-nutrients-for-plants/,,植物必須栄養素 17 種と有用元素の分類。本プロジェクトの fertilizer-nutrients の category 判定で参照。
+osu-micronutrients,Micronutrients,Ohio State University Extension,,Ohio State University,,https://agcrops.osu.edu/node/3476,,微量必須元素と有用元素 (Si, Co 等) の分類と症状リファレンス。
+gomez-roldan-2008,Strigolactone inhibition of shoot branching,Gomez-Roldan V. et al.,2008,Nature,10.1038/nature07271,https://www.nature.com/articles/nature07271,,ストリゴラクトンの植物ホルモンとしての認知の起点となった論文。
+umehara-2008,Inhibition of shoot branching by new terpenoid plant hormones,Umehara M. et al.,2008,Nature,10.1038/nature07272,https://www.nature.com/articles/nature07272,,ストリゴラクトンを植物ホルモンとして同定した同時期論文。

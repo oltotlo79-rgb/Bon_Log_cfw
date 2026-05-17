@@ -1,0 +1,106 @@
+﻿name,nameEn,fracCode,iracCode,ingredientGroup,slug,resistanceRisk,source
+トリフルミゾール,Triflumizole,3,,DMI（脱メチル化阻害剤）,triflumizole,medium,data
+トリホリン,Triforine,3,,ピペラジン系（DMI殺菌剤）,triforine,medium,data
+メソミル,Methomyl,,1A,カルバメート系,methomyl,medium,data
+ペルメトリン,Permethrin,,3A,ピレスロイド系,permethrin,high,data
+マンゼブ,Mancozeb,M03,,ジチオカーバメート系,mancozeb,low,data
+チオファネートメチル,Thiophanate-methyl,1,,ベンゾイミダゾール系,thiophanate-methyl,high,data
+ダコニール（TPN）,Chlorothalonil,M05,,クロロニトリル系,chlorothalonil,low,data
+ミクロブタニル,Myclobutanil,3,,DMI（トリアゾール系）,myclobutanil,medium,data
+キャプタン,Captan,M04,,フタルイミド系,captan,low,data
+ベノミル,Benomyl,1,,ベンゾイミダゾール系,benomyl,high,data
+銅水和剤（水酸化第二銅）,Copper hydroxide,M01,,銅剤,copper-hydroxide,low,data
+塩基性塩化銅,Basic copper chloride,M01,,銅剤（無機銅系）,basic-copper-chloride,low,data
+塩基性硫酸銅,Basic copper sulfate,M01,,銅剤（無機銅系）,basic-copper-sulfate,low,data
+カスガマイシン,Kasugamycin,24,,ヘキソピラノシル系抗生物質,kasugamycin,medium,data
+アセタミプリド,Acetamiprid,,4A,ネオニコチノイド系,acetamiprid,medium,data
+ミルベメクチン,Milbemectin,,6,ミルベマイシン系,milbemectin,medium,data
+エマメクチン安息香酸塩,Emamectin benzoate,,6,アベルメクチン系,emamectin-benzoate,medium,data
+マシン油,Machine oil,,UNM,鉱物油系,machine-oil,low,data
+ジノテフラン,Dinotefuran,,4A,ネオニコチノイド系,dinotefuran,medium,data
+フェンプロパトリン,Fenpropathrin,,3A,ピレスロイド系,fenpropathrin,high,data
+クロチアニジン,Clothianidin,,4A,ネオニコチノイド系,clothianidin,medium,data
+BT菌（バチルス・チューリンゲンシス）,Bacillus thuringiensis,,11A,微生物農薬,bt-bacillus,low,data
+カルバリル,Carbaryl,,1A,カルバメート系,carbaryl,medium,data
+テブコナゾール,Tebuconazole,3,,トリアゾール系,tebuconazole,medium,data
+アゾキシストロビン,Azoxystrobin,11,,ストロビルリン系,azoxystrobin,high,data
+ピリベンカルブ,Pyribencarb,11,,QoI系（メトキシカルバメート系）,pyribencarb,high,data
+イミダクロプリド,Imidacloprid,,4A,ネオニコチノイド系,imidacloprid,medium,data
+スピノサド,Spinosad,,5,スピノシン系,spinosad,medium,data
+ピリダベン,Pyridaben,,21A,METI系,pyridaben,medium,data
+フェンピロキシメート,Fenpyroximate,,21A,METI系殺ダニ剤,fenpyroximate,medium,data
+イミノクタジンアルベシル酸塩,Iminoctadine albesilate,M07,,グアニジン系,iminoctadine,low,data
+ジエトフェンカルブ,Diethofencarb,10,,N-フェニルカーバメート系,diethofencarb,high,data
+アセフェート,Acephate,,1B,有機リン系,acephate,medium,data
+クロルフェナピル,Chlorfenapyr,,13,ピロール系,chlorfenapyr,medium,data
+フルアジナム,Fluazinam,29,,"2,6-ジニトロアニリン系",fluazinam,low,data
+ボスカリド,Boscalid,7,,SDHI系,boscalid,medium,data
+シフルフェナミド,Cyflufenamid,U06,,フェニルアセトアミド系,cyflufenamid,medium,data
+フルオピラム,Fluopyram,7,,SDHI系,fluopyram,medium,data
+クロラントラニリプロール,Chlorantraniliprole,,28,ジアミド系,chlorantraniliprole,medium,data
+シアントラニリプロール,Cyantraniliprole,,28,ジアミド系,cyantraniliprole,medium,data
+フロニカミド,Flonicamid,,29,ピリジンカルボキサミド系,flonicamid,low,data
+ピリフルキナゾン,Pyrifluquinazon,,9B,ピリジンアゾメチン系,pyrifluquinazon,low,data
+ビフェナゼート,Bifenazate,,20D,カルバジン酸エステル系,bifenazate,medium,data
+エトフェンプロックス,Etofenprox,,3A,ピレスロイド様,etofenprox,high,data
+トルフェンピラド,Tolfenpyrad,,21A,METI系,tolfenpyrad,medium,data
+ブプロフェジン,Buprofezin,,16,IGR系,buprofezin,low,data
+フェニトロチオン,Fenitrothion,,1B,有機リン系,fenitrothion,medium,data
+マラチオン,Malathion,,1B,有機リン系,malathion,medium,data
+石灰硫黄合剤,Lime sulfur,M02,,無機硫黄系,lime-sulfur,low,data
+ポリオキシン,Polyoxin,19,,ポリオキシン系,polyoxin,medium,data
+バリダマイシン,Validamycin,U18,,グルコピラノース系抗生物質,validamycin,low,data
+イソプロチオラン,Isoprothiolane,6,,脂質生合成阻害剤（ジチオラン系）,isoprothiolane,medium,data
+チアメトキサム,Thiamethoxam,,4A,ネオニコチノイド系,thiamethoxam,medium,data
+クレソキシムメチル,Kresoxim-methyl,11,,ストロビルリン系,kresoxim-methyl,high,data
+ルフェヌロン,Lufenuron,,15,IGR系,lufenuron,low,data
+スピロメシフェン,Spiromesifen,,23,テトロン酸誘導体系（脂質合成阻害剤）,spiromesifen,medium,data
+スピロテトラマト,Spirotetramat,,23,テトラミン酸系,spirotetramat,medium,data
+ピリプロキシフェン,Pyriproxyfen,,7C,IGR系（幼若ホルモン様）,pyriproxyfen,low,data
+クロフェンツィン,Clofentezine,,10A,テトラジン系,clofentezine,medium,data
+ジフルベンズロン,Diflubenzuron,,15,IGR系（キチン合成阻害）,diflubenzuron,low,data
+ヘキシチアゾクス,Hexythiazox,,10A,チアゾリジン系,hexythiazox,medium,data
+ピフルブミド,Pyflubumide,,25B,METI-II系（ミトコンドリア電子伝達系Complex II阻害）,pyflubumide,low,data
+アセキノシル,Acequinocyl,,20B,ミトコンドリア電子伝達系Complex III阻害剤（Qoサイト）,acequinocyl,medium,data
+ダゾメット,Dazomet,,,チアジアジン系（土壌燻蒸剤）,dazomet,low,data
+リン酸第二鉄,Iron(III) phosphate,,,無機化合物（軟体動物用）,iron-phosphate,low,data
+メタアルデヒド,Metaldehyde,,,アルデヒド系（軟体動物用）,metaldehyde,low,data
+トルクロホスメチル,Tolclofos-methyl,14,,芳香族炭化水素系,tolclofos-methyl,low,data
+ヒメキサゾール,Hymexazol,32,,イソキサゾール系,hymexazol,low,data
+ホスチアゼート,Fosthiazate,,1B,有機リン系（殺線虫剤）,fosthiazate,medium,data
+シロマジン,Cyromazine,,17,トリアジン系（昆虫成長制御剤）,cyromazine,low,data
+スピネトラム,Spinetoram,,5,スピノシン系,spinetoram,medium,data
+ニテンピラム,Nitenpyram,,4A,ネオニコチノイド系,nitenpyram,medium,data
+マンネブ,Maneb,M03,,ジチオカーバメート系（保護殺菌剤）,maneb,low,data
+フルフェノクスロン,Flufenoxuron,,15,ベンゾイルウレア系（IGR・キチン合成阻害）,flufenoxuron,low,data
+アクリナトリン,Acrinathrin,,3A,ピレスロイド系,acrinathrin,high,data
+脂肪酸グリセリド,Fatty acid glyceride,,,物理的防除剤（気門封鎖型）,fatty-acid-glyceride,low,data
+メパニピリム,Mepanipyrim,9,,アニリノピリミジン系,mepanipyrim,medium,spray
+ピリダリル,Pyridalyl,,UN,ピリダリル系（未分類）,pyridalyl,low,spray
+マンデストロビン,Mandestrobin,11,,QoI系（メトキシアセタミド系）,mandestrobin,high,spray
+ジフェノコナゾール,Difenoconazole,3,,トリアゾール系（DMI殺菌剤）,difenoconazole,medium,spray
+還元澱粉糖化物,Hydrogenated Starch Hydrolysate,,,物理的防除剤,hydrogenated-starch-hydrolysate,low,spray
+ビフェントリン,Bifenthrin,,3A,ピレスロイド系,bifenthrin,high,spray
+ピレトリン,Pyrethrins,,3A,天然ピレスロイド（除虫菊由来）,pyrethrins,low,spray
+ソルビタン脂肪酸エステル,Sorbitan Fatty Acid Ester,,,物理的防除剤（界面活性剤系）,sorbitan-fatty-acid-ester,low,spray
+DBEDC（有機銅系）,Dodecylbenzenesulfonic acid bis(ethylenediamine) copper complex (II),M01,,有機銅系（多作用点接触活性）,dbedc,low,spray
+フルベンジアミド,Flubendiamide,,28,ジアミド系（リアノジン受容体作用）,flubendiamide,medium,spray
+ピラジフルミド,Pyraziflumid,7,,SDHI系（コハク酸脱水素酵素阻害剤）,pyraziflumid,medium,spray
+ダイアジノン,Diazinon,,1B,有機リン系（アセチルコリンエステラーゼ阻害剤）,diazinon,medium,spray
+メチダチオン,Methidathion,,1B,有機リン系（殺虫剤）,methidathion,medium,additions
+炭酸水素カリウム,Potassium bicarbonate,NC,,無機系殺菌剤（有機JAS適合）,potassium-bicarbonate,low,additions
+フォセチルアルミニウム,Fosetyl-aluminum,33,,ホスホネート系殺菌剤,fosetyl-aluminum,low,additions
+シフルメトフェン,Cyflumetofen,,25A,β-ケトニトリル系殺ダニ剤,cyflumetofen,medium,additions
+シペルメトリン,Cypermethrin,,3A,ピレスロイド系殺虫剤,cypermethrin,high,additions
+プロピコナゾール,Propiconazole,3,,トリアゾール系殺菌剤（DMI）,propiconazole,medium,additions
+ジネブ,Zineb,M03,,ジチオカーバメート系殺菌剤,zineb,low,additions
+オキシテトラサイクリン,Oxytetracycline,41,,抗生物質系殺菌剤（テトラサイクリン系）,oxytetracycline,medium,additions
+エトキサゾール,Etoxazole,,10B,ジフェニルオキサゾリン系（殺ダニ剤）,etoxazole,medium,additions2
+ストレプトマイシン,Streptomycin,25,,グルコピラノシル系抗生物質,streptomycin,high,additions2
+オキシン銅（8-ヒドロキシキノリン銅）,Oxine-copper,M01,,有機銅系殺菌剤,oxine-copper,low,additions2
+硫黄,Sulfur,M02,,無機硫黄系殺菌殺ダニ剤,sulfur,low,additions2
+シエノピラフェン,Cyenopyrafen,,25A,β-ケトニトリル誘導体（METI-II系殺ダニ剤）,cyenopyrafen,medium,additions2
+デンプン（ヒドロキシプロピルデンプン）,Hydroxypropyl starch,,,物理的防除剤（被膜形成型）,starch,low,additions2
+デカン酸グリセリル,Capric acid glyceryl,,,物理的防除剤（気門封鎖型）,decanoyl-glyceryl,low,additions2
+ペンチオピラド,Penthiopyrad,7,,SDHI系（コハク酸脱水素酵素阻害剤）,penthiopyrad,medium,additions2
+調合油（サフラワー油及び綿実油）,Blended oil (safflower and cottonseed oil),,,物理的防除剤（植物油系）,blended-oil,low,additions2

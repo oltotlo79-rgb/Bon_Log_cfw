@@ -1,0 +1,43 @@
+# 本番デプロイ後に薬剤・病害虫シードを本番DBへ反映する
+# トリガー: 手動実行のみ（Actions タブから Run workflow）
+#
+# ⚠️ 重要: push トリガーを追加しないこと
+# Supabaseのデータ容量を圧迫するため、自動実行（push/schedule等）は禁止。
+# ユーザーの指示があった場合のみ手動で実行する。
+#
+# 必要: GitHub リポジトリの Secrets に SEED_PESTICIDE_SECRET を設定
+#       （Vercel の SEED_PESTICIDE_SECRET または CRON_SECRET と同じ値）
+
+name: Seed Pesticide (Production)
+
+on:
+  workflow_dispatch:
+    # 手動実行: Actions → Seed Pesticide (Production) → Run workflow
+
+jobs:
+  seed:
+    name: Call production seed API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Vercel deploy
+        run: sleep 300
+        # デプロイ完了を待つ（約5分）。必要に応じて調整可能。
+
+      - name: Call seed-pesticide API
+        env:
+          SEED_SECRET: ${{ secrets.SEED_PESTICIDE_SECRET }}
+        run: |
+          if [ -z "$SEED_SECRET" ]; then
+            echo "::warning::SEED_PESTICIDE_SECRET is not set. Skip API call. Add it in GitHub Settings -> Secrets to run seed."
+            exit 0
+          fi
+          HTTP=$(curl -s -o /tmp/seed-out.txt -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $SEED_SECRET" \
+            "https://www.bon-log.com/api/admin/seed-pesticide")
+          cat /tmp/seed-out.txt
+          if [ "$HTTP" = "200" ]; then
+            echo "Seed completed successfully (HTTP $HTTP)"
+          else
+            echo "::error::Seed API returned HTTP $HTTP"
+            exit 1
+          fi

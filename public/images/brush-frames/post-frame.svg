@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="none">
+    <path d="M 20 20 Q 150 5 350 15 T 780 10 Q 795 150 785 300 T 790 580 Q 650 595 400 585 T 20 590 Q 5 450 15 300 T 10 20 Z" fill="none" stroke="#111" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" transform="translate(0, 0) rotate(0.5, 400, 300)" style="filter: url(#roughness);" />
+    <path d="M 25 25 Q 160 10 360 20 T 775 15 Q 790 160 780 310 T 785 575 Q 640 590 390 580 T 25 585 Q 10 440 20 290 T 15 25 Z" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" style="filter: url(#roughness);" />
+    <!-- Ink splatters -->
+    <circle cx="50" cy="50" r="3" fill="#111" opacity="0.8"/>
+    <circle cx="760" cy="40" r="4" fill="#111" opacity="0.7"/>
+    <circle cx="750" cy="570" r="2.5" fill="#111" opacity="0.9"/>
+    <circle cx="40" cy="560" r="3.5" fill="#111" opacity="0.6"/>
+    <filter id="roughness">
+        <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+</svg>

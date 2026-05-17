@@ -1,0 +1,24 @@
+slug,title,category,sortOrder,source
+npk-basics,肥料の三大要素を理解しよう — N・P・Kの基礎知識,basics,1,盆栽の基礎知識; 植物栄養学
+organic-vs-chemical,有機肥料と化成肥料の違い — 盆栽にはどちらが向いているか,basics,2,盆栽の基礎知識; 肥料学概論
+okihi-howto,置き肥の正しい置き方 — 量と位置の考え方,basics,3,盆栽の基礎知識; 盆栽管理実践
+motohi-tsuihi,元肥と追肥の違い — 植え替え時と成長期の施肥,basics,4,盆栽の基礎知識
+spring-fertilizing,春肥のコツ — 芽出しを支える施肥の考え方,seasonal,5,盆栽の基礎知識; 季節管理
+autumn-fertilizing,秋肥が盆栽の生命線 — 冬越しと来春の芽出しのために,seasonal,6,盆栽の基礎知識; 季節管理
+rainy-summer-stop,梅雨期・真夏に施肥してはいけない理由,seasonal,7,盆栽の基礎知識; 季節管理
+kanpi-winter,寒肥とは — 休眠期の施肥の意味,seasonal,8,盆栽の基礎知識; 季節管理
+seasonal-fertilizing-basics,季節ごとの施肥の基本,basics,10,盆栽の基礎知識; 季節管理
+organic-vs-chemical-guide,有機肥料と化成肥料の使い分け,basics,11,盆栽の基礎知識; 肥料学概論
+liquid-fertilizer,液肥の正しい希釈と散布の考え方,technique,9,盆栽の基礎知識; 施肥テクニック
+after-repotting,植え替え後いつから肥料を与えるか,technique,10,盆栽の基礎知識; 植替え管理
+foliar-feeding,葉面散布の効果的な使い方,technique,11,盆栽の基礎知識; 微量要素補給
+fertilizer-burn,肥料焼けの原因と対処法,troubleshooting,12,盆栽の基礎知識; トラブル対策
+yellowing-leaves,葉が黄色くなった — 微量要素欠乏の見分け方と対策,troubleshooting,13,盆栽の基礎知識; トラブル対策
+biogold-original,バイオゴールドオリジナル,product_guide,20,定番製品ガイド; 有機固形肥料
+tamahi-aburakasu,玉肥（油粕）,product_guide,21,定番製品ガイド; 伝統有機肥料
+magamp-k,マグァンプK,product_guide,22,定番製品ガイド; 緩効性化成肥料
+hyponex-liquid,ハイポネックス原液,product_guide,23,定番製品ガイド; 速効性液肥
+green-king,グリーンキング,product_guide,24,定番製品ガイド; 緩効性化成
+fertilizer-burn-trouble,肥料焼け ─ 原因と対処法,trouble,30,盆栽の基礎知識; トラブル事例集
+moss-fertilizer-damage,苔と施肥の両立,trouble,31,盆栽の基礎知識; トラブル事例集
+root-rot-overfertilization,根腐れと過剰施肥,trouble,32,盆栽の基礎知識; トラブル事例集

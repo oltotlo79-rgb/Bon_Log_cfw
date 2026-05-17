@@ -1,0 +1,4 @@
+interface:
+  display_name: "BONNSA SNS Rules"
+  short_description: "Load Claude project rules on demand"
+  default_prompt: "Use $bonnsa-sns-rules for this BONNSA SNS coding task."

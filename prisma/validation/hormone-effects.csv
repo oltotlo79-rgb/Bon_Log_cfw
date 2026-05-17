@@ -1,0 +1,29 @@
+hormoneSlug,effectName,isPromoting,description,source
+auxin,頂芽優勢,true,頂芽から基部へ極性輸送されるオーキシンが側芽の伸長を抑制する。,Taiz & Zeiger Plant Physiology Ch.19
+auxin,発根促進,true,切り口付近の高濃度オーキシンが不定根の始原体形成を誘導する。,Taiz & Zeiger Ch.19
+auxin,屈光性,true,光の反対側にオーキシンが偏在し陰側の細胞が伸長することで茎が光に向かって曲がる。,Cholodny-Went theory
+auxin,細胞伸長,true,細胞壁を酸性化し壁のゆるみと吸水による細胞伸長を促進する（酸成長説）。,Rayle & Cleland 1992
+gibberellin,節間伸長,true,茎の節間の細胞伸長と細胞分裂を促進し節間が長くなる。,Taiz & Zeiger Ch.20
+gibberellin,種子の休眠打破,true,アリューロン層でのα-アミラーゼ合成を誘導し胚乳デンプン分解を促進して発芽を助ける。,Taiz & Zeiger Ch.20
+gibberellin,花芽形成調節,true,一部の長日植物で花芽形成を促進。短日植物では逆に抑制的に作用する場合がある。,Taiz & Zeiger Ch.20
+cytokinin,細胞分裂促進,true,細胞周期のG2/M期への移行を促進し細胞分裂を活性化する。,Taiz & Zeiger Ch.21
+cytokinin,側芽の発生促進,true,オーキシンによる側芽抑制を解除し側芽の伸長を促進する。,Taiz & Zeiger Ch.21
+cytokinin,葉の老化抑制,false,クロロフィルの分解を遅延させ葉の緑色と光合成能力を維持する。,Taiz & Zeiger Ch.21
+abscisic-acid,気孔閉鎖,true,孔辺細胞のイオンチャネルに作用し膨圧を低下させて気孔を閉じる。,Taiz & Zeiger Ch.23
+abscisic-acid,休眠の誘導・維持,true,種子の成熟後期にABAが蓄積し早発芽を防止。芽の休眠にも関与。,Taiz & Zeiger Ch.23
+abscisic-acid,ストレス耐性誘導,true,乾燥・塩・低温ストレスに対する防御遺伝子群の発現を誘導する。,Taiz & Zeiger Ch.23
+ethylene,果実成熟,true,クライマクテリック型果実でエチレンが成熟を促進。色素合成・軟化・芳香成分の生成を誘導。,Taiz & Zeiger Ch.22
+ethylene,落葉・離層形成,true,葉柄基部の離層細胞でセルラーゼ等の分解酵素発現を誘導し落葉を促進。,Taiz & Zeiger Ch.22
+ethylene,接触形態形成,true,機械的刺激（風・接触）によりエチレンが生成され茎が太く短くなる。,Jaffe 1973 / Biddington 1986
+jasmonic-acid,害虫防御応答,true,プロテアーゼ阻害剤・防御タンパク質の合成を誘導し害虫の消化酵素を阻害する。,Wasternack 2007
+jasmonic-acid,揮発性物質放出,true,食害植物が天敵を誘引する揮発性物質を放出する応答を誘導。,Dicke et al. 1999
+salicylic-acid,全身獲得抵抗性（SAR）,true,局所感染で合成されたSAが全身に広がりPRタンパク質の発現を誘導する。,Vlot et al. 2009
+salicylic-acid,過敏感反応制御,true,病原体感染部位の細胞死を制御し病原体の拡散を局所に封じ込める。,Vlot et al. 2009
+brassinosteroid,細胞伸長促進,true,オーキシンと協調して細胞壁のゆるみと細胞伸長を促進する。,Clouse 2011
+brassinosteroid,維管束分化,true,木部・師部の分化を促進し維管束の発達に寄与する。,Clouse 2011
+strigolactone,側枝分岐抑制,false,オーキシンと協調して側芽の伸長を抑制し頂芽優勢を強化する。,Gomez-Roldan et al. 2008
+strigolactone,菌根菌共生誘導,true,根から土壌中に分泌されアーバスキュラー菌根菌の菌糸分岐を誘導して共生を促進する。,Akiyama et al. 2005
+florigen,花芽形成誘導,true,茎頂分裂組織で花芽形成遺伝子（AP1等）の発現を活性化し栄養成長から生殖成長への転換を誘導する。,Corbesier et al. 2007
+florigen,日長応答の統合,true,葉で感知された日長情報をFTタンパク質の合成量として統合し茎頂に伝える長距離シグナル。,Tamaki et al. 2007
+polyamine,ストレス耐性向上,true,低温・乾燥・塩ストレス下で蓄積し活性酸素の消去や膜の安定化に寄与する。,Alcazar et al. 2010
+polyamine,老化抑制,false,サイトカイニンとともに葉の老化を遅延させ緑色と光合成能力を維持する。,Alcazar et al. 2010

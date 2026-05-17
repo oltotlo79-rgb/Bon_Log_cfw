@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" preserveAspectRatio="none">
+    <path d="M 10 30 Q 5 5 50 10 T 150 5 Q 195 5 190 30 T 150 55 Q 50 55 10 30 Z" fill="#111" stroke="none" style="filter: url(#roughness);" />
+    <path d="M 15 30 Q 10 10 50 15 T 145 10 Q 190 10 185 30 T 145 50 Q 50 50 15 30 Z" fill="#222" stroke="none" opacity="0.5" style="filter: url(#roughness);" />
+    <filter id="roughness">
+        <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+</svg>

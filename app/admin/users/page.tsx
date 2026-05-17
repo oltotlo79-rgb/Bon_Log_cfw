@@ -1,0 +1,220 @@
+/**
+ * @file 管理者用ユーザー管理ページ
+ * @description ユーザー一覧の表示、検索、フィルタリング機能を提供する管理者ページ。
+ *              ユーザーのアカウント状態（アクティブ/停止中）の確認や操作が可能。
+ */
+
+// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
+import Link from 'next/link'
+// Next.jsの画像最適化コンポーネント
+import Image from 'next/image'
+// Next.jsのリダイレクト関数
+import { redirect } from 'next/navigation'
+// 認証失敗時のリダイレクト先
+import { ROUTE_LOGIN } from '@/lib/constants/routes'
+// 管理者用ユーザー一覧取得のServer Action
+import { getAdminUsers } from '@/lib/actions/admin/users'
+// ユーザー操作用ドロップダウンメニューコンポーネント
+import { UserActionsDropdown } from './UserActionsDropdown'
+// ページネーション定数
+import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import { parseAdminCursor } from '@/lib/utils/admin-cursor'
+import { CursorPagination } from '@/components/admin/CursorPagination'
+
+/**
+ * 検索アイコンコンポーネント
+ * @param className - CSSクラス名
+ * @returns SVGアイコン要素
+ */
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="11" cy="11" r="8"/>
+      <path d="m21 21-4.3-4.3"/>
+    </svg>
+  )
+}
+
+/**
+ * ページメタデータの定義
+ * ブラウザのタイトルバーに表示される
+ */
+export const metadata = {
+  title: 'ユーザー管理 - BON-LOG 管理',
+}
+
+/**
+ * ページコンポーネントのProps型定義
+ * URLのクエリパラメータを受け取る
+ */
+interface PageProps {
+  searchParams: Promise<{
+    /** ニックネーム・メールアドレスの検索キーワード */
+    search?: string
+    /** ユーザーステータスフィルター */
+    status?: 'all' | 'active' | 'suspended'
+    /** ページネーション用カーソル */
+    cursor?: string
+    /** 経由した cursor のリスト（戻る操作用） */
+    trail?: string
+  }>
+}
+
+/**
+ * 管理者用ユーザー管理ページコンポーネント
+ * ユーザー一覧をテーブル形式で表示し、検索・フィルタリング機能を提供する
+ *
+ * @param searchParams - URLのクエリパラメータ
+ * @returns ユーザー管理ページのJSX要素
+ *
+ * 処理内容:
+ * 1. クエリパラメータから検索条件を取得
+ * 2. ページネーション設定（1ページ20件）
+ * 3. getAdminUsersでユーザー一覧を取得
+ * 4. 検索フォーム、ユーザーテーブル、ページネーションを表示
+ */
+export default async function AdminUsersPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const search = params.search || ''
+  const status = params.status || 'all'
+  const { cursor, trail } = parseAdminCursor(params)
+
+  const result = await getAdminUsers({
+    search: search || undefined,
+    status,
+    limit: DEFAULT_PAGE_LIMIT,
+    cursor,
+  })
+
+  if ('error' in result) {
+    redirect(ROUTE_LOGIN)
+  }
+  const { users, total, nextCursor } = result
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">ユーザー管理</h1>
+        <span className="text-sm text-muted-foreground">全 {total} 件</span>
+      </div>
+
+      {/* フィルター */}
+      <div className="bg-card rounded-lg border p-4">
+        <form className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                name="search"
+                placeholder="ニックネーム・メールアドレスで検索"
+                defaultValue={search}
+                className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background"
+              />
+            </div>
+          </div>
+
+          <select
+            name="status"
+            defaultValue={status}
+            className="px-3 py-2 border rounded-lg bg-background"
+          >
+            <option value="all">全ユーザー</option>
+            <option value="active">アクティブ</option>
+            <option value="suspended">停止中</option>
+          </select>
+
+          <button
+            type="submit"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+          >
+            検索
+          </button>
+        </form>
+      </div>
+
+      {/* ユーザーテーブル */}
+      <div className="bg-card rounded-lg border">
+        <table className="w-full">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left px-4 py-3 text-sm font-medium">ユーザー</th>
+              <th className="text-left px-4 py-3 text-sm font-medium">メール</th>
+              <th className="text-left px-4 py-3 text-sm font-medium">投稿数</th>
+              <th className="text-left px-4 py-3 text-sm font-medium">登録日</th>
+              <th className="text-left px-4 py-3 text-sm font-medium">ステータス</th>
+              <th className="text-left px-4 py-3 text-sm font-medium">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {users.map((user: typeof users[number]) => (
+              <tr key={user.id} className="hover:bg-muted/30">
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/admin/users/${user.id}`}
+                    className="flex items-center gap-3 hover:underline"
+                  >
+                    {user.avatarUrl ? (
+                      <Image
+                        src={user.avatarUrl}
+                        alt={user.nickname}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-muted rounded-full" />
+                    )}
+                    <span className="font-medium">{user.nickname}</span>
+                  </Link>
+                </td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">
+                  {user.email}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {user._count.posts}
+                </td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">
+                  {new Date(user.createdAt).toLocaleDateString('ja-JP')}
+                </td>
+                <td className="px-4 py-3">
+                  {user.isSuspended ? (
+                    <span className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded-full">
+                      停止中
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded-full">
+                      アクティブ
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <UserActionsDropdown
+                    userId={user.id}
+                    isSuspended={user.isSuspended || false}
+                  />
+                </td>
+              </tr>
+            ))}
+
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  ユーザーが見つかりません
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <CursorPagination
+        cursor={cursor}
+        trail={trail}
+        nextCursor={nextCursor}
+        baseUrl="/admin/users"
+        filters={{ search, status: status !== 'all' ? status : undefined }}
+      />
+    </div>
+  )
+}

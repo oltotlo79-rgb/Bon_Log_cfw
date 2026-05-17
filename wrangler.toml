@@ -1,0 +1,109 @@
+# ============================================================
+# Cloudflare Workers 設定
+# ============================================================
+#
+# Phase 1 時点のスケルトン。Phase 2 以降で実装担当が値を埋めます。
+# 詳細: docs/CFW-MIGRATION.md / bonnsa-sns/docs/plans/cloudflare-workers-migration-2026-05-17.md
+#
+# あなたが Phase 4 で実施することは:
+#  1. `wrangler hyperdrive create bon-log-hyperdrive --connection-string="..."` で ID 取得
+#  2. 下記 [[hyperdrive]] の id に出力された ID を貼り付け
+#  3. R2 バケット名を環境に合わせて確認
+#  4. `wrangler secret put XXX --env staging` で各 secret を登録
+# ============================================================
+
+name = "bon-log-cfw"
+main = ".open-next/worker.js"
+
+# Workers の Node.js 互換は 2024-09-23 以降で nodejs_compat_v2 として安定提供。
+# Buffer / fs/promises / crypto (AES-256-GCM 等) を使うには下記が必須。
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat_v2"]
+
+# ------------------------------------------------------------
+# Static Assets (画像・CSS・JS など)
+# ------------------------------------------------------------
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# ------------------------------------------------------------
+# Hyperdrive: Supabase Postgres への TCP 接続プロキシ
+# ------------------------------------------------------------
+# Phase 4 で以下を実行して ID を取得:
+#   wrangler hyperdrive create bon-log-hyperdrive `
+#     --connection-string="postgresql://postgres.[ref]:[password]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "TODO_REPLACE_AFTER_wrangler_hyperdrive_create"
+# ローカル開発時は localhost Postgres を使う
+localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
+
+# ------------------------------------------------------------
+# R2 binding (既存の R2 バケット)
+# ------------------------------------------------------------
+# Phase 2 以降で `lib/storage/r2-provider.ts` を binding 経由に書き換える予定。
+# 暫定では process.env.R2_* の AccessKey 経由でも動作する。
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "TODO_REPLACE_WITH_ACTUAL_BUCKET_NAME"
+
+# ------------------------------------------------------------
+# Cron Triggers (vercel.json の crons の代替)
+# ------------------------------------------------------------
+# Phase 6 までは disable しておくこと (Vercel 側 cron との二重実行防止)
+# [triggers]
+# crons = [
+#   "*/5 * * * *",   # /api/cron/publish-scheduled
+#   "0 1 * * *",     # /api/cron/check-subscriptions
+#   "0 0 1 * *",     # /api/cron/cleanup-events
+# ]
+
+# ------------------------------------------------------------
+# Observability (Workers Logs)
+# ------------------------------------------------------------
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# ------------------------------------------------------------
+# ステージング環境
+# ------------------------------------------------------------
+[env.staging]
+name = "bon-log-cfw-staging"
+# Phase 4 で DNS を追加してから enable:
+# route = { pattern = "staging.bon-log.com/*", zone_name = "bon-log.com" }
+
+[[env.staging.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "TODO_REPLACE_AFTER_wrangler_hyperdrive_create"
+localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
+
+[[env.staging.r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "TODO_REPLACE_WITH_ACTUAL_BUCKET_NAME"
+
+# ------------------------------------------------------------
+# 本番環境
+# ------------------------------------------------------------
+# ⚠ Phase 6 のカットオーバーまで route はコメントアウトしておくこと
+[env.production]
+name = "bon-log-cfw-prod"
+# route = { pattern = "bon-log.com/*", zone_name = "bon-log.com" }
+
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "TODO_REPLACE_AFTER_wrangler_hyperdrive_create"
+localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
+
+[[env.production.r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "TODO_REPLACE_WITH_ACTUAL_BUCKET_NAME"
+
+# 本番でのみ cron を有効化 (Phase 6 のカットオーバー直前にコメントアウト解除)
+# [env.production.triggers]
+# crons = [
+#   "*/5 * * * *",
+#   "0 1 * * *",
+#   "0 0 1 * *",
+# ]

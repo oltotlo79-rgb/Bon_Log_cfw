@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -e
+
+# Run unit tests before push to catch regressions early
+npx vitest run --reporter=dot

@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    ".next",
+    "__tests__",
+    "e2e/**",
+    "run-semantic-test.ts",
+    "temp-seed.ts",
+    "validateReferences.ts",
+    "patch-effects.ts",
+    "check-effects-count.ts",
+    "prisma/seed/**",
+    "prisma/validation/**"
+  ]
+}

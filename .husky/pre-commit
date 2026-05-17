@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -e
+
+# Staged files: auto-fix with eslint
+npx lint-staged
+
+# Type check (strict) — prevents breaking commits from landing
+npx tsc --noEmit -p tsconfig.check.json

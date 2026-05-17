@@ -1,0 +1,404 @@
+# ===========================================
+# BON-LOG CI/CD パイプライン
+# ===========================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# 同じブランチの古いワークフローをキャンセル
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  # Prisma用ダミー環境変数（実際のDB接続は不要）
+  DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+  DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+  TWO_FACTOR_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  # `next build` は NODE_ENV=production を強制する。`lib/env.ts` の `getAppUrl()` は
+  # production で `NEXT_PUBLIC_APP_URL` 未設定/不正/Vercel本番localhost を fail-closed で
+  # 例外にする (canonical/sitemap が localhost に流出する事故防止)。
+  # CI build は smoke build なのでダミーで充足する。実際の Vercel 本番では Vercel 側で
+  # 上書きされ、`VERCEL_ENV=production` 条件と組み合わせて localhost 設定は拒否される。
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+
+jobs:
+  # ===========================================
+  # Lint & Type Check
+  # ===========================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit -p tsconfig.check.json
+
+  # ===========================================
+  # Security Scan
+  # ===========================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        # 既知 GHSA は ALLOWLIST に列挙し、未知の high/critical は確実に fail させる。
+        # 旧実装は grep ベースで「既知 GHSA 文字列が 1 件でもあれば全 high/critical を許容」
+        # する論理穴があったため、--json + jq で structured に検証する。
+        #
+        # 許容リスト:
+        #   GHSA-38f7-945m-qr2g: effect <3.20.0 (Prisma 内部依存)。
+        #     AsyncLocalStorage+Effect fibers 固有問題で本プロジェクトには影響なし。
+        #     2026-07-01 までに Prisma 側で effect が更新されたら除外を解除する。
+        run: |
+          set +e
+          npm audit --json --omit=dev > audit.json
+          AUDIT_EXIT=$?
+          set -e
+
+          # 0 = no vulnerabilities
+          if [ $AUDIT_EXIT -eq 0 ]; then
+            echo "npm audit: no vulnerabilities"
+            exit 0
+          fi
+
+          # jq で via 配列内の advisory を all high/critical だけ抜き、
+          # ALLOWLIST 外があれば fail する。
+          ALLOWLIST='["GHSA-38f7-945m-qr2g"]'
+          UNKNOWN=$(jq --argjson allow "$ALLOWLIST" '
+            [
+              .vulnerabilities
+              | to_entries[]
+              | .value.via[]?
+              | select(type == "object")
+              | select(.severity == "high" or .severity == "critical")
+              | select((.url // "") | test("GHSA-[a-z0-9-]+"))
+              | (.url | capture("(?<id>GHSA-[a-z0-9-]+)").id)
+              | select(. as $id | ($allow | index($id)) | not)
+            ] | unique
+          ' audit.json)
+
+          UNKNOWN_COUNT=$(echo "$UNKNOWN" | jq 'length')
+          if [ "$UNKNOWN_COUNT" -gt 0 ]; then
+            echo "::error::Unknown high/critical advisories detected:"
+            echo "$UNKNOWN" | jq .
+            echo "Full audit report:"
+            jq '.vulnerabilities' audit.json
+            exit 1
+          fi
+          echo "npm audit: only allowlisted advisories present ($(echo "$ALLOWLIST" | jq -r 'join(", ")'))"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # ===========================================
+  # Unit Tests
+  # ===========================================
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run unit tests (coverage gate enforced)
+        # vitest.config.ts の thresholds（branches 80%, functions/lines/statements 85%）
+        # を Vitest 自身が検証し、未達なら exit 1 で CI を失敗させる。
+        # json-summary をアップロードして PR コメントなどで再利用する。
+        run: npx vitest run --coverage
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      - name: Report coverage summary
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            node -e "const s=require('./coverage/coverage-summary.json').total;console.log('| Metric | % |\n|---|---|\n| Branches | '+s.branches.pct+' |\n| Functions | '+s.functions.pct+' |\n| Lines | '+s.lines.pct+' |\n| Statements | '+s.statements.pct+' |');" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠ coverage-summary.json not generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ===========================================
+  # Build Check
+  # ===========================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build application
+        run: npm run build
+        env:
+          # ビルド時に必要な追加環境変数（ダミー値）
+          NEXTAUTH_SECRET: "Kq8mP7xR2vN5bW9fJ3hL6tY4dA0cE1gI8kO7nQ2sU5w"
+          NEXTAUTH_URL: "http://localhost:3000"
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+  # ===========================================
+  # Lighthouse CI は .github/workflows/lighthouse.yml に統合済み
+  # ===========================================
+
+  # ===========================================
+  # E2E Tests（プッシュ・PR 時に全 E2E を実行）
+  # chromium + chromium-noauth で e2e/*.spec.ts を網羅
+  # ===========================================
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bonsai_sns_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Setup database
+        run: npx prisma db push
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+
+      - name: Seed test data
+        run: npx prisma db seed
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          GUEST_PASSWORD: "GuestPass1!"
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          NEXTAUTH_SECRET: "Bp4nR8xK2vM5bW9fJ3hL6tY4dA0cE1gI8kO7nQ2sU5w"
+          NEXTAUTH_URL: "http://localhost:3000"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          AUTH_TRUST_HOST: "true"
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      - name: Prepare standalone server
+        run: |
+          cp -r public .next/standalone/public 2>/dev/null || true
+          cp -r .next/static .next/standalone/.next/static 2>/dev/null || true
+          cp -r node_modules/.prisma .next/standalone/node_modules/.prisma 2>/dev/null || true
+          cp -r node_modules/@prisma .next/standalone/node_modules/@prisma 2>/dev/null || true
+
+      - name: Start standalone server
+        run: |
+          cd .next/standalone
+          node server.js > ../../server.log 2>&1 &
+          SERVER_PID=$!
+          cd ../..
+          echo "Server PID: $SERVER_PID"
+          echo "Waiting for server to start..."
+          READY=false
+          for i in $(seq 1 60); do
+            # プロセスが生きているか確認
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "ERROR: Server process died. Last 50 lines of log:"
+              tail -50 server.log
+              exit 1
+            fi
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health 2>/dev/null) || STATUS="000"
+            if [ "$STATUS" != "000" ]; then
+              echo "Server is ready (HTTP $STATUS) after $i attempts"
+              READY=true
+              break
+            fi
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "  attempt $i/60... (last 5 lines of server log:)"
+              tail -5 server.log
+            fi
+            sleep 2
+          done
+          if [ "$READY" = "false" ]; then
+            echo "ERROR: Server did not become ready in 120 seconds"
+            echo "=== Full server log ==="
+            cat server.log
+            exit 1
+          fi
+          curl -s -o /dev/null -w "Login page status: %{http_code}\n" http://localhost:3000/login
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          NEXTAUTH_SECRET: "Bp4nR8xK2vM5bW9fJ3hL6tY4dA0cE1gI8kO7nQ2sU5w"
+          NEXTAUTH_URL: "http://localhost:3000"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          AUTH_TRUST_HOST: "true"
+          PORT: "3000"
+          HOSTNAME: "0.0.0.0"
+          NODE_ENV: "production"
+          GUEST_PASSWORD: "GuestPass1!"
+
+      - name: Run E2E tests
+        run: |
+          set -o pipefail
+          mkdir -p e2e/.auth
+          # 全 E2E: 認証あり(chromium=setup 依存含む) + 認証なし(public/auth/error-handling 等)
+          npx playwright test --project=chromium --project=chromium-noauth 2>&1 | tee e2e-output.txt
+        env:
+          CI: "true"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          NEXTAUTH_SECRET: "Bp4nR8xK2vM5bW9fJ3hL6tY4dA0cE1gI8kO7nQ2sU5w"
+          NEXTAUTH_URL: "http://localhost:3000"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          AUTH_TRUST_HOST: "true"
+          PORT: "3000"
+          HOSTNAME: "0.0.0.0"
+          NODE_ENV: "production"
+          EMAIL_PROVIDER: "console"
+          GUEST_PASSWORD: "GuestPass1!"
+        timeout-minutes: 25
+
+      - name: Cleanup E2E test data
+        if: always()
+        run: npx tsx scripts/delete-e2e-test-users.ts
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/bonsai_sns_test?sslmode=disable"
+
+      - name: Show E2E failure log
+        if: failure()
+        run: |
+          echo "=== Server log (last 100 lines) ==="
+          tail -100 server.log || true
+          echo ""
+          echo "=== E2E test output (first 200 lines) ==="
+          head -200 e2e-output.txt || true
+          echo "=== E2E test output (last 400 lines) ==="
+          tail -400 e2e-output.txt || true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload server log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-log
+          path: server.log
+          retention-days: 7
+
+      - name: Upload E2E output log
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-output-log
+          path: e2e-output.txt
+          retention-days: 7

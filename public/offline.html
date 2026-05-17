@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#16a34a">
+  <title>オフライン - BON-LOG</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <style>
+    :root {
+      --primary: #16a34a;
+      --primary-foreground: #ffffff;
+      --background: #fafafa;
+      --foreground: #171717;
+      --muted: #f5f5f5;
+      --muted-foreground: #737373;
+      --card: #ffffff;
+      --border: #e5e5e5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #0a0a0a;
+        --foreground: #fafafa;
+        --muted: #262626;
+        --muted-foreground: #a3a3a3;
+        --card: #171717;
+        --border: #262626;
+      }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--background);
+      color: var(--foreground);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      background: var(--muted);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .icon svg {
+      width: 40px;
+      height: 40px;
+      color: var(--muted-foreground);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      color: var(--muted-foreground);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background-color: var(--primary);
+      color: var(--primary-foreground);
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .retry-btn:hover {
+      opacity: 0.9;
+    }
+
+    .retry-btn:active {
+      transform: scale(0.98);
+    }
+
+    .retry-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .logo {
+      margin-top: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    .logo svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .tips {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      text-align: left;
+    }
+
+    .tips h2 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .tips ul {
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+      padding-left: 1.25rem;
+    }
+
+    .tips li {
+      margin-bottom: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- オフラインアイコン -->
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="2" x2="22" y1="2" y2="22"></line>
+        <path d="M8.5 16.5a5 5 0 0 1 7 0"></path>
+        <path d="M2 8.82a15 15 0 0 1 4.17-2.65"></path>
+        <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"></path>
+        <path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"></path>
+        <path d="M5 13a10 10 0 0 1 5.24-2.76"></path>
+        <line x1="12" x2="12.01" y1="20" y2="20"></line>
+      </svg>
+    </div>
+
+    <h1>オフラインです</h1>
+    <p>
+      インターネット接続がありません。<br>
+      接続を確認して、もう一度お試しください。
+    </p>
+
+    <!-- 再読み込みボタン -->
+    <button class="retry-btn" onclick="window.location.reload()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+        <path d="M21 3v5h-5"></path>
+      </svg>
+      再読み込み
+    </button>
+
+    <!-- ヒント -->
+    <div class="tips">
+      <h2>確認してください</h2>
+      <ul>
+        <li>Wi-Fiまたはモバイルデータがオンになっているか</li>
+        <li>機内モードがオフになっているか</li>
+        <li>ルーターが正常に動作しているか</li>
+      </ul>
+    </div>
+
+    <!-- ロゴ -->
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"></path>
+        <path d="M12 8v4l2 2"></path>
+      </svg>
+      BON-LOG
+    </div>
+  </div>
+
+  <script>
+    // オンライン復帰時に自動リロード
+    window.addEventListener('online', () => {
+      window.location.reload()
+    })
+  </script>
+</body>
+</html>

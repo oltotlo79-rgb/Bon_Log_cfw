@@ -1,0 +1,336 @@
+/* ============================================================
+   BON-LOG Tutorial PDF Style — 和モダンテーマ
+   深緑・金茶・墨色・和紙色をベースにした落ち着いたデザイン
+   ============================================================ */
+
+/* --- ページ設定 --- */
+/* ヘッダー・フッターは convert-tutorial-pdf.js の headerTemplate/footerTemplate で1回だけ表示。
+   @page で同じ内容を出すと二重表示になるため、ここではサイズとマージンのみ指定。 */
+@page {
+  size: A4;
+  /* marginは convert-tutorial-pdf.js (Puppeteer) 側で一元管理するためCSSからは削除 */
+}
+
+/* --- ベース --- */
+body {
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif;
+  font-size: 10pt;
+  line-height: 1.8;
+  color: #2d2d2d;
+  background-color: #fefdfb;
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* --- 見出し --- */
+h1 {
+  font-size: 24pt;
+  font-weight: 700;
+  color: #1a3a2a;
+  border-bottom: none;
+  padding: 16px 0 12px 0;
+  margin-top: 48px;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+  background: linear-gradient(to right, #1a3a2a, #2d5a3d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+}
+
+h1::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 3px;
+  margin-top: 8px;
+  background: linear-gradient(to right, #8b6914, #c4b08b 60%, transparent);
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #1a3a2a;
+  border-bottom: none;
+  padding: 10px 0 8px 14px;
+  margin-top: 36px;
+  margin-bottom: 6px;
+  border-left: 4px solid #8b6914;
+  background-color: #f7f3eb;
+  position: relative;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #2d5a3d;
+  margin-top: 28px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #d6cdb8;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #4a7a5a;
+  margin-top: 20px;
+  margin-bottom: 2px;
+}
+
+h5,
+h6 {
+  font-size: 10pt;
+  font-weight: 600;
+  color: #5a8a6a;
+  margin-top: 16px;
+}
+
+/* --- コードブロック（ダークテーマ） --- */
+pre {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 8.5pt;
+  line-height: 1.55;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  margin: 12px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-left: 3px solid #8b6914;
+}
+
+code {
+  font-family: "Cascadia Code", "Fira Code", "Consolas", "Source Code Pro", monospace;
+  font-size: 8.5pt;
+}
+
+pre code {
+  color: #cdd6f4;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* インラインコード */
+:not(pre)>code {
+  background-color: #f0ece4;
+  border: 1px solid #d6cdb8;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 8.5pt;
+  color: #1a3a2a;
+}
+
+/* --- テーブル --- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 9pt;
+  page-break-inside: avoid;
+  border: 1px solid #d6cdb8;
+}
+
+thead {
+  background-color: #1a3a2a;
+}
+
+th {
+  background-color: #1a3a2a;
+  border: 1px solid #2d5a3d;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #f7f3eb;
+  letter-spacing: 0.03em;
+}
+
+td {
+  border: 1px solid #d6cdb8;
+  padding: 7px 12px;
+  color: #2d2d2d;
+}
+
+tr:nth-child(even) {
+  background-color: #f7f3eb;
+}
+
+tr:nth-child(odd) {
+  background-color: #fefdfb;
+}
+
+/* --- リンク --- */
+a {
+  color: #8b6914;
+  text-decoration: none;
+  border-bottom: 1px dotted #c4b08b;
+}
+
+a:hover {
+  color: #6b4f0e;
+}
+
+/* --- 引用ブロック（BON-LOGでの使用箇所等） --- */
+blockquote {
+  border-left: 4px solid #8b6914;
+  margin: 16px 0;
+  padding: 12px 18px;
+  background-color: #f7f3eb;
+  color: #3d3020;
+  border-radius: 0 6px 6px 0;
+  font-size: 9.5pt;
+}
+
+blockquote blockquote {
+  border-left-color: #c4b08b;
+  background-color: #f0ece4;
+  margin: 8px 0;
+}
+
+/* --- リスト --- */
+ul,
+ol {
+  margin: 8px 0;
+  padding-left: 26px;
+}
+
+li {
+  margin: 4px 0;
+  line-height: 1.7;
+}
+
+li::marker {
+  color: #8b6914;
+}
+
+/* --- 水平線（和柄風セクション区切り） --- */
+hr {
+  border: none;
+  height: 1px;
+  margin: 32px 0;
+  background: linear-gradient(to right, transparent, #8b6914 20%, #c4b08b 50%, #8b6914 80%, transparent);
+}
+
+/* --- 太字 --- */
+strong {
+  color: #1a3a2a;
+  font-weight: 700;
+}
+
+/* --- 画像（図の途中で切れないよう改ページ禁止） --- */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  page-break-inside: avoid;
+  display: block;
+  margin: 0.8em 0;
+}
+
+/* --- Mermaid ダイアグラム（プリレンダリング後の div + img） --- */
+pre.mermaid {
+  background: #fefdfb;
+  border: 1px solid #d6cdb8;
+  border-left: 3px solid #8b6914;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  page-break-inside: avoid;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  color: #2d2d2d;
+}
+
+.mermaid svg {
+  max-width: 100%;
+}
+
+/* 変換スクリプトが差し込む Mermaid 描画済みブロック（図で改ページしない） */
+.mermaid-rendered {
+  page-break-inside: avoid;
+  display: block;
+  margin: 1em 0;
+  overflow: hidden;
+}
+
+.mermaid-rendered img {
+  max-width: 100%;
+  max-height: 75vh;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* --- 段落・改ページ制御（空白ページ・見出しだけのページを防ぐ） --- */
+p,
+li {
+  orphans: 3;
+  widows: 3;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  page-break-after: avoid;
+}
+
+/* 見出しの直後要素は可能なら同じページに（無理な場合は改ページ可） */
+h1+*,
+h2+*,
+h3+*,
+h4+* {
+  page-break-before: avoid;
+}
+
+/* 引用・テーブル・コード・図はブロックごと改ページしない */
+blockquote {
+  page-break-inside: avoid;
+}
+
+/* --- details/summary（Q&A セクション） --- */
+details {
+  margin: 12px 0;
+  padding: 10px 16px;
+  background-color: #f7f3eb;
+  border: 1px solid #d6cdb8;
+  border-radius: 6px;
+  page-break-inside: avoid;
+}
+
+summary {
+  font-weight: 600;
+  color: #1a3a2a;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* --- em（斜体・補足テキスト） --- */
+em {
+  color: #5a4a30;
+  font-style: italic;
+}
+
+/* --- mark（ハイライト） --- */
+mark {
+  background-color: #f5e6b8;
+  color: #2d2d2d;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* --- キーボードショートカット --- */
+kbd {
+  background-color: #f0ece4;
+  border: 1px solid #d6cdb8;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: "Cascadia Code", monospace;
+  font-size: 8.5pt;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}

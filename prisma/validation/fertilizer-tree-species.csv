@@ -1,0 +1,21 @@
+slug,name,nameEn,category,sortOrder,source
+kuromatsu,黒松,Japanese Black Pine,conifer,1,盆栽の基礎知識; 松柏盆栽の代表
+akamatsu,赤松,Japanese Red Pine,conifer,2,盆栽の基礎知識
+goyomatsu,五葉松,Japanese White Pine,conifer,3,盆栽の基礎知識; 春は施肥しない樹種
+shinpaku,真柏,Chinese Juniper / Shimpaku,conifer,4,盆栽の基礎知識
+tosho,杜松,Needle Juniper,conifer,5,盆栽の基礎知識
+hinoki,檜・椹・檜葉,Hinoki Cypress and related,conifer,6,盆栽の基礎知識
+sugi-maki,杉・槙・その他針葉樹,Cedar Podocarpus and other conifers,conifer,7,盆栽の基礎知識
+kaede-momiji,楓・紅葉,Japanese Maple,deciduous,8,盆栽の基礎知識; 7月以降窒素カット
+keyaki,欅,Japanese Zelkova,deciduous,9,盆栽の基礎知識
+buna-konara,ブナ・コナラ・クヌギ,Beech Konara Oak Sawtooth Oak,deciduous,10,盆栽の基礎知識
+ichou,銀杏,Ginkgo,deciduous,11,盆栽の基礎知識
+nirekeyaki-enoki,楡欅・榎,Chinese Elm Hackberry,deciduous,12,盆栽の基礎知識
+ume,梅,Japanese Apricot,flowering,13,盆栽の基礎知識; 花後お礼肥が重要
+satsuki,皐月,Satsuki Azalea,flowering,14,盆栽の基礎知識; 3-5月施肥厳禁
+tsubaki-sazanka,椿・山茶花,Camellia Sasanqua,flowering,15,盆栽の基礎知識
+chojubai-boke,長寿梅・木瓜・その他花物,Chojubai Quince and other flowering,flowering,16,盆栽の基礎知識
+kaki-ringo,柿・姫リンゴ・海棠,Persimmon Crabapple Malus,fruiting,17,盆栽の基礎知識; 窒素過多で落果
+pyracantha-umemodoki,ピラカンサ・梅擬・その他実物,Pyracantha Ilex and other fruiting,fruiting,18,盆栽の基礎知識
+kusamono,草物・山野草・苔,Kusamono Alpine plants Moss,grass,19,盆栽の基礎知識; 液肥のみ
+chinchoge-tsuge,沈丁花・黄楊・柊・その他常緑広葉樹,Daphne Boxwood Holly and other broadleaf evergreens,evergreen,20,盆栽の基礎知識; 寒肥有効

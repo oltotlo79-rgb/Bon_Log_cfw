@@ -1,0 +1,9 @@
+hormoneASlug,hormoneBSlug,type,description,source
+auxin,cytokinin,antagonistic,オーキシン/サイトカイニン比が器官分化を決定。オーキシン優位で根・サイトカイニン優位でシュート分化促進。,Skoog & Miller 1957
+auxin,gibberellin,synergistic,オーキシンがGA合成遺伝子の発現を促進。茎の伸長で協調的に作用し相乗効果で細胞伸長が増幅。,Ross et al. 2000
+auxin,ethylene,modulatory,高濃度オーキシンはエチレン合成を促進（ACC合成酵素の誘導）。エチレンはオーキシンの極性輸送を阻害する場合がある。,Taiz & Zeiger Ch.22
+auxin,strigolactone,synergistic,ストリゴラクトンはオーキシンと協調して側枝の分岐を抑制。オーキシンの極性輸送を調節する。,Gomez-Roldan et al. 2008
+gibberellin,abscisic-acid,antagonistic,GAとABAは種子の休眠・発芽で拮抗。GAが休眠を打破しABAが休眠を維持。GA/ABA比が発芽の鍵。,Taiz & Zeiger Ch.20/23
+cytokinin,abscisic-acid,antagonistic,サイトカイニンは葉の老化を抑制しABAは促進。秋の落葉はABA増加とサイトカイニン減少の同時進行で進む。,Taiz & Zeiger Ch.21/23
+salicylic-acid,jasmonic-acid,antagonistic,SA経路（病害抵抗性）とJA経路（害虫抵抗性）は相互に抑制。両方の防御を同時に最大化できない。,Glazebrook 2005
+ethylene,abscisic-acid,synergistic,落葉過程でエチレンとABAが協調。ABAが離層感受性を高めエチレンが分解酵素を誘導。,Taiz & Zeiger Ch.22/23

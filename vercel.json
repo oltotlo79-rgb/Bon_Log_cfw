@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/publish-scheduled",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/check-subscriptions",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-events",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}

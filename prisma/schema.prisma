@@ -1,0 +1,1876 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// Enum定義
+// ============================================================
+
+enum MediaType {
+  image
+  video
+}
+
+enum NotificationType {
+  like
+  comment
+  follow
+  quote
+  reply
+  comment_like
+  follow_request
+  follow_request_approved
+  system
+  mention
+  message
+  repost
+  subscription_expiring
+}
+
+enum ReportTargetType {
+  post
+  comment
+  event
+  shop
+  review
+  user
+}
+
+enum ReportReason {
+  spam
+  inappropriate
+  harassment
+  copyright
+  other
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  resolved
+  dismissed
+  auto_hidden
+}
+
+enum RequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PaymentStatus {
+  succeeded
+  pending
+  failed
+}
+
+enum AdminRole {
+  super_admin
+  admin
+  moderator
+  support
+  readonly
+}
+
+enum WarningLevel {
+  notice
+  warning
+  temp_suspend
+  permanent_ban
+}
+
+enum ModerationStatus {
+  pending
+  approved
+  rejected
+  auto_flagged
+}
+
+enum AnnouncementType {
+  banner
+  notification
+  both
+}
+
+enum ContactStatus {
+  pending
+  in_progress
+  resolved
+  closed
+}
+
+enum GenreType {
+  post
+  shop
+}
+
+// NextAuth.js用モデル
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+// パスワードリセットトークン
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([email, token])
+  @@map("password_reset_tokens")
+}
+
+// メール確認用トークン（登録後のアドレス確認）
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([email, token])
+  @@index([email])
+  @@map("email_verification_tokens")
+}
+
+// ユーザー関連
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique @db.VarChar(100)
+  emailVerified    DateTime? @map("email_verified")
+  password         String? // パスワードハッシュ
+  nickname         String    @db.VarChar(50)
+  avatarUrl        String?   @map("avatar_url")
+  headerUrl        String?   @map("header_url")
+  bio              String?   @db.VarChar(200)
+  location         String?   @db.VarChar(100)
+  bonsaiStartYear  Int?      @map("bonsai_start_year") // 盆栽を始めた年（任意）
+  bonsaiStartMonth Int?      @map("bonsai_start_month") // 盆栽を始めた月（任意）
+  birthDate        DateTime? @map("birth_date") @db.Date // 生年月日（任意）
+  isPublic         Boolean   @default(true) @map("is_public")
+  isSuspended      Boolean   @default(false) @map("is_suspended")
+  suspendedAt      DateTime? @map("suspended_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // 有料会員
+  isPremium            Boolean   @default(false) @map("is_premium")
+  premiumExpiresAt     DateTime? @map("premium_expires_at")
+  stripeCustomerId     String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+
+  // 2段階認証（2FA）
+  twoFactorEnabled     Boolean  @default(false) @map("two_factor_enabled")
+  twoFactorSecret      String?  @map("two_factor_secret") // 暗号化されたTOTPシークレット
+  twoFactorBackupCodes String[] @map("two_factor_backup_codes") // ハッシュ化されたバックアップコード
+
+  // NextAuth.js relations
+  accounts Account[]
+  sessions Session[]
+
+  // App relations
+  posts                  Post[]
+  comments               Comment[]
+  likes                  Like[]
+  bookmarks              Bookmark[]
+  followers              Follow[]           @relation("FollowingToUser")
+  following              Follow[]           @relation("FollowerToUser")
+  blockedBy              Block[]            @relation("BlockedUser")
+  blocking               Block[]            @relation("BlockingUser")
+  mutedBy                Mute[]             @relation("MutedUser")
+  muting                 Mute[]             @relation("MutingUser")
+  followRequestsSent     FollowRequest[]    @relation("FollowRequestSent")
+  followRequestsReceived FollowRequest[]    @relation("FollowRequestReceived")
+  notifications          Notification[]     @relation("NotificationUser")
+  actorNotifications     Notification[]     @relation("NotificationActor")
+  pushSubscriptions      PushSubscription[]
+  shopReviews            ShopReview[]
+  bonsaiShops            BonsaiShop[]
+  events                 Event[]
+  reports                Report[]
+
+  // Admin
+  adminUser AdminUser?
+
+  // DM
+  conversationParticipants ConversationParticipant[]
+  sentMessages             Message[]
+
+  // Premium
+  scheduledPosts ScheduledPost[]
+  payments       Payment[]
+
+  // 下書き
+  draftPosts DraftPost[]
+
+  // 非表示投稿
+  hiddenPosts UserHiddenPost[]
+
+  // 盆栽
+  bonsais Bonsai[]
+
+  // 盆栽手入れログ（カレンダー表示用の構造化メモ、特定盆栽に紐付かない）
+  careLogs BonsaiCareLog[]
+
+  // 通知設定
+  notificationPreferences Json? @default("{}") @map("notification_preferences")
+
+  // 盆栽園変更リクエスト
+  shopChangeRequests ShopChangeRequest[]
+
+  // 天気アドバイス用位置情報
+  weatherPrefecture String?  @map("weather_prefecture") @db.VarChar(10)
+  weatherCity       String?  @map("weather_city") @db.VarChar(50)
+  weatherLatitude   Decimal? @map("weather_latitude") @db.Decimal(8, 5)
+  weatherLongitude  Decimal? @map("weather_longitude") @db.Decimal(9, 5)
+
+  // アナリティクス
+  analytics UserAnalytics[]
+
+  // アンケート投票
+  pollVotes PollVote[]
+
+  // コメントスレッドミュート
+  commentThreadMutes CommentThreadMute[]
+
+  // 警告
+  warnings UserWarning[]
+
+  // 日次訪問ログ（認証時のみバックフィル）
+  dailyVisits DailyVisitor[]
+
+  @@index([emailVerified])
+  @@index([isSuspended])
+  // 管理画面: ユーザー一覧のフィルタ + ソート最適化
+  @@index([isSuspended, createdAt(sort: Desc)])
+  @@map("users")
+}
+
+// 投稿関連
+model Post {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  content      String?   @db.Text
+  quotePostId  String?   @map("quote_post_id")
+  repostPostId String?   @map("repost_post_id")
+  bonsaiId     String?   @map("bonsai_id")
+  // isHidden/hiddenAt: 管理者による非表示（モデレーション用）
+  // ユーザーが投稿を削除した場合は物理削除（DB行削除）
+  isHidden     Boolean   @default(false) @map("is_hidden")
+  hiddenAt     DateTime? @map("hidden_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quotePost     Post?            @relation("QuotePost", fields: [quotePostId], references: [id], onDelete: SetNull)
+  quotedBy      Post[]           @relation("QuotePost")
+  repostPost    Post?            @relation("RepostPost", fields: [repostPostId], references: [id], onDelete: SetNull)
+  repostedBy    Post[]           @relation("RepostPost")
+  bonsai        Bonsai?          @relation(fields: [bonsaiId], references: [id], onDelete: SetNull)
+  media         PostMedia[]
+  genres        PostGenre[]
+  comments      Comment[]
+  likes         Like[]
+  bookmarks     Bookmark[]
+  notifications Notification[]
+  scheduledPost ScheduledPost?
+  hashtags      PostHashtag[]
+  hiddenByUsers UserHiddenPost[]
+  poll          Poll?
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isHidden])
+  @@index([bonsaiId])
+  @@index([quotePostId])
+  @@index([repostPostId])
+  // パフォーマンス最適化: タイムラインクエリ用の複合インデックス
+  @@index([userId, isHidden, createdAt(sort: Desc)])
+  // モデレーション用クエリの最適化
+  @@index([isHidden, userId])
+  @@map("posts")
+}
+
+model PostMedia {
+  id        String    @id @default(cuid())
+  postId    String    @map("post_id")
+  url       String
+  type      MediaType
+  sortOrder Int       @default(0) @map("sort_order")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_media")
+}
+
+model Genre {
+  id        String    @id @default(cuid())
+  name      String    @db.VarChar(50)
+  category  String    @db.VarChar(50)
+  type      GenreType @default(post)
+  sortOrder Int       @default(0) @map("sort_order")
+
+  postGenres          PostGenre[]
+  shopGenres          ShopGenre[]
+  scheduledPostGenres ScheduledPostGenre[]
+  draftPostGenres     DraftPostGenre[]
+
+  @@unique([name, type])
+  @@index([type])
+  @@map("genres")
+}
+
+model PostGenre {
+  postId  String @map("post_id")
+  genreId String @map("genre_id")
+
+  post  Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([postId, genreId])
+  @@index([genreId])
+  @@map("post_genres")
+}
+
+// コメント
+model Comment {
+  id        String    @id @default(cuid())
+  postId    String    @map("post_id")
+  userId    String    @map("user_id")
+  parentId  String?   @map("parent_id")
+  content   String    @db.Text
+  // isHidden/hiddenAt: 管理者による非表示（モデレーション用）
+  // deletedAt: ユーザーによるソフト削除（論理削除）
+  isHidden  Boolean   @default(false) @map("is_hidden")
+  hiddenAt  DateTime? @map("hidden_at")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  post          Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Comment?            @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]           @relation("CommentReplies")
+  likes         Like[]
+  media         CommentMedia[]
+  notifications Notification[]
+  threadMutes   CommentThreadMute[]
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([deletedAt])
+  // コメント一覧クエリの最適化（created_at DESC含む複合インデックス）
+  @@index([postId, parentId, isHidden, createdAt(sort: Desc)])
+  // スレッド返信のページネーション最適化
+  @@index([parentId, createdAt(sort: Desc)])
+  @@map("comments")
+}
+
+// コメントメディア
+model CommentMedia {
+  id        String    @id @default(cuid())
+  commentId String    @map("comment_id")
+  url       String
+  type      MediaType
+  sortOrder Int       @default(0) @map("sort_order")
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+  @@map("comment_media")
+}
+
+// いいね
+//
+// DB 制約: postId と commentId は「どちらか一方だけ必須」(XOR)。
+// CHECK 制約 `likes_post_xor_comment` を migration 20260516000000_add_likes_check_constraint で
+// 追加済み。Prisma schema には CHECK 制約を宣言する記法が無いため、変更時はこのコメントと
+// migration の整合性を維持すること。
+model Like {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String?  @map("post_id")
+  commentId String?  @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@index([postId])
+  @@index([userId])
+  @@index([commentId])
+  // ページネーション最適化: getLikedPosts の ORDER BY created_at DESC
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("likes")
+}
+
+// ブックマーク
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  // ページネーション最適化: getBookmarkedPosts の ORDER BY created_at DESC
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("bookmarks")
+}
+
+// フォロー
+model Follow {
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("FollowerToUser", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowingToUser", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  // フォロワー一覧のページネーション最適化
+  @@index([followingId, createdAt(sort: Desc)])
+  @@index([followerId, createdAt(sort: Desc)])
+  @@map("follows")
+}
+
+// ブロック
+model Block {
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("BlockingUser", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+// ミュート
+model Mute {
+  muterId   String   @map("muter_id")
+  mutedId   String   @map("muted_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  muter User @relation("MutingUser", fields: [muterId], references: [id], onDelete: Cascade)
+  muted User @relation("MutedUser", fields: [mutedId], references: [id], onDelete: Cascade)
+
+  @@id([muterId, mutedId])
+  @@index([muterId])
+  @@index([mutedId])
+  @@map("mutes")
+}
+
+// フォローリクエスト（非公開アカウント用）
+model FollowRequest {
+  id          String        @id @default(cuid())
+  requesterId String        @map("requester_id") // リクエスト送信者
+  targetId    String        @map("target_id") // リクエスト受信者（非公開アカウント）
+  status      RequestStatus @default(pending)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  requester User @relation("FollowRequestSent", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("FollowRequestReceived", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, targetId])
+  @@index([requesterId])
+  @@index([targetId])
+  @@index([status])
+  @@index([targetId, status])
+  @@map("follow_requests")
+}
+
+// 通知
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  actorId   String           @map("actor_id")
+  type      NotificationType
+  postId    String?          @map("post_id")
+  commentId String?          @map("comment_id")
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user    User     @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([actorId])
+  @@index([postId])
+  @@index([commentId])
+  // Note: @@unique([userId, actorId, type, postId, commentId]) は
+  // nullable カラムを含むため PostgreSQL の NULL != NULL 動作で
+  // postId=null の通知が重複可能。トランザクション内チェックで補完。
+  // ページネーション最適化: getNotifications の ORDER BY created_at DESC
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, type])
+  // 重複検出クエリ最適化: createNotification の findFirst
+  @@index([userId, actorId, type, postId, commentId])
+  @@map("notifications")
+}
+
+// 外部 Webhook の冪等性管理
+//
+// 同一 Webhook イベントが Stripe 等のリトライにより複数回到達しても
+// 二重処理されないよう、provider 別に処理済み event_id を記録する。
+// 古いレコードは別途 Cron で 30 日経過後に削除（vercel.json の cleanup-events 参照）。
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String   @db.VarChar(50) // 'stripe' / 'paypal' など
+  eventId     String   @map("event_id") @db.VarChar(255)
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@unique([provider, eventId])
+  @@index([processedAt])
+  @@map("webhook_events")
+}
+
+// プッシュ通知購読
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  endpoint  String   @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// 盆栽園
+model BonsaiShop {
+  id            String    @id @default(cuid())
+  name          String    @db.VarChar(100)
+  address       String
+  latitude      Decimal?  @db.Decimal(10, 7)
+  longitude     Decimal?  @db.Decimal(10, 7)
+  phone         String?   @db.VarChar(20)
+  website       String?
+  businessHours String?   @map("business_hours")
+  closedDays    String?   @map("closed_days")
+  isHidden      Boolean   @default(false) @map("is_hidden")
+  hiddenAt      DateTime? @map("hidden_at")
+  createdBy     String?   @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  creator        User?               @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  genres         ShopGenre[]
+  reviews        ShopReview[]
+  changeRequests ShopChangeRequest[]
+
+  @@index([isHidden])
+  @@index([createdBy])
+  // location ソート最適化: getShops の ORDER BY latitude DESC NULLS LAST
+  @@index([latitude(sort: Desc)])
+  @@map("bonsai_shops")
+}
+
+model ShopGenre {
+  shopId  String @map("shop_id")
+  genreId String @map("genre_id")
+
+  shop  BonsaiShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  genre Genre      @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([shopId, genreId])
+  @@index([genreId])
+  @@map("shop_genres")
+}
+
+model ShopReview {
+  id        String    @id @default(cuid())
+  shopId    String    @map("shop_id")
+  userId    String    @map("user_id")
+  rating    Int // 1-5
+  content   String?   @db.Text
+  isHidden  Boolean   @default(false) @map("is_hidden")
+  hiddenAt  DateTime? @map("hidden_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  shop   BonsaiShop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images ShopReviewImage[]
+
+  @@unique([shopId, userId])
+  @@index([shopId])
+  @@index([userId])
+  @@index([isHidden])
+  // 集計クエリ最適化: getCachedShopRatings の groupBy
+  @@index([isHidden, shopId])
+  @@map("shop_reviews")
+}
+
+model ShopReviewImage {
+  id       String @id @default(cuid())
+  reviewId String @map("review_id")
+  url      String
+
+  review ShopReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("shop_review_images")
+}
+
+// 盆栽園変更リクエスト
+model ShopChangeRequest {
+  id               String        @id @default(cuid())
+  shopId           String        @map("shop_id")
+  userId           String        @map("user_id")
+  status           RequestStatus @default(pending)
+  requestedChanges Json          @map("requested_changes") // { name?, address?, phone?, website?, businessHours?, closedDays? }
+  reason           String?       @db.Text // 変更理由
+  adminComment     String?       @map("admin_comment") @db.Text // 管理者のコメント
+  resolvedAt       DateTime?     @map("resolved_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  shop BonsaiShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([userId])
+  @@index([status])
+  // 管理画面: 変更リクエスト一覧の降順表示最適化
+  @@index([status, createdAt(sort: Desc)])
+  @@map("shop_change_requests")
+}
+
+// イベント
+model Event {
+  id           String    @id @default(cuid())
+  title        String    @db.VarChar(100)
+  description  String?   @db.Text
+  startDate    DateTime  @map("start_date")
+  endDate      DateTime? @map("end_date")
+  prefecture   String?
+  city         String?
+  venue        String?
+  organizer    String?
+  admissionFee String?   @map("admission_fee")
+  hasSales     Boolean   @default(false) @map("has_sales")
+  externalUrl  String?   @map("external_url")
+  isHidden     Boolean   @default(false) @map("is_hidden")
+  hiddenAt     DateTime? @map("hidden_at")
+  createdBy    String?   @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([startDate])
+  @@index([prefecture])
+  @@index([isHidden])
+  @@index([createdBy])
+  @@index([isHidden, startDate])
+  // イベント一覧のページネーション最適化
+  @@index([isHidden, startDate(sort: Desc), createdAt(sort: Desc)])
+  @@map("events")
+}
+
+// 通報
+model Report {
+  id          String           @id @default(cuid())
+  reporterId  String           @map("reporter_id")
+  targetType  ReportTargetType @map("target_type")
+  targetId    String           @map("target_id")
+  reason      ReportReason
+  description String?          @db.Text
+  status      ReportStatus     @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+  @@index([status])
+  // 管理画面: pending一覧の降順表示最適化
+  @@index([status, createdAt(sort: Desc)])
+  @@map("reports")
+}
+
+// 管理者
+model AdminUser {
+  userId    String    @id @map("user_id")
+  role      AdminRole
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs AdminLog[]
+
+  @@map("admin_users")
+}
+
+model AdminLog {
+  id         String   @id @default(cuid())
+  adminId    String   @map("admin_id")
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  details    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  admin AdminUser @relation(fields: [adminId], references: [userId], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+// 管理者通知（自動非表示など）
+model AdminNotification {
+  id          String    @id @default(cuid())
+  type        String // 'auto_hidden', 'report_threshold', etc.
+  targetType  String    @map("target_type") // 'post', 'comment', 'event', 'shop', 'review'
+  targetId    String    @map("target_id")
+  message     String
+  reportCount Int       @map("report_count")
+  isRead      Boolean   @default(false) @map("is_read")
+  isResolved  Boolean   @default(false) @map("is_resolved")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([isRead])
+  @@index([isResolved])
+  @@index([createdAt])
+  @@map("admin_notifications")
+}
+
+// ユーザーによる投稿非表示
+model UserHiddenPost {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("user_hidden_posts")
+}
+
+// お問い合わせ
+model ContactInquiry {
+  id          String        @id @default(cuid())
+  name        String        @db.VarChar(50)
+  email       String        @db.VarChar(100)
+  category    String
+  subject     String        @db.VarChar(100)
+  message     String        @db.Text
+  status      ContactStatus @default(pending)
+  adminNote   String?       @map("admin_note") @db.Text
+  respondedAt DateTime?     @map("responded_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("contact_inquiries")
+}
+
+// ダイレクトメッセージ
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String    @map("conversation_id")
+  userId         String    @map("user_id")
+  joinedAt       DateTime  @default(now()) @map("joined_at")
+  lastReadAt     DateTime? @map("last_read_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  // ページネーション最適化: DM 履歴の ORDER BY created_at DESC
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+// 有料会員 - 支払い履歴
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String?       @map("user_id")
+  stripePaymentId String        @unique @map("stripe_payment_id")
+  amount          Int // 金額（円）
+  currency        String        @default("jpy")
+  status          PaymentStatus
+  description     String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("payments")
+}
+
+// 有料会員 - 予約投稿
+model ScheduledPost {
+  id              String              @id @default(cuid())
+  userId          String              @map("user_id")
+  content         String?             @db.Text
+  scheduledAt     DateTime            @map("scheduled_at")
+  status          ScheduledPostStatus @default(pending)
+  publishedPostId String?             @unique @map("published_post_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishedPost Post?                @relation(fields: [publishedPostId], references: [id], onDelete: SetNull)
+  media         ScheduledPostMedia[]
+  genres        ScheduledPostGenre[]
+
+  @@index([userId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([status, scheduledAt], name: "scheduled_posts_status_scheduled_at_idx") // Cronジョブのクエリ最適化用
+  @@map("scheduled_posts")
+}
+
+enum ScheduledPostStatus {
+  pending // 予約中
+  published // 公開済み
+  failed // 公開失敗
+  cancelled // キャンセル
+}
+
+model ScheduledPostMedia {
+  id              String    @id @default(cuid())
+  scheduledPostId String    @map("scheduled_post_id")
+  url             String
+  type            MediaType @default(image)
+  sortOrder       Int       @default(0) @map("sort_order")
+
+  scheduledPost ScheduledPost @relation(fields: [scheduledPostId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledPostId])
+  @@map("scheduled_post_media")
+}
+
+model ScheduledPostGenre {
+  scheduledPostId String @map("scheduled_post_id")
+  genreId         String @map("genre_id")
+
+  scheduledPost ScheduledPost @relation(fields: [scheduledPostId], references: [id], onDelete: Cascade)
+  genre         Genre         @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([scheduledPostId, genreId])
+  @@index([genreId])
+  @@map("scheduled_post_genres")
+}
+
+// 下書き投稿
+model DraftPost {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  content   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media  DraftPostMedia[]
+  genres DraftPostGenre[]
+
+  @@index([userId])
+  @@map("draft_posts")
+}
+
+model DraftPostMedia {
+  id          String    @id @default(cuid())
+  draftPostId String    @map("draft_post_id")
+  url         String
+  type        MediaType @default(image)
+  sortOrder   Int       @default(0) @map("sort_order")
+
+  draftPost DraftPost @relation(fields: [draftPostId], references: [id], onDelete: Cascade)
+
+  @@index([draftPostId])
+  @@map("draft_post_media")
+}
+
+model DraftPostGenre {
+  draftPostId String @map("draft_post_id")
+  genreId     String @map("genre_id")
+
+  draftPost DraftPost @relation(fields: [draftPostId], references: [id], onDelete: Cascade)
+  genre     Genre     @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([draftPostId, genreId])
+  @@index([genreId])
+  @@map("draft_post_genres")
+}
+
+// ハッシュタグ
+model Hashtag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  posts PostHashtag[]
+
+  @@index([count])
+  @@map("hashtags")
+}
+
+model PostHashtag {
+  postId    String @map("post_id")
+  hashtagId String @map("hashtag_id")
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+  @@index([hashtagId])
+  @@map("post_hashtags")
+}
+
+// 盆栽成長記録
+model Bonsai {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  name        String
+  species     String?
+  acquiredAt  DateTime? @map("acquired_at")
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records BonsaiRecord[]
+  posts   Post[]
+
+  @@index([userId])
+  @@map("bonsais")
+}
+
+model BonsaiRecord {
+  id        String   @id @default(cuid())
+  bonsaiId  String   @map("bonsai_id")
+  content   String?  @db.Text
+  recordAt  DateTime @default(now()) @map("record_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bonsai Bonsai              @relation(fields: [bonsaiId], references: [id], onDelete: Cascade)
+  images BonsaiRecordImage[]
+
+  @@index([bonsaiId])
+  @@index([recordAt])
+  @@map("bonsai_records")
+}
+
+model BonsaiRecordImage {
+  id        String @id @default(cuid())
+  recordId  String @map("record_id")
+  url       String
+  sortOrder Int    @default(0) @map("sort_order")
+
+  record BonsaiRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+  @@map("bonsai_record_images")
+}
+
+// 盆栽手入れログ（カレンダー表示用）。
+// ユーザー全体に紐付く「忘れ防止メモ」で、特定の盆栽と関連付けない。
+// 個別盆栽の手入れは BonsaiRecord（成長記録）側に書く想定。
+// 表示はカレンダービュー専用で、タイムライン・盆栽詳細・公開プロフィール等には漏出させない。
+model BonsaiCareLog {
+  id          String         @id @default(cuid())
+  userId      String         @map("user_id")
+  type        BonsaiCareType
+  performedAt DateTime       @map("performed_at") // 実施日時（ユーザー入力）
+  note        String?        @db.Text // 任意コメント
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // カレンダー主クエリ: userId + performedAt の範囲
+  @@index([userId, performedAt])
+  // 種別フィルタ: 任意の種別を絞って月次集計するケース
+  @@index([userId, type, performedAt])
+  @@map("bonsai_care_logs")
+}
+
+enum BonsaiCareType {
+  pesticide // 消毒
+  solid_fertilizer // 置き肥
+  liquid_fertilizer // 液肥
+  rotate // 移動・回転
+  shading // 遮光
+  muro_in // ムロ入れ
+  muro_out // ムロ出し
+  other // その他（将来の種別追加の受け皿）
+
+  @@map("bonsai_care_type")
+}
+
+// ユーザーアナリティクス
+model UserAnalytics {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  date          DateTime @db.Date
+  profileViews  Int      @default(0) @map("profile_views")
+  postViews     Int      @default(0) @map("post_views")
+  likesReceived Int      @default(0) @map("likes_received")
+  newFollowers  Int      @default(0) @map("new_followers")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("user_analytics")
+}
+
+/// 日次の実訪問者ログ。
+///
+/// `(date, visitorId)` の UNIQUE 制約により、同一訪問者が同日に複数回
+/// アクセスしても 1 行のみ保持される（`POST /api/analytics/track` 側で
+/// `INSERT ... ON CONFLICT DO NOTHING` 相当の upsert）。
+///
+/// `visitorId` は HttpOnly Cookie `bon_log_visitor_id` の UUID（個人特定不可な opaque ID）。
+/// IP アドレスや User-Agent 等の PII は格納しない。`userId` はログイン中ならバックフィル
+/// されるが任意。
+model DailyVisitor {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date // 訪問日（UTC 起点）
+  visitorId String   @map("visitor_id") @db.VarChar(64) // bon_log_visitor_id Cookie の UUID
+  userId    String?  @map("user_id") // 認証時のみバックフィル
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([date, visitorId])
+  @@index([date])
+  @@index([userId])
+  @@map("daily_visitors")
+}
+
+// メールアドレスブラックリスト
+model EmailBlacklist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String?  @db.Text // ブロック理由（管理用メモ）
+  createdBy String   @map("created_by") // 登録した管理者ID
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("email_blacklist")
+}
+
+// デバイスブラックリスト（フィンガープリントベース）
+model DeviceBlacklist {
+  id            String   @id @default(cuid())
+  fingerprint   String   @unique // デバイスフィンガープリント（ハッシュ）
+  reason        String?  @db.Text // ブロック理由
+  originalEmail String?  @map("original_email") // 元のブロックユーザーのメール（参考用）
+  createdBy     String   @map("created_by") // 登録した管理者ID
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("device_blacklist")
+}
+
+// ユーザーのデバイス履歴（デバイスフィンガープリント記録用）
+model UserDevice {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  fingerprint String // デバイスフィンガープリント
+  userAgent   String?  @map("user_agent") @db.Text
+  ipAddress   String?  @map("ip_address")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+  @@index([fingerprint])
+  @@map("user_devices")
+}
+
+// コメントスレッドミュート
+model CommentThreadMute {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  commentId String   @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_thread_mutes")
+}
+
+// アンケート/投票
+model Poll {
+  id        String   @id @default(cuid())
+  postId    String   @unique @map("post_id")
+  duration  Int // 秒数
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id        String @id @default(cuid())
+  pollId    String @map("poll_id")
+  text      String @db.VarChar(50)
+  sortOrder Int    @default(0) @map("sort_order")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id        String   @id @default(cuid())
+  pollId    String   @map("poll_id")
+  optionId  String   @map("option_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@index([pollId])
+  @@index([optionId])
+  @@index([userId])
+  @@map("poll_votes")
+}
+
+// ============================================================
+// 農薬・病害虫機能
+// ============================================================
+
+enum DiseasePestCategory {
+  disease // 病害
+  pest // 害虫
+  beneficial_insect // 益虫
+}
+
+enum EffectRating {
+  excellent // ◎
+  good // ○
+  fair // △
+  poor // ×
+  none // 効果なし（保護剤の治療など）
+}
+
+enum PesticideType {
+  fungicide // 殺菌剤
+  insecticide // 殺虫剤
+  acaricide // 殺ダニ剤
+  compound // 複合剤（殺虫殺菌剤等）
+  other
+}
+
+model DiseasePest {
+  id            String              @id @default(cuid())
+  name          String              @db.VarChar(100)
+  nameKana      String?             @map("name_kana") @db.VarChar(100)
+  category      DiseasePestCategory
+  description   String?             @db.Text
+  imageUrl      String?             @map("image_url")
+  slug          String              @unique
+  sortOrder     Int                 @default(0) @map("sort_order")
+  bodySizeMinMm Float?              @map("body_size_min_mm") // 体長最小値（mm）
+  bodySizeMaxMm Float?              @map("body_size_max_mm") // 体長最大値（mm）
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  effects PesticideEffect[]
+
+  @@index([category])
+  @@map("disease_pests")
+}
+
+/// 耐性のつきやすさ（病原菌・害虫に耐性が発達しやすいか）
+enum ResistanceRisk {
+  low // つきにくい（多作用点・保護殺菌剤など）
+  medium // ややつきやすい
+  high // つきやすい（単一作用点など）
+}
+
+model ActiveIngredient {
+  id              String          @id @default(cuid())
+  name            String          @db.VarChar(200)
+  nameEn          String?         @map("name_en") @db.VarChar(200)
+  fracCode        String?         @map("frac_code") @db.VarChar(20)
+  iracCode        String?         @map("irac_code") @db.VarChar(20)
+  ingredientGroup String?         @map("ingredient_group") @db.VarChar(200)
+  description     String?         @db.Text
+  resistanceRisk  ResistanceRisk? @map("resistance_risk")
+  slug            String          @unique
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  pesticides PesticideActiveIngredient[]
+
+  @@index([fracCode])
+  @@index([iracCode])
+  @@map("active_ingredients")
+}
+
+model FormulationType {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(50)
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  pesticides Pesticide[]
+
+  @@map("formulation_types")
+}
+
+model Pesticide {
+  id                 String        @id @default(cuid())
+  name               String        @db.VarChar(200)
+  registrationNumber String?       @map("registration_number") @db.VarChar(20)
+  pesticideType      PesticideType @map("pesticide_type")
+  formulationTypeId  String?       @map("formulation_type_id")
+  description        String?       @db.Text
+  slug               String        @unique
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  formulationType  FormulationType?            @relation(fields: [formulationTypeId], references: [id], onDelete: SetNull)
+  ingredients      PesticideActiveIngredient[]
+  effects          PesticideEffect[]
+  incompatibleWith PesticideIncompatibility[]  @relation("IncompatibleWith")
+  incompatibleBy   PesticideIncompatibility[]  @relation("IncompatibleBy")
+  spreaderTypes    PesticideSpreaderType[]     @relation("PesticideSpreaderTypes")
+
+  @@index([registrationNumber])
+  @@index([pesticideType])
+  @@index([formulationTypeId])
+  @@map("pesticides")
+}
+
+model PesticideActiveIngredient {
+  pesticideId        String  @map("pesticide_id")
+  activeIngredientId String  @map("active_ingredient_id")
+  contentLabel       String? @map("content_label") @db.VarChar(100)
+
+  pesticide        Pesticide        @relation(fields: [pesticideId], references: [id], onDelete: Cascade)
+  activeIngredient ActiveIngredient @relation(fields: [activeIngredientId], references: [id], onDelete: Cascade)
+
+  @@id([pesticideId, activeIngredientId])
+  @@index([activeIngredientId])
+  @@map("pesticide_active_ingredients")
+}
+
+model PesticideEffect {
+  id               String        @id @default(cuid())
+  pesticideId      String        @map("pesticide_id")
+  diseasePestId    String        @map("disease_pest_id")
+  preventionLevel  EffectRating? @map("prevention_level")
+  treatmentLevel   EffectRating? @map("treatment_level")
+  efficacyLevel    EffectRating? @map("efficacy_level")
+  persistenceLevel EffectRating? @map("persistence_level")
+  note             String?       @db.Text
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  pesticide   Pesticide   @relation(fields: [pesticideId], references: [id], onDelete: Cascade)
+  diseasePest DiseasePest @relation(fields: [diseasePestId], references: [id], onDelete: Cascade)
+
+  @@unique([pesticideId, diseasePestId])
+  @@index([diseasePestId])
+  @@map("pesticide_effects")
+}
+
+model PesticideIncompatibility {
+  pesticideId        String @map("pesticide_id")
+  incompatibleWithId String @map("incompatible_with_id")
+
+  pesticide        Pesticide @relation("IncompatibleWith", fields: [pesticideId], references: [id], onDelete: Cascade)
+  incompatibleWith Pesticide @relation("IncompatibleBy", fields: [incompatibleWithId], references: [id], onDelete: Cascade)
+
+  @@id([pesticideId, incompatibleWithId])
+  @@index([incompatibleWithId])
+  @@map("pesticide_incompatibilities")
+}
+
+model SpreaderType {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  effect      String?  @db.Text
+  usageNote   String?  @map("usage_note") @db.Text
+  slug        String   @unique
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  pesticides PesticideSpreaderType[] @relation("SpreaderTypePesticides")
+
+  @@map("spreader_types")
+}
+
+model PesticideSpreaderType {
+  pesticideId    String @map("pesticide_id")
+  spreaderTypeId String @map("spreader_type_id")
+
+  pesticide    Pesticide    @relation("PesticideSpreaderTypes", fields: [pesticideId], references: [id], onDelete: Cascade)
+  spreaderType SpreaderType @relation("SpreaderTypePesticides", fields: [spreaderTypeId], references: [id], onDelete: Cascade)
+
+  @@id([pesticideId, spreaderTypeId])
+  @@index([spreaderTypeId])
+  @@map("pesticide_spreader_types")
+}
+
+model PesticideColumn {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String    @db.VarChar(200)
+  content     String    @db.Text
+  category    String    @db.VarChar(50)
+  publishedAt DateTime? @map("published_at")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([publishedAt])
+  @@map("pesticide_columns")
+}
+
+// システム設定（メンテナンスモード等）
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique // 設定キー（例: maintenance_mode）
+  value     Json // 設定値（JSON形式）
+  updatedBy String?  @map("updated_by") // 最後に更新した管理者ID
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("system_settings")
+}
+
+// 盆栽用語辞典
+model BonsaiTerm {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  term        String   @db.VarChar(100)
+  reading     String   @db.VarChar(100) // ひらがな読み
+  description String   @db.Text
+  category    String   @db.VarChar(50)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([reading])
+  @@map("bonsai_terms")
+}
+
+// ============================================================
+// 管理者機能拡張
+// ============================================================
+
+// NGワード辞書（自動モデレーション用）
+model NgWord {
+  id        String   @id @default(cuid())
+  word      String   @unique @db.VarChar(100)
+  category  String   @db.VarChar(50) // spam, harassment, inappropriate
+  isRegex   Boolean  @default(false) @map("is_regex")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("ng_words")
+}
+
+// 自動フラグされたコンテンツのモデレーションキュー
+model ModerationQueue {
+  id           String           @id @default(cuid())
+  targetType   ReportTargetType @map("target_type")
+  targetId     String           @map("target_id")
+  status       ModerationStatus @default(pending)
+  reason       String           @db.Text
+  matchedWords String[]         @map("matched_words")
+  reviewedBy   String?          @map("reviewed_by")
+  reviewedAt   DateTime?        @map("reviewed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("moderation_queue")
+}
+
+// ユーザー警告
+model UserWarning {
+  id              String       @id @default(cuid())
+  userId          String       @map("user_id")
+  level           WarningLevel
+  reason          String       @db.Text
+  relatedReportId String?      @map("related_report_id")
+  issuedBy        String       @map("issued_by")
+  expiresAt       DateTime?    @map("expires_at")
+  isActive        Boolean      @default(true) @map("is_active")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([level])
+  @@index([isActive])
+  @@map("user_warnings")
+}
+
+// ユーザーセグメント
+model UserSegment {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  conditions  Json // { rules: [{ field, operator, value }], logic: "AND"|"OR" }
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("user_segments")
+}
+
+// お知らせ
+model Announcement {
+  id        String           @id @default(cuid())
+  title     String           @db.VarChar(200)
+  content   String           @db.Text
+  type      AnnouncementType
+  isActive  Boolean          @default(true) @map("is_active")
+  startsAt  DateTime         @map("starts_at")
+  endsAt    DateTime?        @map("ends_at")
+  createdBy String           @map("created_by")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@index([isActive, startsAt, endsAt])
+  @@map("announcements")
+}
+
+// CMSページ
+model CmsPage {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String    @db.VarChar(200)
+  content     String    @db.Text
+  category    String    @db.VarChar(50) // help, faq, terms
+  version     Int       @default(1)
+  isPublished Boolean   @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at")
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  versions CmsPageVersion[]
+
+  @@index([category])
+  @@index([isPublished])
+  @@map("cms_pages")
+}
+
+// CMSページのバージョン履歴
+model CmsPageVersion {
+  id        String   @id @default(cuid())
+  pageId    String   @map("page_id")
+  version   Int
+  title     String   @db.VarChar(200)
+  content   String   @db.Text
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  page CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@map("cms_page_versions")
+}
+
+// セキュリティイベント
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  eventType String   @map("event_type") // failed_login, password_change, 2fa_toggle, email_change
+  userId    String?  @map("user_id")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent") @db.Text
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@index([eventType, createdAt])
+  @@map("security_events")
+}
+
+// 農薬データ更新履歴
+model PesticideDataHistory {
+  id          String   @id @default(cuid())
+  pesticideId String?  @map("pesticide_id")
+  action      String // create, update, delete
+  changes     Json // { before, after }
+  performedBy String   @map("performed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([pesticideId])
+  @@index([createdAt])
+  @@map("pesticide_data_history")
+}
+
+// ════════════════════════════════════════════════════════════
+//  肥料ガイド — 栄養素・肥料分類・樹種・施肥計画・コラム
+// ════════════════════════════════════════════════════════════
+
+enum NutrientCategory {
+  primary // 三大要素（N, P, K）
+  secondary // 二次要素（Ca, Mg, S）
+  trace // 微量要素（Fe, Mn, B, Zn, Cu, Mo, Cl, Ni, Si, Co）
+}
+
+enum TreeCategory {
+  conifer // 松柏類
+  deciduous // 雑木類（落葉樹）
+  flowering // 花物
+  fruiting // 実物
+  grass // 草物・山野草
+  evergreen // 常緑広葉樹
+}
+
+enum FertilizerAction {
+  none // 施肥不要
+  light // 控えめ
+  moderate // 通常量
+  heavy // たっぷり
+}
+
+enum NutrientLevel {
+  high // 多め
+  balanced // バランス
+  low // 控えめ
+  none // 不要
+}
+
+model FertilizerNutrient {
+  id                 String           @id @default(cuid())
+  name               String           @db.VarChar(100)
+  nameEn             String?          @map("name_en")
+  symbol             String           @db.VarChar(10)
+  category           NutrientCategory
+  description        String?          @db.Text
+  bonsaiRole         String?          @map("bonsai_role") @db.Text
+  deficiencySymptoms String?          @map("deficiency_symptoms") @db.Text
+  excessSymptoms     String?          @map("excess_symptoms") @db.Text
+  foodSources        String?          @map("food_sources") @db.Text
+  slug               String           @unique
+  sortOrder          Int              @default(0) @map("sort_order")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  @@map("fertilizer_nutrients")
+}
+
+model FertilizerCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(30)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  merit       String?  @db.Text
+  demerit     String?  @db.Text
+  bonsaiUsage String?  @map("bonsai_usage") @db.Text
+  slug        String   @unique
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("fertilizer_categories")
+}
+
+model TreeSpecies {
+  id                String       @id @default(cuid())
+  name              String       @db.VarChar(100)
+  nameEn            String?      @map("name_en")
+  category          TreeCategory
+  description       String?      @db.Text
+  examples          String?      @db.Text
+  fertilizingPolicy String?      @map("fertilizing_policy") @db.Text
+  slug              String       @unique
+  sortOrder         Int          @default(0) @map("sort_order")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  plans FertilizationPlan[]
+
+  @@map("tree_species")
+}
+
+model FertilizationPlan {
+  id              String           @id @default(cuid())
+  treeSpeciesId   String           @map("tree_species_id")
+  month           Int
+  action          FertilizerAction
+  nitrogenLevel   NutrientLevel?   @map("nitrogen_level")
+  phosphorusLevel NutrientLevel?   @map("phosphorus_level")
+  potassiumLevel  NutrientLevel?   @map("potassium_level")
+  recommendedType String?          @map("recommended_type") @db.VarChar(50)
+  description     String?          @db.Text
+  cautionNote     String?          @map("caution_note") @db.Text
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  treeSpecies TreeSpecies @relation(fields: [treeSpeciesId], references: [id], onDelete: Cascade)
+
+  @@unique([treeSpeciesId, month])
+  @@index([treeSpeciesId])
+  @@map("fertilization_plans")
+}
+
+model FertilizerColumn {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String    @db.VarChar(200)
+  content     String    @db.Text
+  category    String    @db.VarChar(50)
+  publishedAt DateTime? @map("published_at")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("fertilizer_columns")
+}
+
+// ============================================================
+// 植物ホルモンガイド
+// ============================================================
+
+enum HormoneCategory {
+  major
+  secondary
+}
+
+model HormoneType {
+  id              String          @id @default(cuid())
+  name            String          @db.VarChar(100)
+  nameEn          String?         @map("name_en") @db.VarChar(100)
+  slug            String          @unique
+  category        HormoneCategory
+  chemicalFormula String?         @map("chemical_formula") @db.VarChar(50)
+  description     String?         @db.Text
+  bonsaiRole      String?         @map("bonsai_role") @db.Text
+  productionSite  String?         @map("production_site") @db.Text
+  practicalTips   String?         @map("practical_tips") @db.Text
+  sortOrder       Int             @default(0) @map("sort_order")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  activationMethod String? @map("activation_method") @db.Text
+
+  effects        HormoneEffect[]
+  interactionsA  HormoneInteraction[]   @relation("hormoneA")
+  interactionsB  HormoneInteraction[]   @relation("hormoneB")
+  seasonalLevels HormoneSeasonalLevel[]
+  techniques     HormoneTechnique[]
+
+  @@index([category])
+  @@map("hormone_types")
+}
+
+model HormoneEffect {
+  id          String  @id @default(cuid())
+  hormoneId   String  @map("hormone_id")
+  effectName  String  @map("effect_name") @db.VarChar(100)
+  description String? @db.Text
+  isPromoting Boolean @default(true) @map("is_promoting")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  hormone HormoneType @relation(fields: [hormoneId], references: [id], onDelete: Cascade)
+
+  @@index([hormoneId])
+  @@map("hormone_effects")
+}
+
+model HormoneInteraction {
+  id              String  @id @default(cuid())
+  hormoneAId      String  @map("hormone_a_id")
+  hormoneBId      String  @map("hormone_b_id")
+  type            String  @db.VarChar(30)
+  description     String? @db.Text
+  bonsaiRelevance String? @map("bonsai_relevance") @db.Text
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  hormoneA HormoneType @relation("hormoneA", fields: [hormoneAId], references: [id], onDelete: Cascade)
+  hormoneB HormoneType @relation("hormoneB", fields: [hormoneBId], references: [id], onDelete: Cascade)
+
+  @@unique([hormoneAId, hormoneBId])
+  @@index([hormoneAId])
+  @@index([hormoneBId])
+  @@map("hormone_interactions")
+}
+
+model HormoneColumn {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String    @db.VarChar(200)
+  content     String    @db.Text
+  category    String    @db.VarChar(50)
+  publishedAt DateTime? @map("published_at")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("hormone_columns")
+}
+
+model HormoneSeasonalLevel {
+  id          String  @id @default(cuid())
+  hormoneId   String  @map("hormone_id")
+  month       Int // 1-12
+  level       String  @db.VarChar(20) // high, moderate, low, minimal
+  description String? @db.Text
+
+  hormone HormoneType @relation(fields: [hormoneId], references: [id], onDelete: Cascade)
+
+  @@unique([hormoneId, month])
+  @@index([hormoneId])
+  @@map("hormone_seasonal_levels")
+}
+
+model HormoneTechnique {
+  id              String   @id @default(cuid())
+  hormoneId       String   @map("hormone_id")
+  techniqueName   String   @map("technique_name") @db.VarChar(50)
+  techniqueNameEn String?  @map("technique_name_en") @db.VarChar(100)
+  techniqueSlug   String   @map("technique_slug") @db.VarChar(50)
+  effectType      String   @map("effect_type") @db.VarChar(20) // increase | decrease | redistribute
+  magnitude       String   @db.VarChar(20) // strong | moderate | mild
+  mechanism       String?  @db.Text
+  practicalNote   String?  @map("practical_note") @db.Text
+  bestMonths      Int[]    @default([]) @map("best_months")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  hormone HormoneType @relation(fields: [hormoneId], references: [id], onDelete: Cascade)
+
+  @@unique([hormoneId, techniqueSlug])
+  @@index([hormoneId])
+  @@index([techniqueSlug])
+  @@map("hormone_techniques")
+}

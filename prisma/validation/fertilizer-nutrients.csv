@@ -1,0 +1,17 @@
+slug,name,nameEn,symbol,category,source
+nitrogen,窒素,Nitrogen,N,primary,Taiz & Zeiger Plant Physiology Ch.5; 盆栽の基礎知識（主婦の友社）
+phosphorus,リン酸,Phosphorus,P,primary,Taiz & Zeiger Ch.5; 盆栽の基礎知識
+potassium,カリウム,Potassium,K,primary,Taiz & Zeiger Ch.5; 盆栽の基礎知識
+calcium,カルシウム,Calcium,Ca,secondary,Taiz & Zeiger Ch.5
+magnesium,マグネシウム,Magnesium,Mg,secondary,Taiz & Zeiger Ch.5; クロロフィル中心原子
+sulfur,硫黄,Sulfur,S,secondary,Taiz & Zeiger Ch.5
+iron,鉄,Iron,Fe,trace,Taiz & Zeiger Ch.5; クロロシスの主因
+manganese,マンガン,Manganese,Mn,trace,Taiz & Zeiger Ch.5; 光合成水分解
+boron,ホウ素,Boron,B,trace,Taiz & Zeiger Ch.5; 細胞壁・花粉管
+zinc,亜鉛,Zinc,Zn,trace,Taiz & Zeiger Ch.5; オーキシン前駆体関連
+copper,銅,Copper,Cu,trace,Taiz & Zeiger Ch.5; リグニン合成
+molybdenum,モリブデン,Molybdenum,Mo,trace,Taiz & Zeiger Ch.5; 硝酸還元酵素
+chlorine,塩素,Chlorine,Cl,trace,Taiz & Zeiger Ch.5; 光合成水分解
+nickel,ニッケル,Nickel,Ni,trace,Brown et al. 1987; ウレアーゼ補因子
+silicon,ケイ素,Silicon,Si,trace,有用元素（必須に分類されない場合あり）; 細胞壁ケイ酸沈着
+cobalt,コバルト,Cobalt,Co,trace,根粒菌B12補因子; 高等植物自体の必須ではない

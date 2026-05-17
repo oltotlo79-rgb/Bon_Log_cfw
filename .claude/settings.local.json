@@ -1,0 +1,62 @@
+{
+  "permissions": {
+    "allow": [
+      "ViewFile",
+      "ListFiles",
+      "EditFile",
+      "WebFetch",
+      "Bash(mkdir:*)",
+      "mcp__filesystem__list_directory",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run db:seed:*)",
+      "Bash(ls *.log *.txt *.json *.js *.ts *.py *.html 2>/dev/null | grep -v \"package\\\\|tsconfig\\\\|eslint\\\\|next-env\\\\|jest.d\\\\|instrumentation\\\\|vitest\\\\|playwright\\\\|sentry\\\\|prisma.config\\\\|vercel\\\\|postcss\\\\|components.json\\\\|README\" | sort)",
+      "Bash(ls *.cjs 2>/dev/null; ls e2e-job-logs/ 2>/dev/null | head -5)",
+      "Bash(ls *.log *.txt *.json *.py *.html 2>/dev/null | grep -v \"package\\\\|tsconfig\\\\|eslint\\\\|next-env\\\\|jest.d\\\\|components.json\\\\|README\\\\|vercel\\\\|postcss\" && echo \"---tmp---\" && ls tmp/ 2>/dev/null && echo \"---e2e-job-logs---\" && ls e2e-job-logs/ 2>/dev/null)",
+      "Bash(ls -la *.log 2>/dev/null; ls -la *.txt 2>/dev/null; ls -la tmp/ 2>/dev/null; ls -la e2e-job-logs/ 2>/dev/null; echo \"check done\")",
+      "Bash(npx next:*)",
+      "Bash(netstat -ano)",
+      "Bash(handle64.exe \".next\\\\standalone\")",
+      "Bash(powershell -Command 'Get-Process | Where-Object { $_.Modules.FileName -like '\\''*\\.next*'\\'' } | Select-Object Id, ProcessName | Format-Table')",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force '.next/standalone'\")",
+      "Bash(powershell -Command \"Get-Process node | Select-Object Id, Path | Format-Table -AutoSize\")",
+      "Bash(npx tsx:*)",
+      "WebSearch",
+      "Bash(curl -s \"https://www.envu.com/ja-jp/pest-library/japanese-beetle\")",
+      "Bash(curl -s \"https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%84%E3%83%98%E3%83%AA%E3%82%AB%E3%83%A1%E3%83%A0%E3%82%B7\")",
+      "Bash(npx tsc:*)",
+      "Bash(node -e ':*)",
+      "Bash(wc -l .claude/rules/*.md)",
+      "Bash(npx prisma:*)",
+      "Bash(git add:*)",
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git filter-repo *)",
+      "Bash(pip install *)",
+      "Bash(git stash *)",
+      "Bash(git remote *)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(chmod:*)",
+      "ViewFile(.env*)",
+      "ViewFile(~/.ssh/*)",
+      "ViewFile(.git/*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "postgres",
+    "github",
+    "memory"
+  ],
+  "skipDangerousModePermissionPrompt": true
+}

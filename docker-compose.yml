@@ -1,0 +1,82 @@
+# ===========================================
+# BON-LOG Docker Compose
+# ローカル開発環境用
+# ===========================================
+
+services:
+  # ===========================================
+  # PostgreSQL データベース
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: bonsai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bonsai_sns
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bonsai_sns"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Next.js アプリケーション（開発モード）
+  # ===========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: bonsai-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bonsai_sns
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=docker-dev-secret-change-in-production
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - STORAGE_PROVIDER=local
+      - EMAIL_PROVIDER=console
+    volumes:
+      # ソースコードをマウント（ホットリロード用）
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - dev
+
+  # ===========================================
+  # Next.js アプリケーション（本番モード）
+  # ===========================================
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bonsai-app-prod
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bonsai_sns
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=docker-dev-secret-change-in-production
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - STORAGE_PROVIDER=local
+      - EMAIL_PROVIDER=console
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - prod
+
+volumes:
+  postgres_data:

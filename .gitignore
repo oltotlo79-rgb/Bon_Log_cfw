@@ -1,0 +1,84 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/playwright-report/
+/blob-report/
+/test-results/
+e2e/.auth/user.json
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# pesticide validation report (auto-generated, re-run script to regenerate)
+prisma/validation/validation-report.txt
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+# .env - 開発環境のデフォルト値（機密情報なし）はコミット可能
+# .env.local - ローカル設定・機密情報は除外
+.env
+.env.local
+.env*.local
+
+# MAFF scraper cache
+prisma/validation/.maff-cache/
+
+# vercel (移行元の名残、Phase 7 で削除予定)
+.vercel
+
+# Cloudflare Workers / Wrangler
+.wrangler/
+.open-next/
+.dev.vars
+.dev.vars.*
+worker-configuration.d.ts
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# claude worktrees
+.claude/worktrees/
+
+/lib/generated/prisma
+
+# uploaded files (keep .gitkeep)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# Claude Code temporary files
+tmpclaude-*-cwd
+/.clone/
+analyze.js
+vitest-stderr.txt
+
+/docs/plans/
+
+# local AI tool configs (may contain secrets)
+.codex/
+.vscode/
+.claude/scheduled_tasks.lock

@@ -1,0 +1,8 @@
+slug,code,name,sortOrder,source
+organic-solid,organic_solid,有機固形肥料,1,盆栽の基礎知識; 置き肥の標準分類
+organic-liquid,organic_liquid,有機液体肥料,2,盆栽の基礎知識; 魚液・海藻エキス等
+chemical-solid,chemical_solid,化成固形肥料,3,肥料学概論; 無機塩系
+chemical-liquid,chemical_liquid,化成液体肥料,4,肥料学概論; 速効性液肥
+slow-release,slow_release,緩効性肥料,5,肥料学概論; コーティング肥料
+controlled-release,controlled_release,溶出制御型肥料,6,肥料学概論; 樹脂被覆肥料
+foliar,foliar,葉面散布材,7,盆栽の基礎知識; 微量要素補給用

@@ -1,0 +1,27 @@
+# ===========================================
+# BON-LOG Dockerfile (開発用)
+# ホットリロード対応
+# ===========================================
+
+FROM node:20-alpine
+
+# 開発用ツールをインストール
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# パッケージファイルをコピー
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma/
+
+# 依存関係をインストール
+RUN npm ci
+
+# Prismaクライアントを生成
+RUN npx prisma generate
+
+# ポート公開
+EXPOSE 3000
+
+# 開発サーバー起動
+CMD ["npm", "run", "dev"]

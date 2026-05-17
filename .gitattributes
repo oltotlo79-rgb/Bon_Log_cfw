@@ -1,0 +1,12 @@
+# 自動生成された挿絵（WebP）はバイナリ扱い — 差分・マージ誤動作を防止
+public/images/generated/**/*.webp binary
+public/images/generated/**/*.png binary
+public/images/generated/**/*.jpg binary
+public/images/generated/**/*.jpeg binary
+
+# 改行コードを OS 依存にしない（Windows/macOS/Linux 混在環境対策）
+* text=auto eol=lf
+
+# Windows 専用バッチファイルは CRLF のまま
+*.bat text eol=crlf
+*.cmd text eol=crlf
