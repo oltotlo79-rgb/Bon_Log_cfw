@@ -286,19 +286,14 @@ jobs:
           AUTH_TRUST_HOST: "true"
           NODE_OPTIONS: "--max-old-space-size=4096"
 
-      - name: Prepare standalone server
+      - name: Start Next.js production server
+        # CFW 移行で next.config.ts の `output: 'standalone'` を削除したため、
+        # `next start` (通常の本番モード) でサーバーを起動する。
+        # E2E は Node.js Next.js サーバー相手で実行し、CFW での挙動は別途
+        # staging.bon-log.com に対する Playwright で検証する (Phase 5)。
         run: |
-          cp -r public .next/standalone/public 2>/dev/null || true
-          cp -r .next/static .next/standalone/.next/static 2>/dev/null || true
-          cp -r node_modules/.prisma .next/standalone/node_modules/.prisma 2>/dev/null || true
-          cp -r node_modules/@prisma .next/standalone/node_modules/@prisma 2>/dev/null || true
-
-      - name: Start standalone server
-        run: |
-          cd .next/standalone
-          node server.js > ../../server.log 2>&1 &
+          npm run start > server.log 2>&1 &
           SERVER_PID=$!
-          cd ../..
           echo "Server PID: $SERVER_PID"
           echo "Waiting for server to start..."
           READY=false
