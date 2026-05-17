@@ -69,11 +69,45 @@
 |---|---------------|------|-----------|------|
 | 1 | `NEXT_PUBLIC_APP_URL` | **Plaintext** | **Phase 4 初期**: `https://bon-log.oltotlo81.workers.dev` (Worker の direct URL)<br/>**Phase 4 後半**: `https://staging.bon-log.com` (DNS 切替後)<br/>**Phase 6**: `https://www.bon-log.com` (本番カットオーバー時のみ) | canonical / sitemap / OG に焼き付くため**実際に使うアクセス URL** を設定。⚠ 本番ドメイン (www.bon-log.com) は **Vercel が運用中** のため Phase 6 まで設定不可 (OAuth callback 等が Vercel に流れる事故が起きる) |
 | 2 | `NEXTAUTH_URL` | **Plaintext** | 上記と同じ値 | NextAuth コールバック検証 |
-| 3 | `NEXTAUTH_SECRET` | **Secret** | 32 文字以上のランダム文字列 | JWT 署名キー。生成: PowerShell で `[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))` または `openssl rand -base64 32` |
+| 3 | `NEXTAUTH_SECRET` | **Secret** | 32 文字以上のランダム文字列 | JWT 署名キー。生成方法は次節を参照 |
 | 4 | `DATABASE_URL` | **Secret** | (build 時) `postgresql://dummy:dummy@localhost:5432/dummy`<br/>(runtime) Supabase URL | Prisma 接続 |
 | 5 | `DIRECT_URL` | **Secret** | 上記と同じ | Prisma migrate 用 |
 | 6 | `TWO_FACTOR_ENCRYPTION_KEY` | **Secret** | 64 文字 hex (= 32 byte) | 2FA AES-256-GCM 鍵 |
 | 7 | `SKIP_DB_CONNECTION` | **Plaintext** | `true` | build 中の DB 接続スキップ (Hyperdrive 未接続段階で必須) |
+
+### 1.2.0 `NEXTAUTH_SECRET` の生成方法
+
+PowerShell で**インスタンス経由**にすること (静的 `GetBytes(int)` は PS 7+ / .NET 6+ のみ提供)。
+PowerShell 5.x (Windows 標準) では下記いずれかを使用:
+
+```powershell
+# 方法 A: RNGCryptoServiceProvider (PS 5.x で確実に動く) ← 推奨
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
+$rng.GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
+$rng.Dispose()
+
+# 方法 B: RandomNumberGenerator.Create() で abstract class のインスタンス取得 (5.x/7.x 両対応)
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
+$rng.Dispose()
+
+# 方法 C: Node.js (パス通っていれば)
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# 方法 D: openssl (Git for Windows 付属)
+openssl rand -base64 32
+```
+
+出力例 (44 文字、末尾 `=` 含む):
+```
+kQ8mP7xR2vN5bW9fJ3hL6tY4dA0cE1gI8kO7nQ2sU5w=
+```
+
+⚠ この値は PowerShell の履歴に残るので、登録後すぐにターミナルをクリアまたは閉じること。
 
 ### 1.2.1 ⚠ `NEXT_PUBLIC_APP_URL` の値はフェーズで変える
 
