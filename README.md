@@ -4,6 +4,7 @@
 >
 > オリジナル commit: `4f24d485` (2026-05-17)
 > **🔧 オーナー手順書 (環境変数設定 / Hyperdrive / DNS など)**: [`docs/OPERATOR-SETUP.md`](docs/OPERATOR-SETUP.md) ← まずこれを読む
+> **🆘 デプロイ トラブルシューティング**: [`docs/DEPLOYMENT-TROUBLESHOOTING.md`](docs/DEPLOYMENT-TROUBLESHOOTING.md)
 > 移行計画書: [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md)
 > 移行ノート: [docs/CFW-MIGRATION.md](docs/CFW-MIGRATION.md)
 >
