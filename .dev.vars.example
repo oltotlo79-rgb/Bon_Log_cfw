@@ -1,0 +1,72 @@
+# ============================================================
+# Wrangler dev (npm run preview:cf) 用のローカル secrets
+# ============================================================
+#
+# このファイルを `.dev.vars` にコピーして使用する。`.dev.vars` は .gitignore 済。
+#
+# Wrangler は dev 起動時に `.dev.vars` を自動的に env binding に注入する。
+# 既存の `.env.local` (Next.js dev 用) とは別ファイルである点に注意。
+#
+# 値は `.env.local` から該当するものをそのままコピーで OK。
+# ============================================================
+
+# === 認証 ===
+NEXTAUTH_SECRET=
+NEXTAUTH_URL=http://localhost:8787
+
+# === DB ===
+# Hyperdrive ローカル開発時は localhost Postgres を使用 (wrangler.toml の localConnectionString)。
+# `.dev.vars` で上書きしたい場合は DATABASE_URL を指定。
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/bonsai_sns
+SUPABASE_CA_CERT=
+
+# === Google OAuth ===
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# === Stripe ===
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_PRICE_ID_MONTHLY=
+STRIPE_PRICE_ID_YEARLY=
+
+# === Email ===
+EMAIL_PROVIDER=console
+RESEND_API_KEY=
+EMAIL_FROM=
+
+# === Redis (Upstash) ===
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# === Storage (R2) ===
+STORAGE_PROVIDER=r2
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_URL=
+
+# === App URL ===
+NEXT_PUBLIC_APP_URL=http://localhost:8787
+
+# === 2FA encryption ===
+TWO_FACTOR_ENCRYPTION_KEY=
+
+# === Web Push (VAPID) ===
+VAPID_PRIVATE_KEY=
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_SUBJECT=mailto:noreply@bon-log.com
+
+# === Cron ===
+CRON_SECRET=
+
+# === Search ===
+SEARCH_MODE=trgm
+
+# === 広告 ===
+NEXT_PUBLIC_AD_PROVIDER=ninja
+
+# === ゲストユーザー (任意) ===
+GUEST_PASSWORD=
