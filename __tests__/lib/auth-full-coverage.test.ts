@@ -77,7 +77,12 @@ vi.mock('next-auth/providers/google', () => ({
 
 vi.mock('next-auth', () => ({
   __esModule: true,
-  default: vi.fn((config: Record<string, unknown>) => {
+  // Workers env timing 対策で lib/auth.ts は NextAuth(() => ({...})) の関数形式に変更済。
+  // テスト時点で per-request config を展開するため、関数なら invoke してから capture する。
+  default: vi.fn((configOrFn: unknown) => {
+    const config = (typeof configOrFn === 'function'
+      ? (configOrFn as () => Record<string, unknown>)()
+      : configOrFn) as Record<string, unknown>
     capturedCallbacks = config.callbacks as typeof capturedCallbacks
     capturedEvents = config.events as typeof capturedEvents
     return {
@@ -103,6 +108,10 @@ vi.mock('@/lib/auth.config', () => ({
 
 describe('auth.ts 完全カバレッジ', () => {
   beforeAll(async () => {
+    // Workers 対応で auth.ts は GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET が set のときのみ
+    // GoogleProvider を含める。テストでも mock を取り出せるよう値を入れる。
+    process.env.GOOGLE_CLIENT_ID = 'test-google-client-id'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret'
     // auth.ts をインポートして全キャプチャを初期化
     await import('@/lib/auth')
   })
