@@ -23,7 +23,15 @@ if (typeof process !== 'undefined' && process.env.NEXT_RUNTIME) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- 条件付き import には require が必要
   require('server-only')
 }
-import { PrismaClient } from '@prisma/client'
+// Cloudflare Workers 用に Plan B (provider = "prisma-client") で生成した
+// 新 PrismaClient を runtime で使う。
+// 新クライアントは内部で `import('./query_engine_bg.wasm?module')` を呼び、
+// wrangler のネイティブ WASM binding に乗るため Workers でそのまま動作する。
+//
+// 型は legacy @prisma/client から取り、コードベース他箇所 (93 ファイル) との
+// 型互換を維持する。runtime 値は新 client で、型注釈は legacy で。
+import type { PrismaClient as PrismaClientType } from '@prisma/client'
+import { PrismaClient as PrismaClientCF } from '@/lib/generated/prisma-cf/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import {
@@ -94,8 +102,8 @@ function getSupabaseCaCert(): string | undefined {
  * 1 つの Worker instance 内では最初の prisma.* 呼び出しで作られて以降キャッシュされる。
  * Worker instance ごとに独立した singleton になるため Workers のライフサイクルと整合。
  */
-let cachedPrisma: PrismaClient | undefined
-function getPrismaClient(): PrismaClient {
+let cachedPrisma: PrismaClientType | undefined
+function getPrismaClient(): PrismaClientType {
   if (cachedPrisma) return cachedPrisma
 
   const isDummy = isDummyDatabaseRuntime()
@@ -117,10 +125,12 @@ function getPrismaClient(): PrismaClient {
     console.error('[db] Unexpected pool error:', err.message)
   })
 
-  cachedPrisma = new PrismaClient({
+  // 新 client (PrismaClientCF) は同じ API を持つので legacy 型へキャストして
+  // 既存 93 ファイルの import { Prisma, ... } from '@prisma/client' との互換を維持する。
+  cachedPrisma = new PrismaClientCF({
     adapter: new PrismaPg(pool),
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  })
+  }) as unknown as PrismaClientType
 
   return cachedPrisma
 }
@@ -129,8 +139,8 @@ function getPrismaClient(): PrismaClient {
  * 既存呼び出し側 (`import { prisma } from '@/lib/db'` → `prisma.user.findMany(...)`)
  * との後方互換のため Proxy で公開する。プロパティアクセス時に lazy 初期化が走る。
  */
-export const prisma = new Proxy({} as PrismaClient, {
+export const prisma = new Proxy({} as PrismaClientType, {
   get(_target, prop, receiver) {
     return Reflect.get(getPrismaClient(), prop, receiver)
   },
-}) as PrismaClient
+}) as PrismaClientType

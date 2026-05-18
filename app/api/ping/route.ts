@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic'
  * Cloudflare のビルド出力キャッシュが古い worker.js を serve している場合、
  * ここの値が更新されていても /api/ping のレスポンスは古いまま (= cache 配信)。
  */
-const BUILD_VERSION = 'v16-toplevel-try-catch-2026-05-18-patch13'
+const BUILD_VERSION = 'v17-plan-b-prisma-client-2026-05-18'
 
 /**
  * Workers の env 注入タイミング検証用 (存在チェックのみ)。

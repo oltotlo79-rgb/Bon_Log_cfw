@@ -69,6 +69,9 @@ next-env.d.ts
 # Build 時に scripts/patch-prisma-wasm-loader.mjs が生成する sentinel。
 # Cloudflare CI で patch が走ったかを runtime レスポンスで判別する用途。
 /lib/generated/prisma-wasm-patch-state.ts
+# Plan B: provider = "prisma-client" generator output (Cloudflare Workers 用)
+# prisma generate で再生成されるため git 管理不要。
+/lib/generated/prisma-cf/
 
 # uploaded files (keep .gitkeep)
 /public/uploads/*
