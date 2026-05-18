@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-const BUILD_VERSION = 'v21-cleanup'
+const BUILD_VERSION = 'v22-hyperdrive-pool-tuning'
 
 function probe(name: string): { exists: boolean; len?: number } {
   const v = process.env[name]

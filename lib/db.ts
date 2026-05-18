@@ -161,12 +161,22 @@ function getPrismaClient(): PrismaClientType {
   //  - production env で dummy でない
   const useSsl = !isDummy && !usingHyperdrive && process.env.NODE_ENV === 'production' && !isLocal
 
+  // Workers + Hyperdrive 環境では Hyperdrive 自体が connection pool を持つため、
+  // pg.Pool 側は max=1 で十分 (むしろ多いと Workers の CPU/connect timeout に引っかかる)。
+  // Node.js (Vercel / dev / vitest) では従来通り DB_POOL_MAX_DEFAULT (=5) を使う。
+  const poolMax = usingHyperdrive
+    ? 1
+    : parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10)
+  // Hyperdrive 経由は connect が一瞬で済むはずだが、初回は cold start で時間がかかる
+  // 場合があるため余裕を持って 30s に。Node.js (Vercel) は既存設定を維持。
+  const connectionTimeout = usingHyperdrive ? 30_000 : DB_POOL_CONNECTION_TIMEOUT_MS
+
   const pool = new Pool({
     connectionString,
     ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
-    max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
+    max: poolMax,
     idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
-    connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
+    connectionTimeoutMillis: connectionTimeout,
   })
 
   pool.on('error', (err) => {
