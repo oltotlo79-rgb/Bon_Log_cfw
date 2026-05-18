@@ -67,6 +67,18 @@ bucket_name = "bon-log-uploads-placeholder"
 # ]
 
 # ------------------------------------------------------------
+# Module rules
+# ------------------------------------------------------------
+# Prisma 6 の query compiler は .wasm を CJS `require('./*.wasm')` (top-level)
+# でロードする。Workers では .wasm の static binding を作るためにここで宣言する。
+# Wrangler v4 は ESM `import` 経由なら自動検出するが、CJS require の場合は
+# 明示宣言が必要なため Fallthrough を防ぐ目的でも入れておく。
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = true
+
+# ------------------------------------------------------------
 # Observability (Workers Logs)
 # ------------------------------------------------------------
 [observability]
