@@ -135,12 +135,16 @@ if (wasmJs.includes(PATCH_MARKER)) {
 // に倒れて Workers で `[unenv] fs.readFileSync is not implemented yet!` を
 // 引き起こす。CJS の require で静的バンドルを保証する。
 const subpathImportRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?import\(\s*['"`]#wasm-compiler-loader['"`]\s*\)[^}]*?\}/m
-// **top-level** 定数として require した値を function から参照することで、
-// esbuild が CJS→ESM 変換時に静的 import に hoisting し、runtime の dynamic require shim
-// (worker.js:8:9 で throw する __require) を経由しなくなる。
+// Workers では top-level の binding を返し、それ以外 (Node.js / 他 edge ランタイム) では
+// 元の subpath import 経由 (wasm-worker-loader.mjs) に fallback する。
 const replacement = `getQueryCompilerWasmModule: async () => {
     ${PATCH_MARKER}
-    return __PRISMA_WASM_MODULE
+    if (__PRISMA_WASM_MODULE) {
+      return __PRISMA_WASM_MODULE
+    }
+    const loader = (await import('#wasm-compiler-loader')).default
+    const compiler = (await loader).default
+    return compiler
   }`
 
 if (!wasmJsAlreadyPatched) {
@@ -188,10 +192,20 @@ if (existsSync(INDEX_JS_PATH)) {
     //     return new WebAssembly.Module(queryCompilerWasmFileBytes)
     //   }
     const indexJsRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?require\(\s*['"`]fs['"`]\s*\)\.readFileSync[^}]*?\}/m
-    // top-level 定数経由で参照することで esbuild が静的 import に hoist する。
+    // Workers では top-level の binding を返し、Node.js (next build の静的生成) では
+    // 元の fs.readFileSync 経路に fallback する hybrid 実装。
+    // 注意: Workers bundle にも fallback コードが含まれるが、Workers では
+    //   __PRISMA_WASM_MODULE が真値になり if 内で return するため fs.readFileSync は
+    //   実行されない。
     const indexJsReplacement = `getQueryCompilerWasmModule: async () => {
         ${PATCH_MARKER}
-        return __PRISMA_WASM_MODULE
+        if (__PRISMA_WASM_MODULE) {
+          return __PRISMA_WASM_MODULE
+        }
+        // Node.js fallback (next build / next start の query 実行用)
+        const queryCompilerWasmFilePath = require('path').join(config.dirname, 'query_compiler_bg.wasm')
+        const queryCompilerWasmFileBytes = require('fs').readFileSync(queryCompilerWasmFilePath)
+        return new WebAssembly.Module(queryCompilerWasmFileBytes)
       }`
     if (!indexJsRegex.test(indexJs)) {
       log('WARNING: getQueryCompilerWasmModule (fs.readFileSync version) pattern not found in index.js')
