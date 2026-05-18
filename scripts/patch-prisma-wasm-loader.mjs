@@ -135,13 +135,12 @@ if (wasmJs.includes(PATCH_MARKER)) {
 // に倒れて Workers で `[unenv] fs.readFileSync is not implemented yet!` を
 // 引き起こす。CJS の require で静的バンドルを保証する。
 const subpathImportRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?import\(\s*['"`]#wasm-compiler-loader['"`]\s*\)[^}]*?\}/m
+// **top-level** 定数として require した値を function から参照することで、
+// esbuild が CJS→ESM 変換時に静的 import に hoisting し、runtime の dynamic require shim
+// (worker.js:8:9 で throw する __require) を経由しなくなる。
 const replacement = `getQueryCompilerWasmModule: async () => {
     ${PATCH_MARKER}
-    // Cloudflare Workers では \`new WebAssembly.Module(bytes)\` / \`WebAssembly.compile(bytes)\`
-    // が runtime で disallowed by embedder で死ぬ。esbuild + wrangler が \`.wasm\` の require を
-    // build 時に pre-compiled WebAssembly.Module の binding として解決するため、
-    // **静的 require** にすることで Workers 側で安全に instantiate 可能になる。
-    return require('./query_compiler_bg.wasm')
+    return __PRISMA_WASM_MODULE
   }`
 
 if (!wasmJsAlreadyPatched) {
@@ -151,6 +150,10 @@ if (!wasmJsAlreadyPatched) {
     process.exit(1)
   }
 
+  // top-level に WASM module の require を挿入。`config.compilerWasm = {` の直前で
+  // 必ず初期化済になる位置にする。
+  const wasmJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level require for esbuild static hoisting (Workers 経路)\nconst __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n\n`
+  wasmJs = wasmJs.replace(/(config\.compilerWasm\s*=\s*\{)/, `${wasmJsTopLevelRequire}$1`)
   wasmJs = wasmJs.replace(subpathImportRegex, replacement)
   writeFileSync(WASM_JS_PATH, wasmJs)
   log(`patched: ${WASM_JS_PATH}`)
@@ -185,19 +188,19 @@ if (existsSync(INDEX_JS_PATH)) {
     //     return new WebAssembly.Module(queryCompilerWasmFileBytes)
     //   }
     const indexJsRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?require\(\s*['"`]fs['"`]\s*\)\.readFileSync[^}]*?\}/m
+    // top-level 定数経由で参照することで esbuild が静的 import に hoist する。
     const indexJsReplacement = `getQueryCompilerWasmModule: async () => {
         ${PATCH_MARKER}
-        // Cloudflare Workers では \`new WebAssembly.Module(bytes)\` が runtime で
-        // disallowed by embedder で死ぬ。esbuild + wrangler が \`.wasm\` の require を
-        // build 時に pre-compiled WebAssembly.Module の binding として解決するため、
-        // **静的 require** にすることで Workers 側で安全に instantiate 可能になる。
-        return require('./query_compiler_bg.wasm')
+        return __PRISMA_WASM_MODULE
       }`
     if (!indexJsRegex.test(indexJs)) {
       log('WARNING: getQueryCompilerWasmModule (fs.readFileSync version) pattern not found in index.js')
       log('Prisma generator output may have changed. Inspect the file to update the patch.')
       process.exit(1)
     }
+    // top-level require を挿入
+    const indexJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level require for esbuild static hoisting (Workers 経路)\nconst __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n\n`
+    indexJs = indexJs.replace(/(config\.compilerWasm\s*=\s*\{)/, `${indexJsTopLevelRequire}$1`)
     indexJs = indexJs.replace(indexJsRegex, indexJsReplacement)
     writeFileSync(INDEX_JS_PATH, indexJs)
     log(`patched: ${INDEX_JS_PATH}`)
