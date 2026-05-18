@@ -137,13 +137,11 @@ if (wasmJs.includes(PATCH_MARKER)) {
 const subpathImportRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?import\(\s*['"`]#wasm-compiler-loader['"`]\s*\)[^}]*?\}/m
 const replacement = `getQueryCompilerWasmModule: async () => {
     ${PATCH_MARKER}
-    // Inline Base64 → WebAssembly.compile (Cloudflare Workers compatibility)
-    // 静的 require で base64 を bundle 時に inline させる (dynamic import 回避)
-    const __prismaWasmBase64 = require('./query_compiler_bg.wasm.base64.js')
-    const __bin = atob(__prismaWasmBase64)
-    const __bytes = new Uint8Array(__bin.length)
-    for (let __i = 0; __i < __bin.length; __i++) __bytes[__i] = __bin.charCodeAt(__i)
-    return await WebAssembly.compile(__bytes)
+    // Cloudflare Workers では \`new WebAssembly.Module(bytes)\` / \`WebAssembly.compile(bytes)\`
+    // が runtime で disallowed by embedder で死ぬ。esbuild + wrangler が \`.wasm\` の require を
+    // build 時に pre-compiled WebAssembly.Module の binding として解決するため、
+    // **静的 require** にすることで Workers 側で安全に instantiate 可能になる。
+    return require('./query_compiler_bg.wasm')
   }`
 
 if (!wasmJsAlreadyPatched) {
@@ -189,12 +187,11 @@ if (existsSync(INDEX_JS_PATH)) {
     const indexJsRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?require\(\s*['"`]fs['"`]\s*\)\.readFileSync[^}]*?\}/m
     const indexJsReplacement = `getQueryCompilerWasmModule: async () => {
         ${PATCH_MARKER}
-        // Inline Base64 → WebAssembly.Module (Cloudflare Workers compatibility)
-        const __prismaWasmBase64 = require('./query_compiler_bg.wasm.base64.js')
-        const __bin = atob(__prismaWasmBase64)
-        const __bytes = new Uint8Array(__bin.length)
-        for (let __i = 0; __i < __bin.length; __i++) __bytes[__i] = __bin.charCodeAt(__i)
-        return new WebAssembly.Module(__bytes)
+        // Cloudflare Workers では \`new WebAssembly.Module(bytes)\` が runtime で
+        // disallowed by embedder で死ぬ。esbuild + wrangler が \`.wasm\` の require を
+        // build 時に pre-compiled WebAssembly.Module の binding として解決するため、
+        // **静的 require** にすることで Workers 側で安全に instantiate 可能になる。
+        return require('./query_compiler_bg.wasm')
       }`
     if (!indexJsRegex.test(indexJs)) {
       log('WARNING: getQueryCompilerWasmModule (fs.readFileSync version) pattern not found in index.js')
