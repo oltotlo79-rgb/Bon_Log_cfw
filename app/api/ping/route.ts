@@ -9,17 +9,9 @@
  */
 
 import { prisma } from '@/lib/db'
-
-// Build 時に scripts/patch-prisma-wasm-loader.mjs が生成する sentinel。
-// Cloudflare build 環境で patch が実際に走ったかを runtime レスポンスで判別する。
-// 生成失敗時のためファイル欠落を許容する。
-let prismaWasmPatchState: Record<string, unknown> | { error: string }
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  prismaWasmPatchState = require('@/lib/generated/prisma-wasm-patch-state').PRISMA_WASM_PATCH_STATE
-} catch (err) {
-  prismaWasmPatchState = { error: err instanceof Error ? err.message : String(err) }
-}
+import { PrismaClient as PrismaClientCF } from '@/lib/generated/prisma-cf/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +22,7 @@ export const dynamic = 'force-dynamic'
  * Cloudflare のビルド出力キャッシュが古い worker.js を serve している場合、
  * ここの値が更新されていても /api/ping のレスポンスは古いまま (= cache 配信)。
  */
-const BUILD_VERSION = 'v17-plan-b-prisma-client-2026-05-18'
+const BUILD_VERSION = 'v18-conn-diag-2026-05-18'
 
 /**
  * Workers の env 注入タイミング検証用 (存在チェックのみ)。
@@ -65,43 +57,111 @@ function sanitizeStack(stack: string | undefined): string[] {
     }))
 }
 
+function serializeErr(err: unknown): unknown {
+  if (err instanceof Error) {
+    return {
+      name: err.name,
+      message: err.message,
+      code: (err as Error & { code?: string }).code,
+      cause: err.cause instanceof Error
+        ? { name: err.cause.name, message: err.cause.message, stack: sanitizeStack(err.cause.stack) }
+        : err.cause,
+      stack: sanitizeStack(err.stack),
+    }
+  }
+  return { message: String(err) }
+}
+
 async function probeDb(): Promise<unknown> {
   try {
     const rows = (await prisma.$queryRaw`SELECT 1 AS ok`) as unknown[]
     return { ok: true, rowCount: rows.length }
   } catch (err) {
-    if (err instanceof Error) {
-      return {
-        ok: false,
-        name: err.name,
-        message: err.message,
-        code: (err as Error & { code?: string }).code,
-        cause: err.cause instanceof Error
-          ? {
-              name: err.cause.name,
-              message: err.cause.message,
-              stack: sanitizeStack(err.cause.stack),
-            }
-          : err.cause,
-        stack: sanitizeStack(err.stack),
-      }
-    }
-    return { ok: false, message: String(err) }
+    return { ok: false, ...serializeErr(err) as Record<string, unknown> }
   }
+}
+
+/**
+ * 接続パラメータを変えながら SELECT 1 を試して切り分ける。
+ * Plan B 採用後、Connection terminated unexpectedly エラーの原因が
+ * pgbouncer (6543) vs direct (5432) / SSL verify on/off のどれかを判別する。
+ */
+async function probeDbVariants(): Promise<unknown> {
+  function decodeCa(): string | undefined {
+    const raw = process.env.SUPABASE_CA_CERT
+    if (!raw) return undefined
+    return Buffer.from(raw, 'base64').toString('utf-8')
+  }
+
+  async function tryOnce(label: string, connectionString: string, ssl: false | { rejectUnauthorized: boolean; ca?: string }): Promise<unknown> {
+    const pool = new Pool({
+      connectionString,
+      ssl,
+      max: 1,
+      idleTimeoutMillis: 1_000,
+      connectionTimeoutMillis: 5_000,
+    })
+    const client = new PrismaClientCF({ adapter: new PrismaPg(pool) })
+    try {
+      const rows = (await client.$queryRaw`SELECT 1 AS ok`) as unknown[]
+      return { label, ok: true, rowCount: rows.length }
+    } catch (err) {
+      return { label, ok: false, ...serializeErr(err) as Record<string, unknown> }
+    } finally {
+      try { await client.$disconnect() } catch {}
+      try { await pool.end() } catch {}
+    }
+  }
+
+  const ca = decodeCa()
+  const dbUrl = process.env.DATABASE_URL ?? ''
+  const directUrl = process.env.DIRECT_URL ?? ''
+  const results: unknown[] = []
+
+  // Variant 1: DATABASE_URL (pgbouncer 6543) + SSL verify on
+  if (dbUrl) {
+    results.push(await tryOnce('database_url+ssl-verify', dbUrl, { rejectUnauthorized: true, ca }))
+  }
+  // Variant 2: DATABASE_URL + SSL skip verify
+  if (dbUrl) {
+    results.push(await tryOnce('database_url+ssl-noverify', dbUrl, { rejectUnauthorized: false }))
+  }
+  // Variant 3: DIRECT_URL (direct 5432) + SSL verify on
+  if (directUrl) {
+    results.push(await tryOnce('direct_url+ssl-verify', directUrl, { rejectUnauthorized: true, ca }))
+  }
+  // Variant 4: DIRECT_URL + SSL skip verify
+  if (directUrl) {
+    results.push(await tryOnce('direct_url+ssl-noverify', directUrl, { rejectUnauthorized: false }))
+  }
+  return results
 }
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url)
-  if (url.searchParams.get('probe') === 'db') {
+  const mode = url.searchParams.get('probe')
+  if (mode === 'db') {
     const dbResult = await probeDb()
     return new Response(
       JSON.stringify({
         ok: true,
         runtime: 'Cloudflare-Workers',
         buildVersion: BUILD_VERSION,
-        prismaWasmPatchState,
         timestamp: new Date().toISOString(),
         db: dbResult,
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  if (mode === 'db-variants') {
+    const variants = await probeDbVariants()
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        runtime: 'Cloudflare-Workers',
+        buildVersion: BUILD_VERSION,
+        timestamp: new Date().toISOString(),
+        variants,
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     )
