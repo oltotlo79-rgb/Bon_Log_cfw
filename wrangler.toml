@@ -36,7 +36,7 @@ binding = "ASSETS"
 # 持つので Worker 側は接続毎に短命接続で良い。
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-id = "6569f48a-42d6-48f1-ba85-fb0a5121af3d"
+id = "6569f48a42d648f1ba85fb0a5121af3d"
 # ローカル開発時は localhost Postgres を使う (`wrangler dev` 起動時)
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
@@ -89,7 +89,7 @@ name = "bon-log-staging"
 
 [[env.staging.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "6569f48a-42d6-48f1-ba85-fb0a5121af3d"
+id = "6569f48a42d648f1ba85fb0a5121af3d"
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 [[env.staging.r2_buckets]]
@@ -108,7 +108,7 @@ name = "bon-log-prod"
 # 下記 id を差し替える。staging と同じ ID を使うのは Phase 5 までの暫定。
 [[env.production.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "6569f48a-42d6-48f1-ba85-fb0a5121af3d"
+id = "6569f48a42d648f1ba85fb0a5121af3d"
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/bonsai_sns"
 
 [[env.production.r2_buckets]]
