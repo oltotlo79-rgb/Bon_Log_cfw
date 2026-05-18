@@ -156,7 +156,7 @@ if (!wasmJsAlreadyPatched) {
 
   // top-level に WASM module の require を挿入。`config.compilerWasm = {` の直前で
   // 必ず初期化済になる位置にする。
-  const wasmJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level guarded require: Workers では esbuild が wrangler binding に静的解決する。\n// Node.js (next build の Collecting page data 等) では navigator が undefined なので\n// require は実行されず、Node.js が .wasm を JS として parse して落ちる事故を防ぐ。\nlet __PRISMA_WASM_MODULE\nif (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {\n  __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n}\n\n`
+  const wasmJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level guarded require: Workers では esbuild が wrangler binding に静的解決する。\n// Node.js (next build の Collecting page data 等) では navigator が undefined なので\n// require は実行されず、Node.js が .wasm を JS として parse して落ちる事故を防ぐ。\n// require が失敗しても Worker module init は失敗させない (try/catch)。\nlet __PRISMA_WASM_MODULE\ntry {\n  if (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {\n    __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n  }\n} catch (_e) {\n  // wrangler の .wasm binding がまだ未整備の場合に Worker init が完全死亡しないよう\n  // ここでは握り潰す。query 実行時の fallback (function 内) で改めて試みる。\n}\n\n`
   wasmJs = wasmJs.replace(/(config\.compilerWasm\s*=\s*\{)/, `${wasmJsTopLevelRequire}$1`)
   wasmJs = wasmJs.replace(subpathImportRegex, replacement)
   writeFileSync(WASM_JS_PATH, wasmJs)
@@ -213,7 +213,8 @@ if (existsSync(INDEX_JS_PATH)) {
       process.exit(1)
     }
     // top-level guarded require を挿入 (Workers では実行、Node.js では skip)
-    const indexJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level guarded require: Workers では esbuild が wrangler binding に静的解決する。\n// Node.js (next build の Collecting page data 等) では navigator が undefined なので\n// require は実行されず、Node.js が .wasm を JS として parse して落ちる事故を防ぐ。\nlet __PRISMA_WASM_MODULE\nif (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {\n  __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n}\n\n`
+    // try/catch で wrap して require 失敗時にも Worker module init を継続させる。
+    const indexJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level guarded require: Workers では esbuild が wrangler binding に静的解決する。\n// Node.js (next build の Collecting page data 等) では navigator が undefined なので\n// require は実行されず、Node.js が .wasm を JS として parse して落ちる事故を防ぐ。\n// require が失敗しても Worker module init は失敗させない (try/catch)。\nlet __PRISMA_WASM_MODULE\ntry {\n  if (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {\n    __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n  }\n} catch (_e) {\n  // wrangler の .wasm binding がまだ未整備の場合に Worker init が完全死亡しないよう\n  // ここでは握り潰す。query 実行時の fallback (function 内) で改めて試みる。\n}\n\n`
     indexJs = indexJs.replace(/(config\.compilerWasm\s*=\s*\{)/, `${indexJsTopLevelRequire}$1`)
     indexJs = indexJs.replace(indexJsRegex, indexJsReplacement)
     writeFileSync(INDEX_JS_PATH, indexJs)
