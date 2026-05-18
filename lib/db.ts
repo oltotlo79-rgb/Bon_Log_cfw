@@ -44,19 +44,46 @@ const DUMMY_DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
 const NEXT_BUILD_PHASE = 'phase-production-build'
 
 /**
- * Cloudflare Workers の Hyperdrive binding (Phase 4 で導入予定) から接続文字列を取得する。
+ * Cloudflare Workers の Hyperdrive binding から接続文字列を取得する。
  *
  * 優先順位:
- *  1. `globalThis.__BON_LOG_HYPERDRIVE_CONNECTION_STRING__`
- *     (worker fetch handler 内で lib/cloudflare-context.ts がセット)
- *  2. `process.env.DATABASE_URL`
- *  3. dummy URL (build 時 / 完全に env が空のときのフォールバック)
+ *  1. Cloudflare Hyperdrive binding (`env.HYPERDRIVE.connectionString`)
+ *     OpenNext の `getCloudflareContext()` 経由でアクセス。Workers ランタイムでのみ取得可能。
+ *  2. `globalThis.__BON_LOG_HYPERDRIVE_CONNECTION_STRING__`
+ *     (worker fetch handler 内で予め global にセットする legacy 経路)
+ *  3. `process.env.DATABASE_URL`
+ *     (Node.js dev / vitest / scripts / Workers でも env から流れ込んだ場合)
+ *  4. dummy URL (build 時 / 完全に env が空のときのフォールバック)
+ *
+ * Workers Sockets で Supabase へ直接接続すると "Connection terminated unexpectedly"
+ * で失敗するため、Hyperdrive 経由が事実上必須。
  */
 function resolveConnectionString(): string {
+  // 1. getCloudflareContext() で env.HYPERDRIVE.connectionString を取得
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- runtime に存在しない場合があるため動的 require
+    const cf = require('@opennextjs/cloudflare') as {
+      getCloudflareContext?: (opts?: { async?: boolean }) => {
+        env?: { HYPERDRIVE?: { connectionString?: string } }
+      }
+    }
+    if (typeof cf.getCloudflareContext === 'function') {
+      const ctx = cf.getCloudflareContext({ async: false })
+      const cs = ctx?.env?.HYPERDRIVE?.connectionString
+      if (typeof cs === 'string' && cs.length > 0) return cs
+    }
+  } catch {
+    // OpenNext 未インストール or per-request context 外 → fallback
+  }
+
+  // 2. legacy globalThis 経路
   const hyperdrive = (globalThis as unknown as {
     __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string
   }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
-  return hyperdrive || process.env.DATABASE_URL || DUMMY_DATABASE_URL
+  if (hyperdrive) return hyperdrive
+
+  // 3. process.env.DATABASE_URL
+  return process.env.DATABASE_URL || DUMMY_DATABASE_URL
 }
 
 /**
@@ -67,14 +94,31 @@ function resolveConnectionString(): string {
  * 無視する (Cloudflare では build/runtime の env vars が同じ source なため誤って
  * runtime まで届いた場合の安全装置)。
  */
+function hasHyperdriveBinding(): boolean {
+  // 1. globalThis bridge (legacy)
+  if ((globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__) {
+    return true
+  }
+  // 2. getCloudflareContext() で env.HYPERDRIVE が存在するか
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const cf = require('@opennextjs/cloudflare') as {
+      getCloudflareContext?: (opts?: { async?: boolean }) => {
+        env?: { HYPERDRIVE?: unknown }
+      }
+    }
+    return !!cf.getCloudflareContext?.({ async: false })?.env?.HYPERDRIVE
+  } catch {
+    return false
+  }
+}
+
 function isDummyDatabaseRuntime(): boolean {
-  const hasHyperdriveBinding = !!(globalThis as { __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string })
-    .__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
   const isBuildPhase = process.env.NEXT_PHASE === NEXT_BUILD_PHASE
   const skipByEnv = isBuildPhase && process.env.SKIP_DB_CONNECTION === 'true'
   return (
     skipByEnv ||
-    (!process.env.DATABASE_URL && !hasHyperdriveBinding) ||
+    (!process.env.DATABASE_URL && !hasHyperdriveBinding()) ||
     process.env.DATABASE_URL === DUMMY_DATABASE_URL
   )
 }
@@ -109,13 +153,17 @@ function getPrismaClient(): PrismaClientType {
   const isDummy = isDummyDatabaseRuntime()
   const connectionString = isDummy ? DUMMY_DATABASE_URL : resolveConnectionString()
   const isLocal = isLocalConnection(connectionString)
+  const usingHyperdrive = hasHyperdriveBinding()
+
+  // SSL は次の場合に有効化:
+  //  - Hyperdrive 経由でない (Worker → Hyperdrive は内部閉域網のため平文)
+  //  - localhost でない (dev は SSL なし)
+  //  - production env で dummy でない
+  const useSsl = !isDummy && !usingHyperdrive && process.env.NODE_ENV === 'production' && !isLocal
 
   const pool = new Pool({
     connectionString,
-    ssl:
-      !isDummy && process.env.NODE_ENV === 'production' && !isLocal
-        ? { rejectUnauthorized: true, ca: getSupabaseCaCert() }
-        : false,
+    ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
     max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
     idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
     connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
