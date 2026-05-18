@@ -54,6 +54,7 @@ const BASE64_ESM_MODULE_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_bg.w
 const WORKER_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-worker-loader.mjs')
 const EDGE_LOADER_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm-edge-light-loader.mjs')
 const WASM_JS_PATH = path.join(PRISMA_CLIENT_DIR, 'wasm.js')
+const INDEX_JS_PATH = path.join(PRISMA_CLIENT_DIR, 'index.js')
 
 function log(msg) {
   console.log(`[patch-prisma-wasm] ${msg}`)
@@ -157,6 +158,55 @@ if (!wasmJsAlreadyPatched) {
   log(`patched: ${WASM_JS_PATH}`)
 }
 
+// ====== 3.5. index.js の getQueryCompilerWasmModule (fs.readFileSync 直接呼出) を patch ======
+//
+// .prisma/client/index.js は Node.js 用の entry point で、本来は Prisma の Library
+// engine 用 (Rust binary 経由) のはず。だが engineType="client" でも getQueryCompilerWasmModule
+// が定義されており、これは:
+//     const filePath = require('path').join(config.dirname, 'query_compiler_bg.wasm')
+//     const bytes = require('fs').readFileSync(filePath)
+//     return new WebAssembly.Module(bytes)
+// と直接 fs.readFileSync を呼ぶ。
+//
+// OpenNext esbuild は platform: "node" + conditions: ["workerd"] で両方の条件が立つが、
+// package.json の exports 順 (node が workerd より先) のため "node" 条件が優先され
+// index.js が選ばれる。結果 fs.readFileSync が bundle に inline されて Workers で死ぬ。
+let indexJsAlreadyPatched = false
+let indexJsExists = false
+if (existsSync(INDEX_JS_PATH)) {
+  indexJsExists = true
+  let indexJs = readFileSync(INDEX_JS_PATH, 'utf-8')
+  if (indexJs.includes(PATCH_MARKER)) {
+    log('index.js already patched, skipping')
+    indexJsAlreadyPatched = true
+  } else {
+    // index.js のパターン (path.join / fs.readFileSync 両方を含む):
+    //   getQueryCompilerWasmModule: async () => {
+    //     const queryCompilerWasmFilePath = require('path').join(config.dirname, 'query_compiler_bg.wasm')
+    //     const queryCompilerWasmFileBytes = require('fs').readFileSync(queryCompilerWasmFilePath)
+    //     return new WebAssembly.Module(queryCompilerWasmFileBytes)
+    //   }
+    const indexJsRegex = /getQueryCompilerWasmModule:\s*async\s*\(\s*\)\s*=>\s*\{[^}]*?require\(\s*['"`]fs['"`]\s*\)\.readFileSync[^}]*?\}/m
+    const indexJsReplacement = `getQueryCompilerWasmModule: async () => {
+        ${PATCH_MARKER}
+        // Inline Base64 → WebAssembly.Module (Cloudflare Workers compatibility)
+        const __prismaWasmBase64 = require('./query_compiler_bg.wasm.base64.js')
+        const __bin = atob(__prismaWasmBase64)
+        const __bytes = new Uint8Array(__bin.length)
+        for (let __i = 0; __i < __bin.length; __i++) __bytes[__i] = __bin.charCodeAt(__i)
+        return new WebAssembly.Module(__bytes)
+      }`
+    if (!indexJsRegex.test(indexJs)) {
+      log('WARNING: getQueryCompilerWasmModule (fs.readFileSync version) pattern not found in index.js')
+      log('Prisma generator output may have changed. Inspect the file to update the patch.')
+      process.exit(1)
+    }
+    indexJs = indexJs.replace(indexJsRegex, indexJsReplacement)
+    writeFileSync(INDEX_JS_PATH, indexJs)
+    log(`patched: ${INDEX_JS_PATH}`)
+  }
+}
+
 // ====== 4. Build 時の sentinel module を project 配下に書き出す ======
 // この sentinel をアプリの runtime コード (例: /api/ping) から import すれば、
 // build 時に patch が走ったかを runtime レスポンスで確認できる。
@@ -174,6 +224,8 @@ export const PRISMA_WASM_PATCH_STATE = {
   base64Chars: ${base64.length},
   workerLoaderPatched: true,
   wasmJsPatched: true,
+  indexJsExists: ${indexJsExists},
+  indexJsPatched: ${indexJsExists && !indexJsAlreadyPatched ? true : indexJsExists ? 'true /* already patched on prev run */' : false},
 } as const
 `
 writeFileSync(SENTINEL_PATH, sentinelTs)
