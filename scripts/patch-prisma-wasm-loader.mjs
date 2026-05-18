@@ -152,7 +152,7 @@ if (!wasmJsAlreadyPatched) {
 
   // top-level に WASM module の require を挿入。`config.compilerWasm = {` の直前で
   // 必ず初期化済になる位置にする。
-  const wasmJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level require for esbuild static hoisting (Workers 経路)\nconst __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n\n`
+  const wasmJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level guarded require: Workers では esbuild が wrangler binding に静的解決する。\n// Node.js (next build の Collecting page data 等) では navigator が undefined なので\n// require は実行されず、Node.js が .wasm を JS として parse して落ちる事故を防ぐ。\nlet __PRISMA_WASM_MODULE\nif (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {\n  __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n}\n\n`
   wasmJs = wasmJs.replace(/(config\.compilerWasm\s*=\s*\{)/, `${wasmJsTopLevelRequire}$1`)
   wasmJs = wasmJs.replace(subpathImportRegex, replacement)
   writeFileSync(WASM_JS_PATH, wasmJs)
@@ -198,8 +198,8 @@ if (existsSync(INDEX_JS_PATH)) {
       log('Prisma generator output may have changed. Inspect the file to update the patch.')
       process.exit(1)
     }
-    // top-level require を挿入
-    const indexJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level require for esbuild static hoisting (Workers 経路)\nconst __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n\n`
+    // top-level guarded require を挿入 (Workers では実行、Node.js では skip)
+    const indexJsTopLevelRequire = `\n${PATCH_MARKER}\n// Top-level guarded require: Workers では esbuild が wrangler binding に静的解決する。\n// Node.js (next build の Collecting page data 等) では navigator が undefined なので\n// require は実行されず、Node.js が .wasm を JS として parse して落ちる事故を防ぐ。\nlet __PRISMA_WASM_MODULE\nif (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {\n  __PRISMA_WASM_MODULE = require('./query_compiler_bg.wasm')\n}\n\n`
     indexJs = indexJs.replace(/(config\.compilerWasm\s*=\s*\{)/, `${indexJsTopLevelRequire}$1`)
     indexJs = indexJs.replace(indexJsRegex, indexJsReplacement)
     writeFileSync(INDEX_JS_PATH, indexJs)
