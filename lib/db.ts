@@ -243,25 +243,35 @@ function getPrismaClient(): PrismaClientType {
   //  - production env で dummy でない
   const useSsl = !isDummy && !usingHyperdrive && process.env.NODE_ENV === 'production' && !isLocal
 
-  let pool: PgPoolType
+  // pg.Pool に戻す。SingleClientPool は pg.Client を直接使うと
+  // "proxy request failed, cannot connect to the specified address" になる
+  // (Hyperdrive binding が pg.Pool の connection establishment 経路を経由しないと
+  //  動作しない仕様の可能性が高い)。
+  //
+  // pg.Pool を使い、Hyperdrive 環境では max=1 + idleTimeout=0 (keep-alive) で
+  // 単一接続を維持する戦略にする。
+  const pool: PgPoolType = new Pool({
+    connectionString,
+    ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
+    max: usingHyperdrive ? 1 : parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
+    idleTimeoutMillis: usingHyperdrive ? 0 : DB_POOL_IDLE_TIMEOUT_MS,
+    connectionTimeoutMillis: usingHyperdrive ? 30_000 : DB_POOL_CONNECTION_TIMEOUT_MS,
+  })
+  pool.on('error', (err) => {
+    console.error('[db-pool] error:', err.message)
+  })
   if (usingHyperdrive) {
-    // Plan F: pg.Pool を廃止し SingleClientPool を使う。
-    // 並列 connect の競合・idle 切断 / reconnect timeout 問題を一掃。
-    pool = new SingleClientPool({
-      connectionString,
-      ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
-    }) as unknown as PgPoolType
-  } else {
-    // Node.js (Vercel / dev / vitest) は従来通り pg.Pool を使う。
-    pool = new Pool({
-      connectionString,
-      ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
-      max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
-      idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
-      connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
+    pool.on('connect', () => {
+      console.warn('[db-pool] connect (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
     })
-    pool.on('error', (err) => {
-      console.error('[db-pool] error:', err.message)
+    pool.on('acquire', () => {
+      console.warn('[db-pool] acquire (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
+    })
+    pool.on('release', () => {
+      console.warn('[db-pool] release (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
+    })
+    pool.on('remove', () => {
+      console.warn('[db-pool] remove (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
     })
   }
 
