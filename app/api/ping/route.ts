@@ -12,7 +12,7 @@ import { prisma, __DB_CONNECTION_SOURCE } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-const BUILD_VERSION = 'v30-single-client-pool'
+const BUILD_VERSION = 'v31-ts-fix'
 
 function probe(name: string): { exists: boolean; len?: number } {
   const v = process.env[name]

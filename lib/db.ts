@@ -279,14 +279,14 @@ function getPrismaClient(): PrismaClientType {
   if (usingHyperdrive) {
     interface QueryEvent { query: string; duration: number }
     interface PrismaEventEmitter {
-      $on?(event: 'query', cb: (e: QueryEvent) => void): void
       $on(event: string, cb: (e: unknown) => void): void
     }
-    const p = cachedPrisma as unknown as PrismaEventEmitter
+    const p = cachedPrisma as unknown as Partial<PrismaEventEmitter>
     if (typeof p.$on === 'function') {
-      p.$on('query', (e: QueryEvent) => {
+      p.$on('query', (raw: unknown) => {
+        const e = raw as QueryEvent
         // SELECT FROM "Post" WHERE ... → table 名のみ抽出
-        const m = e.query.match(/(?:from|update|into)\s+["`]?(\w+)["`]?/i)
+        const m = e.query?.match(/(?:from|update|into)\s+["`]?(\w+)["`]?/i)
         const table = m?.[1] ?? '?'
         console.warn(`[prisma-q] ${e.duration}ms ${table}`)
       })
