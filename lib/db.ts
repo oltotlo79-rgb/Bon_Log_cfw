@@ -196,17 +196,18 @@ class SingleClientPool {
     return this.connectPromise
   }
 
-  /** Pool.connect() 互換: 内部の単一 Client を release noop でラップして返す。 */
+  /** Pool.connect() 互換: 内部の単一 Client に release noop を生やして返す。 */
   async connect(): Promise<PoolClient> {
     const c = await this.ensureClient()
-    // Object.create で同じ prototype を継承しつつ release を上書きする。
-    // 元の Client の状態 (connected, query queue 等) はそのまま共有される。
-    const wrapped = Object.create(Object.getPrototypeOf(c)) as Client & { release?: (err?: Error) => void }
-    Object.assign(wrapped, c)
-    wrapped.release = () => {
+    // 元の Client インスタンスに release プロパティを直接生やす。clone すると
+    // pg.Client の private fields (#stream, #connection 等) が失われて内部が壊れる。
+    // 同一 Client を毎回返すが、pg.Client は内部で query を queue するので
+    // Prisma の並列 query も自然に serialize される。
+    const cc = c as Client & { release?: (err?: Error) => void }
+    cc.release = () => {
       // noop: 接続は Worker invocation 終了まで維持
     }
-    return wrapped as unknown as PoolClient
+    return cc as unknown as PoolClient
   }
 
   /** Pool.query() 互換: 内部 Client で直接 query 実行。 */
