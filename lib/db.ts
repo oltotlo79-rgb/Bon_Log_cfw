@@ -223,10 +223,32 @@ function getPrismaClient(): PrismaClientType {
 
   // 新 client (PrismaClientCF) は同じ API を持つので legacy 型へキャストして
   // 既存 93 ファイルの import { Prisma, ... } from '@prisma/client' との互換を維持する。
+  // Workers ランタイムで /feed の Server Action が hang する原因特定のため
+  // 一時的に query log を warn level で有効化する (Phase 5 で error のみに戻す)。
   cachedPrisma = new PrismaClientCF({
     adapter: new PrismaPg(pool),
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: usingHyperdrive
+      ? [{ emit: 'event', level: 'query' }, { emit: 'event', level: 'error' }, { emit: 'event', level: 'warn' }]
+      : process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   }) as unknown as PrismaClientType
+
+  // Workers: query 完了時に duration とテーブルを warn 出力 (eslint no-console は warn 許容)
+  if (usingHyperdrive) {
+    interface QueryEvent { query: string; duration: number }
+    interface PrismaEventEmitter {
+      $on?(event: 'query', cb: (e: QueryEvent) => void): void
+      $on(event: string, cb: (e: unknown) => void): void
+    }
+    const p = cachedPrisma as unknown as PrismaEventEmitter
+    if (typeof p.$on === 'function') {
+      p.$on('query', (e: QueryEvent) => {
+        // SELECT FROM "Post" WHERE ... → table 名のみ抽出
+        const m = e.query.match(/(?:from|update|into)\s+["`]?(\w+)["`]?/i)
+        const table = m?.[1] ?? '?'
+        console.warn(`[prisma-q] ${e.duration}ms ${table}`)
+      })
+    }
+  }
 
   return cachedPrisma
 }
