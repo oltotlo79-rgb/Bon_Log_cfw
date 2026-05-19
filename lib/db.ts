@@ -33,8 +33,8 @@ if (typeof process !== 'undefined' && process.env.NEXT_RUNTIME) {
 import type { PrismaClient as PrismaClientType } from '@prisma/client'
 import { PrismaClient as PrismaClientCF } from '@/lib/generated/prisma-cf/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { Client, Pool } from 'pg'
-import type { ClientConfig, PoolClient, Pool as PgPoolType } from 'pg'
+import { Pool } from 'pg'
+import type { Pool as PgPoolType } from 'pg'
 import {
   DB_POOL_CONNECTION_TIMEOUT_MS,
   DB_POOL_IDLE_TIMEOUT_MS,
@@ -164,70 +164,10 @@ function getSupabaseCaCert(): string | undefined {
  *
  * 1 つの Worker instance 内では最初の prisma.* 呼び出しで作られて以降キャッシュされる。
  * Worker instance ごとに独立した singleton になるため Workers のライフサイクルと整合。
- */
-/**
- * Cloudflare 公式 Hyperdrive 例 (https://developers.cloudflare.com/hyperdrive/)
- * は pg.Pool ではなく **pg.Client (単一接続)** を使う。pg.Pool は Workers の
- * TCP socket 管理と相性が悪く、複数 connect で timeout を起こす。
  *
- * このクラスは pg.Pool API を mimic しつつ内部では **Worker invocation あたり
- * 1 つの pg.Client** を保持する。@prisma/adapter-pg は pool.connect() → client.release()
- * のパターンで動くため、ここで返す client の release を noop にし接続を再利用させる。
- *
- * Worker instance のライフサイクル終了時に自然に socket もクローズされるため
- * 明示的な end() 呼出は不要 (waitUntil 等で呼んでも良い)。
+ * Note: SingleClientPool wrapper を試したが 'proxy request failed' で死亡したため
+ * pg.Pool を使う。Workers では max=1 + idleTimeout=0 で単一接続維持戦略。
  */
-class SingleClientPool {
-  private client: Client | null = null
-  private connectPromise: Promise<Client> | null = null
-
-  constructor(private readonly config: ClientConfig) {}
-
-  private async ensureClient(): Promise<Client> {
-    if (this.client) return this.client
-    if (this.connectPromise) return this.connectPromise
-    this.connectPromise = (async () => {
-      const c = new Client(this.config)
-      await c.connect()
-      this.client = c
-      this.connectPromise = null
-      return c
-    })()
-    return this.connectPromise
-  }
-
-  /** Pool.connect() 互換: 内部の単一 Client に release noop を生やして返す。 */
-  async connect(): Promise<PoolClient> {
-    const c = await this.ensureClient()
-    // 元の Client インスタンスに release プロパティを直接生やす。clone すると
-    // pg.Client の private fields (#stream, #connection 等) が失われて内部が壊れる。
-    // 同一 Client を毎回返すが、pg.Client は内部で query を queue するので
-    // Prisma の並列 query も自然に serialize される。
-    const cc = c as Client & { release?: (err?: Error) => void }
-    cc.release = () => {
-      // noop: 接続は Worker invocation 終了まで維持
-    }
-    return cc as unknown as PoolClient
-  }
-
-  /** Pool.query() 互換: 内部 Client で直接 query 実行。 */
-  async query(text: string, values?: unknown[]): Promise<unknown> {
-    const c = await this.ensureClient()
-    return c.query(text, values as never)
-  }
-
-  /** Pool.on() 互換: event handler は noop (Pool events を使わない設計)。 */
-  on(): this { return this }
-
-  /** Pool.end() 互換: 明示的に Client を閉じる (通常は不要)。 */
-  async end(): Promise<void> {
-    if (this.client) {
-      try { await this.client.end() } catch { /* ignore */ }
-      this.client = null
-    }
-  }
-}
-
 let cachedPrisma: PrismaClientType | undefined
 function getPrismaClient(): PrismaClientType {
   if (cachedPrisma) return cachedPrisma

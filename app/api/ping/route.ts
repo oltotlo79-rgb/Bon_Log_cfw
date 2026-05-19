@@ -12,7 +12,7 @@ import { prisma, __DB_CONNECTION_SOURCE } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-const BUILD_VERSION = 'v33-revert-to-pgpool-max1'
+const BUILD_VERSION = 'v34-cleanup-unused'
 
 function probe(name: string): { exists: boolean; len?: number } {
   const v = process.env[name]
