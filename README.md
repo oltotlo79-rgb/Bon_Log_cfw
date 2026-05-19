@@ -1,32 +1,8 @@
-# Bon_Log_cfw — Cloudflare Workers 移行プロジェクト
-
-> ⚠️ **このリポジトリは [bonnsa-sns](https://github.com/oltotlo79-rgb/bonnsa-sns) の Cloudflare Workers 移行版です。**
->
-> オリジナル commit: `4f24d485` (2026-05-17)
-> **🔧 オーナー手順書 (環境変数設定 / Hyperdrive / DNS など)**: [`docs/OPERATOR-SETUP.md`](docs/OPERATOR-SETUP.md) ← まずこれを読む
-> **🆘 デプロイ トラブルシューティング**: [`docs/DEPLOYMENT-TROUBLESHOOTING.md`](docs/DEPLOYMENT-TROUBLESHOOTING.md)
-> 移行計画書: [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md)
-> 移行ノート: [docs/CFW-MIGRATION.md](docs/CFW-MIGRATION.md)
->
-> | Phase | 内容 | 状況 |
-> |-------|------|------|
-> | 0 | 意思決定・アカウント準備 | 🚧 進行中 (Workers Paid 契約 / Hyperdrive 作成待ち) |
-> | 1 | 新規プロジェクト雛形作成 | ✅ 完了 |
-> | 2 | コード移植 | 🚧 進行中 (db / sentry shim / stripe webhook / worker entry 完了。2FA / web-push 未着手) |
-> | 3 | ローカル動作確認 | ⏳ 未着手 |
-> | 4 | CFW Preview デプロイ (staging) | ⏳ Hyperdrive 作成 + secrets 登録待ち |
-> | 5 | ステージング E2E 検証 | ⏳ 未着手 |
-> | 6 | 本番カットオーバー | ⏳ 未着手 |
-> | 7 | 旧 Vercel 環境停止 | ⏳ 未着手 |
-
----
-
 # BON-LOG（ボンログ）
 
 盆栽愛好家のためのソーシャルネットワークサービス
 
-**本番URL**: https://www.bon-log.com (Vercel — Phase 6 で CFW 切替予定)
-**ステージング**: https://staging.bon-log.com (CFW、Phase 4 以降)
+**本番URL**: https://www.bon-log.com
 
 ---
 

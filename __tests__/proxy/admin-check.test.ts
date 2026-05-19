@@ -119,7 +119,7 @@ describe('proxy admin route protection', () => {
 
   it('未認証ユーザーが/adminにアクセスした場合、ログインにリダイレクトされること', async () => {
     // Import to trigger auth callback registration
-    await import('../../middleware')
+    await import('../../proxy')
 
     expect(authCallback).not.toBeNull()
 
@@ -135,7 +135,7 @@ describe('proxy admin route protection', () => {
   })
 
   it('非管理者ユーザーが/adminにアクセスした場合、/feedにリダイレクトされること', async () => {
-    await import('../../middleware')
+    await import('../../proxy')
 
     expect(authCallback).not.toBeNull()
 
@@ -153,7 +153,7 @@ describe('proxy admin route protection', () => {
   })
 
   it('管理者ユーザーが/adminにアクセスした場合、アクセスが許可されること', async () => {
-    await import('../../middleware')
+    await import('../../proxy')
 
     expect(authCallback).not.toBeNull()
 
@@ -179,7 +179,7 @@ describe('proxy admin route protection', () => {
   })
 
   it('管理者ユーザーが/admin/usersにアクセスした場合、アクセスが許可されること', async () => {
-    await import('../../middleware')
+    await import('../../proxy')
 
     expect(authCallback).not.toBeNull()
 
@@ -198,7 +198,7 @@ describe('proxy admin route protection', () => {
   })
 
   it('未認証ユーザーが/admin/usersにアクセスした場合、ログインにリダイレクトされること', async () => {
-    await import('../../middleware')
+    await import('../../proxy')
 
     expect(authCallback).not.toBeNull()
 

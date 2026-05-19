@@ -135,7 +135,7 @@ describe('client-logger', () => {
 
       // window is defined in jsdom
       const mockCaptureException = vi.fn()
-      vi.doMock('@/lib/sentry-shim', () => ({
+      vi.doMock('@sentry/nextjs', () => ({
         captureException: mockCaptureException,
       }))
 
@@ -153,7 +153,7 @@ describe('client-logger', () => {
       vi.resetModules()
 
       const mockCaptureException = vi.fn()
-      vi.doMock('@/lib/sentry-shim', () => ({
+      vi.doMock('@sentry/nextjs', () => ({
         captureException: mockCaptureException,
       }))
 

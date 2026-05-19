@@ -47,16 +47,8 @@ yarn-error.log*
 # MAFF scraper cache
 prisma/validation/.maff-cache/
 
-# vercel (移行元の名残、Phase 7 で削除予定)
+# vercel
 .vercel
-
-# Cloudflare Workers / Wrangler
-.wrangler/
-.open-next/
-.dev.vars
-.dev.vars.*
-!.dev.vars.example
-worker-configuration.d.ts
 
 # typescript
 *.tsbuildinfo
@@ -66,9 +58,6 @@ next-env.d.ts
 .claude/worktrees/
 
 /lib/generated/prisma
-# Plan B: provider = "prisma-client" generator output (Cloudflare Workers 用)
-# prisma generate で再生成されるため git 管理不要。
-/lib/generated/prisma-cf/
 
 # uploaded files (keep .gitkeep)
 /public/uploads/*

@@ -5,14 +5,14 @@
  * - 本番環境: errorのみSentryに送信、それ以外は抑制
  *
  * Sentry は起動時に静的 import する。以前は Edge Runtime への混入を避けるため
- * `import('@/lib/sentry-shim')` で動的 import していたが、`@sentry/nextjs` 自体が
+ * `import('@sentry/nextjs')` で動的 import していたが、`@sentry/nextjs` 自体が
  * Edge / Node / Browser の各ビルドを切り替えて提供するようになり、動的 import
  * による呼び出し毎のモジュール解決コストが不要になったため静的化した。
  *
  * @module lib/logger
  */
 
-import * as Sentry from '@/lib/sentry-shim'
+import * as Sentry from '@sentry/nextjs'
 import { isDevelopment as _isDevelopment } from '@/lib/env'
 
 const isDevelopment = _isDevelopment()

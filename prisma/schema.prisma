@@ -1,21 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Legacy generator (Vercel / Node.js / 93 ファイル分の型 import 互換のため維持)
 generator client {
   provider   = "prisma-client-js"
   engineType = "client"
-}
-
-// 新 generator: Cloudflare Workers ランタイム用 (Plan B)
-// `import('./*.wasm?module')` を使い wrangler のネイティブ WASM binding に乗せる
-// (legacy 側の fs.readFileSync 経路が Workers で使えない問題を回避)。
-// lib/db.ts でのみこちらの PrismaClient を import する。
-generator clientWorkers {
-  provider     = "prisma-client"
-  output       = "../lib/generated/prisma-cf"
-  runtime      = "cloudflare"
-  moduleFormat = "esm"
 }
 
 datasource db {

@@ -127,14 +127,14 @@ describe('Logger Module', async () => {
       mockCaptureMessage.mockReset()
 
       // Sentryモジュールをモック (vi.doMock for non-hoisted usage)
-      vi.doMock('@/lib/sentry-shim', () => ({
+      vi.doMock('@sentry/nextjs', () => ({
         captureException: mockCaptureException,
         captureMessage: mockCaptureMessage,
       }))
     })
 
     afterEach(() => {
-      vi.doUnmock('@/lib/sentry-shim')
+      vi.doUnmock('@sentry/nextjs')
     })
 
     it('error()はサーバーサイドでSentry.captureExceptionを呼び出す（Errorオブジェクト）', async () => {
@@ -172,8 +172,8 @@ describe('Logger Module', async () => {
       // logger.ts は Sentry を静的 import するため、モジュールの解決失敗時点で
       // アプリ全体が起動できない（期待する fail-fast）。
       // 代わりに Sentry の個別メソッドが失敗したケースで logger が堅牢であることを検証する。
-      vi.doUnmock('@/lib/sentry-shim')
-      vi.doMock('@/lib/sentry-shim', () => ({
+      vi.doUnmock('@sentry/nextjs')
+      vi.doMock('@sentry/nextjs', () => ({
         captureException: vi.fn(() => {
           throw new Error('Sentry capture failed')
         }),
@@ -204,14 +204,14 @@ describe('Logger Module', async () => {
       // @ts-expect-error - window mock
       global.window = { location: { href: 'http://localhost' } }
 
-      vi.doMock('@/lib/sentry-shim', () => ({
+      vi.doMock('@sentry/nextjs', () => ({
         captureException: mockCaptureException,
         captureMessage: mockCaptureMessage,
       }))
     })
 
     afterEach(() => {
-      vi.doUnmock('@/lib/sentry-shim')
+      vi.doUnmock('@sentry/nextjs')
       global.window = originalWindow
     })
 
@@ -248,8 +248,8 @@ describe('Logger Module', async () => {
     it('error()はクライアント側でSentry呼び出しが例外を投げても伝播させない', async () => {
       // 静的 import 前提のため、モジュール取得自体ではなく
       // Sentry メソッド側の失敗で try/catch が機能することを確認する。
-      vi.doUnmock('@/lib/sentry-shim')
-      vi.doMock('@/lib/sentry-shim', () => ({
+      vi.doUnmock('@sentry/nextjs')
+      vi.doMock('@sentry/nextjs', () => ({
         captureException: vi.fn(() => {
           throw new Error('Sentry capture failed')
         }),

@@ -72,12 +72,18 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
 
-      - name: Start Next.js production server
-        # CFW 移行で next.config.ts の `output: 'standalone'` を削除したため、
-        # standalone server.js は生成されない。`next start` で従来通り Node.js Next.js
-        # サーバーを起動し、Lighthouse 測定を行う。
+      - name: Prepare standalone server
         run: |
-          npm run start > server.log 2>&1 &
+          cp -r public .next/standalone/public 2>/dev/null || true
+          cp -r .next/static .next/standalone/.next/static 2>/dev/null || true
+          cp -r node_modules/.prisma .next/standalone/node_modules/.prisma 2>/dev/null || true
+          cp -r node_modules/@prisma .next/standalone/node_modules/@prisma 2>/dev/null || true
+
+      - name: Start server
+        run: |
+          cd .next/standalone
+          node server.js &
+          cd ../..
           for i in $(seq 1 30); do
             if curl -s http://localhost:3000/login > /dev/null 2>&1; then
               echo "Server is ready"

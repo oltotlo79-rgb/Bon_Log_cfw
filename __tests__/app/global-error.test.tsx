@@ -7,7 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 // Sentryをモック
 const mockCaptureException = vi.fn()
-vi.mock('@/lib/sentry-shim', () => ({
+vi.mock('@sentry/nextjs', () => ({
   captureException: (error: Error) => mockCaptureException(error),
 }))
 

@@ -91,21 +91,11 @@ describe('db.ts ブランチカバレッジ', () => {
     PrismaPg.reset()
   })
 
-  // Workers 対応で lib/db.ts は Pool / PrismaClient を lazy initialization に変更。
-  // module load 時には Pool は作られず、最初に prisma.<anything> がアクセスされた瞬間に
-  // (Worker fetch handler 内 = process.env populated 時) 構築される。
-  // テストも prisma を一度プロパティアクセスして lazy init をトリガーする。
-  function triggerLazyInit(prisma: unknown): void {
-    // Proxy.get を発火させて Pool / PrismaClient 構築を起こす
-    void (prisma as Record<string, unknown>).user
-  }
-
   it('ダミーDATABASE_URLの場合もPoolとアダプターを作成する（engineType=client対応）', async () => {
     process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
     process.env.NODE_ENV = 'test'
 
     const { prisma } = await import('@/lib/db')
-    triggerLazyInit(prisma)
     const { Pool } = await import('pg') as unknown as { Pool: { callCount: number; lastConfig: { connectionString: string } } }
     const { PrismaPg } = await import('@prisma/adapter-pg') as unknown as { PrismaPg: { callCount: number } }
 
@@ -120,7 +110,6 @@ describe('db.ts ブランチカバレッジ', () => {
     process.env.NODE_ENV = 'test'
 
     const { prisma } = await import('@/lib/db')
-    triggerLazyInit(prisma)
     const { Pool } = await import('pg') as unknown as { Pool: { callCount: number; lastConfig: { connectionString: string; ssl: boolean } } }
     const { PrismaPg } = await import('@prisma/adapter-pg') as unknown as { PrismaPg: { callCount: number } }
 
@@ -136,8 +125,7 @@ describe('db.ts ブランチカバレッジ', () => {
     process.env.NODE_ENV = 'production'
     delete process.env.SUPABASE_CA_CERT
 
-    const { prisma } = await import('@/lib/db')
-    triggerLazyInit(prisma)
+    await import('@/lib/db')
     const { Pool } = await import('pg') as unknown as { Pool: { lastConfig: { ssl: { rejectUnauthorized: boolean; ca: string | undefined } } } }
 
     expect(Pool.lastConfig.ssl).toEqual({ rejectUnauthorized: true, ca: undefined })
@@ -149,8 +137,7 @@ describe('db.ts ブランチカバレッジ', () => {
     const certContent = '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----'
     process.env.SUPABASE_CA_CERT = Buffer.from(certContent).toString('base64')
 
-    const { prisma } = await import('@/lib/db')
-    triggerLazyInit(prisma)
+    await import('@/lib/db')
     const { Pool } = await import('pg') as unknown as { Pool: { lastConfig: { ssl: { rejectUnauthorized: boolean; ca: string } } } }
 
     expect(Pool.lastConfig.ssl.rejectUnauthorized).toBe(true)
@@ -161,8 +148,7 @@ describe('db.ts ブランチカバレッジ', () => {
     process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
     process.env.NODE_ENV = 'development'
 
-    const { prisma } = await import('@/lib/db')
-    triggerLazyInit(prisma)
+    await import('@/lib/db')
     const { PrismaClient } = await import('@prisma/client') as unknown as { PrismaClient: { lastOptions: { log: string[] } } }
 
     expect(PrismaClient.lastOptions.log).toEqual(['query', 'error', 'warn'])
@@ -172,27 +158,42 @@ describe('db.ts ブランチカバレッジ', () => {
     process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
     process.env.NODE_ENV = 'production'
 
-    const { prisma } = await import('@/lib/db')
-    triggerLazyInit(prisma)
+    await import('@/lib/db')
     const { PrismaClient } = await import('@prisma/client') as unknown as { PrismaClient: { lastOptions: { log: string[] } } }
 
     expect(PrismaClient.lastOptions.log).toEqual(['error'])
   })
 
-  it('lazy init: 1 回目アクセスで Pool/PrismaClient を作成、2 回目以降は再利用する', async () => {
+  it('開発環境でグローバル変数にprismaが保存される', async () => {
+    process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
+    process.env.NODE_ENV = 'development'
+
+    await import('@/lib/db')
+    const g = global as unknown as { prisma?: unknown }
+
+    expect(g.prisma).toBeDefined()
+  })
+
+  it('本番環境ではグローバル変数にprismaが保存されない', async () => {
+    const g = global as unknown as { prisma?: unknown }
+    delete g.prisma
     process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
     process.env.NODE_ENV = 'production'
 
+    await import('@/lib/db')
+
+    expect(g.prisma).toBeUndefined()
+  })
+
+  it('グローバルにprismaが存在する場合は再利用する', async () => {
+    const existingPrisma = { existing: true }
+    const g = global as unknown as { prisma?: unknown }
+    g.prisma = existingPrisma
+    process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
+    process.env.NODE_ENV = 'development'
+
     const { prisma } = await import('@/lib/db')
-    const { Pool } = await import('pg') as unknown as { Pool: { callCount: number } }
-    expect(Pool.callCount).toBe(0) // この時点ではまだ作られていない
 
-    triggerLazyInit(prisma)
-    expect(Pool.callCount).toBe(1)
-
-    // 2 回目以降のアクセスでは再構築されない
-    void (prisma as Record<string, unknown>).post
-    void (prisma as Record<string, unknown>).comment
-    expect(Pool.callCount).toBe(1)
+    expect(prisma).toBe(existingPrisma)
   })
 })

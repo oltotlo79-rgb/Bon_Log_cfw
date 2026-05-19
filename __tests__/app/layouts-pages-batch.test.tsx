@@ -16,7 +16,7 @@ vi.mock('@tanstack/react-query', () => ({
   QueryClient: class MockQueryClient {},
   QueryClientProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="query-provider">{children}</div>,
 }))
-vi.mock('@/lib/sentry-shim', () => ({ init: vi.fn(), captureException: vi.fn() }))
+vi.mock('@sentry/nextjs', () => ({ init: vi.fn(), captureException: vi.fn() }))
 vi.mock('next/script', () => {
   const MockScript = function MockScript(_props: Record<string, unknown>) { return <div data-testid="next-script" /> }
   return { default: MockScript }

@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import * as Sentry from '@/lib/sentry-shim'
+import * as Sentry from '@sentry/nextjs'
 /**
  * エラーページのブランチカバレッジ向上テスト
  *
@@ -29,7 +29,7 @@ vi.mock('next-auth/react', () => ({
 }))
 
 // Sentry のモック (global-error.tsx 用)
-vi.mock('@/lib/sentry-shim', () => ({
+vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }))
 

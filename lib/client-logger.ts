@@ -14,7 +14,7 @@ export const clientLogger = {
     }
     // 本番ではSentryに送信
     if (!isDev && typeof window !== 'undefined') {
-      import('@/lib/sentry-shim').then((Sentry) => {
+      import('@sentry/nextjs').then((Sentry) => {
         Sentry.captureException(
           args[0] instanceof Error ? args[0] : new Error(message)
         )

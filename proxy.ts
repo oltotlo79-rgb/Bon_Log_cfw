@@ -1,5 +1,5 @@
 import NextAuth from 'next-auth'
-import * as Sentry from '@/lib/sentry-shim'
+import * as Sentry from '@sentry/nextjs'
 import { authConfig } from '@/lib/auth.config'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'

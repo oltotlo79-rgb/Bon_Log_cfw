@@ -12,7 +12,7 @@ import { vi } from 'vitest'
 vi.unmock('@/lib/logger')
 
 // Sentryモックを明示的に設定（他テストとの分離）
-vi.mock('@/lib/sentry-shim', () => ({
+vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
   captureMessage: vi.fn(),
 }))
