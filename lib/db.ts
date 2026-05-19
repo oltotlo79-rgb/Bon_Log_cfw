@@ -161,18 +161,22 @@ function getPrismaClient(): PrismaClientType {
   //  - production env で dummy でない
   const useSsl = !isDummy && !usingHyperdrive && process.env.NODE_ENV === 'production' && !isLocal
 
-  // Hyperdrive 自体が pool を持つので Workers 側は控えめでよい。一方 /feed のような
-  // 並行 query が複数走る page では小さすぎると直列化や connect timeout が起きる。
-  // Hyperdrive の "Maximum connections" (60) の範囲内で 10 に設定。
-  // Node.js (Vercel / dev / vitest) は従来通り DB_POOL_MAX_DEFAULT (=5)。
+  // Cloudflare 公式 Hyperdrive 例は pg.Client (単一接続) を使う設計で、
+  // pg.Pool の並列 connect は Workers の TCP socket 周りで競合し timeout を引き起こす。
+  // 対処: pool を max=1 に固定し、idle 無効化 (Infinity 相当の長時間) で 1 接続を keep。
+  //
+  // 並列 query は Hyperdrive のサーバ側多重化に任せる。Prisma は同じ connection で
+  // 複数 statement を pipeline する。
+  //
+  // Node.js (Vercel / dev / vitest) は従来通り max=5。
   const poolMax = usingHyperdrive
-    ? 10
+    ? 1
     : parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10)
   // Hyperdrive 経由は cold start で connect が時間がかかる場合があるため 30s に。
   const connectionTimeout = usingHyperdrive ? 30_000 : DB_POOL_CONNECTION_TIMEOUT_MS
-  // Workers は per-request の short-lived 実行が多いため、idle 接続は短時間で閉じて
-  // Hyperdrive のスロットを解放する。長い idle はかえって lock を生む。
-  const idleTimeout = usingHyperdrive ? 10_000 : DB_POOL_IDLE_TIMEOUT_MS
+  // Workers では idle 切断 → 次回 reconnect で timeout する事故が多発するため、
+  // 接続を keep-alive で持ち続ける (Workers instance 自体が短命なので long idle でも問題なし)。
+  const idleTimeout = usingHyperdrive ? 0 : DB_POOL_IDLE_TIMEOUT_MS
 
   const pool = new Pool({
     connectionString,
