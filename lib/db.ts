@@ -162,20 +162,23 @@ function getPrismaClient(): PrismaClientType {
   const useSsl = !isDummy && !usingHyperdrive && process.env.NODE_ENV === 'production' && !isLocal
 
   // Hyperdrive 自体が pool を持つので Workers 側は控えめでよい。一方 /feed のような
-  // 並行 query が複数走る page では max=1 だと直列化して slow。3 に設定して
-  // バランスを取る。Hyperdrive の "Maximum connections" (60) を超えない範囲。
+  // 並行 query が複数走る page では小さすぎると直列化や connect timeout が起きる。
+  // Hyperdrive の "Maximum connections" (60) の範囲内で 10 に設定。
   // Node.js (Vercel / dev / vitest) は従来通り DB_POOL_MAX_DEFAULT (=5)。
   const poolMax = usingHyperdrive
-    ? 3
+    ? 10
     : parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10)
   // Hyperdrive 経由は cold start で connect が時間がかかる場合があるため 30s に。
   const connectionTimeout = usingHyperdrive ? 30_000 : DB_POOL_CONNECTION_TIMEOUT_MS
+  // Workers は per-request の short-lived 実行が多いため、idle 接続は短時間で閉じて
+  // Hyperdrive のスロットを解放する。長い idle はかえって lock を生む。
+  const idleTimeout = usingHyperdrive ? 10_000 : DB_POOL_IDLE_TIMEOUT_MS
 
   const pool = new Pool({
     connectionString,
     ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
     max: poolMax,
-    idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
+    idleTimeoutMillis: idleTimeout,
     connectionTimeoutMillis: connectionTimeout,
   })
 
