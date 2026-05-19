@@ -205,7 +205,19 @@ function getPrismaClient(): PrismaClientType {
   })
 
   pool.on('error', (err) => {
-    console.error('[db] Unexpected pool error:', err.message)
+    console.error('[db-pool] error:', err.message)
+  })
+  pool.on('connect', () => {
+    console.log('[db-pool] connect (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
+  })
+  pool.on('acquire', () => {
+    console.log('[db-pool] acquire (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
+  })
+  pool.on('release', () => {
+    console.log('[db-pool] release (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
+  })
+  pool.on('remove', () => {
+    console.log('[db-pool] remove (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
   })
 
   // 新 client (PrismaClientCF) は同じ API を持つので legacy 型へキャストして
