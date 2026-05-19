@@ -58,6 +58,12 @@ const NEXT_BUILD_PHASE = 'phase-production-build'
  * Workers Sockets で Supabase へ直接接続すると "Connection terminated unexpectedly"
  * で失敗するため、Hyperdrive 経由が事実上必須。
  */
+/**
+ * Diagnostic 用に最後の resolve source を export。/api/ping?probe=db で参照する。
+ * 値そのものは出さず、どこから取った経路を示すラベルのみ。
+ */
+export let __DB_CONNECTION_SOURCE: 'hyperdrive-binding' | 'hyperdrive-global' | 'process-env-database-url' | 'dummy' | 'unknown' = 'unknown'
+
 function resolveConnectionString(): string {
   // 1. getCloudflareContext() で env.HYPERDRIVE.connectionString を取得
   try {
@@ -70,7 +76,10 @@ function resolveConnectionString(): string {
     if (typeof cf.getCloudflareContext === 'function') {
       const ctx = cf.getCloudflareContext({ async: false })
       const cs = ctx?.env?.HYPERDRIVE?.connectionString
-      if (typeof cs === 'string' && cs.length > 0) return cs
+      if (typeof cs === 'string' && cs.length > 0) {
+        __DB_CONNECTION_SOURCE = 'hyperdrive-binding'
+        return cs
+      }
     }
   } catch {
     // OpenNext 未インストール or per-request context 外 → fallback
@@ -80,10 +89,19 @@ function resolveConnectionString(): string {
   const hyperdrive = (globalThis as unknown as {
     __BON_LOG_HYPERDRIVE_CONNECTION_STRING__?: string
   }).__BON_LOG_HYPERDRIVE_CONNECTION_STRING__
-  if (hyperdrive) return hyperdrive
+  if (hyperdrive) {
+    __DB_CONNECTION_SOURCE = 'hyperdrive-global'
+    return hyperdrive
+  }
 
   // 3. process.env.DATABASE_URL
-  return process.env.DATABASE_URL || DUMMY_DATABASE_URL
+  if (process.env.DATABASE_URL) {
+    __DB_CONNECTION_SOURCE = 'process-env-database-url'
+    return process.env.DATABASE_URL
+  }
+
+  __DB_CONNECTION_SOURCE = 'dummy'
+  return DUMMY_DATABASE_URL
 }
 
 /**

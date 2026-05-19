@@ -8,11 +8,11 @@
  * Phase 5 (本番カットオーバー検証完了) で削除予定。
  */
 
-import { prisma } from '@/lib/db'
+import { prisma, __DB_CONNECTION_SOURCE } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-const BUILD_VERSION = 'v25-pool-max1-keepalive'
+const BUILD_VERSION = 'v26-conn-source-diag'
 
 function probe(name: string): { exists: boolean; len?: number } {
   const v = process.env[name]
@@ -67,6 +67,7 @@ export async function GET(request: Request): Promise<Response> {
         runtime: 'Cloudflare-Workers',
         buildVersion: BUILD_VERSION,
         timestamp: new Date().toISOString(),
+        connectionSource: __DB_CONNECTION_SOURCE,
         db: dbResult,
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
