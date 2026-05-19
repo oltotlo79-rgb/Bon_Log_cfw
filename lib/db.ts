@@ -33,7 +33,8 @@ if (typeof process !== 'undefined' && process.env.NEXT_RUNTIME) {
 import type { PrismaClient as PrismaClientType } from '@prisma/client'
 import { PrismaClient as PrismaClientCF } from '@/lib/generated/prisma-cf/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
+import { Client, Pool } from 'pg'
+import type { ClientConfig, PoolClient, Pool as PgPoolType } from 'pg'
 import {
   DB_POOL_CONNECTION_TIMEOUT_MS,
   DB_POOL_IDLE_TIMEOUT_MS,
@@ -164,6 +165,68 @@ function getSupabaseCaCert(): string | undefined {
  * 1 つの Worker instance 内では最初の prisma.* 呼び出しで作られて以降キャッシュされる。
  * Worker instance ごとに独立した singleton になるため Workers のライフサイクルと整合。
  */
+/**
+ * Cloudflare 公式 Hyperdrive 例 (https://developers.cloudflare.com/hyperdrive/)
+ * は pg.Pool ではなく **pg.Client (単一接続)** を使う。pg.Pool は Workers の
+ * TCP socket 管理と相性が悪く、複数 connect で timeout を起こす。
+ *
+ * このクラスは pg.Pool API を mimic しつつ内部では **Worker invocation あたり
+ * 1 つの pg.Client** を保持する。@prisma/adapter-pg は pool.connect() → client.release()
+ * のパターンで動くため、ここで返す client の release を noop にし接続を再利用させる。
+ *
+ * Worker instance のライフサイクル終了時に自然に socket もクローズされるため
+ * 明示的な end() 呼出は不要 (waitUntil 等で呼んでも良い)。
+ */
+class SingleClientPool {
+  private client: Client | null = null
+  private connectPromise: Promise<Client> | null = null
+
+  constructor(private readonly config: ClientConfig) {}
+
+  private async ensureClient(): Promise<Client> {
+    if (this.client) return this.client
+    if (this.connectPromise) return this.connectPromise
+    this.connectPromise = (async () => {
+      const c = new Client(this.config)
+      await c.connect()
+      this.client = c
+      this.connectPromise = null
+      return c
+    })()
+    return this.connectPromise
+  }
+
+  /** Pool.connect() 互換: 内部の単一 Client を release noop でラップして返す。 */
+  async connect(): Promise<PoolClient> {
+    const c = await this.ensureClient()
+    // Object.create で同じ prototype を継承しつつ release を上書きする。
+    // 元の Client の状態 (connected, query queue 等) はそのまま共有される。
+    const wrapped = Object.create(Object.getPrototypeOf(c)) as Client & { release?: (err?: Error) => void }
+    Object.assign(wrapped, c)
+    wrapped.release = () => {
+      // noop: 接続は Worker invocation 終了まで維持
+    }
+    return wrapped as unknown as PoolClient
+  }
+
+  /** Pool.query() 互換: 内部 Client で直接 query 実行。 */
+  async query(text: string, values?: unknown[]): Promise<unknown> {
+    const c = await this.ensureClient()
+    return c.query(text, values as never)
+  }
+
+  /** Pool.on() 互換: event handler は noop (Pool events を使わない設計)。 */
+  on(): this { return this }
+
+  /** Pool.end() 互換: 明示的に Client を閉じる (通常は不要)。 */
+  async end(): Promise<void> {
+    if (this.client) {
+      try { await this.client.end() } catch { /* ignore */ }
+      this.client = null
+    }
+  }
+}
+
 let cachedPrisma: PrismaClientType | undefined
 function getPrismaClient(): PrismaClientType {
   if (cachedPrisma) return cachedPrisma
@@ -179,47 +242,27 @@ function getPrismaClient(): PrismaClientType {
   //  - production env で dummy でない
   const useSsl = !isDummy && !usingHyperdrive && process.env.NODE_ENV === 'production' && !isLocal
 
-  // Cloudflare 公式 Hyperdrive 例は pg.Client (単一接続) を使う設計で、
-  // pg.Pool の並列 connect は Workers の TCP socket 周りで競合し timeout を引き起こす。
-  // 対処: pool を max=1 に固定し、idle 無効化 (Infinity 相当の長時間) で 1 接続を keep。
-  //
-  // 並列 query は Hyperdrive のサーバ側多重化に任せる。Prisma は同じ connection で
-  // 複数 statement を pipeline する。
-  //
-  // Node.js (Vercel / dev / vitest) は従来通り max=5。
-  const poolMax = usingHyperdrive
-    ? 1
-    : parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10)
-  // Hyperdrive 経由は cold start で connect が時間がかかる場合があるため 30s に。
-  const connectionTimeout = usingHyperdrive ? 30_000 : DB_POOL_CONNECTION_TIMEOUT_MS
-  // Workers では idle 切断 → 次回 reconnect で timeout する事故が多発するため、
-  // 接続を keep-alive で持ち続ける (Workers instance 自体が短命なので long idle でも問題なし)。
-  const idleTimeout = usingHyperdrive ? 0 : DB_POOL_IDLE_TIMEOUT_MS
-
-  const pool = new Pool({
-    connectionString,
-    ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
-    max: poolMax,
-    idleTimeoutMillis: idleTimeout,
-    connectionTimeoutMillis: connectionTimeout,
-  })
-
-  // eslint と Workers logging を両立するため console.warn に統一 (no-console は warn/error のみ許容)
-  pool.on('error', (err) => {
-    console.error('[db-pool] error:', err.message)
-  })
-  pool.on('connect', () => {
-    console.warn('[db-pool] connect (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
-  })
-  pool.on('acquire', () => {
-    console.warn('[db-pool] acquire (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
-  })
-  pool.on('release', () => {
-    console.warn('[db-pool] release (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
-  })
-  pool.on('remove', () => {
-    console.warn('[db-pool] remove (total=' + pool.totalCount + ' idle=' + pool.idleCount + ' waiting=' + pool.waitingCount + ')')
-  })
+  let pool: PgPoolType
+  if (usingHyperdrive) {
+    // Plan F: pg.Pool を廃止し SingleClientPool を使う。
+    // 並列 connect の競合・idle 切断 / reconnect timeout 問題を一掃。
+    pool = new SingleClientPool({
+      connectionString,
+      ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
+    }) as unknown as PgPoolType
+  } else {
+    // Node.js (Vercel / dev / vitest) は従来通り pg.Pool を使う。
+    pool = new Pool({
+      connectionString,
+      ssl: useSsl ? { rejectUnauthorized: true, ca: getSupabaseCaCert() } : false,
+      max: parseInt(process.env.DB_POOL_MAX || String(DB_POOL_MAX_DEFAULT), 10),
+      idleTimeoutMillis: DB_POOL_IDLE_TIMEOUT_MS,
+      connectionTimeoutMillis: DB_POOL_CONNECTION_TIMEOUT_MS,
+    })
+    pool.on('error', (err) => {
+      console.error('[db-pool] error:', err.message)
+    })
+  }
 
   // 新 client (PrismaClientCF) は同じ API を持つので legacy 型へキャストして
   // 既存 93 ファイルの import { Prisma, ... } from '@prisma/client' との互換を維持する。
