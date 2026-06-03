@@ -101,13 +101,13 @@ describe('ColumnDetailPage', () => {
     it('コラムが見つかった場合はタイトルを返す', async () => {
       mockGetColumnBySlug.mockResolvedValue(makeColumn({ title: '農薬混用ガイド' }))
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test-column' }) })
-      expect(metadata.title).toBe('農薬混用ガイド - コラム - BON-LOG')
+      expect(metadata.title).toBe('農薬混用ガイド - コラム')
     })
 
     it('コラムが見つからない場合はフォールバックタイトルを返す', async () => {
       mockGetColumnBySlug.mockResolvedValue(null)
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'nonexistent' }) })
-      expect(metadata.title).toBe('コラムが見つかりません - BON-LOG')
+      expect(metadata.title).toBe('コラムが見つかりません')
     })
   })
 })

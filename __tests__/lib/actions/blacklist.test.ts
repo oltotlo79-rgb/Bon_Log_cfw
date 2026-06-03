@@ -451,14 +451,14 @@ describe('Blacklist Actions', async () => {
 
   describe('recordUserDevice', async () => {
     it('userIdがない場合は何もしない', async () => {
-      const { recordUserDevice } = await import('@/lib/actions/blacklist')
+      const { recordUserDevice } = await import('@/lib/services/device-tracking')
       await recordUserDevice('', 'fingerprint')
 
       expect(blMockPrisma.userDevice.upsert).not.toHaveBeenCalled()
     })
 
     it('fingerprintがない場合は何もしない', async () => {
-      const { recordUserDevice } = await import('@/lib/actions/blacklist')
+      const { recordUserDevice } = await import('@/lib/services/device-tracking')
       await recordUserDevice('user-123', '')
 
       expect(blMockPrisma.userDevice.upsert).not.toHaveBeenCalled()
@@ -467,7 +467,7 @@ describe('Blacklist Actions', async () => {
     it('正常にデバイスを記録する', async () => {
       blMockPrisma.userDevice.upsert.mockResolvedValueOnce({})
 
-      const { recordUserDevice } = await import('@/lib/actions/blacklist')
+      const { recordUserDevice } = await import('@/lib/services/device-tracking')
       await recordUserDevice('user-123', 'fingerprint123', 'Mozilla/5.0', '192.168.1.1')
 
       expect(blMockPrisma.userDevice.upsert).toHaveBeenCalledWith({
@@ -490,7 +490,7 @@ describe('Blacklist Actions', async () => {
     it('DBエラーが発生しても例外をスローしない', async () => {
       blMockPrisma.userDevice.upsert.mockRejectedValueOnce(new Error('DB error'))
 
-      const { recordUserDevice } = await import('@/lib/actions/blacklist')
+      const { recordUserDevice } = await import('@/lib/services/device-tracking')
       await expect(recordUserDevice('user-123', 'fingerprint123')).resolves.not.toThrow()
     })
   })

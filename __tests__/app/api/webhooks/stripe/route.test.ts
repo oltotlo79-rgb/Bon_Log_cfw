@@ -19,6 +19,7 @@ vi.mock('@/lib/db', () => ({
     },
     payment: {
       create: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
       findFirst: vi.fn().mockResolvedValue(null),
       findUnique: vi.fn().mockResolvedValue(null),
     },
@@ -59,10 +60,19 @@ vi.mock('@/lib/services/webhook-idempotency', () => ({
 
 vi.mock('@/lib/logger', () => ({
   default: {
+    log: vi.fn(),
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
+    debug: vi.fn(),
   },
+}))
+
+vi.mock('@/lib/rate-limit', () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 60, resetTime: Date.now() + 60_000 }),
+  rateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 60, resetTime: Date.now() + 60_000 }),
+  getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
+  RATE_LIMITS: { api: { windowMs: 60_000, maxRequests: 60 } },
 }))
 
 // 部分モック: 元モジュールのエクスポートをすべて維持しつつ必要な値だけ固定する。
@@ -481,6 +491,81 @@ describe('Stripe Webhook API', () => {
     const data = await response.json()
     expect(data.received).toBe(true)
     expect(prisma.payment.create).not.toHaveBeenCalled()
+  })
+
+  it('handles charge.refunded (full refund) - revokes premium and marks payment refunded', async () => {
+    const { stripe } = await import('@/lib/stripe')
+    const { prisma } = await import('@/lib/db')
+
+    const mockEvent = {
+      type: 'charge.refunded',
+      data: {
+        object: { payment_intent: 'pi_123', customer: 'cus_123', refunded: true, amount: 980, amount_refunded: 980 },
+      },
+    }
+
+    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(prisma.payment.findUnique).mockResolvedValueOnce({ id: 'pay-1', userId: 'user-1', status: 'succeeded' } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-1' } as never)
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route')
+    const response = await POST(makeRequest('{}', 'sig_valid'))
+
+    expect(response.status).toBe(200)
+    expect(prisma.payment.update).toHaveBeenCalledWith({ where: { id: 'pay-1' }, data: { status: 'refunded' } })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { isPremium: false, premiumExpiresAt: null },
+    })
+  })
+
+  it('handles charge.refunded (partial refund) - keeps premium', async () => {
+    const { stripe } = await import('@/lib/stripe')
+    const { prisma } = await import('@/lib/db')
+
+    const mockEvent = {
+      type: 'charge.refunded',
+      data: {
+        object: { payment_intent: 'pi_123', customer: 'cus_123', refunded: false, amount: 980, amount_refunded: 100 },
+      },
+    }
+
+    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(prisma.payment.findUnique).mockResolvedValueOnce({ id: 'pay-1', userId: 'user-1', status: 'succeeded' } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-1' } as never)
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route')
+    const response = await POST(makeRequest('{}', 'sig_valid'))
+
+    expect(response.status).toBe(200)
+    expect(prisma.payment.update).not.toHaveBeenCalled()
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  it('handles charge.dispute.created - alerts via logger.error without destructive update', async () => {
+    const { stripe } = await import('@/lib/stripe')
+    const { prisma } = await import('@/lib/db')
+    const loggerModule = await import('@/lib/logger')
+
+    const mockEvent = {
+      type: 'charge.dispute.created',
+      data: {
+        object: { charge: 'ch_1', payment_intent: 'pi_123', reason: 'fraudulent', status: 'needs_response', amount: 980 },
+      },
+    }
+
+    vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
+    vi.mocked(prisma.payment.findUnique).mockResolvedValueOnce({ id: 'pay-1', userId: 'user-1' } as never)
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route')
+    const response = await POST(makeRequest('{}', 'sig_valid'))
+
+    expect(response.status).toBe(200)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+    expect(loggerModule.default.error).toHaveBeenCalledWith(
+      expect.stringContaining('dispute'),
+      expect.objectContaining({ userId: 'user-1' })
+    )
   })
 
   // ============================================================

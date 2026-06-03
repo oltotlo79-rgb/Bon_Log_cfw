@@ -233,14 +233,14 @@ describe('Column detail page', () => {
     mockGetFertilizerColumnBySlug.mockResolvedValue({ title: 'テストコラム' })
     const { generateMetadata } = await import('@/app/(main)/fertilizers/columns/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test' }) })
-    expect(metadata.title).toBe('テストコラム - コラム - BON-LOG')
+    expect(metadata.title).toBe('テストコラム - コラム')
   })
 
   it('generateMetadata returns fallback when not found', async () => {
     mockGetFertilizerColumnBySlug.mockResolvedValue(null)
     const { generateMetadata } = await import('@/app/(main)/fertilizers/columns/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
-    expect(metadata.title).toBe('コラムが見つかりません - BON-LOG')
+    expect(metadata.title).toBe('コラムが見つかりません')
   })
 
   it('generateStaticParams returns slugs', async () => {
@@ -341,14 +341,14 @@ describe('Nutrient detail page', () => {
     mockGetNutrientBySlug.mockResolvedValue({ name: '窒素', symbol: 'N' })
     const { generateMetadata } = await import('@/app/(main)/fertilizers/nutrients/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'nitrogen' }) })
-    expect(metadata.title).toBe('窒素（N） - 栄養素 - BON-LOG')
+    expect(metadata.title).toBe('窒素（N） - 栄養素')
   })
 
   it('generateMetadata returns fallback when not found', async () => {
     mockGetNutrientBySlug.mockResolvedValue(null)
     const { generateMetadata } = await import('@/app/(main)/fertilizers/nutrients/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
-    expect(metadata.title).toBe('栄養素が見つかりません - BON-LOG')
+    expect(metadata.title).toBe('栄養素が見つかりません')
   })
 
   it('generateStaticParams returns slugs', async () => {
@@ -447,14 +447,14 @@ describe('Schedule detail page', () => {
     mockGetFertilizationSchedule.mockResolvedValue({ name: '黒松' })
     const { generateMetadata } = await import('@/app/(main)/fertilizers/schedules/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'kuromatsu' }) })
-    expect(metadata.title).toBe('黒松 施肥スケジュール - 施肥ガイド - BON-LOG')
+    expect(metadata.title).toBe('黒松 施肥スケジュール - 施肥ガイド')
   })
 
   it('generateMetadata returns fallback when not found', async () => {
     mockGetFertilizationSchedule.mockResolvedValue(null)
     const { generateMetadata } = await import('@/app/(main)/fertilizers/schedules/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
-    expect(metadata.title).toBe('樹種が見つかりません - BON-LOG')
+    expect(metadata.title).toBe('樹種が見つかりません')
   })
 
   it('generateStaticParams returns slugs', async () => {

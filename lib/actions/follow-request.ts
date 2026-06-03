@@ -9,16 +9,18 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { recordNewFollower } from './analytics'
+import { recordNewFollowerService } from '@/lib/services/analytics-recording'
 import { createNotification } from '@/lib/services/notification-core'
 import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { requireAuth, requireActiveNonGuestUser, requireNotGuest, actionSuccess, actionError, type ActionResult, enforceUserRateLimit } from '@/lib/actions/utils'
+import { normalizeCursorPagination } from '@/lib/actions/pagination'
 import logger from '@/lib/logger'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { ERR_SELF_FOLLOW_REQUEST, ERR_USER_NOT_FOUND, ERR_PUBLIC_ACCOUNT_FOLLOW, ERR_FOLLOW_REQUEST_BLOCKED, ERR_ALREADY_FOLLOWING, ERR_FOLLOW_REQUEST_ALREADY_SENT, ERR_FOLLOW_REQUEST_NOT_FOUND, ERR_FOLLOW_REQUEST_APPROVE_DENIED, ERR_FOLLOW_REQUEST_ALREADY_PROCESSED, ERR_FOLLOW_REQUEST_REJECT_DENIED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { FOLLOW_REQUEST_STATUS } from '@/lib/constants/status'
 import { ROUTE_SETTINGS_FOLLOW_REQUESTS } from '@/lib/constants/routes'
 import { buildUserPath } from '@/lib/constants/path-builders'
+import { checkInteractionEligibility } from '@/lib/services/user-eligibility'
 
 /**
  * フォローリクエストのステータス
@@ -60,31 +62,19 @@ export async function sendFollowRequest(targetUserId: string): Promise<ActionRes
   const rl = await enforceUserRateLimit(currentUserId, 'engagement')
   if (rl) return actionError(rl.error)
 
-  // 対象ユーザーの存在確認と公開設定チェック
-  const targetUser = await prisma.user.findUnique({
-    where: { id: targetUserId },
-    select: { id: true, isPublic: true, nickname: true },
-  })
-
-  if (!targetUser) {
-    return actionError(ERR_USER_NOT_FOUND)
+  // target の存在・停止・ゲスト・双方向 block を一括検証（block は専用エラー、それ以外は秘匿）
+  const eligibility = await checkInteractionEligibility(currentUserId, targetUserId)
+  if (!eligibility.ok) {
+    return actionError(eligibility.reason === 'blocked' ? ERR_FOLLOW_REQUEST_BLOCKED : ERR_USER_NOT_FOUND)
   }
 
   // 公開アカウントの場合はリクエスト不要（通常のフォローを使用）
-  if (targetUser.isPublic) {
+  if (eligibility.target.isPublic) {
     return actionError(ERR_PUBLIC_ACCOUNT_FOLLOW)
   }
 
-  // ブロック・既存フォロー・既存リクエストを並列チェック
-  const [isBlocked, existingFollow, existingRequest] = await Promise.all([
-    prisma.block.findUnique({
-      where: {
-        blockerId_blockedId: {
-          blockerId: targetUserId,
-          blockedId: currentUserId,
-        },
-      },
-    }),
+  // 既存フォロー・既存リクエストを並列チェック
+  const [existingFollow, existingRequest] = await Promise.all([
     prisma.follow.findUnique({
       where: {
         followerId_followingId: {
@@ -102,10 +92,6 @@ export async function sendFollowRequest(targetUserId: string): Promise<ActionRes
       },
     }),
   ])
-
-  if (isBlocked) {
-    return actionError(ERR_FOLLOW_REQUEST_BLOCKED)
-  }
 
   if (existingFollow) {
     return actionError(ERR_ALREADY_FOLLOWING)
@@ -192,13 +178,21 @@ export async function approveFollowRequest(requestId: string): Promise<ActionRes
   }
 
   // フォロー関係作成とリクエスト削除を原子的に実行。
+  // upsert で冪等化し、二重承認や既存フォローでも unique 制約違反で落とさない。
   // 通知は createNotification 経由で別途処理する（CLAUDE.md ルール6）。
   await prisma.$transaction(async (tx) => {
-    await tx.follow.create({
-      data: {
+    await tx.follow.upsert({
+      where: {
+        followerId_followingId: {
+          followerId: request.requesterId,
+          followingId: currentUserId,
+        },
+      },
+      create: {
         followerId: request.requesterId,
         followingId: currentUserId,
       },
+      update: {},
     })
 
     await tx.followRequest.delete({
@@ -215,7 +209,7 @@ export async function approveFollowRequest(requestId: string): Promise<ActionRes
   })
 
   // アナリティクスに記録
-  void recordNewFollower(currentUserId).catch((err) => logger.error('recordNewFollower failed:', err))
+  void recordNewFollowerService(currentUserId).catch((err) => logger.error('recordNewFollower failed:', err))
 
   revalidatePath(ROUTE_SETTINGS_FOLLOW_REQUESTS)
   revalidatePath(buildUserPath(request.requesterId))
@@ -373,6 +367,8 @@ async function listFollowRequests(
       ? { targetId: userId, status: FOLLOW_REQUEST_STATUS.PENDING }
       : { requesterId: userId, status: FOLLOW_REQUEST_STATUS.PENDING }
 
+    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
     const requests = await prisma.followRequest.findMany({
       where,
       include: {
@@ -385,15 +381,15 @@ async function listFollowRequests(
           ? { select: USER_MINIMAL_WITH_BIO_SELECT }
           : false,
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor && {
-        cursor: { id: cursor },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && {
+        cursor: { id: safeCursor },
         skip: 1,
       }),
     })
 
-    const hasMore = requests.length === limit
+    const hasMore = requests.length === safeLimit
 
     return {
       requests: requests.map((r: typeof requests[number]) => ({

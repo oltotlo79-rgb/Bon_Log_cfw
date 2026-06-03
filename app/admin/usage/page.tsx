@@ -1,14 +1,7 @@
-/**
- * @file 管理者用サービス使用量ページ
- * @description 各クラウドサービス（Vercel、Supabase、Cloudflare R2、Resend）の
- *              使用状況を一括確認できる管理者ページ。
- */
-
 // サービス使用量カードコンポーネント
 import { UsageCards } from './UsageCards'
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {

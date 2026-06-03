@@ -1,10 +1,3 @@
-/**
- * @file 管理者メンテナンスモード設定ページ
- * @description メンテナンスモードの設定を管理するページ。
- *              現在のステータス（通常運用/メンテナンス中）を表示し、
- *              MaintenanceFormコンポーネントで設定を変更できる。
- */
-
 // メンテナンス設定取得のServer Action
 import { getMaintenanceSettings } from '@/lib/actions/maintenance'
 // メンテナンス設定フォームコンポーネント
@@ -47,7 +40,6 @@ export default async function MaintenancePage() {
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
       <div>
         <h1 className="text-2xl font-bold">メンテナンスモード</h1>
         <p className="text-muted-foreground">
@@ -55,7 +47,6 @@ export default async function MaintenancePage() {
         </p>
       </div>
 
-      {/* 現在のステータス */}
       <div className="bg-card rounded-lg border p-6">
         <div className="flex items-center gap-4 mb-6">
           <div
@@ -78,7 +69,6 @@ export default async function MaintenancePage() {
           </div>
         </div>
 
-        {/* 設定フォーム */}
         <MaintenanceForm settings={settings} />
       </div>
 

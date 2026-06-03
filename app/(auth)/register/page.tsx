@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function RegisterPage() {
   return (
     <div className="p-6 sm:p-8">
-      <h1 className="font-serif text-3xl font-bold text-center text-sumi mb-10 tracking-widest">新規登録</h1>
+      <h1 className="font-serif text-3xl font-bold text-center text-sumi dark:text-washi mb-10 tracking-widest">新規登録</h1>
       <RegisterForm />
     </div>
   )

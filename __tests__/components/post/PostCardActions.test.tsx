@@ -16,6 +16,13 @@ vi.mock('@/components/post/BookmarkButton', () => ({
     <button data-testid="bookmark-button" data-post-id={postId} data-bookmarked={initialBookmarked} />
   ),
 }))
+vi.mock('@/components/post/RepostButton', () => ({
+  RepostButton: ({ postId, initialCount }: { postId: string; initialCount: number }) => (
+    <button data-testid="repost-button" data-post-id={postId}>
+      {initialCount > 0 && initialCount}
+    </button>
+  ),
+}))
 vi.mock('@/components/post/PostCardIcons', () => ({
   HeartIcon: () => <svg data-testid="heart-icon" />,
   MessageCircleIcon: () => <svg data-testid="comment-icon" />,
@@ -54,6 +61,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       expect(screen.getByTestId('like-button')).toBeInTheDocument()
@@ -70,6 +80,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={5}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       const likeBtn = screen.getByTestId('like-button')
@@ -88,6 +101,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={3}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       const commentLink = screen.getByTestId('comment-link')
@@ -104,6 +120,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       // 0 は表示しない
@@ -120,6 +139,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={7}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       expect(screen.getByText('7')).toBeInTheDocument()
@@ -137,6 +159,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={2}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       // LikeButton ではなく Link(/login) が表示される
@@ -156,6 +181,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       expect(screen.queryByTestId('bookmark-button')).not.toBeInTheDocument()
@@ -171,6 +199,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       expect(screen.queryByText('0')).not.toBeInTheDocument()
@@ -188,6 +219,9 @@ describe('PostCardActions', () => {
           isBookmarked={false}
           likesCount={0}
           commentsCount={0}
+          isReposted={false}
+          repostCount={0}
+          quoteTarget={{ id: mockPost.id, content: mockPost.content, user: { nickname: mockUser.nickname } }}
         />
       )
       expect(screen.getByTestId('post-actions')).toBeInTheDocument()

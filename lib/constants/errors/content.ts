@@ -44,6 +44,8 @@ export const ERR_INVALID_INPUT = '入力データが不正です'
 
 /** 操作失敗エラー */
 export const ERR_POST_CREATE_FAILED = '投稿の作成に失敗しました'
+export const ERR_POST_UPDATE_FAILED = '投稿の更新に失敗しました'
+export const ERR_POST_NOT_EDITABLE = 'この投稿は編集できません'
 export const ERR_POST_DELETE_FAILED = '投稿の削除に失敗しました'
 export const ERR_REPOST_FAILED = 'リポストに失敗しました'
 export const ERR_QUOTE_REQUIRED = '引用コメントを入力してください'
@@ -57,6 +59,7 @@ export const ERR_STORAGE_NOT_CONFIGURED = 'ストレージが設定されてい�
 export const ERR_PRESIGNED_URL_FAILED = '署名付きURLの生成に失敗しました'
 export const ERR_COMMENT_CREATE_FAILED = 'コメントの作成に失敗しました'
 export const ERR_COMMENT_DELETE_FAILED = 'コメントの削除に失敗しました'
+export const ERR_COMMENT_UPDATE_FAILED = 'コメントの更新に失敗しました'
 
 /** 投稿非表示 */
 export const ERR_CANNOT_HIDE_OWN_POST = '自分の投稿は非表示にできません'

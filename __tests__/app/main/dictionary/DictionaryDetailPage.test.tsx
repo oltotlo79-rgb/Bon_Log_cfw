@@ -158,7 +158,7 @@ describe('DictionaryDetailPage', () => {
     it('用語が見つかった場合はタイトルを返す', async () => {
       mockGetTermBySlug.mockResolvedValue({ term: makeTerm() })
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'chokkan' }) })
-      expect(metadata.title).toBe('直幹（ちょっかん） - 盆栽用語辞典 - BON-LOG')
+      expect(metadata.title).toBe('直幹（ちょっかん） - 盆栽用語辞典 | BON-LOG')
     })
 
     it('用語が見つかった場合はdescriptionが設定される', async () => {
@@ -171,7 +171,7 @@ describe('DictionaryDetailPage', () => {
     it('用語が見つからない場合はデフォルトタイトルを返す', async () => {
       mockGetTermBySlug.mockResolvedValue({ term: null })
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'unknown' }) })
-      expect(metadata.title).toBe('用語が見つかりません - BON-LOG')
+      expect(metadata.title).toBe('用語が見つかりません')
     })
   })
 })

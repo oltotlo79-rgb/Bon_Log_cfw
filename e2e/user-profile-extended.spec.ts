@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ユーザープロフィール 拡���E2Eテスト
@@ -34,8 +35,7 @@ test.describe('ユーザープロフィール — 拡張テスト', () => {
       // フォロワー数リンクをクリック
       const followersLink = page.getByRole('link', { name: /フォロワー/i }).first()
       if (await followersLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await followersLink.click()
-        await expect(page).toHaveURL(/\/followers/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, followersLink, /\/followers/, { timeout: 10000 })
       }
     }
   })
@@ -51,8 +51,7 @@ test.describe('ユーザープロフィール — 拡張テスト', () => {
 
       const followingLink = page.getByRole('link', { name: /フォロー中/i }).first()
       if (await followingLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await followingLink.click()
-        await expect(page).toHaveURL(/\/following/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, followingLink, /\/following/, { timeout: 10000 })
       }
     }
   })

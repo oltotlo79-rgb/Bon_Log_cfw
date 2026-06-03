@@ -1,42 +1,19 @@
 /**
- * シェアボタンコンポーネント
- *
  * @module components/post/ShareButtons
  */
 
 'use client'
 
-/**
- * React useState Hook
- * URLコピー完了状態の管理に使用
- */
 import { useState } from 'react'
 import { TIMEOUT_COPIED_FEEDBACK, SHARE_WINDOW_WIDTH, SHARE_WINDOW_HEIGHT } from '@/lib/constants/limits'
-
-/**
- * shadcn/uiのButtonコンポーネント
- * 各SNSボタンのスタイリングに使用
- */
 import { Button } from '@/components/ui/button'
 
-/**
- * ShareButtonsコンポーネントのProps型
- *
- * @property url - シェア対象のURL
- * @property title - シェア時のタイトル（OGPタイトルなど）
- * @property text - シェア時のテキスト（省略時はtitleを使用）
- */
 type ShareButtonsProps = {
   url: string
   title: string
   text?: string
 }
 
-/**
- * X（旧Twitter）アイコン
- *
- * @param className - 追加のCSSクラス
- */
 function XIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -45,11 +22,6 @@ function XIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * Facebookアイコン
- *
- * @param className - 追加のCSSクラス
- */
 function FacebookIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -58,11 +30,6 @@ function FacebookIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * LINEアイコン
- *
- * @param className - 追加のCSSクラス
- */
 function LineIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -71,12 +38,6 @@ function LineIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * リンクアイコン
- * URLコピーボタンに使用
- *
- * @param className - 追加のCSSクラス
- */
 function LinkIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -86,12 +47,6 @@ function LinkIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * チェックアイコン
- * URLコピー完了時に表示
- *
- * @param className - 追加のCSSクラス
- */
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -100,102 +55,27 @@ function CheckIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * シェアボタンコンポーネント
- *
- * ## 機能
- * - X、Facebook、LINEへのシェアボタン
- * - URLコピーボタン（コピー完了フィードバック付き）
- *
- * ## シェア方式
- * 各SNSのシェアURLを新しいウィンドウで開く。
- * window.openを使用し、適切なサイズのウィンドウを開く。
- *
- * ## URLコピー
- * Clipboard APIを使用（navigator.clipboard.writeText）。
- * 古いブラウザ向けにtextareaを使ったフォールバックも実装。
- *
- * @param url - シェア対象のURL
- * @param title - シェア時のタイトル
- * @param text - シェア時のテキスト（省略可）
- *
- * @example
- * ```tsx
- * <ShareButtons
- *   url="https://example.com/posts/123"
- *   title="素敵な盆栽の投稿"
- *   text="この盆栽、とても綺麗ですね！"
- * />
- * ```
- */
 export function ShareButtons({ url, title, text }: ShareButtonsProps) {
 
-  /**
-   * URLコピー完了状態
-   * trueの場合、チェックアイコンと「コピー済」を表示
-   */
   const [copied, setCopied] = useState(false)
 
-  /**
-   * シェア用テキスト
-   * textが指定されていない場合はtitleを使用
-   */
   const shareText = text || title
-
-  /**
-   * URLエンコード済みのURL
-   * シェアURLのパラメータとして使用
-   */
   const encodedUrl = encodeURIComponent(url)
-
-  /**
-   * URLエンコード済みのテキスト
-   * シェアURLのパラメータとして使用
-   */
   const encodedText = encodeURIComponent(shareText)
 
-  /**
-   * 各SNSのシェアURL
-   *
-   * - x: X（旧Twitter）のツイート投稿画面
-   * - facebook: Facebookのシェアダイアログ
-   * - line: LINEのシェア画面
-   */
   const shareLinks = {
     x: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
     line: `https://social-plugins.line.me/lineit/share?url=${encodedUrl}`,
   }
 
-  /**
-   * URLコピーハンドラ
-   *
-   * ## 処理フロー
-   * 1. Clipboard APIでURLをコピー
-   * 2. 成功時: copiedをtrueにして2秒後にfalseに戻す
-   * 3. 失敗時: フォールバック（textarea使用）でコピー
-   */
   const handleCopyLink = async () => {
     try {
-      /**
-       * Clipboard APIを使用してURLをコピー
-       * 新しいブラウザで利用可能
-       */
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      /**
-       * 2秒後にコピー完了表示を解除
-       */
       setTimeout(() => setCopied(false), TIMEOUT_COPIED_FEEDBACK)
     } catch {
-      /**
-       * フォールバック: 古いブラウザ向け
-       *
-       * 1. 非表示のtextareaを作成
-       * 2. URLを設定して選択
-       * 3. document.execCommand('copy')でコピー
-       * 4. textareaを削除
-       */
+      // Clipboard API 非対応ブラウザ向けの execCommand フォールバック
       const textArea = document.createElement('textarea')
       textArea.value = url
       document.body.appendChild(textArea)
@@ -207,24 +87,14 @@ export function ShareButtons({ url, title, text }: ShareButtonsProps) {
     }
   }
 
-  /**
-   * シェアウィンドウを開くハンドラ
-   *
-   * 指定されたURLを新しいウィンドウで開く。
-   * ウィンドウサイズは600x400に設定。
-   *
-   * @param shareUrl - 開くシェアURL
-   */
   const openShareWindow = (shareUrl: string) => {
     window.open(shareUrl, '_blank', `width=${SHARE_WINDOW_WIDTH},height=${SHARE_WINDOW_HEIGHT},noopener,noreferrer`)
   }
 
   return (
     <div className="flex items-center gap-2">
-      {/* シェアラベル */}
       <span className="text-sm text-muted-foreground mr-1">シェア:</span>
 
-      {/* X（旧Twitter）シェアボタン */}
       <Button
         variant="outline"
         size="sm"
@@ -235,7 +105,6 @@ export function ShareButtons({ url, title, text }: ShareButtonsProps) {
         <XIcon className="h-4 w-4" aria-hidden="true" />
       </Button>
 
-      {/* Facebookシェアボタン */}
       <Button
         variant="outline"
         size="sm"
@@ -246,7 +115,6 @@ export function ShareButtons({ url, title, text }: ShareButtonsProps) {
         <FacebookIcon className="h-4 w-4" aria-hidden="true" />
       </Button>
 
-      {/* LINEシェアボタン */}
       <Button
         variant="outline"
         size="sm"
@@ -257,7 +125,6 @@ export function ShareButtons({ url, title, text }: ShareButtonsProps) {
         <LineIcon className="h-4 w-4" aria-hidden="true" />
       </Button>
 
-      {/* URLコピーボタン */}
       <Button
         variant="outline"
         size="sm"
@@ -266,13 +133,11 @@ export function ShareButtons({ url, title, text }: ShareButtonsProps) {
         aria-label={copied ? 'リンクをコピーしました' : 'リンクをコピー'}
       >
         {copied ? (
-          /* コピー完了時の表示 */
           <>
             <CheckIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <span className="text-xs">コピー済</span>
           </>
         ) : (
-          /* 通常時の表示 */
           <>
             <LinkIcon className="h-4 w-4" aria-hidden="true" />
             <span className="text-xs">リンク</span>

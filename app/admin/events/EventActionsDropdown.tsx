@@ -1,9 +1,3 @@
-/**
- * @file イベントアクションドロップダウンコンポーネント
- * @description イベント管理テーブルの各行で使用されるドロップダウンメニュー。
- *              イベントの削除などの操作を提供する。
- */
-
 'use client'
 
 // ReactのuseStateとuseRefフック（状態管理とDOM参照用）
@@ -30,9 +24,6 @@ function MoreVerticalIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * EventActionsDropdownコンポーネントのProps型定義
- */
 interface EventActionsDropdownProps {
   /** 操作対象のイベントID */
   eventId: string
@@ -135,7 +126,6 @@ export function EventActionsDropdown({ eventId }: EventActionsDropdownProps) {
         )}
       </div>
 
-      {/* 削除モーダル */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card rounded-lg border p-6 max-w-md w-full mx-4">

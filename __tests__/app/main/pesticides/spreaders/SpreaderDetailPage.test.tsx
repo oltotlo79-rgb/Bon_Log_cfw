@@ -150,7 +150,7 @@ describe('SpreaderDetailPage - generateMetadata', () => {
 
     const { BASE_URL } = await import('@/lib/constants/routes')
     expect(result).toEqual({
-      title: 'メイリノ - 展着剤 - BON-LOG',
+      title: 'メイリノ - 展着剤',
       alternates: { canonical: `${BASE_URL}/pesticides/spreaders/mairino` },
     })
   })
@@ -163,7 +163,7 @@ describe('SpreaderDetailPage - generateMetadata', () => {
 
     const { BASE_URL } = await import('@/lib/constants/routes')
     expect(result).toEqual({
-      title: 'パラフィン型の展着剤 - BON-LOG',
+      title: 'パラフィン型の展着剤',
       alternates: { canonical: `${BASE_URL}/pesticides/spreaders/paraffin` },
     })
   })
@@ -174,7 +174,7 @@ describe('SpreaderDetailPage - generateMetadata', () => {
 
     const result = await generateMetadata({ params: Promise.resolve({ slug: 'unknown' }) })
 
-    expect(result).toEqual({ title: '展着剤が見つかりません - BON-LOG' })
+    expect(result).toEqual({ title: '展着剤が見つかりません' })
   })
 })
 

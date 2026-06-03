@@ -1,10 +1,3 @@
-/**
- * @file NGワード管理ページ
- * @description NGワードの一覧表示・追加・削除・有効/無効切替を行う管理者専用ページ。
- *              スパム・ハラスメント・不適切な表現を自動検出するためのワードリストを管理する。
- * @route /admin/ng-words
- */
-
 import { Suspense } from 'react'
 import { getNgWords, getNgWordStats } from '@/lib/actions/admin/moderation'
 import { NgWordList } from './NgWordList'
@@ -12,9 +5,6 @@ import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: 'NGワード管理 - BON-LOG 管理',
 }
@@ -25,9 +15,6 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic'
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     /** 検索キーワード */
@@ -81,7 +68,6 @@ export default async function NgWordsPage({ searchParams }: PageProps) {
         <span className="text-sm text-muted-foreground">全 {totalCount} 件</span>
       </div>
 
-      {/* 統計カード */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">総登録数</p>
@@ -97,7 +83,6 @@ export default async function NgWordsPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* NGワードリスト（Client Component） */}
       <Suspense fallback={<div className="animate-pulse h-96 bg-muted rounded-lg" />}>
         <NgWordList
           words={words}

@@ -16,6 +16,7 @@ const mockAuth = vi.fn()
 const mockBlockFindUnique = vi.fn()
 const mockPostFindUnique = vi.fn()
 const mockUserFindUnique = vi.fn()
+const mockFollowFindUnique = vi.fn()
 const mockRecordPostView = vi.fn().mockResolvedValue(undefined)
 const mockRecordProfileView = vi.fn().mockResolvedValue(undefined)
 const mockRateLimit = vi.fn().mockResolvedValue({ success: true, remaining: 30, resetTime: 0 })
@@ -29,6 +30,7 @@ vi.mock('@/lib/db', () => ({
     block: { findUnique: (...args: unknown[]) => mockBlockFindUnique(...args) },
     post: { findUnique: (...args: unknown[]) => mockPostFindUnique(...args) },
     user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
+    follow: { findUnique: (...args: unknown[]) => mockFollowFindUnique(...args) },
   },
 }))
 
@@ -144,10 +146,52 @@ describe('POST /api/analytics/view', () => {
     expect(mockRecordPostView).not.toHaveBeenCalled()
   })
 
-  it('正常系: post view を記録する', async () => {
+  it('正常系: post view を記録する（公開著者）', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'viewer' } })
     mockBlockFindUnique.mockResolvedValue(null)
     mockPostFindUnique.mockResolvedValue({ isHidden: false, userId: 'author' })
+    mockUserFindUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    const { POST } = await import('@/app/api/analytics/view/route')
+    const res = await POST(
+      makeRequest({ type: 'post', postId: 'p1', targetUserId: 'author' }),
+    )
+    expect(res.status).toBe(204)
+    expect(mockRecordPostView).toHaveBeenCalledWith('author')
+  })
+
+  it('非公開著者・未フォローの post view は記録しない（M-2）', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'viewer' } })
+    mockBlockFindUnique.mockResolvedValue(null)
+    mockPostFindUnique.mockResolvedValue({ isHidden: false, userId: 'author' })
+    mockUserFindUnique.mockResolvedValue({ isPublic: false, isSuspended: false })
+    mockFollowFindUnique.mockResolvedValue(null)
+    const { POST } = await import('@/app/api/analytics/view/route')
+    const res = await POST(
+      makeRequest({ type: 'post', postId: 'p1', targetUserId: 'author' }),
+    )
+    expect(res.status).toBe(204)
+    expect(mockRecordPostView).not.toHaveBeenCalled()
+  })
+
+  it('停止著者の post view は記録しない（M-2）', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'viewer' } })
+    mockBlockFindUnique.mockResolvedValue(null)
+    mockPostFindUnique.mockResolvedValue({ isHidden: false, userId: 'author' })
+    mockUserFindUnique.mockResolvedValue({ isPublic: true, isSuspended: true })
+    const { POST } = await import('@/app/api/analytics/view/route')
+    const res = await POST(
+      makeRequest({ type: 'post', postId: 'p1', targetUserId: 'author' }),
+    )
+    expect(res.status).toBe(204)
+    expect(mockRecordPostView).not.toHaveBeenCalled()
+  })
+
+  it('非公開著者でもフォロワーの post view は記録する（M-2）', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'viewer' } })
+    mockBlockFindUnique.mockResolvedValue(null)
+    mockPostFindUnique.mockResolvedValue({ isHidden: false, userId: 'author' })
+    mockUserFindUnique.mockResolvedValue({ isPublic: false, isSuspended: false })
+    mockFollowFindUnique.mockResolvedValue({ followerId: 'viewer' })
     const { POST } = await import('@/app/api/analytics/view/route')
     const res = await POST(
       makeRequest({ type: 'post', postId: 'p1', targetUserId: 'author' }),

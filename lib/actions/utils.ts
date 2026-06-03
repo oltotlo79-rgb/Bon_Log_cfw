@@ -377,17 +377,6 @@ export async function getPostInteractionSets(userId: string, postIds: string[]) 
 /**
  * Server Action の try/catch ボイラープレートを 1 箇所に集約するヘルパー。
  * ログ形式統一のために段階採用する（既存の try/catch を強制移行しない）。
- *
- * @example
- * ```typescript
- * return withActionErrorHandler(
- *   { name: 'createPost', fallbackError: ERR_POST_CREATE_FAILED, context: { userId } },
- *   async () => {
- *     const post = await prisma.post.create({ data: {...} })
- *     return actionSuccess({ postId: post.id })
- *   },
- * )
- * ```
  */
 export async function withActionErrorHandler<T>(
   options: {

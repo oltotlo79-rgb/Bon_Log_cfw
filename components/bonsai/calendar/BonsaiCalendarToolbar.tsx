@@ -142,7 +142,6 @@ export function BonsaiCalendarToolbar({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* モード切替タブ */}
           <div role="tablist" aria-label="表示モード" className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
             {CALENDAR_MODES.map((m) => {
               const isActive = m === mode
@@ -178,7 +177,6 @@ export function BonsaiCalendarToolbar({
         </div>
       </div>
 
-      {/* 種別 / 重ね表示フィルタ（チップの色ドットがそのまま凡例として機能） */}
       <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">表示フィルタ（色は各種別を表します）</legend>
         {BONSAI_CARE_TYPES.map((type) => {

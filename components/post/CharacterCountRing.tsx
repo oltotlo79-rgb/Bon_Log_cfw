@@ -33,7 +33,6 @@ export function CharacterCountRing({ current, max }: CharacterCountRingProps) {
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
-        {/* 背景トラック */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
           fill="none"
@@ -41,7 +40,6 @@ export function CharacterCountRing({ current, max }: CharacterCountRingProps) {
           strokeWidth="2"
           className="text-muted/30"
         />
-        {/* プログレス */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
           fill="none"
@@ -56,7 +54,6 @@ export function CharacterCountRing({ current, max }: CharacterCountRingProps) {
           stroke="currentColor"
         />
       </svg>
-      {/* 警告時は残り文字数をテキスト表示 */}
       {isWarning && (
         <span className={cn(
           'absolute text-[9px] font-medium tabular-nums',

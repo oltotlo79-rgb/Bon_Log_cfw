@@ -168,6 +168,23 @@ describe('Logger Module', async () => {
       )
     })
 
+    it('error()はplain objectをJSON直列化し[object Object]を生成しない', async () => {
+      const { logger } = await import('@/lib/logger')
+
+      logger.error('getActiveAnnouncements failed', {
+        error: 'Connection terminated due to connection timeout',
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
+      const [message] = mockCaptureMessage.mock.calls[0]
+      expect(message).not.toContain('[object Object]')
+      expect(message).toBe(
+        'getActiveAnnouncements failed {"error":"Connection terminated due to connection timeout"}'
+      )
+    })
+
     it('error()はSentry呼び出しが例外をスローしてもエラーを伝播させない', async () => {
       // logger.ts は Sentry を静的 import するため、モジュールの解決失敗時点で
       // アプリ全体が起動できない（期待する fail-fast）。

@@ -32,11 +32,11 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const pesticide = await getPesticideBySlug(slug)
-  if (!pesticide) return { title: '薬剤が見つかりません - BON-LOG' }
+  if (!pesticide) return { title: '薬剤が見つかりません' }
   const description = pesticide.description?.slice(0, META_DESCRIPTION_PREVIEW_LENGTH)
     || `${pesticide.name}の成分・効果・使用上の注意・FRAC/IRACコードなど詳細情報`
   return {
-    title: `${pesticide.name} - 薬剤詳細 - BON-LOG`,
+    title: `${pesticide.name} - 薬剤詳細`,
     description,
     alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES}/products/${slug}`) },
   }
@@ -122,7 +122,6 @@ export default async function PesticideDetailPage({ params }: Props) {
 
       <PesticideDisclaimer />
 
-      {/* 基本情報 */}
       <section className="rounded-lg border border-border/40 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-md flex items-center justify-center bg-primary/10 text-primary">
@@ -200,7 +199,6 @@ export default async function PesticideDetailPage({ params }: Props) {
         </dl>
       </section>
 
-      {/* 成分（原体） */}
       {pesticide.ingredients.length > 0 && (
         <section className="rounded-lg border border-border/40 p-4 space-y-3">
           <div className="flex items-center gap-2">
@@ -240,7 +238,6 @@ export default async function PesticideDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 混用不可の農薬 */}
       <section className={`rounded-lg border p-4 space-y-3 ${
         pesticide.incompatibleWith && pesticide.incompatibleWith.length > 0 
           ? 'border-destructive/30 bg-destructive/5' 
@@ -286,7 +283,6 @@ export default async function PesticideDetailPage({ params }: Props) {
         )}
       </section>
 
-      {/* この薬剤が効く病害虫（展着剤の場合は非表示） */}
       {!isSpreaderOnly && (
         <section className="rounded-lg border border-border/40 p-4 space-y-3">
           <div className="flex items-center gap-2">

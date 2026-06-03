@@ -151,7 +151,7 @@ describe('generateMetadata for shops', async () => {
     mockGetShop.mockResolvedValue({ shop: makeShop() } as never)
 
     const result = await generateMetadata({ params: Promise.resolve({ id: 'shop-1' }) })
-    expect(result.title).toBe('Bonsai Garden')
+    expect(result.title).toBe('Bonsai Garden | BON-LOG')
   })
 
   it('returns fallback when not found', async () => {

@@ -189,7 +189,7 @@ describe('PesticideTopPage', () => {
       const { BASE_URL } = await import('@/lib/constants/routes')
       const mod = await import('@/app/(main)/pesticides/page')
       expect(mod.metadata).toEqual({
-        title: '農薬・病害虫 - BON-LOG',
+        title: '農薬・病害虫',
         description: '病害虫から効く薬剤を検索。農薬の成分・FRAC/IRACコード・剤型情報を確認できます。',
         alternates: { canonical: `${BASE_URL}/pesticides` },
       })

@@ -172,7 +172,7 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       })
     })
 
-    it('処理中にエラーが発生しても200を返す', async () => {
+    it('処理中の一過性エラーは冪等ロックを解放し500を返す（Stripeにリトライさせる）', async () => {
       const mockEvent = {
         type: 'customer.subscription.updated',
         data: {
@@ -191,7 +191,8 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
       const data = await response.json()
 
-      expect(data.received).toBe(true)
+      expect(response.status).toBe(500)
+      expect(data.error).toBeDefined()
     })
   })
 
@@ -220,7 +221,7 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       expect(mockPrisma.user.update).not.toHaveBeenCalled()
     })
 
-    it('処理中にエラーが発生しても200を返す', async () => {
+    it('処理中の一過性エラーは冪等ロックを解放し500を返す（Stripeにリトライさせる）', async () => {
       const mockEvent = {
         type: 'customer.subscription.deleted',
         data: {
@@ -235,7 +236,8 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
       const data = await response.json()
 
-      expect(data.received).toBe(true)
+      expect(response.status).toBe(500)
+      expect(data.error).toBeDefined()
     })
   })
 
@@ -293,7 +295,7 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       expect(mockPrisma.notification.create).not.toHaveBeenCalled()
     })
 
-    it('処理中にエラーが発生しても200を返す', async () => {
+    it('処理中の一過性エラーは冪等ロックを解放し500を返す（Stripeにリトライさせる）', async () => {
       const mockEvent = {
         type: 'invoice.payment_failed',
         data: {
@@ -308,7 +310,8 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
       const data = await response.json()
 
-      expect(data.received).toBe(true)
+      expect(response.status).toBe(500)
+      expect(data.error).toBeDefined()
     })
   })
 
@@ -428,7 +431,7 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       expect(mockPrisma.payment.create).not.toHaveBeenCalled()
     })
 
-    it('処理中にエラーが発生しても200を返す', async () => {
+    it('処理中の一過性エラーは冪等ロックを解放し500を返す（Stripeにリトライさせる）', async () => {
       const mockEvent = {
         type: 'invoice.payment_succeeded',
         data: {
@@ -449,7 +452,8 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
       const data = await response.json()
 
-      expect(data.received).toBe(true)
+      expect(response.status).toBe(500)
+      expect(data.error).toBeDefined()
     })
   })
 })

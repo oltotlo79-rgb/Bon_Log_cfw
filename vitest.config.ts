@@ -76,6 +76,8 @@ export default defineConfig({
         '**/*.d.ts',
         '**/node_modules/**',
         '**/__tests__/**',
+        // 大半の index.ts は re-export barrel のため除外する。実ロジックを持つ
+        // storage / email の index.ts は別途専用テストで担保済み（barrel 一括除外を維持）。
         '**/index.ts',
       ],
       thresholds: {

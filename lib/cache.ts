@@ -95,6 +95,9 @@ function getCachedTrendingGenresImpl(limit: number) {
       where: {
         post: {
           createdAt: { gte: fortyEightHoursAgo },
+          // 公開面の集計のため、非表示投稿・非公開/停止著者の投稿は除外する（人気タグ集計と条件を揃える）
+          isHidden: false,
+          user: { isPublic: true, isSuspended: false },
         },
       },
       _count: {
@@ -153,12 +156,17 @@ export const getCachedPopularTags = unstable_cache(
     const oneWeekAgo = new Date()
     oneWeekAgo.setDate(oneWeekAgo.getDate() - POPULAR_TAGS_DAYS)
 
+    // 公開面のトレンド表示。非表示投稿に加え、非公開アカウント・停止ユーザーの投稿由来タグも
+    // 集計から除外する（探索導線に閲覧不可コンテンツのタグを出さない）。
     const popularTags = await prisma.$queryRaw<{ name: string; tag_count: bigint }[]>`
       SELECT h.name, COUNT(ph.post_id) as tag_count
       FROM hashtags h
       INNER JOIN post_hashtags ph ON ph.hashtag_id = h.id
       INNER JOIN posts p ON p.id = ph.post_id
+      INNER JOIN users u ON u.id = p.user_id
       WHERE p.is_hidden = false
+        AND u.is_public = true
+        AND u.is_suspended = false
         AND p.created_at >= ${oneWeekAgo}
       GROUP BY h.id, h.name
       ORDER BY tag_count DESC

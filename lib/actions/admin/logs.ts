@@ -12,14 +12,6 @@ import { buildCursorPagination } from '@/lib/actions/pagination'
  *
  * @param options - フィルター・カーソルパラメータ
  * @returns ログ配列・総件数・次ページのカーソル
- *
- * @example
- * ```typescript
- * const { logs, total, nextCursor } = await getAdminLogs({
- *   action: 'suspend_user',
- *   limit: 50,
- * })
- * ```
  */
 export async function getAdminLogs(options?: {
   action?: string

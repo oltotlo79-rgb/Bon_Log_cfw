@@ -21,7 +21,7 @@ vi.mock('@/lib/rate-limit', () => ({
   checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
 }))
 
-vi.mock('@/lib/actions/analytics', () => ({ recordNewFollower: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/services/analytics-recording', () => ({ recordNewFollowerService: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/actions/notification', () => ({
   createNotification: vi.fn().mockResolvedValue({ success: true }),
   deleteNotification: vi.fn().mockResolvedValue({ success: true }),
@@ -35,6 +35,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.mockResolvedValue({ user: { id: 'u1' } })
   mockCheckUserRateLimit.mockResolvedValue({ success: true })
+  // clearAllMocks は実装を消さないため、block 判定を既定で no-block にしてテスト間の持ち越しを防ぐ
+  mockPrisma.block.findFirst.mockResolvedValue(null)
 })
 
 describe('sendFollowRequest', async () => {
@@ -60,8 +62,8 @@ describe('sendFollowRequest', async () => {
 
   it('rejects if blocked', async () => {
     const { sendFollowRequest } = await import('@/lib/actions/follow-request')
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u2', isPublic: false })
-    mockPrisma.block.findUnique.mockResolvedValue({ id: 'b1' })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u2', isPublic: false, isSuspended: false })
+    mockPrisma.block.findFirst.mockResolvedValue({ blockerId: 'u2' })
     const result = await sendFollowRequest('u2')
     expect(result).toHaveProperty('error')
   })

@@ -96,10 +96,10 @@ export const LOCATION_GROUPS = [
   {
     label: '都道府県',
     options: [
-      // === 北海道 ===
+      // 北海道
       { value: '北海道', label: '北海道' },
 
-      // === 東北地方 ===
+      // 東北
       { value: '青森県', label: '青森県' },
       { value: '岩手県', label: '岩手県' },
       { value: '宮城県', label: '宮城県' },
@@ -107,7 +107,7 @@ export const LOCATION_GROUPS = [
       { value: '山形県', label: '山形県' },
       { value: '福島県', label: '福島県' },
 
-      // === 関東地方 ===
+      // 関東
       { value: '茨城県', label: '茨城県' },
       { value: '栃木県', label: '栃木県' },
       { value: '群馬県', label: '群馬県' },
@@ -116,23 +116,23 @@ export const LOCATION_GROUPS = [
       { value: '東京都', label: '東京都' },
       { value: '神奈川県', label: '神奈川県' },
 
-      // === 甲信越地方 ===
+      // 甲信越
       { value: '新潟県', label: '新潟県' },
       { value: '山梨県', label: '山梨県' },
       { value: '長野県', label: '長野県' },
 
-      // === 北陸地方 ===
+      // 北陸
       { value: '富山県', label: '富山県' },
       { value: '石川県', label: '石川県' },
       { value: '福井県', label: '福井県' },
 
-      // === 東海地方 ===
+      // 東海
       { value: '岐阜県', label: '岐阜県' },
       { value: '静岡県', label: '静岡県' },
       { value: '愛知県', label: '愛知県' },
       { value: '三重県', label: '三重県' },
 
-      // === 近畿地方 ===
+      // 近畿
       { value: '滋賀県', label: '滋賀県' },
       { value: '京都府', label: '京都府' },
       { value: '大阪府', label: '大阪府' },
@@ -140,20 +140,20 @@ export const LOCATION_GROUPS = [
       { value: '奈良県', label: '奈良県' },
       { value: '和歌山県', label: '和歌山県' },
 
-      // === 中国地方 ===
+      // 中国
       { value: '鳥取県', label: '鳥取県' },
       { value: '島根県', label: '島根県' },
       { value: '岡山県', label: '岡山県' },
       { value: '広島県', label: '広島県' },
       { value: '山口県', label: '山口県' },
 
-      // === 四国地方 ===
+      // 四国
       { value: '徳島県', label: '徳島県' },
       { value: '香川県', label: '香川県' },
       { value: '愛媛県', label: '愛媛県' },
       { value: '高知県', label: '高知県' },
 
-      // === 九州地方 ===
+      // 九州
       { value: '福岡県', label: '福岡県' },
       { value: '佐賀県', label: '佐賀県' },
       { value: '長崎県', label: '長崎県' },
@@ -162,7 +162,7 @@ export const LOCATION_GROUPS = [
       { value: '宮崎県', label: '宮崎県' },
       { value: '鹿児島県', label: '鹿児島県' },
 
-      // === 沖縄 ===
+      // 沖縄
       { value: '沖縄県', label: '沖縄県' },
     ],
   },
@@ -180,7 +180,7 @@ export const LOCATION_GROUPS = [
   {
     label: '国・地域',
     options: [
-      // === アジア ===
+      // アジア
       { value: '日本', label: '日本' },
       { value: '台湾', label: '台湾' },
       { value: '韓国', label: '韓国' },
@@ -194,17 +194,17 @@ export const LOCATION_GROUPS = [
       { value: 'マレーシア', label: 'マレーシア' },
       { value: 'インド', label: 'インド' },
 
-      // === オセアニア ===
+      // オセアニア
       { value: 'オーストラリア', label: 'オーストラリア' },
       { value: 'ニュージーランド', label: 'ニュージーランド' },
 
-      // === 北米・中南米 ===
+      // 北米・中南米
       { value: 'アメリカ', label: 'アメリカ' },
       { value: 'カナダ', label: 'カナダ' },
       { value: 'メキシコ', label: 'メキシコ' },
       { value: 'ブラジル', label: 'ブラジル' },
 
-      // === ヨーロッパ ===
+      // ヨーロッパ
       { value: 'イギリス', label: 'イギリス' },
       { value: 'フランス', label: 'フランス' },
       { value: 'ドイツ', label: 'ドイツ' },

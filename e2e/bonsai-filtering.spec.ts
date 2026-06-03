@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 盆栽フィルタリング・検索のE2Eテスト
@@ -244,9 +245,7 @@ test.describe('盆栽フィルタリング', () => {
       // 盆栽アイテムへのリンク（/bonsai/new 以外）
       const bonsaiLink = page.locator('a[href^="/bonsai/"]:not([href="/bonsai/new"])').first()
       if (await bonsaiLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await bonsaiLink.click()
-        await page.waitForLoadState('domcontentloaded')
-        await expect(page).toHaveURL(/\/bonsai\//)
+        await clickAndWaitForUrl(page, bonsaiLink, /\/bonsai\//)
       }
     })
   })

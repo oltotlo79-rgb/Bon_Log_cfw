@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * サブスクリプション（プラン管理）ページのE2Eテスト
@@ -177,8 +178,7 @@ test.describe('設定ページからのサブスクリプションナビゲー�
     // プラン管理へのリンクが存在する
     const subscriptionLink = page.getByRole('link', { name: /プラン管理/i }).first()
     if (await subscriptionLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await subscriptionLink.click()
-      await expect(page).toHaveURL(/\/settings\/subscription/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, subscriptionLink, /\/settings\/subscription/, { timeout: 10000 })
     }
   })
 })

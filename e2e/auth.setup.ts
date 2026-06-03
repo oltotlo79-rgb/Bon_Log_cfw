@@ -19,11 +19,17 @@ setup('authenticate', async ({ page }) => {
     await page.locator('#password').first().fill(password)
     await page.getByRole('button', { name: 'ログイン', exact: true }).click()
     try {
-      await expect(page).toHaveURL(/\/feed/, { timeout: 60000 })
-      return true
+      // 新規ユーザー扱いだとログイン後に /onboarding へ誘導され得る。
+      // シード側で onboardedAt を設定済みだが、未シードの永続DB等でも fixture が壊れないよう完了させる。
+      await expect(page).toHaveURL(/\/(feed|onboarding)/, { timeout: 60000 })
     } catch {
       return false
     }
+    if (page.url().includes('/onboarding')) {
+      await page.getByRole('button', { name: 'はじめる' }).click()
+      await expect(page).toHaveURL(/\/feed/, { timeout: 30000 }).catch(() => {})
+    }
+    return page.url().includes('/feed')
   }
 
   let reachedFeed = await tryLogin()

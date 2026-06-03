@@ -1,5 +1,4 @@
 /**
- * 予約投稿フォーム用の型定義
  * @module components/post/ScheduledPostForm.types
  */
 import type { MembershipLimits } from '@/lib/premium'

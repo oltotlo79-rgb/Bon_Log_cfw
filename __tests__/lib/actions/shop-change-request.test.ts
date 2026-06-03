@@ -169,6 +169,21 @@ describe('shop-change-request actions', () => {
         })
       )
     })
+
+    it('巨大な limit は MAX_PAGE_LIMIT にクランプする（L-1）', async () => {
+      const { MAX_PAGE_LIMIT } = await import('@/lib/constants/limits')
+      mockRequireAdmin.mockResolvedValue({ userId: 'admin-1' })
+      mockPrisma.shopChangeRequest.findMany.mockResolvedValue([])
+      const action = await importAction()
+
+      await action({ limit: 1_000_000 })
+      expect(mockPrisma.shopChangeRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: MAX_PAGE_LIMIT,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })
+      )
+    })
   })
 
   // ============================================================

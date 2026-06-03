@@ -19,8 +19,18 @@ import {
   detachHashtagsFromPost,
   extractHashtags,
 } from '@/lib/services/hashtag-sync'
-import { notifyMentionedUsers } from './mention'
+import { notifyMentionedUsers } from '@/lib/services/mention'
 import { createNotification } from '@/lib/services/notification-core'
+import { deleteMediaFiles } from '@/lib/services/media-cleanup'
+import {
+  canViewPostByAuthor,
+  canViewAuthorContent,
+  assertCanViewPost,
+  visiblePostWhere,
+  redactNonVisibleNestedPosts,
+  getVisiblePostIds,
+} from '@/lib/services/post-visibility'
+import { Prisma } from '@prisma/client'
 import { requireActiveNonGuestUser, requireAuth, getPostInteractionSets, checkDailyPostLimit, getUserRelationSets, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { getExcludedUserIds } from '@/lib/actions/filter-helper'
@@ -34,8 +44,8 @@ import {
   POST_REPOST_INCLUDE,
   buildPostPollInclude,
 } from './post-include'
-import { parseCreatePostShape, applyCreatePostBusinessRules } from './post-validation'
-import { validateImageFile, generateSafeFileName } from '@/lib/file-validation'
+import { parseCreatePostShape, applyCreatePostBusinessRules, applyUpdatePostBusinessRules } from './post-validation'
+import { validateImageFile, validateVideoFile, generateSafeFileName } from '@/lib/file-validation'
 import logger from '@/lib/logger'
 import {
   DEFAULT_PAGE_LIMIT,
@@ -52,6 +62,8 @@ import {
   ERR_IMAGE_VIDEO_SELECT,
   ERR_INVALID_INPUT,
   ERR_POST_CREATE_FAILED,
+  ERR_POST_UPDATE_FAILED,
+  ERR_POST_NOT_EDITABLE,
   ERR_POST_DELETE_FAILED,
   ERR_POST_NOT_FOUND,
   ERR_PERMISSION_DENIED,
@@ -67,6 +79,7 @@ import {
   STORAGE_FOLDER_POST_VIDEOS,
 } from '@/lib/constants/storage'
 import { ROUTE_FEED } from '@/lib/constants/routes'
+import { buildPostPath } from '@/lib/constants/path-builders'
 
 const postIdSchema = z.string().min(1)
 
@@ -216,11 +229,23 @@ export async function createQuotePost(formData: FormData, quotePostId: string) {
   if (dailyLimitError) return dailyLimitError
 
   try {
-    // Fetch quote target owner before creating the post to avoid extra query
+    // 対象リソース認可: 閲覧権限のない投稿（非表示/非公開/停止著者）は引用できない。
+    // 著者公開状態まで 1 クエリで取得し、作成前に canViewAuthorContent で遮断する。
     const quotePost = await prisma.post.findUnique({
       where: { id: quotePostId },
-      select: { userId: true },
+      select: {
+        userId: true,
+        isHidden: true,
+        user: { select: { isPublic: true, isSuspended: true } },
+      },
     })
+    if (
+      !quotePost ||
+      quotePost.isHidden ||
+      !(await canViewAuthorContent(userId, quotePost.userId, quotePost.user))
+    ) {
+      return actionError(ERR_POST_NOT_FOUND)
+    }
 
     const post = await prisma.post.create({
       data: {
@@ -295,8 +320,22 @@ export async function createRepost(postId: string) {
     const dailyLimitError = await checkDailyPostLimit(userId)
     if (dailyLimitError) return dailyLimitError
 
-    // Fetch repost target owner + create post in a single transaction
-    const repostPost = await prisma.$transaction(async (tx) => {
+    // 対象リソース認可: 閲覧権限のない投稿はリポストできない。
+    // 解除（toggle off）は上で済んでおり、ここを通るのは新規作成パスのみ。
+    if (!(await assertCanViewPost(userId, postId))) {
+      return actionError(ERR_POST_NOT_FOUND)
+    }
+
+    // 存在再確認 + 対象著者取得 + 作成を単一トランザクションで行う。
+    // 別トランザクションで存在チェックすると、連打・並行リクエストで二重リポストが作られるため、
+    // 作成直前に同一 tx 内で再確認する（@@unique が無いリポストの冪等化）。
+    const repostResult = await prisma.$transaction(async (tx) => {
+      const dup = await tx.post.findFirst({
+        where: { userId, repostPostId: postId },
+        select: { id: true },
+      })
+      if (dup) return { target: null, duplicate: true as const }
+
       const target = await tx.post.findUnique({
         where: { id: postId },
         select: { userId: true },
@@ -309,9 +348,16 @@ export async function createRepost(postId: string) {
         },
       })
 
-      return target
+      return { target, duplicate: false as const }
     })
 
+    // 既に作成済み（連打/競合）の場合は冪等に ON 扱いで返す（通知の二重送信もしない）。
+    if (repostResult.duplicate) {
+      revalidatePath(ROUTE_FEED)
+      return actionSuccess({ reposted: true })
+    }
+
+    const repostPost = repostResult.target
     if (repostPost && repostPost.userId !== userId) {
       // 通知作成は createNotification 経由に統一（CLAUDE.md ルール6）。
       // ブロック関係・通知設定・重複チェック・プッシュ通知送信は内部で処理される。
@@ -326,6 +372,12 @@ export async function createRepost(postId: string) {
     revalidatePath(ROUTE_FEED)
     return actionSuccess({ reposted: true })
   } catch (error) {
+    // unique 制約 (userId, repostPostId) 違反は並行リクエストによる二重リポスト。
+    // 既に1件作成済みなので冪等に ON 扱いで返す（通知は先行リクエストが送る）。
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      revalidatePath(ROUTE_FEED)
+      return actionSuccess({ reposted: true })
+    }
     logger.error('Create repost failed', {
       userId,
       postId,
@@ -352,7 +404,7 @@ export async function deletePost(postId: string) {
   try {
     const post = await prisma.post.findUnique({
       where: { id: postId },
-      select: { userId: true },
+      select: { userId: true, media: { select: { url: true } } },
     })
 
     if (!post || post.userId !== userId) {
@@ -361,6 +413,9 @@ export async function deletePost(postId: string) {
 
     await detachHashtagsFromPost(postId)
     await prisma.post.delete({ where: { id: postId } })
+
+    // DB カスケード後にストレージ実体も回収（オーファン防止、best-effort）
+    await deleteMediaFiles(post.media.map((m) => m.url))
 
     revalidatePath(ROUTE_FEED)
     revalidateTrendingGenresCache()
@@ -373,6 +428,95 @@ export async function deletePost(postId: string) {
       error: error instanceof Error ? error.message : String(error),
     })
     return actionError(ERR_POST_DELETE_FAILED)
+  }
+}
+
+/**
+ * 既存投稿の本文・ジャンル・メディアを編集する（所有者のみ・純粋リポストは不可）。
+ * 編集は新規投稿ではないため 1 日上限は消費せず、editedAt を更新して「編集済み」を示す。
+ *
+ * @param postId - 編集対象の投稿ID
+ * @param formData - content / genreIds / mediaUrls / mediaTypes
+ */
+export async function updatePost(postId: string, formData: FormData) {
+  // 1. 認証 (非ゲスト)
+  const authResult = await requireActiveNonGuestUser()
+  if ('error' in authResult) return actionError(authResult.error)
+  const userId = authResult.userId
+
+  if (!postIdSchema.safeParse(postId).success) return actionError(ERR_INVALID_INPUT)
+
+  // 2. Zod 形状検証
+  const shape = parseCreatePostShape(formData)
+  if (!shape.ok) return shape.result
+
+  // 3. レート制限 (Zod 通過後)
+  const rl = await enforceUserRateLimit(userId, 'engagement')
+  if (rl) return actionError(rl.error)
+
+  // 4. ビジネスルール (1 日上限は消費しない)
+  const validated = await applyUpdatePostBusinessRules(shape.data, userId)
+  if (!validated.ok) return validated.result
+  const { content, genreIds, mediaUrls, mediaTypes } = validated.data
+
+  try {
+    const existing = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { userId: true, repostPostId: true, media: { select: { url: true } } },
+    })
+    if (!existing || existing.userId !== userId) return actionError(ERR_PERMISSION_DENIED)
+    // 純粋なリポストは本文を持たないため編集不可
+    if (existing.repostPostId !== null) return actionError(ERR_POST_NOT_EDITABLE)
+
+    // メディア・ジャンルは差し替え方式（トランザクションで原子的に置換）
+    await prisma.$transaction(async (tx) => {
+      await tx.postMedia.deleteMany({ where: { postId } })
+      await tx.postGenre.deleteMany({ where: { postId } })
+      await tx.post.update({
+        where: { id: postId },
+        data: {
+          content: content || null,
+          editedAt: new Date(),
+          media: mediaUrls.length > 0 ? {
+            create: mediaUrls.map((url: string, index: number) => ({
+              url,
+              type: mediaTypes[index] || 'image',
+              sortOrder: index,
+            })),
+          } : undefined,
+          genres: genreIds.length > 0 ? {
+            create: genreIds.map((genreId: string) => ({ genreId })),
+          } : undefined,
+        },
+      })
+    })
+
+    // 差し替えで外れた旧メディアを R2 から回収（オーファン防止、best-effort）
+    const removedUrls = existing.media.map((m) => m.url).filter((url) => !mediaUrls.includes(url))
+    if (removedUrls.length > 0) await deleteMediaFiles(removedUrls)
+
+    // 本文変更を反映するためハッシュタグを貼り直す。
+    // メンション通知は編集のたびに再送するとスパムになるため、編集時は再通知しない。
+    await detachHashtagsFromPost(postId)
+    await attachHashtagsToPost(postId, content).catch((err) => {
+      logger.error('attachHashtagsToPost (update) failed', {
+        postId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+
+    revalidatePath(ROUTE_FEED)
+    revalidatePath(buildPostPath(postId))
+    revalidateTrendingGenresCache()
+    revalidatePopularTagsCache()
+    return actionSuccess({ postId })
+  } catch (error) {
+    logger.error('Update post failed', {
+      userId,
+      postId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return actionError(ERR_POST_UPDATE_FAILED)
   }
 }
 
@@ -407,6 +551,20 @@ async function _getPostImpl(postId: string) {
     return actionError(ERR_POST_NOT_FOUND)
   }
 
+  // 公開範囲ガード: 非公開アカウント / 停止ユーザーの投稿は metadata の noindex だけでなく
+  // 実描画側でも遮断する（投稿ID直アクセス・通知・引用経由の漏えいを防ぐ）。
+  if (!(await canViewPostByAuthor(currentUserId, post.userId))) {
+    return actionError(ERR_POST_NOT_FOUND)
+  }
+
+  // 引用元・リポスト元も viewer ごとの可視性で再判定し、見えないものは null に落とす。
+  const nestedVisibleIds = await getVisiblePostIds(
+    currentUserId,
+    [post.quotePost?.id, post.repostPost?.id].filter((id): id is string => !!id),
+  )
+  const quotePost = post.quotePost && nestedVisibleIds.has(post.quotePost.id) ? post.quotePost : null
+  const repostPost = post.repostPost && nestedVisibleIds.has(post.repostPost.id) ? post.repostPost : null
+
   let isLiked = false
   let isBookmarked = false
 
@@ -435,6 +593,8 @@ async function _getPostImpl(postId: string) {
   return actionSuccess({
     post: {
       ...post,
+      quotePost,
+      repostPost,
       likeCount: post._count.likes,
       commentCount: post._count.comments,
       genres: post.genres.map((pg: typeof post.genres[number]) => pg.genre),
@@ -461,7 +621,7 @@ export async function getPosts(cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
   const session = await auth()
   const currentUserId = session?.user?.id
 
-  // 未認証時は relations 不要（タイムラインの絞り込みは行わず公開投稿のみ）。
+  // 未認証時は relations 不要。公開かつ非停止著者の投稿のみを返す（visiblePostWhere）。
   // 認証済みなら Redis キャッシュ + React cache でメモ化された 1 回のクエリで取得。
   const relations = currentUserId
     ? await getUserRelationSets(currentUserId)
@@ -476,16 +636,21 @@ export async function getPosts(cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
     ...(relations?.mutedUserIds ?? []),
   ]
 
-  const posts = await prisma.post.findMany({
-    where: {
-      isHidden: false,
-      ...(currentUserId && {
+  // 認証時はフォロー/自分の投稿に絞り、停止著者（自分以外）を除外する。
+  // 未認証時は公開面の可視性条件（公開・非停止）をそのまま適用する。
+  const where: Prisma.PostWhereInput = currentUserId
+    ? {
+        isHidden: false,
+        OR: [{ userId: currentUserId }, { user: { isSuspended: false } }],
         userId: {
           in: userIdsToShow,
           notIn: excludedUserIds.length > 0 ? excludedUserIds : undefined,
         },
-      }),
-    },
+      }
+    : visiblePostWhere()
+
+  const rawPosts = await prisma.post.findMany({
+    where,
     include: {
       ...POST_LIST_INCLUDE,
       // 引用元はカード肥大を避けるため media を含めない（_getPostImpl と方針を揃える）
@@ -493,9 +658,12 @@ export async function getPosts(cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
       repostPost: { include: POST_REPOST_INCLUDE },
       poll: { include: buildPostPollInclude() },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     ...buildCursorPagination(safeCursor, safeLimit),
   })
+
+  // 引用元・リポスト元の可視性を viewer ごとに再適用する（作成後に非表示化/非公開化された漏えいを防ぐ）。
+  const posts = await redactNonVisibleNestedPosts(currentUserId, rawPosts)
 
   const { likedSet, bookmarkedSet } = currentUserId
     ? await getPostInteractionSets(currentUserId, posts.map((p: typeof posts[number]) => p.id))
@@ -547,9 +715,16 @@ export async function uploadPostMedia(formData: FormData) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
 
-  // 画像はマジックバイト検証で偽装 Content-Type を拒否する
+  // 偽装 Content-Type を拒否するため、画像・動画ともにマジックバイト検証を行う。
+  // /api/upload 経路と同じ検証を Server Action 直接呼び出し経路にも適用し、
+  // クライアントから Server Action だけ叩かれても fail-closed になるようにする。
   if (isImage) {
     const validation = validateImageFile(buffer, file.type)
+    if (!validation.valid) {
+      return actionError(validation.error || ERR_IMAGE_VIDEO_SELECT)
+    }
+  } else if (isVideo) {
+    const validation = validateVideoFile(buffer, file.type)
     if (!validation.valid) {
       return actionError(validation.error || ERR_IMAGE_VIDEO_SELECT)
     }
@@ -613,20 +788,28 @@ export async function getPostsByBonsai(
   const { cursor: safeCursor, limit: safeLimit } = parsedPagination.data
 
   try {
-    // ログイン中ならブロック/ミュートユーザーを除外
     const session = await auth()
-    const excludeIds =
-      session?.user?.id
-        ? await getExcludedUserIds(session.user.id, { blocked: true, muted: true })
-        : []
+    const viewerId = session?.user?.id
+
+    // マイ盆栽は所有者専用リソース。関連投稿も所有者にのみ返す（非所有者は空）。
+    const bonsai = await prisma.bonsai.findUnique({
+      where: { id: bonsaiId },
+      select: { userId: true },
+    })
+    if (!bonsai || bonsai.userId !== viewerId) {
+      return actionSuccess({ posts: [], nextCursor: undefined })
+    }
+
+    const excludeIds = await getExcludedUserIds(viewerId, { blocked: true, muted: true })
 
     const posts = await prisma.post.findMany({
       where: {
         bonsaiId,
+        isHidden: false,
         ...(excludeIds.length > 0 && { userId: { notIn: excludeIds } }),
       },
       ...buildCursorPagination(safeCursor, safeLimit),
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         user: USER_MINIMAL_RELATION,
         media: { orderBy: { sortOrder: 'asc' } },

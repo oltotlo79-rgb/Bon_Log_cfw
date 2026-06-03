@@ -80,7 +80,6 @@ export function FertilizationTimeline({ plans }: Props) {
 
   return (
     <div className="space-y-1.5 overflow-x-auto">
-      {/* 季節ラベル */}
       <div className="grid grid-cols-12 text-xs font-semibold min-w-[480px]">
         {SEASONS.map((season) => {
           const pos = getSeasonGridPosition(season.months)
@@ -96,7 +95,6 @@ export function FertilizationTimeline({ plans }: Props) {
         })}
       </div>
 
-      {/* メインバー（施肥アクション） */}
       <div className="grid grid-cols-12 gap-px rounded-md overflow-hidden min-w-[480px]">
         {sortedPlans.map((plan) => (
           <div
@@ -109,7 +107,6 @@ export function FertilizationTimeline({ plans }: Props) {
         ))}
       </div>
 
-      {/* N/P/K サブバー */}
       {(['nitrogen', 'phosphorus', 'potassium'] as const).map((nutrient) => {
         const label = nutrient === 'nitrogen' ? 'N' : nutrient === 'phosphorus' ? 'P' : 'K'
         return (
@@ -132,7 +129,6 @@ export function FertilizationTimeline({ plans }: Props) {
         )
       })}
 
-      {/* 月ラベル */}
       <div className="grid grid-cols-12 text-[10px] text-muted-foreground min-w-[480px]">
         {sortedPlans.map((plan) => (
           <div key={plan.month} className="text-center tabular-nums">
@@ -141,7 +137,6 @@ export function FertilizationTimeline({ plans }: Props) {
         ))}
       </div>
 
-      {/* 凡例 */}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] text-muted-foreground pt-2 border-t border-border/40">
         <span className="font-medium text-foreground text-xs">施肥量:</span>
         {(Object.entries(ACTION_BAR_COLOR) as [FertilizerAction, string][]).map(([action, color]) => (

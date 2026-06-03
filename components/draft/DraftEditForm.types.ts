@@ -1,5 +1,4 @@
 /**
- * 下書き編集フォーム用の型定義
  * @module components/draft/DraftEditForm.types
  */
 

@@ -6,8 +6,8 @@
  *   元々 `lib/actions/shared-includes.ts` にあったが、純粋な Prisma 形状定数で
  *   実体は Action と無関係。`lib/services/` から参照すると依存方向の規約
  *   (services → actions の逆 import 禁止) に抵触するため、レイヤ中立な
- *   `lib/prisma/` 配下へ移動した。`lib/actions/shared-includes.ts` は後方互換のため
- *   re-export のみを残す。
+ *   `lib/prisma/` 配下へ移動した。旧パスへの re-export ファイルは残していない
+ *   (29 箇所の import を全て新パスに揃えたため)。
  *
  * - `as const` で型推論を維持（Prisma の型チェックが効く）
  * - 値は定数のためクライアント/Edge からの import も安全

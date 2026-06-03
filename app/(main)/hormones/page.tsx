@@ -17,7 +17,7 @@ import {
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '植物ホルモン - BON-LOG',
+  title: '植物ホルモン',
   description: '盆栽に関わる植物ホルモンの種類・役割・相互作用を解説します。',
   alternates: { canonical: pageCanonical(ROUTE_HORMONES) },
 }
@@ -75,7 +75,6 @@ export default async function HormoneTopPage() {
 
   return (
     <div className="space-y-8">
-      {/* ヘッダー */}
       <div>
         <h1 className="text-2xl font-bold">植物ホルモン</h1>
         
@@ -107,7 +106,6 @@ export default async function HormoneTopPage() {
         </p>
       </div>
 
-      {/* ナビゲーションカード */}
       <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navCards.map(({ href, icon: Icon, label, description, count }) => (
@@ -136,7 +134,6 @@ export default async function HormoneTopPage() {
 
       <HormoneDisclaimer />
 
-      {/* 五大ホルモン */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">五大ホルモン</h2>
@@ -151,7 +148,6 @@ export default async function HormoneTopPage() {
         </div>
       </section>
 
-      {/* 二次ホルモン */}
       {secondaryHormones.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">

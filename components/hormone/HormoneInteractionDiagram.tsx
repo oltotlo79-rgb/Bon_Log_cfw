@@ -5,6 +5,9 @@ import {
   DIAGRAM_SVG_WIDTH,
   DIAGRAM_SVG_HEIGHT,
   DIAGRAM_NODE_RADIUS,
+  DIAGRAM_NODE_LABEL_FONT_SIZE,
+  DIAGRAM_NODE_LABEL_MAX_LENGTH,
+  DIAGRAM_NODE_LABEL_TRUNCATE_LENGTH,
   INTERACTION_EDGE_COLORS,
   INTERACTION_TYPE_LABELS,
 } from '@/lib/constants/hormone-techniques'
@@ -135,7 +138,6 @@ export function HormoneInteractionDiagram({ hormones, interactions }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* フィルターコントロール */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">種類:</span>
         {Object.entries(INTERACTION_TYPE_LABELS).map(([type, label]) => {
@@ -170,7 +172,6 @@ export function HormoneInteractionDiagram({ hormones, interactions }: Props) {
         role="img"
         aria-label="ホルモン相互作用ダイアグラム"
       >
-        {/* エッジ */}
         {filteredInteractions.map((edge, idx) => {
           const posA = positions.get(edge.hormoneAId)
           const posB = positions.get(edge.hormoneBId)
@@ -199,7 +200,6 @@ export function HormoneInteractionDiagram({ hormones, interactions }: Props) {
           )
         })}
 
-        {/* ノード */}
         {hormones.map((hormone) => {
           const pos = positions.get(hormone.id)
           if (!pos) return null
@@ -228,12 +228,12 @@ export function HormoneInteractionDiagram({ hormones, interactions }: Props) {
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill="white"
-                fontSize={11}
+                fontSize={DIAGRAM_NODE_LABEL_FONT_SIZE}
                 fontWeight="bold"
                 className="pointer-events-none select-none"
               >
-                {hormone.name.length > 5
-                  ? hormone.name.slice(0, 4) + '…'
+                {hormone.name.length > DIAGRAM_NODE_LABEL_MAX_LENGTH
+                  ? hormone.name.slice(0, DIAGRAM_NODE_LABEL_TRUNCATE_LENGTH) + '…'
                   : hormone.name}
               </text>
               <title>{hormone.name}</title>
@@ -242,7 +242,6 @@ export function HormoneInteractionDiagram({ hormones, interactions }: Props) {
         })}
       </svg>
 
-      {/* ホバー中エッジの説明 */}
       {hoveredEdgeIndex !== null && (() => {
         const edge = filteredInteractions[hoveredEdgeIndex]
         if (!edge) return null
@@ -263,7 +262,6 @@ export function HormoneInteractionDiagram({ hormones, interactions }: Props) {
         )
       })()}
 
-      {/* 凡例 */}
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
         <span className="font-medium">線の色:</span>
         {Object.entries(INTERACTION_EDGE_COLORS).map(([type, color]) => (

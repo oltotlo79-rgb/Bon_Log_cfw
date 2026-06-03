@@ -5,6 +5,7 @@ import {
   TECHNIQUE_EFFECT_TYPE_COLORS,
   TECHNIQUE_MAGNITUDE_LABELS,
 } from '@/lib/constants/hormone-techniques'
+import { buildHormonePath } from '@/lib/constants/path-builders'
 
 type TechniqueEffect = {
   hormoneName: string
@@ -53,7 +54,6 @@ export function HormoneTechniqueCard({ techniqueName, techniqueNameEn, descripti
         </div>
       )}
       <div className="p-5 space-y-4">
-        {/* ヘッダー */}
         <div>
           <h3 className="font-semibold text-base">{techniqueName}</h3>
         {techniqueNameEn && (
@@ -62,7 +62,6 @@ export function HormoneTechniqueCard({ techniqueName, techniqueNameEn, descripti
         <p className="text-sm text-muted-foreground mt-1">{description}</p>
       </div>
 
-      {/* 効果リスト */}
       {effects.length > 0 && (
         <div className="space-y-2">
           {effects.map((effect) => {
@@ -74,7 +73,7 @@ export function HormoneTechniqueCard({ techniqueName, techniqueNameEn, descripti
               <div key={`${effect.hormoneSlug}-${effect.effectType}`} className="rounded-md bg-muted/50 p-3 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Link
-                    href={`/hormones/${effect.hormoneSlug}`}
+                    href={buildHormonePath(effect.hormoneSlug)}
                     className="font-medium text-sm text-primary hover:underline"
                   >
                     {effect.hormoneName}

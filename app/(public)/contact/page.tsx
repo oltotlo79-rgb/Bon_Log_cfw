@@ -1,7 +1,4 @@
 /**
- * @file app/(public)/contact/page.tsx
- * @description BON-LOGお問い合わせページ
- *
  * このページはユーザーからのお問い合わせを受け付けるフォームを提供します。
  * Google AdSense審査において必須となるページです。
  *
@@ -17,11 +14,8 @@ import { ContactForm } from '@/components/contact/ContactForm'
 import { ROUTE_HELP, ROUTE_TERMS, ROUTE_PRIVACY, ROUTE_ABOUT, ROUTE_CONTACT } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
-/**
- * ページメタデータの定義
- */
 export const metadata: Metadata = {
-  title: 'お問い合わせ - BON-LOG',
+  title: 'お問い合わせ',
   description: 'BON-LOG（ボンログ）へのお問い合わせはこちらから。サービスに関するご質問、ご意見、不具合報告などを受け付けています。',
   alternates: { canonical: pageCanonical(ROUTE_CONTACT) },
 }
@@ -32,7 +26,6 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <div className="space-y-8">
-      {/* ヘッダー */}
       <section className="text-center">
         <h1 className="mb-4 text-3xl font-bold tracking-tight">お問い合わせ</h1>
         <p className="mx-auto max-w-2xl text-muted-foreground">
@@ -40,7 +33,6 @@ export default function ContactPage() {
         </p>
       </section>
 
-      {/* お問い合わせ前の確認 */}
       <section className="rounded-lg border bg-muted/50 p-6">
         <h2 className="mb-4 text-lg font-semibold">お問い合わせの前に</h2>
         <p className="mb-4 text-sm text-muted-foreground">
@@ -70,7 +62,6 @@ export default function ContactPage() {
         </ul>
       </section>
 
-      {/* お問い合わせフォーム */}
       <section className="rounded-lg border bg-card p-6 md:p-8">
         <h2 className="mb-6 text-xl font-semibold">お問い合わせフォーム</h2>
         <ContactForm />
@@ -86,7 +77,6 @@ export default function ContactPage() {
         </p>
       </section>
 
-      {/* 関連リンク */}
       <section className="flex flex-wrap justify-center gap-4 text-sm">
         <Link href={ROUTE_HELP} className="text-primary hover:underline">
           ヘルプ

@@ -9,7 +9,7 @@ import { BASE_URL, ROUTE_HORMONES, ROUTE_HORMONE_SIMULATOR } from '@/lib/constan
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: 'ホルモンバランスシミュレーター - 植物ホルモン - BON-LOG',
+  title: 'ホルモンバランスシミュレーター - 植物ホルモン',
   description: '月と盆栽技法を選んで、五大ホルモンのバランス変動を予測するシミュレーターです。',
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_SIMULATOR) },
 }

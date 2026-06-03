@@ -314,21 +314,21 @@ describe('isThreadMuted extended', async () => {
 
   it('returns false when not authenticated', async () => {
     mockAuth.mockResolvedValue(null)
-    const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+    const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
     const result = await isThreadMuted('u1', 'p1')
     expect(result).toBeDefined()
   })
 
   it('returns true when muted', async () => {
     mockPrisma.threadMute.findFirst.mockResolvedValue({ id: 'tm1' })
-    const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+    const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
     const result = await isThreadMuted('u1', 'p1')
     expect(result).toBeDefined()
   })
 
   it('returns false when not muted', async () => {
     mockPrisma.threadMute.findFirst.mockResolvedValue(null)
-    const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+    const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
     const result = await isThreadMuted('u1', 'p1')
     expect(result).toBeDefined()
   })
@@ -376,12 +376,5 @@ describe('getEvents with filters extended', async () => {
     const { getUpcomingEvents } = await import('@/lib/actions/event')
     const result = await getUpcomingEvents(5)
     expect(result).toBeDefined()
-  })
-
-  it('checkIsAdmin returns false when not authenticated', async () => {
-    mockAuth.mockResolvedValue(null)
-    const { checkIsAdmin } = await import('@/lib/actions/maintenance')
-    const result = await checkIsAdmin('u1')
-    expect(result === false || result === true || result !== undefined).toBe(true)
   })
 })

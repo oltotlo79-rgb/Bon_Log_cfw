@@ -10,6 +10,7 @@ const mockPrisma = {
   fertilizerColumn: { findMany: vi.fn(), findUnique: vi.fn() },
 }
 
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockRequireAuth = vi.fn()
@@ -25,16 +26,6 @@ describe('Fertilizer Actions', () => {
   // ── getNutrients ──────────────────────────────────────────────
 
   describe('getNutrients', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getNutrients } = await import('@/lib/actions/fertilizer')
-      const result = await getNutrients()
-
-      expect(result).toEqual({ nutrients: [], error: '認証が必要です' })
-      expect(mockPrisma.fertilizerNutrient.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は栄養素一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -81,16 +72,6 @@ describe('Fertilizer Actions', () => {
   // ── getNutrientBySlug ─────────────────────────────────────────
 
   describe('getNutrientBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getNutrientBySlug } = await import('@/lib/actions/fertilizer')
-      const result = await getNutrientBySlug('nitrogen')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.fertilizerNutrient.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は栄養素を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const nutrient = { id: 'n1', name: '窒素', slug: 'nitrogen' }
@@ -119,16 +100,6 @@ describe('Fertilizer Actions', () => {
   // ── getFertilizerCategories ───────────────────────────────────
 
   describe('getFertilizerCategories', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getFertilizerCategories } = await import('@/lib/actions/fertilizer')
-      const result = await getFertilizerCategories()
-
-      expect(result).toEqual({ categories: [], error: '認証が必要です' })
-      expect(mockPrisma.fertilizerCategory.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はカテゴリ一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -159,16 +130,6 @@ describe('Fertilizer Actions', () => {
   // ── getTreeSpecies ────────────────────────────────────────────
 
   describe('getTreeSpecies', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getTreeSpecies } = await import('@/lib/actions/fertilizer')
-      const result = await getTreeSpecies()
-
-      expect(result).toEqual({ treeSpecies: [], error: '認証が必要です' })
-      expect(mockPrisma.treeSpecies.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は樹種一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -224,16 +185,6 @@ describe('Fertilizer Actions', () => {
   // ── getFertilizationSchedule ──────────────────────────────────
 
   describe('getFertilizationSchedule', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getFertilizationSchedule } = await import('@/lib/actions/fertilizer')
-      const result = await getFertilizationSchedule('kuromatsu')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.treeSpecies.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は樹種と施肥計画を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const tree = {
@@ -271,16 +222,6 @@ describe('Fertilizer Actions', () => {
   // ── getFertilizerColumns ──────────────────────────────────────
 
   describe('getFertilizerColumns', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getFertilizerColumns } = await import('@/lib/actions/fertilizer')
-      const result = await getFertilizerColumns()
-
-      expect(result).toEqual({ columns: [], error: '認証が必要です' })
-      expect(mockPrisma.fertilizerColumn.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はコラム一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -340,16 +281,6 @@ describe('Fertilizer Actions', () => {
   // ── getFertilizerColumnBySlug ─────────────────────────────────
 
   describe('getFertilizerColumnBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getFertilizerColumnBySlug } = await import('@/lib/actions/fertilizer')
-      const result = await getFertilizerColumnBySlug('basics')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.fertilizerColumn.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はコラムを返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const column = { id: 'col1', title: '肥料の基本', slug: 'basics' }

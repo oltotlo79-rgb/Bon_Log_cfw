@@ -28,6 +28,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
+const mockDeleteMediaFiles = vi.fn()
+vi.mock('@/lib/services/media-cleanup', () => ({
+  deleteMediaFiles: (...args: unknown[]) => mockDeleteMediaFiles(...args),
+}))
+
 const importModule = () => import('@/lib/actions/draft')
 
 describe('Draft Security Tests', () => {
@@ -39,20 +44,21 @@ describe('Draft Security Tests', () => {
 
   describe('deleteDraft - IDOR防止', () => {
     it('findFirstでuserIdを含むwhereクエリが実行される', async () => {
-      mockPrisma.draftPost.findFirst.mockResolvedValue(mockDraft)
+      mockPrisma.draftPost.findFirst.mockResolvedValue({ ...mockDraft, media: [] })
       mockPrisma.draftPost.delete.mockResolvedValue(mockDraft)
 
       const { deleteDraft } = await importModule()
       await deleteDraft(mockDraft.id)
 
-      // findFirst で userId を含む検索が行われることを確認
+      // findFirst で userId を含む検索が行われることを確認（メディア回収用に media も取得）
       expect(mockPrisma.draftPost.findFirst).toHaveBeenCalledWith({
         where: { id: mockDraft.id, userId: mockUser.id },
+        include: { media: { select: { url: true } } },
       })
     })
 
     it('deleteでuserIdを含むwhereクエリが実行される（IDOR防止）', async () => {
-      mockPrisma.draftPost.findFirst.mockResolvedValue(mockDraft)
+      mockPrisma.draftPost.findFirst.mockResolvedValue({ ...mockDraft, media: [] })
       mockPrisma.draftPost.delete.mockResolvedValue(mockDraft)
 
       const { deleteDraft } = await importModule()

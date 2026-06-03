@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
@@ -52,13 +53,21 @@ export async function votePoll(pollId: string, optionId: string) {
       return actionError(ERR_POLL_ALREADY_VOTED)
     }
 
-    await prisma.pollVote.create({
-      data: {
-        pollId,
-        optionId,
-        userId,
-      },
-    })
+    try {
+      await prisma.pollVote.create({
+        data: {
+          pollId,
+          optionId,
+          userId,
+        },
+      })
+    } catch (error) {
+      // 並行投票で @@unique([pollId, userId]) に当たった場合は「投票済み」を正しく返す
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return actionError(ERR_POLL_ALREADY_VOTED)
+      }
+      throw error
+    }
 
     revalidatePath(ROUTE_FEED)
 

@@ -213,7 +213,7 @@ describe('IngredientsPage', () => {
       const { BASE_URL } = await import('@/lib/constants/routes')
       const mod = await import('@/app/(main)/pesticides/ingredients/page')
       expect(mod.metadata).toEqual({
-        title: '原体一覧 - 農薬・病害虫 - BON-LOG',
+        title: '原体一覧 - 農薬・病害虫',
         alternates: { canonical: `${BASE_URL}/pesticides/ingredients` },
       })
     })

@@ -9,7 +9,6 @@
  * - 送信したフォローリクエスト一覧の表示
  * - 送信したリクエストのキャンセル
  *
- * @route /settings/follow-requests
  */
 
 import { auth } from '@/lib/auth'

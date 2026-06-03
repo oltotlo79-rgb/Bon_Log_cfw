@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 予約投稿ページのE2Eテスト（プレミアム機能）
@@ -35,8 +36,7 @@ test.describe('予約投稿', () => {
 
     const createLink = page.getByRole('link', { name: /新規作成|予約投稿を作成|新しい予約/i })
     if (await createLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await createLink.click()
-      await expect(page).toHaveURL(/\/posts\/scheduled\/new/)
+      await clickAndWaitForUrl(page, createLink, /\/posts\/scheduled\/new/)
     }
   })
 

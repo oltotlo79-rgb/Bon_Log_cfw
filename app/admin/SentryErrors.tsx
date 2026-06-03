@@ -1,9 +1,3 @@
-/**
- * @file Sentryエラー表示コンポーネント
- * @description 管理者ダッシュボードにSentryから取得したエラー情報を表示するクライアントコンポーネント。
- *              未解決のエラーをリスト形式で表示し、Sentryダッシュボードへの直接リンクを提供する。
- */
-
 'use client'
 
 // ReactのuseStateとuseEffectフック
@@ -14,9 +8,6 @@ import { formatDistanceToNow } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { ChevronRight } from 'lucide-react'
 
-/**
- * Sentryのイシュー（エラー）情報の型定義
- */
 interface SentryIssue {
   /** イシューの一意識別子 */
   id: string
@@ -42,9 +33,6 @@ interface SentryIssue {
   permalink: string
 }
 
-/**
- * Sentry APIレスポンスの型定義
- */
 interface SentryResponse {
   /** 取得成功フラグ */
   success: boolean
@@ -236,13 +224,11 @@ export function SentryErrors() {
             </a>
           )}
         </div>
-        {/* エラーメッセージとヘルプ情報 */}
         <div className="bg-muted/50 border border-border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">{data?.error}</p>
           {data?.helpText && (
             <p className="text-sm text-muted-foreground mt-1">{data.helpText}</p>
           )}
-          {/* デバッグ情報（開発時に有用） */}
           {data?.debug && (
             <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
               <p>URL: {data.debug.url}</p>
@@ -271,14 +257,12 @@ export function SentryErrors() {
   // 成功時のエラーリスト表示
   return (
     <div className="bg-card rounded-lg border p-6">
-      {/* ヘッダー部分 */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg">
             <AlertCircleIcon className="w-5 h-5" />
           </div>
           <h2 className="text-lg font-semibold">Sentryエラー</h2>
-          {/* 未解決エラー数バッジ */}
           {issues.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-medium bg-foreground text-background rounded-full">
               {issues.length}
@@ -286,7 +270,6 @@ export function SentryErrors() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* 手動更新ボタン */}
           <button
             onClick={fetchData}
             className="p-1.5 hover:bg-muted rounded-md transition-colors"
@@ -294,7 +277,6 @@ export function SentryErrors() {
           >
             <RefreshIcon className="w-4 h-4" />
           </button>
-          {/* Sentryダッシュボードへのリンク */}
           <a
             href={data.dashboardUrl}
             target="_blank"
@@ -306,14 +288,12 @@ export function SentryErrors() {
         </div>
       </div>
 
-      {/* エラーリストまたは「エラーなし」メッセージ */}
       {issues.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <p>未解決のエラーはありません</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {/* 各エラーイシューのカード */}
           {issues.map((issue) => (
             <a
               key={issue.id}
@@ -324,7 +304,6 @@ export function SentryErrors() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  {/* エラーレベルと短縮ID */}
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`px-1.5 py-0.5 text-xs font-medium rounded border ${getLevelColor(issue.level)}`}>
                       {getLevelLabel(issue.level)}
@@ -333,14 +312,11 @@ export function SentryErrors() {
                       {issue.shortId}
                     </span>
                   </div>
-                  {/* エラータイトル */}
                   <p className="font-medium text-sm truncate">{issue.title}</p>
-                  {/* 発生箇所 */}
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {issue.culprit}
                   </p>
                 </div>
-                {/* 発生回数と最終発生日時 */}
                 <div className="text-right text-xs text-muted-foreground shrink-0">
                   <p>{issue.count}回</p>
                   <p className="mt-1">

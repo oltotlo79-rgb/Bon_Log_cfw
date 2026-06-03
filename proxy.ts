@@ -267,15 +267,61 @@ function validateOriginHeader(request: NextRequest): NextResponse | null {
 }
 
 /**
- * nonce を `x-nonce` リクエストヘッダーに載せた `NextResponse.next()` を返す。
+ * CSP ヘッダー文字列を組み立てる。
  *
- * Next.js (15+) はリクエストヘッダーの `x-nonce` を拾って、内部で生成するインライン
- * スクリプトに `nonce` 属性を自動付与する。これがないと strict CSP（unsafe-inline なし）で
- * ハイドレーションが失敗する。
+ * Why extract: Next.js (App Router) はリクエストヘッダーの `Content-Security-Policy` を
+ * 検出すると SSR 時に内部で生成する `<script>` タグへ自動で `nonce` 属性を付与する。
+ * このため response だけでなく request にも同一の CSP を載せる必要がある。
+ * 同じ文字列を 2 箇所に渡せるよう生成ロジックを関数化する。
+ *
+ * @param nonce - リクエスト毎に生成された CSP nonce
+ * @returns CSP ヘッダー値 (`directive1; directive2; ...`)
  */
-function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
+function buildCspHeader(nonce: string): string {
+  // CSP: nonce + strict-dynamic 厳格モード。
+  // `'unsafe-inline'` を除外する理由: CSP Level 3 (Chrome 52+/Firefox 76+/Safari 15.4+) では
+  // strict-dynamic があれば実質無視されるが、Level 1/2 ブラウザでは生インラインスクリプトが通って
+  // しまうため、XSS 耐性を優先して付けない。dev のみ HMR のため `'unsafe-eval'` を許可。
+  // 参考: https://web.dev/articles/strict-csp
+  const nonceDirective = `'nonce-${nonce}'`
+  const cspReportUri = process.env.NEXT_PUBLIC_CSP_REPORT_URI
+  const cspDirectives = [
+    "default-src 'self'",
+    `script-src 'self' ${nonceDirective} 'strict-dynamic'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://*.r2.dev https://images.unsplash.com https://*.tile.openstreetmap.org https://*.googlesyndication.com https://*.google.com https://*.google.co.jp https://*.doubleclick.net https://*.gstatic.com https://*.adtrafficquality.google https://*.shinobi.jp https://cnobi.jp https://*.cnobi.jp https://*.im-apps.net",
+    "media-src 'self' blob: https://*.r2.dev",
+    "connect-src 'self' https://*.r2.dev https://*.r2.cloudflarestorage.com https://nominatim.openstreetmap.org https://*.googlesyndication.com https://*.google.com https://*.doubleclick.net https://*.google-analytics.com https://*.adtrafficquality.google https://*.shinobi.jp https://cnobi.jp https://*.cnobi.jp https://*.im-apps.net https://*.criteo.com",
+    "frame-src 'self' https://*.doubleclick.net https://*.google.com https://*.googlesyndication.com https://*.adtrafficquality.google https://*.shinobi.jp https://cnobi.jp https://*.cnobi.jp https://*.criteo.com https://gum.criteo.com",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+    cspReportUri ? `report-uri ${cspReportUri}` : '',
+  ].filter(Boolean)
+  return cspDirectives.join('; ')
+}
+
+/**
+ * nonce と CSP をリクエストヘッダーに載せた `NextResponse.next()` を返す。
+ *
+ * Why both `x-nonce` and `Content-Security-Policy` on request headers:
+ *   Next.js (App Router) は request headers の `Content-Security-Policy` を検出すると
+ *   SSR で生成する `<script>` タグへ自動的に `nonce` 属性を付与する
+ *   (https://nextjs.org/docs/app/guides/content-security-policy)。
+ *   これがないと strict CSP (`'strict-dynamic'`, `'unsafe-inline'` なし) では
+ *   ハイドレーションスクリプトが全てブロックされ、クライアント側コンポーネントが
+ *   SSR placeholder のまま動作しない (例: 画像のクロスフェード再生が始まらない)。
+ *
+ *   `x-nonce` は Server Components から nonce を参照する箇所用 (App Router 慣習)。
+ *   両方を載せることで「SSR が自動付与」と「コードから明示参照」の両経路をカバーする。
+ */
+function nextWithNonce(request: NextRequest, nonce: string, cspHeader: string): NextResponse {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', cspHeader)
   return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
@@ -283,10 +329,10 @@ function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
  * セキュリティヘッダーを追加する関数
  *
  * @param response - NextResponseオブジェクト
- * @param nonce - CSP用のnonce値（オプション）
+ * @param cspHeader - 事前に組み立てた CSP ヘッダー値 (request headers と同一)
  * @returns セキュリティヘッダーが追加されたNextResponse
  */
-function addSecurityHeaders(response: NextResponse, nonce?: string): NextResponse {
+function addSecurityHeaders(response: NextResponse, cspHeader: string): NextResponse {
   // XSS保護
   response.headers.set('X-XSS-Protection', '1; mode=block')
 
@@ -308,30 +354,8 @@ function addSecurityHeaders(response: NextResponse, nonce?: string): NextRespons
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
   response.headers.set('Cross-Origin-Resource-Policy', 'same-origin')
 
-  // CSP: nonce + strict-dynamic 厳格モード。
-  // `'unsafe-inline'` を除外する理由: CSP Level 3 (Chrome 52+/Firefox 76+/Safari 15.4+) では
-  // strict-dynamic があれば実質無視されるが、Level 1/2 ブラウザでは生インラインスクリプトが通って
-  // しまうため、XSS 耐性を優先して付けない。dev のみ HMR のため `'unsafe-eval'` を許可。
-  // 参考: https://web.dev/articles/strict-csp
-  const nonceDirective = nonce ? `'nonce-${nonce}'` : ''
-  const cspReportUri = process.env.NEXT_PUBLIC_CSP_REPORT_URI
-  const cspDirectives = [
-    "default-src 'self'",
-    `script-src 'self' ${nonceDirective} 'strict-dynamic'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob: https://*.r2.dev https://images.unsplash.com https://*.tile.openstreetmap.org https://*.googlesyndication.com https://*.google.com https://*.google.co.jp https://*.doubleclick.net https://*.gstatic.com https://*.adtrafficquality.google https://*.shinobi.jp https://cnobi.jp https://*.cnobi.jp https://*.im-apps.net",
-    "media-src 'self' blob: https://*.r2.dev",
-    "connect-src 'self' https://*.r2.dev https://*.r2.cloudflarestorage.com https://nominatim.openstreetmap.org https://*.googlesyndication.com https://*.google.com https://*.doubleclick.net https://*.google-analytics.com https://*.adtrafficquality.google https://*.shinobi.jp https://cnobi.jp https://*.cnobi.jp https://*.im-apps.net https://*.criteo.com",
-    "frame-src 'self' https://*.doubleclick.net https://*.google.com https://*.googlesyndication.com https://*.adtrafficquality.google https://*.shinobi.jp https://cnobi.jp https://*.cnobi.jp https://*.criteo.com https://gum.criteo.com",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "object-src 'none'",
-    "upgrade-insecure-requests",
-    cspReportUri ? `report-uri ${cspReportUri}` : '',
-  ].filter(Boolean)
-  response.headers.set('Content-Security-Policy', cspDirectives.join('; '))
+  // CSP は buildCspHeader で組み立て済み (request headers と完全同一)。
+  response.headers.set('Content-Security-Policy', cspHeader)
 
   // nonce is passed to Server Components via request headers (x-nonce on requestHeaders),
   // not exposed in the response to avoid leaking it to the client.
@@ -344,6 +368,22 @@ function addSecurityHeaders(response: NextResponse, nonce?: string): NextRespons
     )
   }
 
+  return response
+}
+
+/**
+ * 認証・運用状態に依存するリダイレクトを HTTP キャッシュさせない形で返す。
+ *
+ * Why: proxy はログイン Cookie の有無で `/` → `/feed`、protected → `/login` 等の
+ * リダイレクトを返す。この 307 がブラウザ HTTP キャッシュに保存されると、
+ * 後でログアウトして full-page navigation (`<a href="/">`) で `/` を踏んでも、
+ * キャッシュ済みリダイレクトが Cookie を再評価せず `/feed` へ飛ばしてしまう。
+ * (Next.js の Router Cache とは別レイヤ。`<a>` 化で Router Cache は回避済みだが
+ *  HTTP cache 起因の同症状が残るため、ここで `no-store` を付けて根治する。)
+ */
+function redirectNoStore(url: URL, cspHeader: string): NextResponse {
+  const response = addSecurityHeaders(NextResponse.redirect(url), cspHeader)
+  response.headers.set('Cache-Control', 'no-store')
   return response
 }
 
@@ -407,6 +447,11 @@ export default auth(async (req) => {
 
   // CSP nonce を生成（各リクエストで一意の値）
   const nonce = generateNonce()
+  // CSP ヘッダーは request / response 双方に同一値を載せる。
+  // Why: Next.js (App Router) は request headers の `Content-Security-Policy` を検出して
+  // SSR で生成する `<script>` タグへ自動で `nonce` 属性を付与する。
+  // 公式ガイド: https://nextjs.org/docs/app/guides/content-security-policy
+  const cspHeader = buildCspHeader(nonce)
 
   // Server Actions（POSTリクエスト）のOrigin検証
   // ただし、外部Webhook用のAPIは除外
@@ -426,7 +471,7 @@ export default auth(async (req) => {
 
   // APIルートはBasic認証をスキップ（Webhook等のため）
   if (nextUrl.pathname.startsWith(API_PREFIX)) {
-    return addSecurityHeaders(nextWithNonce(req, nonce), nonce)
+    return addSecurityHeaders(nextWithNonce(req, nonce, cspHeader), cspHeader)
   }
 
   // Server Actions（Next-Actionヘッダー付きPOST）がメンテナンス許可パスから
@@ -434,7 +479,7 @@ export default auth(async (req) => {
   // これによりログインページ等のServer Actionsがメンテナンス中も動作する
   const isServerAction = req.method === 'POST' && req.headers.get('next-action')
   if (isServerAction && isMaintenanceAllowedPath(nextUrl.pathname)) {
-    return addSecurityHeaders(nextWithNonce(req, nonce), nonce)
+    return addSecurityHeaders(nextWithNonce(req, nonce, cspHeader), cspHeader)
   }
 
   // Basic認証チェック
@@ -458,10 +503,7 @@ export default auth(async (req) => {
 
       // メンテナンス中の場合（全ユーザーをメンテナンスページへリダイレクト）
       if (maintenanceEnabled) {
-        return addSecurityHeaders(
-          NextResponse.redirect(new URL(ROUTE_MAINTENANCE, nextUrl)),
-          nonce
-        )
+        return redirectNoStore(new URL(ROUTE_MAINTENANCE, nextUrl), cspHeader)
       }
     } catch (error) {
       // メンテナンスチェックに失敗しても続行。本番でも障害検知のため意図的に出力（詳細はメッセージのみ、スタックは出さない）。
@@ -480,7 +522,7 @@ export default auth(async (req) => {
   if (isProtected && !isLoggedIn) {
     const redirectUrl = new URL(ROUTE_LOGIN, nextUrl)
     redirectUrl.searchParams.set('callbackUrl', nextUrl.pathname)
-    return addSecurityHeaders(NextResponse.redirect(redirectUrl), nonce)
+    return redirectNoStore(redirectUrl, cspHeader)
   }
 
   // Admin route protection - check role
@@ -488,7 +530,7 @@ export default auth(async (req) => {
     nextUrl.pathname === ROUTE_ADMIN ||
     nextUrl.pathname.startsWith(`${ROUTE_ADMIN}/`)
   if (isAdminPath && isLoggedIn && !req.auth?.user?.isAdmin) {
-    return addSecurityHeaders(NextResponse.redirect(new URL(ROUTE_FEED, nextUrl)), nonce)
+    return redirectNoStore(new URL(ROUTE_FEED, nextUrl), cspHeader)
   }
 
   const isAuthPage = AUTH_ONLY_PATHS.some((path) =>
@@ -497,11 +539,11 @@ export default auth(async (req) => {
   const isTopPage = nextUrl.pathname === ROUTE_HOME
 
   if ((isAuthPage || isTopPage) && isLoggedIn) {
-    return addSecurityHeaders(NextResponse.redirect(new URL(ROUTE_FEED, nextUrl)), nonce)
+    return redirectNoStore(new URL(ROUTE_FEED, nextUrl), cspHeader)
   }
 
   // セキュリティヘッダーを追加してレスポンスを返す
-  return addSecurityHeaders(nextWithNonce(req, nonce), nonce)
+  return addSecurityHeaders(nextWithNonce(req, nonce, cspHeader), cspHeader)
 })
 
 export const config = {

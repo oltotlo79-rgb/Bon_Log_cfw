@@ -286,11 +286,13 @@ describe('管理者セグメントアクション', () => {
           logic: 'AND',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(42)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 42 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
       const result = await evaluateSegment('seg-1')
       expect(result).toEqual({ count: 42 })
+      // 相関サブクエリを含む raw SQL で評価する
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1)
     })
 
     it('該当ユーザー数を返す（OR条件）', async () => {
@@ -305,7 +307,7 @@ describe('管理者セグメントアクション', () => {
           logic: 'OR',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(100)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 100 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
       const result = await evaluateSegment('seg-2')
@@ -321,28 +323,44 @@ describe('管理者セグメントアクション', () => {
           logic: 'AND',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(0)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 0 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
       const result = await evaluateSegment('seg-1')
       expect(result).toEqual({ count: 0 })
     })
 
-    it('createdAt条件が正しくwhere句に変換される', async () => {
+    it('postCount 条件でも raw SQL で評価し件数を返す', async () => {
       mockPrisma.userSegment.findUnique.mockResolvedValue({
-        id: 'seg-1',
-        name: 'テスト',
+        id: 'seg-pc',
+        name: '投稿数テスト',
+        conditions: {
+          rules: [{ field: 'postCount', operator: 'gte', value: 5 }],
+          logic: 'AND',
+        },
+      })
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 7 }])
+
+      const { evaluateSegment } = await import('@/lib/actions/admin/segments')
+      const result = await evaluateSegment('seg-pc')
+      expect(result).toEqual({ count: 7 })
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1)
+    })
+
+    it('$queryRaw が空配列を返した場合は count:0 にフォールバック', async () => {
+      mockPrisma.userSegment.findUnique.mockResolvedValue({
+        id: 'seg-empty-rows',
+        name: 'フォールバック',
         conditions: {
           rules: [{ field: 'createdAt', operator: 'gte', value: '2024-01-01' }],
           logic: 'AND',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(10)
+      mockPrisma.$queryRaw.mockResolvedValue([])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-      await evaluateSegment('seg-1')
-      const call = mockPrisma.user.count.mock.calls[0][0]
-      expect(call.where.AND[0].createdAt.gte).toBeInstanceOf(Date)
+      const result = await evaluateSegment('seg-empty-rows')
+      expect(result).toEqual({ count: 0 })
     })
   })
 
@@ -350,8 +368,10 @@ describe('管理者セグメントアクション', () => {
   // Segment condition building (追加テスト)
   // ============================================================
 
-  describe('セグメント条件のwhere句構築', () => {
-    it('AND条件で複数ルールが正しくAND配列に構築される', async () => {
+  // SQL 構築の詳細は __tests__/lib/services/segment-evaluation.test.ts で網羅的に検証する。
+  // ここでは action が条件を渡して件数を返す配線のみ確認する。
+  describe('条件を渡して評価する配線', () => {
+    it('複数ルール(AND)でも評価して件数を返す', async () => {
       mockPrisma.userSegment.findUnique.mockResolvedValue({
         id: 'seg-and',
         name: 'AND条件テスト',
@@ -363,19 +383,16 @@ describe('管理者セグメントアクション', () => {
           logic: 'AND',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(5)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 5 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-      await evaluateSegment('seg-and')
+      const result = await evaluateSegment('seg-and')
 
-      const call = mockPrisma.user.count.mock.calls[0][0]
-      expect(call.where).toHaveProperty('AND')
-      expect(call.where.AND).toHaveLength(2)
-      expect(call.where.AND[0]).toEqual({ isPremium: true })
-      expect(call.where.AND[1]).toEqual({ location: { contains: '東京' } })
+      expect(result).toEqual({ count: 5 })
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1)
     })
 
-    it('OR条件の場合のwhere句がOR配列で構築される', async () => {
+    it('複数ルール(OR)でも評価して件数を返す', async () => {
       mockPrisma.userSegment.findUnique.mockResolvedValue({
         id: 'seg-or',
         name: 'OR条件テスト',
@@ -387,54 +404,12 @@ describe('管理者セグメントアクション', () => {
           logic: 'OR',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(50)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 50 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-      await evaluateSegment('seg-or')
+      const result = await evaluateSegment('seg-or')
 
-      const call = mockPrisma.user.count.mock.calls[0][0]
-      expect(call.where).toHaveProperty('OR')
-      expect(call.where.OR).toHaveLength(2)
-    })
-
-    it('isPremium条件が文字列"true"でもboolean trueに変換される', async () => {
-      mockPrisma.userSegment.findUnique.mockResolvedValue({
-        id: 'seg-str-bool',
-        name: '文字列boolean変換テスト',
-        conditions: {
-          rules: [{ field: 'isPremium', operator: 'is', value: 'true' }],
-          logic: 'AND',
-        },
-      })
-      mockPrisma.user.count.mockResolvedValue(3)
-
-      const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-      await evaluateSegment('seg-str-bool')
-
-      const call = mockPrisma.user.count.mock.calls[0][0]
-      expect(call.where.AND[0].isPremium).toBe(true)
-    })
-
-    it('createdAt条件のgt演算子が正しいDate変換をする', async () => {
-      const dateStr = '2025-06-15'
-      mockPrisma.userSegment.findUnique.mockResolvedValue({
-        id: 'seg-date',
-        name: '日付変換テスト',
-        conditions: {
-          rules: [{ field: 'createdAt', operator: 'gt', value: dateStr }],
-          logic: 'AND',
-        },
-      })
-      mockPrisma.user.count.mockResolvedValue(10)
-
-      const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-      await evaluateSegment('seg-date')
-
-      const call = mockPrisma.user.count.mock.calls[0][0]
-      const createdAtClause = call.where.AND[0].createdAt
-      expect(createdAtClause).toHaveProperty('gt')
-      expect(createdAtClause.gt).toBeInstanceOf(Date)
-      expect(createdAtClause.gt.toISOString()).toContain('2025-06-15')
+      expect(result).toEqual({ count: 50 })
     })
   })
 
@@ -473,7 +448,7 @@ describe('管理者セグメントアクション', () => {
           logic: 'AND',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(12345)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 12345 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
       const result = await evaluateSegment('seg-count')
@@ -497,15 +472,14 @@ describe('管理者セグメントアクション', () => {
           logic: 'AND',
         },
       })
-      mockPrisma.user.count.mockResolvedValue(999)
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: 999 }])
 
       const { evaluateSegment } = await import('@/lib/actions/admin/segments')
       const result = await evaluateSegment('seg-empty')
 
       expect(result).toEqual({ count: 999 })
-      // AND with empty array
-      const call = mockPrisma.user.count.mock.calls[0][0]
-      expect(call.where.AND).toEqual([])
+      // ルール 0 件でも全ユーザー数を数えるクエリで評価される
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1)
     })
 
     it('未知のfield名の場合はZodがセグメント条件を不正と判定する', async () => {
@@ -524,7 +498,7 @@ describe('管理者セグメントアクション', () => {
       const result = await evaluateSegment('seg-unknown')
 
       expect(result).toMatchObject({ success: false, error: 'セグメント条件が不正です' })
-      expect(mockPrisma.user.count).not.toHaveBeenCalled()
+      expect(mockPrisma.$queryRaw).not.toHaveBeenCalled()
     })
   })
 })

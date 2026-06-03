@@ -1,9 +1,3 @@
-/**
- * @file 管理者用モデレーションキューページ
- * @description NGワード検出等で自動フラグされたコンテンツの審査キュー。
- *              ステータス別フィルタリング、一括承認・却下操作を提供する。
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getModerationQueue } from '@/lib/actions/admin/moderation'
@@ -13,16 +7,15 @@ import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 import type { ModerationStatus } from '@prisma/client'
 
-/**
- * ページメタデータの定義
- */
+const MODERATION_STATUS_SET = new Set<string>(['pending', 'approved', 'rejected', 'auto_flagged'])
+function isModerationStatus(value: unknown): value is ModerationStatus {
+  return typeof value === 'string' && MODERATION_STATUS_SET.has(value)
+}
+
 export const metadata = {
   title: 'モデレーションキュー - BON-LOG 管理',
 }
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     /** ステータスフィルター */
@@ -43,7 +36,7 @@ interface PageProps {
  */
 export default async function AdminModerationQueuePage({ searchParams }: PageProps) {
   const params = await searchParams
-  const status = params.status as ModerationStatus | undefined
+  const status = isModerationStatus(params.status) ? params.status : undefined
   const { cursor, trail } = parseAdminCursor(params)
 
   // キュー一覧取得
@@ -77,7 +70,6 @@ export default async function AdminModerationQueuePage({ searchParams }: PagePro
         <span className="text-sm text-muted-foreground">全 {total} 件</span>
       </div>
 
-      {/* 統計カード */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">未対応</p>
@@ -97,7 +89,6 @@ export default async function AdminModerationQueuePage({ searchParams }: PagePro
         </div>
       </div>
 
-      {/* フィルタータブ */}
       <div className="bg-card rounded-lg border p-4">
         <div className="flex flex-wrap gap-2">
           {[
@@ -125,7 +116,6 @@ export default async function AdminModerationQueuePage({ searchParams }: PagePro
         </div>
       </div>
 
-      {/* モデレーションキュー一覧（Client Component） */}
       <ModerationQueueList
         items={items.map((item) => ({
           id: item.id,

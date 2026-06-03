@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ブロック・ミュート機能の E2E テスト
@@ -15,8 +16,7 @@ async function navigateToOtherUserProfile(page: import('@playwright/test').Page)
 
   const feedUserLinks = page.locator('a[href^="/users/"]')
   if ((await feedUserLinks.count()) > 0) {
-    await feedUserLinks.first().click()
-    await expect(page).toHaveURL(/\/users\//, { timeout: 15000 })
+    await clickAndWaitForUrl(page, feedUserLinks.first(), /\/users\//, { timeout: 15000 })
     await page.waitForLoadState('load')
     return true
   }
@@ -27,8 +27,7 @@ async function navigateToOtherUserProfile(page: import('@playwright/test').Page)
 
   const searchUserLinks = page.locator('a[href^="/users/"]')
   if ((await searchUserLinks.count()) > 0) {
-    await searchUserLinks.first().click()
-    await expect(page).toHaveURL(/\/users\//, { timeout: 15000 })
+    await clickAndWaitForUrl(page, searchUserLinks.first(), /\/users\//, { timeout: 15000 })
     await page.waitForLoadState('load')
     return true
   }
@@ -39,10 +38,7 @@ async function navigateToOtherUserProfile(page: import('@playwright/test').Page)
 test.describe('ミュート機能', () => {
   test('他のユーザープロフィールにミュートボタンが表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 
@@ -59,10 +55,7 @@ test.describe('ミュート機能', () => {
 
   test('ミュートボタンをクリックすると確認ダイアログが表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 
@@ -100,10 +93,7 @@ test.describe('ミュート機能', () => {
 
   test('ミュートキャンセル後もページが正常に表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 
@@ -135,10 +125,7 @@ test.describe('ミュート機能', () => {
 test.describe('ブロック機能', () => {
   test('他のユーザープロフィールにブロックボタンが表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 
@@ -155,10 +142,7 @@ test.describe('ブロック機能', () => {
 
   test('ブロックボタンをクリックすると確認ダイアログが表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 
@@ -195,10 +179,7 @@ test.describe('ブロック機能', () => {
 
   test('ブロック確認ダイアログの内容が正しく表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 
@@ -236,10 +217,7 @@ test.describe('ブロック機能', () => {
 
   test('ブロックキャンセル後もページが正常に表示される', async ({ page }) => {
     const navigated = await navigateToOtherUserProfile(page)
-    if (!navigated) {
-      test.skip()
-      return
-    }
+    expect(navigated).toBe(true)
 
     await page.waitForLoadState('domcontentloaded')
 

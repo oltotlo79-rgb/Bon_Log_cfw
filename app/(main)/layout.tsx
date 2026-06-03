@@ -20,6 +20,7 @@ import { prisma } from '@/lib/db'
 import { KeyboardShortcutsProvider } from '@/components/common/KeyboardShortcutsProvider'
 import { PremiumProvider } from '@/components/premium/PremiumProvider'
 import { AdProvider } from '@/components/ads'
+import { AnnouncementBanner } from '@/components/common/AnnouncementBanner'
 
 export default async function MainLayout({
   children,
@@ -68,6 +69,10 @@ export default async function MainLayout({
         </div>
 
         {isAuthenticated && <Header userId={userId} isPremium={isPremium} isAdmin={isAdmin} />}
+
+        <Suspense fallback={null}>
+          <AnnouncementBanner />
+        </Suspense>
 
         <div className="flex">
           {isAuthenticated && <Sidebar userId={userId} isPremium={isPremium} isAdmin={isAdmin} isGuest={isGuest} />}

@@ -15,3 +15,9 @@ export const STORAGE_KEY_RECENT_SEARCHES = 'bonsai-sns-recent-searches'
 
 /** イベントフィルター設定 */
 export const STORAGE_KEY_EVENT_FILTER = 'event-filter-settings'
+
+/**
+ * dismiss 済みのお知らせ ID 集合 (JSON エンコードされた string[])。
+ * 同じ ID のお知らせは閉じた後は再表示されないが、新規お知らせは表示される。
+ */
+export const STORAGE_KEY_DISMISSED_ANNOUNCEMENTS = 'dismissed-announcements'

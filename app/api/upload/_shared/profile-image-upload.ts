@@ -6,13 +6,11 @@
  * 不正入力で upload quota を消費しないため、validation を rate-limit より前に置く。
  */
 
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { uploadFile, deleteFile } from '@/lib/storage'
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import {
-  ERR_AUTH_REQUIRED,
   ERR_DAILY_UPLOAD_LIMIT,
   ERR_RATE_LIMIT_UPLOAD,
   ERR_UPLOAD_FAILED,
@@ -25,6 +23,7 @@ import { STORAGE_FOLDER_AVATARS, STORAGE_FOLDER_HEADERS } from '@/lib/constants/
 import { ROUTE_SETTINGS_PROFILE } from '@/lib/constants/routes'
 import { buildUserPath } from '@/lib/constants/path-builders'
 import { validateUploadFile } from './validate-upload-file'
+import { requireUploadUser } from './require-upload-user'
 
 type ProfileImageType = 'avatar' | 'header'
 
@@ -45,11 +44,10 @@ export async function handleProfileImageUpload(request: NextRequest, type: Profi
   const config = CONFIG[type]
 
   try {
-    // 1. 認証
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: ERR_AUTH_REQUIRED }, { status: 401 })
-    }
+    // 1. 認証 + 認可 (停止 / ゲストは更新前に拒否し、Server Action と同じポリシーに揃える)
+    const userResult = await requireUploadUser()
+    if (!userResult.ok) return userResult.response
+    const userId = userResult.userId
 
     // 2. 入力検証 (image のみ受け入れ、profile 用 MIME allowlist で更に絞る)
     const validation = await validateUploadFile(request, {
@@ -60,13 +58,13 @@ export async function handleProfileImageUpload(request: NextRequest, type: Profi
     const { buffer, file } = validation.data
 
     // 3. レート制限
-    const rateLimitResult = await checkUserRateLimit(session.user.id, 'upload')
+    const rateLimitResult = await checkUserRateLimit(userId, 'upload')
     if (!rateLimitResult.success) {
       return NextResponse.json({ error: ERR_RATE_LIMIT_UPLOAD }, { status: 429 })
     }
 
     // 4. 日次制限 (R2 課金保護のため Redis 障害時も fail-closed)
-    const dailyLimitResult = await checkDailyLimit(session.user.id, 'upload', {
+    const dailyLimitResult = await checkDailyLimit(userId, 'upload', {
       failOpen: false,
     })
     if (!dailyLimitResult.allowed) {
@@ -78,7 +76,7 @@ export async function handleProfileImageUpload(request: NextRequest, type: Profi
 
     // 5. 古い画像参照取得 → upload → DB 更新 → 古い画像削除
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { avatarUrl: true, headerUrl: true },
     })
 
@@ -92,7 +90,7 @@ export async function handleProfileImageUpload(request: NextRequest, type: Profi
     }
 
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: { [config.dbField]: result.url },
     })
 
@@ -103,7 +101,7 @@ export async function handleProfileImageUpload(request: NextRequest, type: Profi
       })
     }
 
-    revalidatePath(buildUserPath(session.user.id))
+    revalidatePath(buildUserPath(userId))
     revalidatePath(ROUTE_SETTINGS_PROFILE)
 
     return NextResponse.json({

@@ -174,19 +174,3 @@ describe('toggleMaintenanceMode', async () => {
     expect(result.success).toBe(true)
   })
 })
-
-describe('checkIsAdmin', async () => {
-  it('returns true for admin', async () => {
-    const { checkIsAdmin } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'a1' })
-    const result = await checkIsAdmin('admin1')
-    expect(result).toBe(true)
-  })
-
-  it('returns false for non-admin', async () => {
-    const { checkIsAdmin } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    const result = await checkIsAdmin('user1')
-    expect(result).toBe(false)
-  })
-})

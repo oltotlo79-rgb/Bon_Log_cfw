@@ -9,7 +9,7 @@ import { BASE_URL, ROUTE_HORMONES, ROUTE_HORMONE_CALENDAR } from '@/lib/constant
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '年間ホルモン活性カレンダー - 植物ホルモン - BON-LOG',
+  title: '年間ホルモン活性カレンダー - 植物ホルモン',
   description: '五大植物ホルモンの月別活性レベルを一覧で確認できるヒートマップカレンダーです。',
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_CALENDAR) },
 }

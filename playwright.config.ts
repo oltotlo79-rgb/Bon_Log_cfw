@@ -153,6 +153,8 @@ export default defineConfig({
         PORT: '3000',
         HOSTNAME: '0.0.0.0',
         NODE_ENV: 'production',
+        // E2E は共有ユーザーで feed を多数回ロードしレート枠を枯渇させるため無効化 (loopback 限定)
+        DISABLE_RATE_LIMIT: 'true',
         NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? 'http://localhost:3000',
         AUTH_TRUST_HOST: 'true',
         // 弱いパターン（secret/test-secret等）を含まない値。未設定時のみ使用
@@ -172,6 +174,8 @@ export default defineConfig({
         ...process.env,
         PORT: '3000',
         HOSTNAME: '0.0.0.0',
+        DISABLE_RATE_LIMIT: 'true',
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
       },
     },
 

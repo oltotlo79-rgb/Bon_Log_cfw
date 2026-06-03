@@ -10,7 +10,7 @@ import { PushNotificationToggle } from '@/components/notification/PushNotificati
 import { SettingsGuestRestriction } from '@/components/settings/SettingsGuestRestriction'
 
 export const metadata: Metadata = {
-  title: '通知設定 - BON-LOG',
+  title: '通知設定',
   // 認証必須の個別設定のため検索エンジンには公開しない
   robots: { index: false, follow: false },
 }
@@ -48,7 +48,6 @@ export default async function NotificationSettingsPage() {
         </div>
       </div>
 
-      {/* プッシュ通知設定 */}
       <div className="bg-card rounded-lg border">
         <div className="px-4 py-3 border-b">
           <h2 className="font-bold text-base">端末通知</h2>

@@ -1,20 +1,7 @@
-/**
- * @fileoverview 通知ページのエラーバウンダリ
- *
- * このファイルはNext.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /notificationsページで発生したエラーをキャッチして表示します。
- *
- * @route /notifications
- * @requires 'use client' - エラーバウンダリはクライアントコンポーネントである必要がある
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 通知ページのエラーコンポーネント
- */
 export default function NotificationsError({
   error,
   reset,

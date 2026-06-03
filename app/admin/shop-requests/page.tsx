@@ -1,71 +1,33 @@
-/**
- * @file 管理者用盆栽園変更リクエスト管理ページ
- * @description ユーザーからの盆栽園情報変更リクエスト一覧を表示し、
- *              承認・却下の管理を行う管理者ページ。
- */
-
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-// Next.jsの画像最適化コンポーネント
 import Image from 'next/image'
-// 盆栽園変更リクエスト一覧取得のServer Action
 import { getShopChangeRequests } from '@/lib/actions/shop'
-// DBのJsonカラムを型安全に絞り込むヘルパー
-import { parseShopChangeRequestedChanges } from '@/lib/services/shop-change-helpers'
-// 変更リクエストアクションコンポーネント
+import { parseShopChangeRequestedChanges } from '@/lib/shop/change-request'
 import { ShopRequestActions } from './ShopRequestActions'
+import { buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 
-/**
- * ページメタデータの定義
- * ブラウザのタイトルバーに表示される
- */
 export const metadata = {
   title: '盆栽園変更リクエスト - BON-LOG 管理',
 }
 
-/**
- * ページコンポーネントのProps型定義
- * URLのクエリパラメータを受け取る
- */
 interface PageProps {
   searchParams: Promise<{
-    /** リクエストステータスフィルター */
     status?: 'pending' | 'approved' | 'rejected' | 'all'
   }>
 }
 
-/**
- * ステータスの日本語ラベル定義
- */
 const statusLabels: Record<string, string> = {
   pending: '保留中',
   approved: '承認済み',
   rejected: '却下済み',
 }
 
-/**
- * ステータスに応じた色クラス定義
- */
 const statusColors: Record<string, string> = {
   pending: 'bg-muted text-muted-foreground',
   approved: 'bg-muted text-muted-foreground',
   rejected: 'bg-muted text-muted-foreground',
 }
 
-/**
- * 管理者用盆栽園変更リクエスト管理ページコンポーネント
- * 変更リクエスト一覧をカード形式で表示し、承認/却下操作機能を提供する
- *
- * @param searchParams - URLのクエリパラメータ
- * @returns 変更リクエスト管理ページのJSX要素
- *
- * 処理内容:
- * 1. クエリパラメータからステータスフィルターを取得
- * 2. getShopChangeRequestsでリクエスト一覧を取得
- * 3. ステータスフィルタータブ、リクエストカード一覧を表示
- * 4. 各リクエストには現在値と変更後の値の比較表示
- */
 export default async function AdminShopRequestsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const status = params.status || 'pending'
@@ -85,7 +47,6 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
         <span className="text-sm text-muted-foreground">{requests.length} 件</span>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <div className="flex flex-wrap gap-2">
           <Link
@@ -131,7 +92,6 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
         </div>
       </div>
 
-      {/* リクエスト一覧 */}
       {requests.length === 0 ? (
         <div className="bg-card rounded-lg border p-8 text-center text-muted-foreground">
           {status === 'pending' ? '保留中のリクエストはありません' : 'リクエストはありません'}
@@ -146,7 +106,6 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
               <div key={request.id} className="bg-card rounded-lg border p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    {/* リクエスター情報 */}
                     <div className="flex items-center gap-3 mb-3">
                       {request.user.avatarUrl ? (
                         <Image
@@ -165,7 +124,7 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
                       )}
                       <div>
                         <Link
-                          href={`/users/${request.user.id}`}
+                          href={buildUserPath(request.user.id)}
                           className="font-medium hover:underline"
                         >
                           {request.user.nickname}
@@ -183,11 +142,10 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
                       </span>
                     </div>
 
-                    {/* 対象盆栽園 */}
                     <div className="mb-3">
                       <p className="text-sm text-muted-foreground mb-1">対象盆栽園</p>
                       <Link
-                        href={`/shops/${request.shop.id}`}
+                        href={buildShopPath(request.shop.id)}
                         className="font-medium text-primary hover:underline"
                       >
                         {request.shop.name}
@@ -195,7 +153,6 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
                       <p className="text-sm text-muted-foreground">{request.shop.address}</p>
                     </div>
 
-                    {/* 変更内容詳細（現在値 → 変更後） */}
                     <div className="mb-3">
                       <p className="text-sm text-muted-foreground mb-2">変更リクエスト内容</p>
                       <div className="bg-muted/30 rounded-lg p-3 space-y-3">
@@ -233,7 +190,6 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
                       </div>
                     )}
 
-                    {/* 管理者コメント */}
                     {request.adminComment && (
                       <div className="mb-3">
                         <p className="text-sm text-muted-foreground mb-1">管理者コメント</p>
@@ -245,7 +201,6 @@ export default async function AdminShopRequestsPage({ searchParams }: PageProps)
                   </div>
                 </div>
 
-                {/* アクションボタン */}
                 {request.status === 'pending' && (
                   <div className="mt-4 pt-4 border-t">
                     <ShopRequestActions

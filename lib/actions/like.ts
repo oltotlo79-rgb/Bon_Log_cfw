@@ -14,13 +14,14 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { requireActiveNonGuestUser, requireAuth, actionError, actionSuccess, enforceUserRateLimit } from '@/lib/actions/utils'
 import { revalidatePath } from 'next/cache'
-import { recordLikeReceived } from './analytics'
+import { recordLikeReceivedService } from '@/lib/services/analytics-recording'
 import { createNotification, deleteNotification } from '@/lib/services/notification-core'
 import logger from '@/lib/logger'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
-import { ERR_LIKE_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ERR_LIKE_FAILED, ERR_INVALID_INPUT, ERR_POST_NOT_FOUND, ERR_COMMENT_NOT_FOUND } from '@/lib/constants/errors'
 import { ROUTE_FEED } from '@/lib/constants/routes'
 import { buildPostPath } from '@/lib/constants/path-builders'
+import { canViewPostByAuthor, assertCanViewPost, visiblePostWhere } from '@/lib/services/post-visibility'
 import { POST_LIST_INCLUDE, formatPostForClient } from './post-include'
 import { normalizeCursorPagination } from '@/lib/actions/pagination'
 
@@ -44,11 +45,15 @@ export async function togglePostLike(postId: string) {
   if (rl) return actionError(rl.error)
 
   try {
-    // 投稿者IDを取得（トランザクション外で可）
     const post = await prisma.post.findUnique({
       where: { id: postId },
-      select: { userId: true },
+      select: { userId: true, isHidden: true },
     })
+
+    // 対象リソース認可: 見えない投稿（非表示/非公開/停止著者）への like は拒否する
+    if (!post || post.isHidden || !(await canViewPostByAuthor(userId, post.userId))) {
+      return actionError(ERR_POST_NOT_FOUND)
+    }
 
     // いいね済みチェック + 作成/削除をトランザクションで原子的に実行
     const liked = await prisma.$transaction(async (tx) => {
@@ -82,7 +87,7 @@ export async function togglePostLike(postId: string) {
             error: err instanceof Error ? err.message : String(err),
           })
         })
-        void recordLikeReceived(post.userId).catch((err) => {
+        void recordLikeReceivedService(post.userId).catch((err) => {
           logger.error('recordLikeReceived failed', {
             error: err instanceof Error ? err.message : String(err),
           })
@@ -132,7 +137,16 @@ export async function toggleCommentLike(commentId: string, postId: string) {
   if (rl) return actionError(rl.error)
 
   try {
-    // いいね済みチェック + 作成/削除をトランザクションで原子的に実行
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { postId: true, userId: true, isHidden: true, deletedAt: true },
+    })
+
+    // 対象リソース認可: コメントが有効で、属する投稿（client 申告ではなく実 postId）が閲覧可能であること
+    if (!comment || comment.isHidden || comment.deletedAt || !(await assertCanViewPost(userId, comment.postId))) {
+      return actionError(ERR_COMMENT_NOT_FOUND)
+    }
+
     const liked = await prisma.$transaction(async (tx) => {
       const existingLike = await tx.like.findFirst({
         where: { commentId, userId },
@@ -151,13 +165,7 @@ export async function toggleCommentLike(commentId: string, postId: string) {
       }
     })
 
-    // 通知はトランザクション外（クリティカルでない）
-    const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
-      select: { postId: true, userId: true },
-    })
-
-    if (comment && comment.userId !== userId) {
+    if (comment.userId !== userId) {
       if (liked) {
         void createNotification({
           userId: comment.userId,
@@ -240,13 +248,15 @@ export async function getLikedPosts(userId: string, cursor?: string, limit = DEF
         userId,
         postId: { not: null },
         commentId: null,
+        // いいね先は他ユーザー作のため、閲覧者から見える投稿のみに絞る（非表示/非公開/停止を除外）。
+        post: visiblePostWhere(currentUserId),
       },
       include: {
         post: {
           include: POST_LIST_INCLUDE,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: safeLimit,
       ...(safeCursor && {
         cursor: { id: safeCursor },
@@ -260,16 +270,30 @@ export async function getLikedPosts(userId: string, cursor?: string, limit = DEF
     const validLikes = likes.filter((like: LikeType): like is ValidLikeType => Boolean(like.post))
     const postIds = validLikes.map((like: ValidLikeType) => like.post.id)
 
+    // isLiked / isBookmarked は「閲覧者(currentUserId)」基準で判定する。
+    // likedSet を対象ユーザーの like から作ると他人の一覧で常に true になるため、
+    // bookmark と同様に閲覧者の like を引き直す。
+    let likedSet = new Set<string>()
     let bookmarkedSet = new Set<string>()
     if (currentUserId && postIds.length > 0) {
-      const userBookmarks = await prisma.bookmark.findMany({
-        where: { userId: currentUserId, postId: { in: postIds } },
-        select: { postId: true },
-      })
+      const [userLikes, userBookmarks] = await Promise.all([
+        prisma.like.findMany({
+          where: { userId: currentUserId, postId: { in: postIds }, commentId: null },
+          select: { postId: true },
+        }),
+        prisma.bookmark.findMany({
+          where: { userId: currentUserId, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+      ])
+      likedSet = new Set(
+        userLikes
+          .map((l: { postId: string | null }) => l.postId)
+          .filter((id: string | null): id is string => id !== null),
+      )
       bookmarkedSet = new Set(userBookmarks.map((b: { postId: string }) => b.postId))
     }
 
-    const likedSet = new Set(postIds)
     const posts = validLikes.map((like: ValidLikeType) =>
       formatPostForClient(like.post, likedSet, bookmarkedSet),
     )

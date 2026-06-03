@@ -1,9 +1,3 @@
-/**
- * @file IPアドレス管理クライアントコンポーネント
- * @description IPアドレス一覧テーブルと複数アカウント検出カードを表示する。
- *              検索機能を提供する（ページネーションは親コンポーネントで制御）。
- */
-
 'use client'
 
 import { useState } from 'react'
@@ -18,9 +12,6 @@ import {
   User,
 } from 'lucide-react'
 
-/**
- * デバイスレコードの型定義
- */
 type DeviceRecord = {
   id: string
   ipAddress: string | null
@@ -36,9 +27,6 @@ type DeviceRecord = {
   } | null
 }
 
-/**
- * 複数アカウント検出結果の型定義
- */
 type SuspiciousIp = {
   ipAddress: string
   userCount: number
@@ -81,7 +69,6 @@ export function IpManagementClient({
 
   return (
     <div className="space-y-8">
-      {/* 複数アカウント検出セクション */}
       {suspiciousIps.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -144,7 +131,6 @@ export function IpManagementClient({
         </div>
       )}
 
-      {/* IPアドレス一覧セクション */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5" />
@@ -152,7 +138,6 @@ export function IpManagementClient({
           <span className="text-sm text-muted-foreground">({total}件)</span>
         </div>
 
-        {/* 検索フォーム */}
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -172,7 +157,6 @@ export function IpManagementClient({
           </button>
         </form>
 
-        {/* テーブル */}
         <div className="bg-card rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

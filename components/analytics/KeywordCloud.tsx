@@ -1,8 +1,5 @@
 /** ユーザーの投稿で頻繁に使用されるキーワードを視覚的に表示する */
 
-/**
- * KeywordCloudコンポーネントのProps型定義
- */
 type KeywordCloudProps = {
   /** キーワードと出現回数のペア配列 */
   keywords: {

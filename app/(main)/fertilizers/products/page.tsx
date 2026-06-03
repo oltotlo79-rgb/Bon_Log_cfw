@@ -7,7 +7,7 @@ import { ROUTE_FERTILIZERS_PRODUCTS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '定番肥料ガイド - 施肥ガイド - BON-LOG',
+  title: '定番肥料ガイド - 施肥ガイド',
   description: '盆栽栽培でよく使われる定番の肥料製品を紹介します。',
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS_PRODUCTS) },
 }

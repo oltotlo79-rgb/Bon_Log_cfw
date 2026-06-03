@@ -34,6 +34,15 @@ export const BADGE_OVERFLOW_THRESHOLD = 99
 /** バッジAPI: 未読メッセージ数を計算する対象会話の上限 */
 export const BADGES_CONVERSATIONS_LIMIT = 200
 
+/**
+ * バッジAPI: ミュートユーザーID 取得上限。
+ *
+ * 通知カウントから除外する actorId フィルタに使う in-memory 配列。
+ * MAX_RELATION_FETCH (50000) より低めに設定し、Badge poll のような頻繁な経路で
+ * 巨大配列を毎回 round-trip させない。実用上は数百〜数千で十分。
+ */
+export const BADGES_MUTED_USERS_LIMIT = 1000
+
 /** ドロップダウン方向判定のしきい値（px） */
 export const DROPDOWN_DIRECTION_THRESHOLD = 80
 
@@ -60,6 +69,9 @@ export const STALE_TIME_MS = 60 * 1000
 
 /** タイムライン等リアルタイム性の高いデータのstale時間（ミリ秒） */
 export const STALE_TIME_REALTIME_MS = 30 * 1000
+
+/** おすすめユーザー等の更新頻度が低いデータのstale時間（ミリ秒・5分） */
+export const RECOMMENDED_USERS_STALE_TIME_MS = 5 * 60 * 1000
 
 /** 検索結果等やや静的なデータのstale時間（ミリ秒） */
 export const STALE_TIME_SEARCH_MS = 5 * 60 * 1000

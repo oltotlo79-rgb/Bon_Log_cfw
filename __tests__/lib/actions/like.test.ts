@@ -67,8 +67,8 @@ vi.mock('@/lib/rate-limit', () => ({
  * いいねの受信を記録する分析機能。
  * プレミアム会員向けの詳細な分析に使用される。
  */
-vi.mock('@/lib/actions/analytics', () => ({
-  recordLikeReceived: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordLikeReceivedService: vi.fn().mockResolvedValue(undefined),
 }))
 
 /**
@@ -227,6 +227,8 @@ describe('Like Actions', async () => {
         ...mockPost,
         userId: 'other-user-id',  // 投稿者は別のユーザー
       })
+      // 投稿者は公開アカウント（閲覧可否判定で参照される）
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
       const { togglePostLike } = await import('@/lib/actions/like')
       await togglePostLike('post-id')
 
@@ -394,7 +396,7 @@ describe('Like Actions', async () => {
       expect(result).toEqual({ success: false, error: 'いいねの処理に失敗しました' })
     })
 
-    it('投稿が見つからない場合でも処理は成功する', async () => {
+    it('投稿が見つからない場合はエラーを返す', async () => {
       mockCheckUserRateLimit.mockResolvedValue({ success: true })
       mockPrisma.like.findFirst.mockResolvedValue(null)
       mockPrisma.like.create.mockResolvedValue({})
@@ -403,7 +405,8 @@ describe('Like Actions', async () => {
       const { togglePostLike } = await import('@/lib/actions/like')
       const result = await togglePostLike('post-id')
 
-      expect(result).toEqual({ success: true, data: { liked: true } })
+      expect(result).toEqual({ success: false, error: '投稿が見つかりません' })
+      expect(mockPrisma.like.create).not.toHaveBeenCalled()
       expect(mockCreateNotification).not.toHaveBeenCalled()
     })
   })
@@ -438,7 +441,7 @@ describe('Like Actions', async () => {
       expect(mockCreateNotification).not.toHaveBeenCalled()
     })
 
-    it('コメントが見つからない場合でも処理は成功する', async () => {
+    it('コメントが見つからない場合はエラーを返す', async () => {
       mockCheckUserRateLimit.mockResolvedValue({ success: true })
       mockPrisma.like.findFirst.mockResolvedValue(null)
       mockPrisma.like.create.mockResolvedValue({})
@@ -447,12 +450,22 @@ describe('Like Actions', async () => {
       const { toggleCommentLike } = await import('@/lib/actions/like')
       const result = await toggleCommentLike('comment-id', 'post-id')
 
-      expect(result).toEqual({ success: true, data: { liked: true } })
+      expect(result).toEqual({ success: false, error: 'コメントが見つかりません' })
+      expect(mockPrisma.like.create).not.toHaveBeenCalled()
       expect(mockCreateNotification).not.toHaveBeenCalled()
     })
 
     it('エラー発生時はエラーメッセージを返す', async () => {
       mockCheckUserRateLimit.mockResolvedValue({ success: true })
+      // 閲覧可否判定を通過させ、トランザクション内の失敗を検証する
+      mockPrisma.comment.findUnique.mockResolvedValue({
+        ...mockComment,
+        userId: mockUser.id,
+        postId: mockPost.id,
+        isHidden: false,
+        deletedAt: null,
+      })
+      mockPrisma.post.findUnique.mockResolvedValue({ ...mockPost, userId: mockUser.id, isHidden: false })
       mockPrisma.like.findFirst.mockRejectedValue(new Error('Database error'))
 
       const { toggleCommentLike } = await import('@/lib/actions/like')
@@ -479,20 +492,24 @@ describe('Like Actions', async () => {
           _count: { likes: 5, comments: 3 },
         },
       }
-      mockPrisma.like.findMany.mockResolvedValueOnce([likeData])
+      // 1回目=対象ユーザーの like 一覧、2回目=閲覧者(自分)の like 状態
+      mockPrisma.like.findMany.mockResolvedValue([likeData])
       mockPrisma.bookmark.findMany.mockResolvedValue([])
 
       const { getLikedPosts } = await import('@/lib/actions/like')
       const result = await getLikedPosts(mockUser.id)
 
       expect(result.posts).toHaveLength(1)
+      // いいね先の投稿には閲覧可否フィルタ（非表示/非公開/停止著者を除外）が適用される
       expect(mockPrisma.like.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: expect.objectContaining({
             userId: mockUser.id,
             postId: { not: null },
             commentId: null,
-          },
+            post: expect.objectContaining({ isHidden: false }),
+          }),
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         })
       )
     })
@@ -518,8 +535,8 @@ describe('Like Actions', async () => {
       const result = await getLikedPosts('other-user-id')
 
       expect(result.posts).toHaveLength(1)
-      // isLikedはlikes一覧なので常にtrue、isBookmarkedは未認証なのでfalse
-      expect(result.posts[0].isLiked).toBe(true)
+      // isLiked は閲覧者基準。未認証なので閲覧者の like は無く false（対象ユーザーの like 一覧でも閲覧者は未いいね扱い）
+      expect(result.posts[0].isLiked).toBe(false)
       expect(result.posts[0].isBookmarked).toBe(false)
     })
 
@@ -539,7 +556,7 @@ describe('Like Actions', async () => {
     })
 
     it('削除された投稿は除外される', async () => {
-      mockPrisma.like.findMany.mockResolvedValueOnce([
+      mockPrisma.like.findMany.mockResolvedValue([
         {
           id: 'like-1',
           postId: 'deleted-post-id',
@@ -569,27 +586,32 @@ describe('Like Actions', async () => {
       expect(result.posts[0].id).toBe('post-1')
     })
 
-    it('いいね/ブックマーク状態が正しく設定される', async () => {
+    it('いいね/ブックマーク状態が閲覧者基準で設定される', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.like.findMany.mockResolvedValueOnce([
-        {
-          id: 'like-1',
-          postId: 'post-1',
-          post: {
-            ...mockPost,
-            id: 'post-1',
-            user: mockUser,
-            media: [],
-            genres: [],
-            _count: { likes: 5, comments: 3 },
+      mockPrisma.like.findMany
+        // 1回目=対象ユーザーの like 一覧
+        .mockResolvedValueOnce([
+          {
+            id: 'like-1',
+            postId: 'post-1',
+            post: {
+              ...mockPost,
+              id: 'post-1',
+              user: mockUser,
+              media: [],
+              genres: [],
+              _count: { likes: 5, comments: 3 },
+            },
           },
-        },
-      ])
+        ])
+        // 2回目=閲覧者(自分)が post-1 を like している
+        .mockResolvedValueOnce([{ postId: 'post-1' }])
       mockPrisma.bookmark.findMany.mockResolvedValue([{ postId: 'post-1' }])
 
       const { getLikedPosts } = await import('@/lib/actions/like')
       const result = await getLikedPosts('other-user-id')
 
+      // 閲覧者が実際に like / bookmark しているので true
       expect(result.posts[0].isLiked).toBe(true)
       expect(result.posts[0].isBookmarked).toBe(true)
     })
@@ -618,7 +640,7 @@ describe('Like Actions', async () => {
           _count: { likes: 0, comments: 0 },
         },
       }))
-      mockPrisma.like.findMany.mockResolvedValueOnce(likes)
+      mockPrisma.like.findMany.mockResolvedValue(likes)
       mockPrisma.bookmark.findMany.mockResolvedValue([])
 
       const { getLikedPosts } = await import('@/lib/actions/like')
@@ -645,7 +667,7 @@ describe('Like Actions', async () => {
           _count: { likes: 5, comments: 3 },
         },
       }
-      mockPrisma.like.findMany.mockResolvedValueOnce([likeData])
+      mockPrisma.like.findMany.mockResolvedValue([likeData])
       mockPrisma.bookmark.findMany.mockResolvedValue([])
 
       const { getLikedPosts } = await import('@/lib/actions/like')

@@ -1,9 +1,3 @@
-/**
- * @file セグメントビルダークライアントコンポーネント
- * @description セグメント一覧の表示と、新規セグメント作成のためのルールビルダーを提供する。
- *              作成フォームは SegmentCreateForm に分離されている。
- */
-
 'use client'
 
 import { useState } from 'react'
@@ -20,9 +14,6 @@ import {
 import { deleteSegment, evaluateSegment } from '@/lib/actions/admin/segments'
 import { SegmentCreateForm } from './SegmentCreateForm'
 
-/**
- * セグメントの型定義
- */
 type Segment = {
   id: string
   name: string
@@ -36,7 +27,6 @@ type SegmentBuilderProps = {
   segments: Segment[]
 }
 
-/** セグメント条件のルール数を取得 */
 function getRuleCount(conditions: unknown): number {
   if (conditions && typeof conditions === 'object' && 'rules' in conditions) {
     const cond = conditions as { rules: unknown[] }
@@ -79,7 +69,6 @@ export function SegmentBuilder({ segments }: SegmentBuilderProps) {
 
   return (
     <div className="space-y-6">
-      {/* 作成ボタン */}
       <div className="flex justify-end">
         <button
           onClick={() => setShowForm(!showForm)}
@@ -99,14 +88,12 @@ export function SegmentBuilder({ segments }: SegmentBuilderProps) {
         </button>
       </div>
 
-      {/* 作成フォーム */}
       {showForm && (
         <SegmentCreateForm
           onCreated={handleCreated}
         />
       )}
 
-      {/* セグメント一覧 */}
       <div className="bg-card rounded-lg border">
         <div className="px-4 py-3 border-b flex items-center gap-2">
           <Filter className="w-4 h-4" />

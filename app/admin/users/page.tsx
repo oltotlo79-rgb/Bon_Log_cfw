@@ -1,9 +1,3 @@
-/**
- * @file 管理者用ユーザー管理ページ
- * @description ユーザー一覧の表示、検索、フィルタリング機能を提供する管理者ページ。
- *              ユーザーのアカウント状態（アクティブ/停止中）の確認や操作が可能。
- */
-
 // Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
 // Next.jsの画像最適化コンポーネント
@@ -36,7 +30,6 @@ function SearchIcon({ className }: { className?: string }) {
 }
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {
@@ -44,7 +37,6 @@ export const metadata = {
 }
 
 /**
- * ページコンポーネントのProps型定義
  * URLのクエリパラメータを受け取る
  */
 interface PageProps {
@@ -98,7 +90,6 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         <span className="text-sm text-muted-foreground">全 {total} 件</span>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
@@ -133,7 +124,6 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* ユーザーテーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">

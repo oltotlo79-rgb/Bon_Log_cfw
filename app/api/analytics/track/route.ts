@@ -27,6 +27,10 @@ const VISITOR_COOKIE_NAME = 'bon_log_visitor_id'
 
 const VISITOR_COOKIE_MAX_AGE_SECONDS = VISITOR_COOKIE_MAX_AGE_DAYS * ONE_DAY_SECONDS
 
+// cookie は crypto.randomUUID() で発行するため、UUID 形式に厳密一致する値のみ再利用する。
+// 生 HTTP クライアントが任意値を送って他者の (date, visitorId) 行を squat するのを防ぐ。
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** UTC 起点の今日 (DB の `DATE` カラム用に時刻を 0 に切り捨てた Date) */
 function todayUtcDate(): Date {
   const now = new Date()
@@ -45,10 +49,9 @@ export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies()
     const existing = cookieStore.get(VISITOR_COOKIE_NAME)?.value
-    const visitorId =
-      existing && existing.length > 0 && existing.length <= MAX_VISITOR_COOKIE_LENGTH
-        ? existing
-        : crypto.randomUUID()
+    const isValidVisitorId =
+      !!existing && existing.length <= MAX_VISITOR_COOKIE_LENGTH && UUID_PATTERN.test(existing)
+    const visitorId = isValidVisitorId ? existing : crypto.randomUUID()
 
     // 認証情報があれば userId をバックフィル (失敗しても 200 を返す)
     let userId: string | null = null
@@ -75,7 +78,8 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ ok: true })
-    if (!existing) {
+    // 新規発行時（cookie 無し or 不正値）は UUID を発行して保存し直す
+    if (!isValidVisitorId) {
       response.cookies.set(VISITOR_COOKIE_NAME, visitorId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

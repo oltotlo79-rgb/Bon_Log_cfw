@@ -179,7 +179,6 @@ export function NutrientSymptomSearch() {
 
   return (
     <div className="space-y-6">
-      {/* 検索入力 */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
@@ -191,7 +190,6 @@ export function NutrientSymptomSearch() {
         />
       </div>
 
-      {/* タグクラウド */}
       <div className="flex flex-wrap gap-2">
         {TAG_CLOUD_KEYWORDS.map((keyword) => (
           <button
@@ -205,7 +203,6 @@ export function NutrientSymptomSearch() {
         ))}
       </div>
 
-      {/* 検索結果 */}
       {filteredSymptoms.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">
           該当する症状が見つかりませんでした

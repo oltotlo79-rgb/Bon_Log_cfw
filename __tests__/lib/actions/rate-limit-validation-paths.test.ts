@@ -57,8 +57,8 @@ vi.mock('@/lib/services/notification-core', () => ({
   deleteNotification: vi.fn().mockResolvedValue({ success: true }),
 }))
 
-vi.mock('@/lib/actions/analytics', () => ({
-  recordLikeReceived: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordLikeReceivedService: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/actions/post-include', () => ({

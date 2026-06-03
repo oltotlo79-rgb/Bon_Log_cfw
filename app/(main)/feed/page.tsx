@@ -1,36 +1,21 @@
-/** このファイルはBON-LOGのメインコンテンツであるタイムラインページを定義します。 */
-
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 
-// NextAuth.jsの認証ヘルパー関数
 import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 
-import { BASE_URL, ROUTE_FEED } from '@/lib/constants/routes'
-
-// タイムラインコンポーネント
+import { BASE_URL, ROUTE_FEED, ROUTE_ONBOARDING } from '@/lib/constants/routes'
 import { Timeline } from '@/components/feed/Timeline'
-
-// タイムラインスケルトン（Suspenseフォールバック用）
 import { TimelineSkeleton } from '@/components/feed/TimelineSkeleton'
-
-// 投稿作成ボタン（即座に表示）
 import { ComposeButton } from '@/components/feed/ComposeButton'
-
-// Server Actions
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { getGenres } from '@/lib/actions/post'
 import { getTimeline } from '@/lib/actions/feed'
 import { getDraftCount } from '@/lib/actions/draft'
 import { getBonsais } from '@/lib/actions/bonsai'
-
-// 会員プラン別の制限値取得関数 / 未認証フォールバック用の無料プラン制限値
 import { getMembershipLimits, FREE_LIMITS } from '@/lib/premium'
-
-// 季節バナー
 import { SeasonalBanner } from '@/components/common/SeasonalBanner'
-
-// 天気アドバイスカード
 import { WeatherAdviceCard } from '@/components/weather/WeatherAdviceCard'
 
 /**
@@ -41,7 +26,7 @@ import { WeatherAdviceCard } from '@/components/weather/WeatherAdviceCard'
  * 認証で保護されているとはいえ、明示的に noindex/nofollow を出して
  * 検索結果汚染とクロール予算の浪費を防ぐ。
  *
- * `title` は文字列のみ渡しレイアウト側 template (`%s - BON-LOG`) で接尾辞が付与される。
+ * `title` は文字列のみ渡しレイアウト側 template (`%s`) で接尾辞が付与される。
  */
 export const metadata: Metadata = {
   title: 'タイムライン',
@@ -55,13 +40,6 @@ export const metadata: Metadata = {
   },
 }
 
-/**
- * タイムラインセクション（Suspense内で使用）
- *
- * タイムラインデータを取得して表示するServer Component。
- * Suspense境界内で使用され、データ取得が完了するまで
- * フォールバックUI（スケルトン）が表示されます。
- */
 async function TimelineSection({
   currentUserId,
   isGuest,
@@ -83,24 +61,21 @@ async function TimelineSection({
   )
 }
 
-/**
- * タイムラインページコンポーネント
- *
- * メインタイムラインを表示するServer Componentです。
- * Suspenseを使用して、投稿ボタンを即座に表示しながら
- * タイムラインをストリーミングで読み込みます。
- *
- * ## データ取得の分離
- * - 即時取得: ジャンル、制限値、下書き数、盆栽一覧（投稿ボタン用）
- * - ストリーミング: タイムライン投稿（Suspense内）
- *
- * @returns タイムラインページのJSX要素
- */
 export default async function FeedPage() {
-  // 現在のセッション情報を取得
   const session = await auth()
   const isGuest =
     !!session?.user?.email && session.user.email === GUEST_EMAIL
+
+  // 初回ログインのユーザー（onboardedAt 未設定・非ゲスト）は一度だけオンボーディングへ誘導する
+  if (session?.user?.id && !isGuest) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { onboardedAt: true },
+    })
+    if (user && user.onboardedAt === null) {
+      redirect(ROUTE_ONBOARDING)
+    }
+  }
 
   // 投稿ボタンに必要なデータを並列取得（比較的高速）
   // - ジャンルは1時間キャッシュされているため高速
@@ -119,25 +94,20 @@ export default async function FeedPage() {
 
   return (
     <div className="relative min-h-screen">
-      {/* タイムラインセクション */}
       <div>
-        {/* 季節バナー（モバイルのみ表示、デスクトップは右サイドバーに表示） */}
         <div className="xl:hidden mb-4 -mt-4 lg:-mt-0">
           <SeasonalBanner />
         </div>
 
         <h1 className="sr-only" data-testid="feed-timeline-heading">タイムライン</h1>
 
-        {/* 天気アドバイスカード（ログインユーザーのみ） */}
         {!isGuest && <WeatherAdviceCard />}
 
-        {/* Suspense境界: タイムラインをストリーミングで読み込み */}
         <Suspense fallback={<TimelineSkeleton />}>
           <TimelineSection currentUserId={session?.user?.id} isGuest={isGuest} />
         </Suspense>
       </div>
 
-      {/* 投稿作成ボタン（ゲストは表示しない） */}
       {!isGuest && (
         <ComposeButton
           genres={genres}

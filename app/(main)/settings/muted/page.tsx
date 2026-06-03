@@ -14,7 +14,6 @@
  * - ミュートしているユーザーがいない場合の空状態表示
  * - 認証チェックによるアクセス制御
  *
- * @route /settings/muted
  * @requires 認証必須 - 未ログインユーザーはログインページへリダイレクト
  */
 
@@ -41,7 +40,6 @@ import { getMutedUsers } from '@/lib/actions/mute'
 import { MutedUserList } from '@/components/user/MutedUserList'
 
 /**
- * 静的メタデータの定義
  * ページタイトルと説明の設定
  */
 export const metadata: Metadata = {
@@ -82,7 +80,6 @@ export default async function MutedUsersPage() {
     <div className="max-w-2xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">ミュート中のユーザー</h1>
 
-      {/* ミュート中のユーザーがいない場合の空状態メッセージ */}
       {users.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p>ミュート中のユーザーはいません</p>

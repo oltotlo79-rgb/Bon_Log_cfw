@@ -13,6 +13,7 @@ import { PostCardActions } from './PostCardActions'
 import { RepeatIcon } from './PostCardIcons'
 import { parseContentSegments, type ContentSegment } from '@/lib/mention-utils'
 import { POST_PREVIEW_LENGTH, POST_PREVIEW_MAX_LINES } from '@/lib/constants/limits'
+import { buildUserPath, buildPostPath, buildSearchPath, buildSearchByGenrePath } from '@/lib/constants/path-builders'
 import type { PostCardProps } from './PostCard.types'
 
 export type { Post, PostMedia, PostGenre, PostUser, QuotePost, MentionUser, PostCardProps } from './PostCard.types'
@@ -52,7 +53,7 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
           return (
             <Link
               key={i}
-              href={`/users/${segment.userId}`}
+              href={buildUserPath(segment.userId)}
               className="text-primary hover:underline font-medium"
               onClick={(e) => e.stopPropagation()}
             >
@@ -64,7 +65,7 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
           return (
             <Link
               key={i}
-              href={`/search?q=${encodeURIComponent(segment.tag)}`}
+              href={buildSearchPath(segment.tag)}
               className="text-bonsai-green hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
@@ -77,7 +78,6 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
     })
   }
 
-  // 本文の切り詰め判定と表示セグメントの計算
   const contentDisplay = useMemo(() => {
     if (!displayPost.content) return null
     const content = displayPost.content
@@ -105,11 +105,11 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
   return (
     <article
       className={`group/card card-washi p-5 mb-4 shadow-washi hover:shadow-washi-hover transition-all duration-300 ${!disableNavigation ? 'cursor-pointer' : ''}`}
-      onClick={!disableNavigation ? () => router.push(`/posts/${displayPost.id}`) : undefined}
+      onClick={!disableNavigation ? () => router.push(buildPostPath(displayPost.id)) : undefined}
       onKeyDown={!disableNavigation ? (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          router.push(`/posts/${displayPost.id}`)
+          router.push(buildPostPath(displayPost.id))
         }
       } : undefined}
       role={!disableNavigation ? 'link' : undefined}
@@ -117,12 +117,11 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
       aria-label={!disableNavigation ? `${displayPost.user.nickname}の投稿を表示` : undefined}
       data-testid="post-card"
     >
-      {/* リポスト表示 */}
       {isRepost && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2" data-testid="repost-indicator">
           <RepeatIcon className="w-3 h-3" />
           <Link
-            href={`/users/${post.user.id}`}
+            href={buildUserPath(post.user.id)}
             className="hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
@@ -132,7 +131,6 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
         </div>
       )}
 
-      {/* ヘッダー */}
       <PostCardHeader
         user={displayPost.user}
         timeAgo={timeAgo}
@@ -144,9 +142,10 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
         disableNavigation={disableNavigation}
         onHidden={() => setIsHiddenByUser(true)}
         createdAt={post.createdAt}
+        editedAt={post.editedAt}
+        isPinned={post.isPinned}
       />
 
-      {/* 本文 */}
       {displayPost.content && contentDisplay && (
         <div className="mb-3" data-testid="post-content">
           <p className="whitespace-pre-wrap break-words">
@@ -166,35 +165,31 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
         </div>
       )}
 
-      {/* アンケート */}
       {post.poll && (
         <PollDisplay poll={post.poll} currentUserId={currentUserId} />
       )}
 
-      {/* メディア */}
       {'media' in displayPost && displayPost.media && displayPost.media.length > 0 && (
         <div className="mb-3 -mx-5 overflow-hidden" data-testid="post-media">
           <ImageGallery
             images={displayPost.media}
-            onMediaClick={!disableNavigation ? () => router.push(`/posts/${displayPost.id}`) : undefined}
+            onMediaClick={!disableNavigation ? () => router.push(buildPostPath(displayPost.id)) : undefined}
           />
         </div>
       )}
 
-      {/* 引用投稿 */}
       {post.quotePost && (
         <div className="mb-3" onClick={(e) => e.stopPropagation()}>
           <QuotedPost post={post.quotePost} />
         </div>
       )}
 
-      {/* ジャンルタグ */}
       {post.genres && post.genres.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3" data-testid="post-genres">
           {post.genres.map((genre) => (
             <Link
               key={genre.id}
-              href={`/search?genre=${genre.id}`}
+              href={buildSearchByGenrePath(genre.id)}
               className="tag-washi"
               onClick={(e) => e.stopPropagation()}
             >
@@ -204,7 +199,6 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
         </div>
       )}
 
-      {/* アクションボタン */}
       <PostCardActions
         postId={displayPost.id}
         currentUserId={currentUserId}
@@ -212,6 +206,13 @@ export const PostCard = memo(function PostCard({ post, currentUserId, initialLik
         isBookmarked={isBookmarked}
         likesCount={likesCount}
         commentsCount={commentsCount}
+        isReposted={post.isReposted ?? false}
+        repostCount={post.repostCount ?? 0}
+        quoteTarget={{
+          id: displayPost.id,
+          content: displayPost.content,
+          user: { nickname: displayPost.user.nickname },
+        }}
       />
     </article>
   )

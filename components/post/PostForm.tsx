@@ -313,7 +313,6 @@ export function PostForm({ genres, limits = DEFAULT_LIMITS, draftCount = 0, draf
         aria-label="投稿内容を入力"
       />
 
-      {/* メディアプレビュー */}
       <SharedMediaUploadSection
         mediaFiles={mediaFiles}
         uploading={uploading}
@@ -327,7 +326,6 @@ export function PostForm({ genres, limits = DEFAULT_LIMITS, draftCount = 0, draf
         buttonVariant="ghost"
       />
 
-      {/* ジャンル選択 */}
       <div className="mt-3">
         <GenreSelector
           genres={genres}
@@ -336,7 +334,6 @@ export function PostForm({ genres, limits = DEFAULT_LIMITS, draftCount = 0, draf
         />
       </div>
 
-      {/* アンケート */}
       {isPollActive && (
         <div className="mt-3">
           <PollForm
@@ -372,11 +369,9 @@ export function PostForm({ genres, limits = DEFAULT_LIMITS, draftCount = 0, draf
         </div>
 
         <div className="flex items-center gap-3">
-          {/* #9: 自動保存インジケーター */}
           {draftId && (
             <AutoSaveIndicator status={autoSaveStatus} savedTime={savedTime} />
           )}
-          {/* #11: 円形プログレスリング */}
           <CharacterCountRing current={content.length} max={maxChars} />
           {draftCount > 0 && (
             <Link

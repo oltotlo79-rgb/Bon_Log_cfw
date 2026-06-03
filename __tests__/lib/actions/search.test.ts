@@ -180,6 +180,15 @@ describe('searchPosts', () => {
       }),
     )
   })
+
+  it('過大な limit は MAX_PAGE_LIMIT に clamp する', async () => {
+    mockPrisma.post.findMany.mockResolvedValueOnce([])
+    const { searchPosts } = await import('@/lib/actions/search')
+    await searchPosts('盆栽', undefined, undefined, 1_000_000)
+    expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 100 }),
+    )
+  })
 })
 
 // ============================================================
@@ -226,6 +235,21 @@ describe('searchUsers', () => {
     const { searchUsers } = await import('@/lib/actions/search')
     const result = await searchUsers('テスト')
     expect(result).toMatchObject({ success: false })
+  })
+
+  it('停止・非公開ユーザーを除外する閲覧可否フィルタを where に含める', async () => {
+    mockPrisma.user.findMany.mockResolvedValueOnce([])
+    const { searchUsers } = await import('@/lib/actions/search')
+    await searchUsers('テスト')
+    const callArg = mockPrisma.user.findMany.mock.calls[0][0]
+    expect(callArg.where).toMatchObject({
+      isSuspended: false,
+      OR: expect.arrayContaining([
+        { isPublic: true },
+        { id: 'test-user-id' },
+        { followers: { some: { followerId: 'test-user-id' } } },
+      ]),
+    })
   })
 })
 

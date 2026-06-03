@@ -19,7 +19,7 @@ import {
 import { safeJsonLdStringify } from '@/components/seo/utils'
 
 export const metadata: Metadata = {
-  title: 'BON-LOGについて｜盆栽SNS・盆栽辞典・農薬データベース - BON-LOG',
+  title: 'BON-LOGについて｜盆栽SNS・盆栽辞典・農薬データベース',
   description:
     'BON-LOG（ボンログ）は、盆栽愛好家のためのSNSと、盆栽辞典・農薬データベース・病害虫情報・肥料ガイド・植物ホルモン解説などの独自コンテンツを組み合わせた総合プラットフォームです。農林水産省の公式データに基づく情報整備と、愛好家コミュニティの双方で、盆栽文化を次世代へ繋ぎます。',
   alternates: { canonical: `${BASE_URL}${ROUTE_ABOUT}` },

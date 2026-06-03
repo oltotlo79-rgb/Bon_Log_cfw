@@ -1,10 +1,3 @@
-/**
- * @file 農薬詳細・編集ページ（Server Component）
- * @description 農薬詳細データを Server Side で取得し、編集フォーム（Client Component）と
- *              関連データ／履歴タイムライン（Server Component）に分離してレンダリングする。
- * @route /admin/pesticide-data/[id]
- */
-
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, FlaskConical } from 'lucide-react'

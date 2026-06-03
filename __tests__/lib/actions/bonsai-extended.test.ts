@@ -84,20 +84,15 @@ describe('Bonsai Actions - Extended', async () => {
       )
     })
 
-    it('指定ユーザーIDで未認証でも盆栽一覧を取得できる', async () => {
+    it('未認証では他者IDを渡してもエラーを返す', async () => {
       mockAuth.mockResolvedValue(null)
       mockPrisma.bonsai.findMany.mockResolvedValue([])
 
       const { getBonsais } = await import('@/lib/actions/bonsai')
-      const result = await getBonsais('other-user-id')
+      const result = await (getBonsais as unknown as (u: string) => ReturnType<typeof getBonsais>)('other-user-id')
 
-      const data = unwrapOk<{ bonsais: unknown[] }>(result)
-      expect(data.bonsais).toBeDefined()
-      expect(mockPrisma.bonsai.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId: 'other-user-id' },
-        })
-      )
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.bonsai.findMany).not.toHaveBeenCalled()
     })
   })
 
@@ -396,6 +391,11 @@ describe('Bonsai Actions - Extended', async () => {
   // ============================================================
 
   describe('getBonsaiRecords - extended', async () => {
+    beforeEach(() => {
+      // 所有者一致を既定とする（マイ盆栽の所有者チェックを通過させる）
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: mockUser.id })
+    })
+
     it('カーソル付きでページネーションが動作する', async () => {
       mockPrisma.bonsaiRecord.findMany.mockResolvedValue([])
 

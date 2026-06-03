@@ -1,11 +1,4 @@
 /**
- * @file 盆栽詳細ページのスケルトンローディング
- * @description 盆栽詳細データの取得中に表示されるスケルトンUI。
- * 実際のレイアウトを模した形でプレースホルダーを表示し、
- * 読み込み完了時のレイアウトシフトを最小限に抑えます。
- */
-
-/**
  * 盆栽詳細スケルトンコンポーネント
  *
  * 盆栽情報カードと成長記録タイムラインのスケルトンを表示します。
@@ -15,32 +8,25 @@
 export default function BonsaiDetailLoading() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-pulse">
-      {/* 盆栽情報カードのスケルトン */}
       <div className="bg-card rounded-lg border overflow-hidden">
-        {/* ナビゲーションバー */}
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <div className="h-5 bg-muted rounded w-32" />
           <div className="h-8 bg-muted rounded w-8" />
         </div>
 
-        {/* メイン画像エリア */}
         <div className="aspect-square bg-muted" />
 
-        {/* 盆栽情報 */}
         <div className="p-4 space-y-4">
-          {/* タイトルと樹種 */}
           <div className="space-y-2">
             <div className="h-7 bg-muted rounded w-48" />
             <div className="h-5 bg-muted rounded w-32" />
           </div>
 
-          {/* 入手日 */}
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 bg-muted rounded" />
             <div className="h-4 bg-muted rounded w-36" />
           </div>
 
-          {/* 説明文 */}
           <div className="space-y-2 pt-2">
             <div className="h-4 bg-muted rounded w-full" />
             <div className="h-4 bg-muted rounded w-4/5" />
@@ -49,7 +35,6 @@ export default function BonsaiDetailLoading() {
         </div>
       </div>
 
-      {/* 成長記録追加ボタンのスケルトン（オーナー用） */}
       <div className="bg-card rounded-lg border p-4">
         <div className="flex items-center justify-between">
           <div className="h-5 bg-muted rounded w-28" />
@@ -57,39 +42,31 @@ export default function BonsaiDetailLoading() {
         </div>
       </div>
 
-      {/* 成長記録タイムラインのスケルトン */}
       <div className="bg-card rounded-lg border">
-        {/* セクションヘッダー */}
         <div className="px-4 py-3 border-b">
           <div className="h-6 bg-muted rounded w-24" />
         </div>
 
-        {/* タイムライン */}
         <div className="divide-y">
           {[1, 2, 3].map((i) => (
             <div key={i} className="p-4">
               <div className="flex gap-4">
-                {/* 日付表示 */}
                 <div className="flex-shrink-0 text-center">
                   <div className="h-3 bg-muted rounded w-8 mb-1" />
                   <div className="h-8 bg-muted rounded w-10" />
                 </div>
 
-                {/* 記録内容 */}
                 <div className="flex-1 space-y-3">
-                  {/* 画像サムネイル */}
                   <div className="flex gap-2">
                     <div className="w-20 h-20 bg-muted rounded" />
                     <div className="w-20 h-20 bg-muted rounded" />
                   </div>
 
-                  {/* 記録テキスト */}
                   <div className="space-y-2">
                     <div className="h-4 bg-muted rounded w-full" />
                     <div className="h-4 bg-muted rounded w-3/4" />
                   </div>
 
-                  {/* タグ */}
                   <div className="flex gap-2">
                     <div className="h-5 bg-muted rounded-full w-14" />
                     <div className="h-5 bg-muted rounded-full w-16" />

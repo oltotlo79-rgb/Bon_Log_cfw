@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { getPostDetailReadyLocator } from './locators'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * コンテンツ詳細ページのE2Eテスト
@@ -12,8 +13,7 @@ test.describe('投稿詳細ページ', () => {
 
     const postLinks = page.locator('a[href^="/posts/"]')
     if ((await postLinks.count()) > 0) {
-      await postLinks.first().click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, postLinks.first(), /\/posts\//, { timeout: 10000 })
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
       const postContent = page.locator('[data-testid="post-detail"], article, [class*="post"]').first()
       await expect(postContent).toBeVisible({ timeout: 10000 })
@@ -32,8 +32,7 @@ test.describe('投稿詳細ページ', () => {
     const postLinks = page.locator('a[href^="/posts/"]')
     const hasPostLinks = await postLinks.first().isVisible({ timeout: 15000 }).catch(() => false)
     if (hasPostLinks) {
-      await postLinks.first().click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 15000 })
+      await clickAndWaitForUrl(page, postLinks.first(), /\/posts\//, { timeout: 15000 })
       // CI初回コンパイルを考慮し、post-card（article）または post-actions を待つ
       await page.locator('[data-testid="post-card"], [data-testid="post-actions"], article').first()
         .waitFor({ state: 'visible', timeout: 45000 }).catch(() => {})
@@ -55,13 +54,14 @@ test.describe('投稿詳細ページ', () => {
 
     const postLinks = page.locator('a[href^="/posts/"]')
     if ((await postLinks.count()) > 0) {
-      await postLinks.first().click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, postLinks.first(), /\/posts\//, { timeout: 10000 })
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
+      // コメント欄は Suspense 配下で遅延ロードされ得るため、client fetch 完了まで待つ
+      await page.waitForLoadState('networkidle').catch(() => {})
       const commentArea = page.locator(
         '[data-testid="comments-section"], [class*="comment"], textarea[placeholder*="コメント"], form'
       ).first()
-      const hasCommentArea = await commentArea.isVisible({ timeout: 10000 }).catch(() => false)
+      const hasCommentArea = await commentArea.isVisible({ timeout: 15000 }).catch(() => false)
       expect(hasCommentArea).toBeTruthy()
     } else {
       await expect(page).toHaveURL(/\/feed/)
@@ -78,8 +78,7 @@ test.describe('盆栽詳細ページ', () => {
 
     const bonsaiLinks = page.locator('a[href^="/bonsai/"]:not([href="/bonsai/new"])')
     if ((await bonsaiLinks.count()) > 0) {
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
     } else {
       await expect(page).toHaveURL(/\/bonsai/)
       const listArea = page.locator('main, [role="main"], a[href="/bonsai/new"]').first()
@@ -93,8 +92,7 @@ test.describe('盆栽詳細ページ', () => {
 
     const bonsaiLinks = page.locator('a[href^="/bonsai/"]:not([href="/bonsai/new"])')
     if ((await bonsaiLinks.count()) > 0) {
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
       const nameOrSpecies = page.locator('h1, h2, [data-testid="bonsai-name"]').first()
       await expect(nameOrSpecies).toBeVisible({ timeout: 10000 })
     } else {
@@ -110,8 +108,7 @@ test.describe('盆栽詳細ページ', () => {
 
     const bonsaiLinks = page.locator('a[href^="/bonsai/"]:not([href="/bonsai/new"])')
     if ((await bonsaiLinks.count()) > 0) {
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
       const timeline = page.getByText(/タイムライン|成長記録|記録|履歴/i).first()
       const hasTimeline = await timeline.isVisible({ timeout: 5000 }).catch(() => false)
       if (hasTimeline) await expect(timeline).toBeVisible()
@@ -130,8 +127,7 @@ test.describe('イベント詳細ページ', () => {
 
     const eventLinks = page.locator('a[href^="/events/"]:not([href="/events/new"])')
     if ((await eventLinks.count()) > 0) {
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
     } else {
       await expect(page).toHaveURL(/\/events/)
       const listArea = page.locator('main, [role="main"]').first()
@@ -145,8 +141,7 @@ test.describe('イベント詳細ページ', () => {
 
     const eventLinks = page.locator('a[href^="/events/"]:not([href="/events/new"])')
     if ((await eventLinks.count()) > 0) {
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
       await page.waitForLoadState('load')
       // イベント詳細が表示されたことを確認（タイトル、日付テキスト、または詳細コンテンツ）
       const eventContent = page.locator('h1, [data-testid="event-detail"], article, main').first()
@@ -166,8 +161,7 @@ test.describe('盆栽園詳細ページ', () => {
 
     const shopLinks = page.locator('a[href^="/shops/"]:not([href="/shops/new"])')
     if ((await shopLinks.count()) > 0) {
-      await shopLinks.first().click()
-      await expect(page).toHaveURL(/\/shops\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, shopLinks.first(), /\/shops\/(?!new)/, { timeout: 10000 })
     } else {
       await expect(page).toHaveURL(/\/shops/)
       const listArea = page.locator('main, [role="main"]').first()
@@ -181,8 +175,7 @@ test.describe('盆栽園詳細ページ', () => {
 
     const shopLinks = page.locator('a[href^="/shops/"]:not([href="/shops/new"])')
     if ((await shopLinks.count()) > 0) {
-      await shopLinks.first().click()
-      await expect(page).toHaveURL(/\/shops\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, shopLinks.first(), /\/shops\/(?!new)/, { timeout: 10000 })
       const address = page.getByText(/都|道|府|県|市|区|町|村/i).first()
       const rating = page.locator('svg').first()
       const shopInfo = page.locator('h1').first()
@@ -205,8 +198,7 @@ test.describe('盆栽園詳細ページ', () => {
 
     const shopLinks = page.locator('a[href^="/shops/"]:not([href="/shops/new"])')
     if ((await shopLinks.count()) > 0) {
-      await shopLinks.first().click()
-      await expect(page).toHaveURL(/\/shops\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, shopLinks.first(), /\/shops\/(?!new)/, { timeout: 10000 })
       const reviewSection = page.getByText(/レビュー|口コミ|評価/i).first()
       if (await reviewSection.isVisible({ timeout: 5000 }).catch(() => false)) {
         await expect(reviewSection).toBeVisible()

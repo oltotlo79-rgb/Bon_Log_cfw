@@ -142,7 +142,6 @@ export function HormoneBalanceSimulator({ hormones, techniques, seasonalLevels, 
 
   return (
     <div className="space-y-6">
-      {/* 月セレクター */}
       <div className="space-y-2">
         <h3 className="font-semibold text-sm">月を選択</h3>
         <div className="grid grid-cols-6 sm:grid-cols-12 gap-1">
@@ -167,7 +166,6 @@ export function HormoneBalanceSimulator({ hormones, techniques, seasonalLevels, 
         </div>
       </div>
 
-      {/* 技法セレクター */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">技法を選択（複数可）</h3>
@@ -202,7 +200,6 @@ export function HormoneBalanceSimulator({ hormones, techniques, seasonalLevels, 
         </div>
       </div>
 
-      {/* 結果表示 */}
       <div className="space-y-3">
         <h3 className="font-semibold text-sm">
           {MONTH_LABELS[selectedMonth - 1]}のホルモンバランス
@@ -254,7 +251,6 @@ export function HormoneBalanceSimulator({ hormones, techniques, seasonalLevels, 
                   </div>
                 </div>
 
-                {/* バー表示 */}
                 <div className="flex items-center gap-1 h-4">
                   <div
                     className={`${baseConfig.color} h-full rounded transition-all`}

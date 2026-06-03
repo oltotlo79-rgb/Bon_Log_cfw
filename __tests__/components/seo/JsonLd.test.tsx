@@ -157,6 +157,36 @@ describe('LocalBusinessJsonLd', () => {
     expect(jsonLd.geo.latitude).toBe(35.6762)
     expect(jsonLd.geo.longitude).toBe(139.6503)
   })
+
+  it('schema.org 形式の openingHours は含める', () => {
+    const { container } = render(
+      <LocalBusinessJsonLd
+        name="○○盆栽園"
+        address="東京都渋谷区1-2-3"
+        url="https://bon-log.com/shops/xxx"
+        openingHours="Mo-Fr 09:00-17:00"
+      />
+    )
+
+    const script = container.querySelector('script[type="application/ld+json"]')
+    const jsonLd = JSON.parse(script?.textContent || '{}')
+    expect(jsonLd.openingHours).toBe('Mo-Fr 09:00-17:00')
+  })
+
+  it('自由記述の openingHours は無効な構造化データを避けるため省略する', () => {
+    const { container } = render(
+      <LocalBusinessJsonLd
+        name="○○盆栽園"
+        address="東京都渋谷区1-2-3"
+        url="https://bon-log.com/shops/xxx"
+        openingHours="平日9:00〜18:00 土日祝休み"
+      />
+    )
+
+    const script = container.querySelector('script[type="application/ld+json"]')
+    const jsonLd = JSON.parse(script?.textContent || '{}')
+    expect(jsonLd.openingHours).toBeUndefined()
+  })
 })
 
 describe('EventJsonLd', () => {

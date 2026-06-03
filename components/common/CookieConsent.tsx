@@ -51,8 +51,9 @@ export function CookieConsent() {
   const handleAcceptAll = useCallback(() => {
     setConsentLevel('all')
     setVisible(false)
-    // 同意後にページをリロードして広告スクリプトを読み込む
-    window.location.reload()
+    // VisitorBeacon / AdProvider は COOKIE_CONSENT_CHANGE_EVENT を購読しており、
+    // `setConsentLevel` 内で dispatch される CustomEvent によって自動的に
+    // 広告スクリプト読み込みと beacon 送信が走るため、フルリロードは不要。
   }, [])
 
   const handleEssentialOnly = useCallback(() => {
@@ -70,7 +71,6 @@ export function CookieConsent() {
     >
       <div className="max-w-4xl mx-auto px-4 py-4 sm:py-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-          {/* 説明テキスト */}
           <div className="flex-1 text-sm text-muted-foreground">
             <p>
               当サイトでは、サービス向上・広告配信・アクセス分析のためにCookieを使用しています。
@@ -86,7 +86,6 @@ export function CookieConsent() {
             </p>
           </div>
 
-          {/* ボタン群 */}
           <div className="flex gap-2 shrink-0">
             <button
               onClick={handleEssentialOnly}

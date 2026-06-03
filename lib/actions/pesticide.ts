@@ -4,12 +4,15 @@
  * 農薬・病害虫・有効成分・剤型などの読み取り専用 query を提供する。
  * RSC からの直接 await 用途のため `'use server'` ではなく `server-only` モジュールとし、
  * 公開 RPC 面を持たない。Client から呼ぶ必要ができた場合は別途 Server Action を切り出す。
+ *
+ * 認証なしで参照可能（公開 SEO ページ）。sitemap に列挙され未ログイン/crawler が入口にするため、
+ * requireAuth を付けると soft 404 / 空表示になる。入力は Zod、件数は上限定数で保護する。
  */
 import 'server-only'
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { requireAuth } from '@/lib/actions/utils'
+import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import { DiseasePestCategory, type Prisma } from '@prisma/client'
 import { normalizePesticideType } from '@/lib/utils/pesticide'
 import { MAX_SEARCH_QUERY_LENGTH, MAX_PESTICIDE_LIST_LIMIT, MAX_SLUG_LENGTH } from '@/lib/constants/limits'
@@ -70,8 +73,7 @@ export async function getDiseasePests(params?: {
   search?: string
   bodySizeMm?: number // 体長（mm）で害虫・益虫を絞り込む
 }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { diseasePests: [], error: authResult.error }
+  if (shouldSkipBuildTimeDbAccess()) return { diseasePests: [] }
 
   // 入力を Zod で境界検証（不正値はフィルタ不適用の全件扱いではなく空配列で早期 return）
   const parsed = diseasePestQuerySchema.safeParse(params ?? {})
@@ -111,9 +113,7 @@ export async function getDiseasePests(params?: {
 }
 
 export async function getDiseasePestBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -161,8 +161,7 @@ export async function getPesticides(params?: {
   diseasePestId?: string
   formulationTypeCode?: string
 }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { pesticides: [], error: authResult.error }
+  if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
 
   // 全パラメータを Zod で境界検証
   let search: string | undefined
@@ -239,9 +238,7 @@ export async function getPesticides(params?: {
 }
 
 export async function getPesticideBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -307,8 +304,7 @@ export async function getPesticideBySlug(slug: string) {
 export async function getActiveIngredients(params?: {
   search?: string
 }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { ingredients: [], error: authResult.error }
+  if (shouldSkipBuildTimeDbAccess()) return { ingredients: [] }
 
   let search: string | undefined
   if (params?.search !== undefined) {
@@ -341,9 +337,7 @@ export async function getActiveIngredients(params?: {
 }
 
 export async function getActiveIngredientBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -380,9 +374,7 @@ export async function getActiveIngredientBySlug(slug: string) {
 // ── 展着剤 ────────────────────────────────────────────────────────
 
 export async function getSpreaderTypes() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { spreaders: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { spreaders: [] }
   const spreaders = await prisma.spreaderType.findMany({
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     include: {
@@ -400,9 +392,7 @@ export async function getSpreaderTypes() {
 
 /** 展着剤商材（spreaderTypes を1つ以上持つ薬剤）の一覧。個別ページは /pesticides/products/[slug] */
 export async function getSpreaderProducts() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { pesticides: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
   const pesticides = await prisma.pesticide.findMany({
     where: { spreaderTypes: { some: {} } },
     orderBy: { name: 'asc' },
@@ -422,9 +412,7 @@ export async function getSpreaderProducts() {
  * 紐付く薬剤の成分・効果・混用不可情報を含む完全なデータを返す。
  */
 export async function getSpreaderTypeBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -451,9 +439,7 @@ export async function getSpreaderTypeBySlug(slug: string) {
 // ── 混用チェック ─────────────────────────────────────────────────
 
 export async function getPesticideIncompatibilities() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { incompatibilities: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { incompatibilities: [] }
   const incompatibilities = await prisma.pesticideIncompatibility.findMany({
     select: {
       pesticideId: true,
@@ -465,9 +451,7 @@ export async function getPesticideIncompatibilities() {
 }
 
 export async function getPesticideOptions() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { pesticides: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
   const pesticides = await prisma.pesticide.findMany({
     select: {
       id: true,
@@ -485,9 +469,7 @@ export async function getPesticideOptions() {
 // ── コラム ────────────────────────────────────────────────────────
 
 export async function getColumns(params?: { category?: string }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { columns: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
   let category: string | undefined
   if (params?.category !== undefined) {
     const parsed = codeSchema.safeParse(params.category)
@@ -512,9 +494,7 @@ export async function getColumns(params?: { category?: string }) {
 }
 
 export async function getColumnBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -524,9 +504,7 @@ export async function getColumnBySlug(slug: string) {
 // ── 剤型 ──────────────────────────────────────────────────────────
 
 export async function getFormulationTypes() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { formulations: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { formulations: [] }
   const formulations = await prisma.formulationType.findMany({
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     include: {
@@ -539,9 +517,7 @@ export async function getFormulationTypes() {
 }
 
 export async function getFormulationTypeByCode(code: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = codeSchema.safeParse(code)
   if (!parsed.success) return null
 

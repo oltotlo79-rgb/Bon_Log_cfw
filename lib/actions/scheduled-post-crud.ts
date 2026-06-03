@@ -10,6 +10,7 @@
 
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
+import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import {
   requireActiveNonGuestUser,
   actionSuccess,
@@ -85,6 +86,9 @@ export async function createScheduledPost(formData: FormData) {
   if (!parsed.success) {
     return actionZodError(parsed.error)
   }
+
+  const rl = await enforceUserRateLimit(userId, 'engagement')
+  if (rl) return actionError(rl.error)
 
   const { content, scheduledAt: scheduledAtStr, genreIds, mediaUrls, mediaTypes } = parsed.data
   const scheduledAt = new Date(scheduledAtStr)
@@ -283,9 +287,13 @@ export async function deleteScheduledPost(id: string) {
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  // id のみの操作のため Zod は無いが、任意 id 探索を消費させないよう DB lookup の前に実施する。
+  const rl = await enforceUserRateLimit(userId, 'engagement')
+  if (rl) return actionError(rl.error)
+
   const scheduledPost = await prisma.scheduledPost.findUnique({
     where: { id },
-    select: { userId: true, status: true },
+    select: { userId: true, status: true, media: { select: { url: true } } },
   })
   if (!scheduledPost) return actionError(ERR_SCHEDULED_POST_NOT_FOUND)
   if (scheduledPost.userId !== userId) return actionError(ERR_PERMISSION_DENIED)
@@ -294,6 +302,9 @@ export async function deleteScheduledPost(id: string) {
   }
 
   await prisma.scheduledPost.delete({ where: { id } })
+
+  // DB カスケード後にストレージ実体も回収（オーファン防止、best-effort）
+  await deleteMediaFiles(scheduledPost.media.map((m) => m.url))
 
   revalidatePath(ROUTE_SCHEDULED_POSTS)
   return actionSuccess()
@@ -307,6 +318,10 @@ export async function cancelScheduledPost(id: string) {
   const auth = await requireActiveNonGuestUser()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
+
+  // id のみの操作のため Zod は無いが、任意 id 探索を消費させないよう DB lookup の前に実施する。
+  const rl = await enforceUserRateLimit(userId, 'engagement')
+  if (rl) return actionError(rl.error)
 
   const scheduledPost = await prisma.scheduledPost.findUnique({
     where: { id },

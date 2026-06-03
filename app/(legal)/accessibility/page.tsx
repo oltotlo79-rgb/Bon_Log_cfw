@@ -1,7 +1,4 @@
 /**
- * @file app/(legal)/accessibility/page.tsx
- * @description BON-LOG アクセシビリティ声明ページ
- *
  * WCAG 2.1 準拠状況と、アクセシビリティ向上のための取り組みを記載。
  * Google AdSense審査においてもサイトの信頼性向上に寄与する。
  */
@@ -12,7 +9,7 @@ import { ROUTE_ACCESSIBILITY, ROUTE_CONTACT } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: 'アクセシビリティについて - BON-LOG',
+  title: 'アクセシビリティについて',
   description: 'BON-LOGのアクセシビリティへの取り組みとWCAG準拠状況について',
   alternates: { canonical: pageCanonical(ROUTE_ACCESSIBILITY) },
 }

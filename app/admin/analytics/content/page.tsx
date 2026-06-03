@@ -1,10 +1,3 @@
-/**
- * @file コンテンツ分析ページ
- * @description ジャンル別投稿数、人気ハッシュタグ、日別エンゲージメントを
- *              可視化する管理者ページ。
- * @route /admin/analytics/content
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getContentAnalysis } from '@/lib/actions/admin/analytics'
@@ -33,7 +26,6 @@ export default async function ContentAnalyticsPage() {
         <h1 className="text-2xl font-bold">コンテンツ分析</h1>
       </div>
 
-      {/* セクション1: ジャンル別投稿数 */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-lg font-semibold mb-4">ジャンル別投稿数</h2>
         {genreTrends.length === 0 ? (
@@ -65,7 +57,6 @@ export default async function ContentAnalyticsPage() {
         )}
       </div>
 
-      {/* セクション2: 人気ハッシュタグ */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-lg font-semibold mb-4">人気ハッシュタグ</h2>
         {topHashtags.length === 0 ? (
@@ -97,7 +88,6 @@ export default async function ContentAnalyticsPage() {
         )}
       </div>
 
-      {/* セクション3: 日別エンゲージメント + CSVエクスポート */}
       <ContentAnalyticsClient dailyEngagement={dailyEngagement} />
     </div>
   )

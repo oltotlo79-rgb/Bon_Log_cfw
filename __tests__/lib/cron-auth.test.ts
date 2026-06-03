@@ -230,4 +230,84 @@ describe('cron-auth', async () => {
       expect(() => generateCronHeaders()).toThrow('CRON_SECRET is not set')
     })
   })
+
+  // ============================================================
+  // pathname binding (cross-path replay 防御)
+  // 既存テストは pathname 引数を渡さない経路のみ検証していた。pathname を
+  // 渡すと signature 対象が "timestamp:pathname" に変わり、別 path への
+  // signature 流用を弾けることを確認する。
+  // ============================================================
+
+  describe('pathname binding', async () => {
+    it('pathname ありの signature は同 timestamp/secret でも無しの signature と異なる', async () => {
+      const { generateCronSignature } = await import('@/lib/cron-auth')
+      const timestamp = '1700000000000'
+      const without = generateCronSignature(timestamp, TEST_SECRET)
+      const withPath = generateCronSignature(timestamp, TEST_SECRET, '/api/cron/foo')
+      expect(without).not.toBe(withPath)
+    })
+
+    it('pathname 付き signature は同じ pathname で検証成功する', async () => {
+      const { verifyCronAuth, generateCronSignature } = await import('@/lib/cron-auth')
+      const timestamp = Date.now().toString()
+      const signature = generateCronSignature(timestamp, TEST_SECRET, '/api/cron/foo')
+
+      const result = verifyCronAuth(`HMAC ${signature}`, timestamp, '/api/cron/foo')
+
+      expect(result.valid).toBe(true)
+    })
+
+    it('別 pathname に流用すると INVALID_SIGNATURE (cross-path replay 不可)', async () => {
+      const { verifyCronAuth, generateCronSignature } = await import('@/lib/cron-auth')
+      const timestamp = Date.now().toString()
+      // foo 向けに署名したものを bar に送る
+      const signature = generateCronSignature(timestamp, TEST_SECRET, '/api/cron/foo')
+
+      const result = verifyCronAuth(`HMAC ${signature}`, timestamp, '/api/cron/bar')
+
+      expect(result.valid).toBe(false)
+      expect(result.error).toBe('Invalid signature')
+    })
+
+    it('pathname なしで生成した signature を pathname 付き検証に流用すると拒否', async () => {
+      const { verifyCronAuth, generateCronSignature } = await import('@/lib/cron-auth')
+      const timestamp = Date.now().toString()
+      const signature = generateCronSignature(timestamp, TEST_SECRET)
+
+      const result = verifyCronAuth(`HMAC ${signature}`, timestamp, '/api/cron/foo')
+
+      expect(result.valid).toBe(false)
+    })
+  })
+
+  // ============================================================
+  // DISABLE_LEGACY_CRON_AUTH=true で Bearer 経路を無効化
+  // 既存テストは legacy Bearer が有効なケースのみ検証していた。本フラグが立つと
+  // Vercel Cron 形式の Bearer も拒否され HMAC 必須になる、運用上の重要な
+  // セキュリティスイッチを担保する。
+  // ============================================================
+
+  describe('DISABLE_LEGACY_CRON_AUTH', async () => {
+    it('=true なら正しい Bearer でも認証失敗 (HMAC 経路に強制)', async () => {
+      process.env.DISABLE_LEGACY_CRON_AUTH = 'true'
+      const { verifyCronAuth } = await import('@/lib/cron-auth')
+
+      const result = verifyCronAuth(`Bearer ${TEST_SECRET}`, null)
+
+      expect(result.valid).toBe(false)
+      // Bearer 経路が無効化されると HMAC 経路に流れ、prefix 不一致で INVALID_SCHEME
+      expect(result.error).toBe('Invalid authorization scheme')
+    })
+
+    it('=true でも HMAC 経路は引き続き通る', async () => {
+      process.env.DISABLE_LEGACY_CRON_AUTH = 'true'
+      const { verifyCronAuth, generateCronSignature } = await import('@/lib/cron-auth')
+      const timestamp = Date.now().toString()
+      const signature = generateCronSignature(timestamp, TEST_SECRET)
+
+      const result = verifyCronAuth(`HMAC ${signature}`, timestamp)
+
+      expect(result.valid).toBe(true)
+    })
+  })
 })

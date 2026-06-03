@@ -5437,8 +5437,7 @@ export async function main() {
       { pesticideId: R(pMap, "kanemite-fl"), diseasePestId: R(dpMap, "hadani"), efficacyLevel: "excellent", persistenceLevel: "good" },
       { pesticideId: R(pMap, "kanemite-fl"), diseasePestId: R(dpMap, "nami-hadani"), efficacyLevel: "excellent", persistenceLevel: "good" },
       { pesticideId: R(pMap, "kanemite-fl"), diseasePestId: R(dpMap, "kanzawa-hadani"), efficacyLevel: "excellent", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "kanemite-fl"), diseasePestId: R(dpMap, "azamiuma"), efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "kanemite-fl"), diseasePestId: R(dpMap, "chanokiiro-azamiuma"), efficacyLevel: "good", persistenceLevel: "good" },
+      // azamiuma/chanokiiro-azamiuma 削除: アセキノシル(IRAC 20B)はダニ特異的殺ダニ剤。MAFF#20187もダニ類のみ登録でアザミウマ(総翅目)は適用外
       { pesticideId: R(pMap, "mospilan-sl"), diseasePestId: R(dpMap, "aburamushi"), efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "mospilan-sl"), diseasePestId: R(dpMap, "konajirami"), efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "mospilan-sl"), diseasePestId: R(dpMap, "onshitsu-konajirami"), efficacyLevel: "good", persistenceLevel: "good" },
@@ -6244,7 +6243,7 @@ export async function main() {
       { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "hagusare-saikin-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "kaiyou-saikin-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "shougare-saikin-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "aogare-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },
+      // aogare-byo（青枯病）削除: Ralstonia による土壌伝染性・維管束性細菌病。銅剤の葉面散布は導管内・土壌中の菌に到達できず防除不能。Zボルドー(MAFF#24041)も青枯病は適用外
       { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "nanpu-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "hagare-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "excellent" },
       { pesticideId: R(pMap, "z-bordeaux"), diseasePestId: R(dpMap, "susu-byo"), preventionLevel: "excellent", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "excellent" },

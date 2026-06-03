@@ -223,7 +223,7 @@ describe('Comment Thread Mute Actions', async () => {
         commentId: 'comment-1',
       })
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       const result = await isThreadMuted('test-user-id', 'comment-1')
 
       expect(result).toBe(true)
@@ -232,7 +232,7 @@ describe('Comment Thread Mute Actions', async () => {
     it('ミュートされていない場合、falseを返す', async () => {
       mockPrisma.commentThreadMute.findUnique.mockResolvedValueOnce(null)
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       const result = await isThreadMuted('test-user-id', 'comment-1')
 
       expect(result).toBe(false)
@@ -241,7 +241,7 @@ describe('Comment Thread Mute Actions', async () => {
     it('findUniqueを正しい引数で呼び出す', async () => {
       mockPrisma.commentThreadMute.findUnique.mockResolvedValueOnce(null)
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       await isThreadMuted('user-abc', 'comment-xyz')
 
       expect(mockPrisma.commentThreadMute.findUnique).toHaveBeenCalledWith({
@@ -257,7 +257,7 @@ describe('Comment Thread Mute Actions', async () => {
     it('DBエラーが発生した場合、falseを返す', async () => {
       mockPrisma.commentThreadMute.findUnique.mockRejectedValueOnce(new Error('Database error'))
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       const result = await isThreadMuted('test-user-id', 'comment-1')
 
       expect(result).toBe(false)
@@ -266,7 +266,7 @@ describe('Comment Thread Mute Actions', async () => {
     it('undefinedが返った場合、falseを返す', async () => {
       mockPrisma.commentThreadMute.findUnique.mockResolvedValueOnce(undefined)
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       const result = await isThreadMuted('test-user-id', 'nonexistent-comment')
 
       expect(result).toBe(false)
@@ -275,7 +275,7 @@ describe('Comment Thread Mute Actions', async () => {
     it('認証チェックを行わない（userIdを引数で受け取る）', async () => {
       mockPrisma.commentThreadMute.findUnique.mockResolvedValueOnce(null)
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       // 認証モックをnullに設定してもisThreadMutedはエラーを返さない
       mockAuth.mockResolvedValueOnce(null)
       const result = await isThreadMuted('any-user-id', 'comment-1')
@@ -290,7 +290,7 @@ describe('Comment Thread Mute Actions', async () => {
         commentId: 'comment-A',
       })
 
-      const { isThreadMuted } = await import('@/lib/actions/comment-thread-mute')
+      const { isThreadMuted } = await import('@/lib/services/comment-thread-mute')
       const result = await isThreadMuted('user-1', 'comment-A')
 
       expect(result).toBe(true)

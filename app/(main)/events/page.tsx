@@ -9,12 +9,14 @@ import { ShowPastToggle } from '@/components/event/ShowPastToggle'
 import { EventFilterPersistence } from '@/components/event/EventFilterPersistence'
 import { Plus as PlusIcon, Calendar as CalendarIcon, List as ListIcon } from 'lucide-react'
 import { ROUTE_EVENTS, ROUTE_EVENTS_NEW } from '@/lib/constants/routes'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 
 export const revalidate = 300 // REVALIDATE_LIST_PAGE 相当（Next.js は revalidate に静的リテラルを要求）
 
 export const metadata = {
-  title: 'イベント - BON-LOG',
+  title: pageTitle('イベント'),
   description: '全国の盆栽展・愛好会・体験教室などのイベント情報。カレンダーと地域フィルターで開催予定を確認できます。',
+  alternates: { canonical: pageCanonical(ROUTE_EVENTS) },
 }
 
 interface EventsPageProps {

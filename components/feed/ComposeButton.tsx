@@ -81,7 +81,6 @@ export function ComposeButton({
 
   return (
     <>
-      {/* フローティング投稿ボタン（FAB） */}
       <div className="sticky bottom-20 md:bottom-6 pointer-events-none z-40">
         <div className="flex justify-end">
           <button
@@ -96,7 +95,6 @@ export function ComposeButton({
         </div>
       </div>
 
-      {/* 投稿モーダル */}
       <PostFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

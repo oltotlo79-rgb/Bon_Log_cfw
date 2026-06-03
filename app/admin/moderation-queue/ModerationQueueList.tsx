@@ -1,14 +1,10 @@
-/**
- * @file モデレーションキュー一覧コンポーネント
- * @description チェックボックスによる一括操作、個別の承認・却下ボタンを提供するクライアントコンポーネント。
- */
-
 'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { reviewModerationItem, bulkReviewModeration } from '@/lib/actions/admin/moderation'
+import { buildPostPath, buildEventPath, buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 import { useToast } from '@/hooks/use-toast'
 
 /**
@@ -26,9 +22,6 @@ interface ModerationItem {
   createdAt: string
 }
 
-/**
- * コンポーネントのProps型定義
- */
 interface ModerationQueueListProps {
   /** モデレーションアイテム一覧 */
   items: ModerationItem[]
@@ -71,15 +64,15 @@ const targetTypeLabels: Record<string, string> = {
 function getTargetLink(targetType: string, targetId: string): string | null {
   switch (targetType) {
     case 'post':
-      return `/posts/${targetId}`
+      return buildPostPath(targetId)
     case 'comment':
       return null
     case 'event':
-      return `/events/${targetId}`
+      return buildEventPath(targetId)
     case 'shop':
-      return `/shops/${targetId}`
+      return buildShopPath(targetId)
     case 'user':
-      return `/users/${targetId}`
+      return buildUserPath(targetId)
     default:
       return null
   }
@@ -153,7 +146,6 @@ export function ModerationQueueList({
 
   return (
     <>
-      {/* 一括操作バー */}
       {someSelected && (
         <div className="bg-card rounded-lg border p-4 flex items-center gap-4">
           <span className="text-sm font-medium">{selectedIds.size} 件選択中</span>
@@ -180,7 +172,6 @@ export function ModerationQueueList({
         </div>
       )}
 
-      {/* テーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">

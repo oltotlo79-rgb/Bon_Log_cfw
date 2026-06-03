@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file 農薬テーブルコンポーネント
- * @description 農薬データの検索・フィルタリング・ページネーション付きテーブルと削除機能を提供するClient Component。
- */
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -20,7 +16,6 @@ import {
 import { deletePesticide } from '@/lib/actions/admin/pesticide-data'
 import { ROUTE_ADMIN_PESTICIDE_DATA } from '@/lib/constants/routes'
 
-/** 農薬アイテムの型定義 */
 interface PesticideItem {
   id: string
   name: string
@@ -32,7 +27,6 @@ interface PesticideItem {
   updatedAt: string
 }
 
-/** コンポーネントのProps型定義 */
 interface PesticideTableProps {
   /** 農薬一覧 */
   pesticides: PesticideItem[]
@@ -96,7 +90,6 @@ export function PesticideTable({
     })
   }
 
-  /** 農薬を削除 */
   async function handleDelete(id: string, name: string) {
     if (!confirm(`「${name}」を削除してもよろしいですか？この操作は取り消せません。`)) {
       return
@@ -128,7 +121,6 @@ export function PesticideTable({
 
   return (
     <div className="bg-card rounded-lg border p-6">
-      {/* ヘッダー */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">農薬一覧</h2>
         <Link
@@ -140,9 +132,7 @@ export function PesticideTable({
         </Link>
       </div>
 
-      {/* フィルター */}
       <div className="flex flex-wrap gap-3 mb-4">
-        {/* 検索 */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -155,7 +145,6 @@ export function PesticideTable({
           />
         </div>
 
-        {/* 種別フィルター */}
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <select
@@ -172,7 +161,6 @@ export function PesticideTable({
           </select>
         </div>
 
-        {/* フィルターボタン */}
         <button
           onClick={() => applyFilters()}
           disabled={isPending}
@@ -190,7 +178,6 @@ export function PesticideTable({
         </button>
       </div>
 
-      {/* テーブル */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

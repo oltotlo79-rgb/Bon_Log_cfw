@@ -8,7 +8,7 @@ import { ROUTE_HORMONE_INTERACTIONS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: 'ホルモン相互作用 - 植物ホルモン - BON-LOG',
+  title: 'ホルモン相互作用 - 植物ホルモン',
   description: '植物ホルモン間の相乗・拮抗・調節関係を一覧で確認できます。',
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_INTERACTIONS) },
 }

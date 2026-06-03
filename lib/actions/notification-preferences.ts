@@ -13,6 +13,17 @@ import {
 import { actionZodError } from '@/lib/actions/schemas/common'
 import { ROUTE_SETTINGS_NOTIFICATIONS } from '@/lib/constants/routes'
 
+/**
+ * ユーザーが切り替え可能な通知種別。
+ *
+ * Prisma `NotificationType` enum (`schema.prisma:24-38`) と同期する必要があるが、
+ * `system` / `subscription_expiring` は重要なシステム通知のため意図的に除外する
+ * （ユーザーが誤って off にできてしまうと課金・運営告知が届かなくなるため）。
+ *
+ * 通知作成側 (`lib/services/notification-core.ts:130`) は
+ * `prefs[type] === false` のときだけ skip するので、未設定キーは default = true
+ * 扱いとなり後方互換が保たれる。
+ */
 export type NotificationPreferences = {
   like?: boolean
   comment?: boolean
@@ -22,6 +33,9 @@ export type NotificationPreferences = {
   quote?: boolean
   follow_request?: boolean
   follow_request_approved?: boolean
+  mention?: boolean
+  message?: boolean
+  repost?: boolean
 }
 
 const notificationPreferencesSchema = z
@@ -34,6 +48,9 @@ const notificationPreferencesSchema = z
     quote: z.boolean().optional(),
     follow_request: z.boolean().optional(),
     follow_request_approved: z.boolean().optional(),
+    mention: z.boolean().optional(),
+    message: z.boolean().optional(),
+    repost: z.boolean().optional(),
   })
   .strip()
 

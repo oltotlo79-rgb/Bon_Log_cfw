@@ -17,9 +17,9 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const ing = await getActiveIngredientBySlug(slug)
-  if (!ing) return { title: '原体が見つかりません - BON-LOG' }
+  if (!ing) return { title: '原体が見つかりません' }
   return {
-    title: `${ing.name} - 原体詳細 - BON-LOG`,
+    title: `${ing.name} - 原体詳細`,
     alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES_INGREDIENTS}/${slug}`) },
   }
 }

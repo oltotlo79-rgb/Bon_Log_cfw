@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 下書き管理のE2Eテスト
@@ -96,10 +97,8 @@ test.describe('下書き管理', () => {
       // 下書きの編集リンクをクリック
       const editLink = page.locator('a[href*="/drafts/"]').first()
       if (await editLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await editLink.click()
-
         // 下書き詳細または編集ページに遷移
-        await expect(page).toHaveURL(/\/drafts\//, { timeout: 10000 })
+        await clickAndWaitForUrl(page, editLink, /\/drafts\//, { timeout: 10000 })
       }
     })
 
@@ -116,8 +115,7 @@ test.describe('下書き管理', () => {
           return
         }
         const draftLink = draftLinks.first()
-        await draftLink.click()
-        await expect(page).toHaveURL(/\/drafts\//, { timeout: 10000 })
+        await clickAndWaitForUrl(page, draftLink, /\/drafts\//, { timeout: 10000 })
 
         // 編集ボタンを探す
         const editButton = page.locator('a[href*="/edit"], button:has-text("編集")').first()
@@ -174,8 +172,7 @@ test.describe('下書き管理', () => {
       // サイドバーまたはメニューの下書きリンク
       const draftsLink = page.locator('a[href="/drafts"]').first()
       if (await draftsLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await draftsLink.click()
-        await expect(page).toHaveURL(/\/drafts/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, draftsLink, /\/drafts/, { timeout: 10000 })
       }
     })
 

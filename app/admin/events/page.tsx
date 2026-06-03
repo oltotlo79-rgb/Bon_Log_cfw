@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation'
 import { EventActionsDropdown } from './EventActionsDropdown'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
-import { ROUTE_FEED } from '@/lib/constants/routes'
+import { ROUTE_FEED, ROUTE_ADMIN_EVENTS_IMPORT } from '@/lib/constants/routes'
+import { buildEventPath, buildUserPath } from '@/lib/constants/path-builders'
 
 export const metadata = {
   title: 'イベント管理 - BON-LOG 管理',
@@ -63,7 +64,7 @@ export default async function AdminEventsPage({ searchParams }: PageProps) {
         <h1 className="text-2xl font-bold">イベント管理</h1>
         <div className="flex items-center gap-4">
           <Link
-            href="/admin/events/import"
+            href={ROUTE_ADMIN_EVENTS_IMPORT}
             className="px-4 py-2 border rounded-lg hover:bg-muted text-sm"
           >
             外部イベントインポート
@@ -107,7 +108,7 @@ export default async function AdminEventsPage({ searchParams }: PageProps) {
               <tr key={event.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3">
                   <Link
-                    href={`/events/${event.id}`}
+                    href={buildEventPath(event.id)}
                     className="text-sm font-medium hover:underline line-clamp-1 max-w-[200px]"
                   >
                     {event.title}
@@ -116,7 +117,7 @@ export default async function AdminEventsPage({ searchParams }: PageProps) {
                 <td className="px-4 py-3">
                   {event.creator ? (
                   <Link
-                    href={`/users/${event.creator.id}`}
+                    href={buildUserPath(event.creator.id)}
                     className="text-sm hover:underline"
                   >
                     {event.creator.nickname}

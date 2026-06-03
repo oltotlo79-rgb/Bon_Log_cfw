@@ -65,6 +65,8 @@ describe('createComment extended', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1', isHidden: false })
   })
 
   it('returns error when not authenticated', async () => {
@@ -169,6 +171,13 @@ describe('getReplies extended', async () => {
 })
 
 describe('getCommentCount extended', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1', isHidden: false })
+  })
+
   it('returns comment count', async () => {
     mockPrisma.comment.count.mockResolvedValue(42)
     const { getCommentCount } = await import('@/lib/actions/comment')
@@ -184,6 +193,8 @@ describe('togglePostLike extended', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1', isHidden: false })
   })
 
   it('returns error when not authenticated', async () => {
@@ -264,6 +275,8 @@ describe('toggleBookmark extended', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1', isHidden: false })
   })
 
   it('returns error when not authenticated', async () => {

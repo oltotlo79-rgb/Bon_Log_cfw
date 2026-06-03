@@ -1,77 +1,15 @@
 /**
- * @file DraftEditForm.tsx
- * @description 下書き編集フォームコンポーネント
- *
- * このコンポーネントは、下書き投稿を編集するためのフォームUIを提供します。
- * テキスト編集、メディアアップロード、ジャンル選択、保存/投稿/削除の
- * 各機能を統合した編集画面です。
- *
- * @features
- * - テキスト編集（最大500文字、リアルタイム文字数カウント）
- * - 画像/動画のアップロード（画像は4枚まで、動画は1本）
- * - 画像の自動圧縮（クライアントサイド）
- * - アップロード進捗表示
- * - ジャンル選択（最大3つ）
- * - 下書き保存、投稿、削除の各アクション
- * - 大容量動画のR2直接アップロード対応
- *
- * @usage
- * ```tsx
- * <DraftEditForm draft={draftData} genres={genresByCategory} />
- * ```
+ * @module components/draft/DraftEditForm
  */
 'use client'
 
-/**
- * useState - コンポーネントの状態管理フック
- * フォーム入力値やローディング状態を管理
- */
-/**
- * useRef - DOM要素への参照を保持するフック
- * ファイル入力要素への参照に使用
- */
 import { useState, useRef, useEffect } from 'react'
-
-/**
- * useRouter - Next.jsのルーターフック
- * ページ遷移とデータ再検証に使用
- */
 import { useRouter } from 'next/navigation'
-
-/**
- * useQueryClient - React Queryのキャッシュ操作フック
- * 投稿後にタイムラインキャッシュを無効化するために使用
- */
 import { useQueryClient } from '@tanstack/react-query'
-
-/**
- * Button - shadcn/uiのボタンコンポーネント
- * 各種アクションボタンに使用
- */
 import { Button } from '@/components/ui/button'
-
-/**
- * Textarea - shadcn/uiのテキストエリアコンポーネント
- * 投稿本文の入力に使用
- */
 import { Textarea } from '@/components/ui/textarea'
-
-/**
- * saveDraft - 下書き保存のServer Action
- * publishDraft - 下書きを投稿に変換するServer Action
- * deleteDraft - 下書き削除のServer Action
- */
 import { saveDraft, publishDraft, deleteDraft } from '@/lib/actions/draft'
-
-/**
- * GenreSelector - ジャンル選択コンポーネント
- * 投稿のジャンル分類を選択するUI
- */
 import { GenreSelector } from '@/components/post/GenreSelector'
-
-/**
- * メディアアップロードフック
- */
 import { useMediaUpload } from '@/components/post/hooks/useMediaUpload'
 import { MAX_BONSAI_RECORD_IMAGES, MAX_POST_CONTENT_FREE, DRAFT_AUTOSAVE_DELAY_MS, DRAFT_AUTOSAVE_SAVED_DISPLAY_MS } from '@/lib/constants/limits'
 import { ROUTE_DRAFTS, ROUTE_FEED } from '@/lib/constants/routes'
@@ -86,72 +24,22 @@ import {
   MSG_ERROR_FALLBACK,
 } from '@/lib/constants/messages'
 
-/**
- * 下書き編集フォームコンポーネント
- *
- * 下書き投稿を編集するためのフルフィーチャーフォーム。
- * テキスト、メディア、ジャンルの編集と、保存/投稿/削除の各アクションを提供。
- *
- * @param props - コンポーネントプロパティ
- * @returns 編集フォームのReact要素
- */
 export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
 
-  /**
-   * Next.jsルーターインスタンス
-   * ページ遷移とデータ再検証に使用
-   */
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  /**
-   * 投稿本文を管理
-   * 初期値は下書きの現在の内容（nullの場合は空文字）
-   */
   const [content, setContent] = useState(draft.content || '')
-
-  /**
-   * 選択されたジャンルIDの配列を管理
-   * 初期値は下書きに紐づくジャンルのID
-   */
   const [selectedGenres, setSelectedGenres] = useState<string[]>(
     draft.genres.map((g) => g.genreId)
   )
-
-  /**
-   * 保存処理中の状態を管理
-   */
   const [saving, setSaving] = useState(false)
-
-  /**
-   * 投稿処理中の状態を管理
-   */
   const [publishing, setPublishing] = useState(false)
-
-  /**
-   * 削除処理中の状態を管理
-   */
   const [deleting, setDeleting] = useState(false)
-
-  /**
-   * エラーメッセージを管理
-   * null: エラーなし、string: エラー内容
-   */
   const [error, setError] = useState<string | null>(null)
-
-  /**
-   * 自動保存ステータスを管理
-   */
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-
-  /**
-   * 自動保存完了時刻を管理
-   */
   const [savedTime, setSavedTime] = useState('')
 
-  /**
-   * メディアアップロードフック
-   */
   const {
     mediaFiles,
     setMediaFiles,
@@ -174,25 +62,11 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /**
-   * 自動保存デバウンスタイマーへの参照
-   */
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  /**
-   * 自動保存完了表示タイマーへの参照
-   */
   const savedDisplayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  /**
-   * 初回レンダリングスキップ用フラグ
-   */
   const isMountedRef = useRef(false)
 
-  /** 投稿本文の最大文字数 */
   const maxChars = MAX_POST_CONTENT_FREE
-
-  /** 残り入力可能文字数 */
   const remainingChars = maxChars - content.length
 
   useEffect(() => {
@@ -245,12 +119,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, selectedGenres, mediaFiles])
 
-  /**
-   * 下書き保存ハンドラ
-   *
-   * 現在の編集内容を下書きとして保存し、
-   * 成功したら下書き一覧ページに戻る
-   */
   async function handleSave() {
     setSaving(true)
     setError(null)
@@ -276,20 +144,13 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
     }
   }
 
-  /**
-   * 投稿ハンドラ
-   *
-   * 確認ダイアログ後、まず保存してから投稿に変換。
-   * 成功したらフィードページに遷移。
-   */
   async function handlePublish() {
-    // 投稿確認ダイアログ
     if (!confirm(MSG_DRAFT_PUBLISH_CONFIRM)) return
 
     setPublishing(true)
     setError(null)
 
-    // まず保存してから投稿（編集内容を反映するため）
+    // 編集内容を反映するため、投稿変換前に保存する
     try {
       const saveResult = await saveDraft({
         id: draft.id,
@@ -304,7 +165,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
         return
       }
 
-      // 投稿に変換
       const result = await publishDraft(draft.id)
 
       if ('error' in result) {
@@ -321,14 +181,7 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
     }
   }
 
-  /**
-   * 削除ハンドラ
-   *
-   * 確認ダイアログ後、下書きを削除。
-   * 成功したら下書き一覧ページに戻る。
-   */
   async function handleDelete() {
-    // 削除確認ダイアログ
     if (!confirm('この下書きを削除しますか？')) return
 
     setDeleting(true)
@@ -349,7 +202,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
 
   return (
     <div className="space-y-4">
-      {/* 本文入力テキストエリア */}
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -359,7 +211,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
         className="resize-none"
       />
 
-      {/* 文字数カウント表示・自動保存インジケーター */}
       <div className="flex items-center justify-between">
         {autoSaveStatus !== 'idle' ? (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -383,7 +234,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
         </span>
       </div>
 
-      {/* メディアアップロードセクション */}
       <div className="flex items-center gap-2 flex-wrap">
         <SharedMediaUploadSection
           mediaFiles={mediaFiles}
@@ -399,7 +249,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
         />
       </div>
 
-      {/* ジャンル選択セクション */}
       <div>
         <label className="block text-sm font-medium mb-2">ジャンル</label>
         <GenreSelector
@@ -409,14 +258,11 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
         />
       </div>
 
-      {/* エラーメッセージ表示 */}
       {error && (
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      {/* アクションボタンセクション */}
       <div className="flex items-center justify-between pt-4 border-t">
-        {/* 左側: 削除ボタン */}
         <Button
           type="button"
           variant="destructive"
@@ -427,9 +273,7 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
           {deleting ? '削除中...' : '削除'}
         </Button>
 
-        {/* 右側: 保存・投稿ボタン */}
         <div className="flex gap-2">
-          {/* 下書き保存ボタン */}
           <Button
             type="button"
             variant="outline"
@@ -438,7 +282,6 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
           >
             {saving ? '保存中...' : '下書き保存'}
           </Button>
-          {/* 投稿ボタン - 内容がない場合や文字数オーバー時は無効化 */}
           <Button
             type="button"
             variant="bonsai"

@@ -290,6 +290,28 @@ describe('two-factor', () => {
 
       expect(decrypted).toBe(original)
     })
+
+    it('TWO_FACTOR_KEY_VERSION が不正な値だと暗号化時に例外を投げる', () => {
+      const original = process.env.TWO_FACTOR_KEY_VERSION
+      process.env.TWO_FACTOR_KEY_VERSION = 'bad-version'
+      try {
+        expect(() => encryptSecret('SECRET')).toThrow(/TWO_FACTOR_KEY_VERSION/)
+      } finally {
+        if (original === undefined) delete process.env.TWO_FACTOR_KEY_VERSION
+        else process.env.TWO_FACTOR_KEY_VERSION = original
+      }
+    })
+
+    it('バージョン指定の鍵 (v2) が未設定なら復号時に例外を投げる', () => {
+      // v2 プレフィックス付きの暗号文だが TWO_FACTOR_ENCRYPTION_KEY_v2 が無い状況
+      const v2Key = process.env.TWO_FACTOR_ENCRYPTION_KEY_v2
+      delete process.env.TWO_FACTOR_ENCRYPTION_KEY_v2
+      try {
+        expect(() => decryptSecret('v2:AAAAAAAAAAAAAAAAAAAAAA==')).toThrow(/v2/)
+      } finally {
+        if (v2Key !== undefined) process.env.TWO_FACTOR_ENCRYPTION_KEY_v2 = v2Key
+      }
+    })
   })
 
   // ============================================================

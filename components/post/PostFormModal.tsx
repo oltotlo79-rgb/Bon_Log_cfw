@@ -178,10 +178,8 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
     <>
     <InkDropOverlay active={inkDropActive} />
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* ヘッダー */}
       <div className="shrink-0 bg-background border-b">
         <div className="flex items-center justify-between px-4 py-3">
-          {/* 閉じるボタン */}
           <button
             type="button"
             onClick={handleClose}
@@ -190,7 +188,6 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
             <XIcon className="w-5 h-5" />
           </button>
 
-          {/* アクションボタン群 */}
           <div className="flex items-center gap-2">
             {draftCount > 0 && (
               <Link
@@ -225,10 +222,8 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
         </div>
       </div>
 
-      {/* フォーム */}
       <div className="flex-1 overflow-y-auto p-4 pb-24 max-w-2xl mx-auto w-full">
         <form onSubmit={handleSubmit}>
-          {/* テキスト入力エリア + メディアプレビュー */}
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -246,10 +241,8 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
             uploading={uploading}
           />
 
-          {/* メディア追加・文字数 */}
           <div className="flex items-center justify-between mt-4 pt-4 border-t">
             <div className="flex items-center gap-2">
-              {/* 非表示のファイル入力 */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -258,7 +251,6 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
                 multiple
                 className="hidden"
               />
-              {/* メディア追加ボタン */}
               <Button
                 type="button"
                 variant="ghost"
@@ -269,7 +261,6 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
                 <ImageIcon className="w-5 h-5" />
                 <span className="ml-1 text-sm">画像/動画</span>
               </Button>
-              {/* アンケートボタン（非アクティブ時） */}
               {!isPollActive && (
                 <PollForm
                   isActive={false}
@@ -280,7 +271,6 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
                   onDurationChange={setPollDuration}
                 />
               )}
-              {/* アップロード進捗表示 */}
               {uploading && (
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
@@ -294,20 +284,17 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
               )}
             </div>
 
-            {/* 残り文字数表示 */}
             <span className={`text-sm ${remainingChars < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
               {remainingChars}
             </span>
           </div>
 
-          {/* マイ盆栽選択 */}
           <BonsaiSelectorSection
             selectedBonsaiId={selectedBonsaiId || null}
             bonsaiList={bonsais}
             onChange={(id) => setSelectedBonsaiId(id ?? '')}
           />
 
-          {/* アンケートフォーム（アクティブ時） */}
           {isPollActive && (
             <div className="mt-4">
               <PollForm
@@ -321,7 +308,6 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
             </div>
           )}
 
-          {/* ジャンル選択 */}
           <div className="mt-4">
             <GenreSelector
               genres={genres}
@@ -330,7 +316,6 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
             />
           </div>
 
-          {/* エラーメッセージ */}
           {error && (
             <p className="text-sm text-destructive mt-4">{error}</p>
           )}

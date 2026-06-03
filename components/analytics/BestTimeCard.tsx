@@ -34,7 +34,6 @@ export function BestTimeCard({ peakHour, peakWeekday, hourlyData, weekdayData }:
 
   return (
     <div className="space-y-4">
-      {/* ベスト投稿時間 */}
       <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
           <Clock className="w-6 h-6 text-primary" />
@@ -48,7 +47,6 @@ export function BestTimeCard({ peakHour, peakWeekday, hourlyData, weekdayData }:
         </div>
       </div>
 
-      {/* ベスト曜日 */}
       <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
           <Calendar className="w-6 h-6 text-primary" />

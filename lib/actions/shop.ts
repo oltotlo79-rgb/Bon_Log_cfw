@@ -26,7 +26,9 @@ import {
   ERR_SHOP_NAME_REQUIRED,
   ERR_SHOP_ADDRESS_REQUIRED,
 } from '@/lib/constants/errors'
-import { MAX_SHOP_GENRES, MAX_ADDRESS_SUGGESTIONS, MIN_SEARCH_QUERY_LENGTH, MAX_ADDRESS_LENGTH, ADDRESS_SEARCH_TIMEOUT_MS, MAX_SHOPS_LIMIT, MAX_REVIEWS_PER_SHOP, GSI_ADDRESS_SEARCH_URL } from '@/lib/constants/limits'
+import { MAX_SHOP_GENRES, MAX_ADDRESS_SUGGESTIONS, MIN_SEARCH_QUERY_LENGTH, MAX_ADDRESS_LENGTH, ADDRESS_SEARCH_TIMEOUT_MS, MAX_SHOPS_LIMIT, MAX_REVIEWS_PER_SHOP, GSI_ADDRESS_SEARCH_URL, MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/limits'
+
+const shopIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
 import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import logger from '@/lib/logger'
 import { canUserEditShop } from '@/lib/services/authorization'
@@ -482,11 +484,14 @@ export async function deleteShop(shopId: string) {
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  const parsed = shopIdSchema.safeParse(shopId)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
   const rl = await enforceUserRateLimit(userId, 'delete_shop')
   if (rl) return actionError(rl.error)
 
   const shop = await prisma.bonsaiShop.findUnique({
-    where: { id: shopId },
+    where: { id: parsed.data },
     select: { createdBy: true },
   })
 
@@ -499,7 +504,7 @@ export async function deleteShop(shopId: string) {
   }
 
   await prisma.bonsaiShop.delete({
-    where: { id: shopId },
+    where: { id: parsed.data },
   })
 
   revalidatePath(ROUTE_SHOPS)
@@ -699,8 +704,12 @@ export async function updateShopGenres(shopId: string, genreIds: string[]) {
   return actionSuccess()
 }
 
-// 変更リクエスト関連のラッパー（'use server'ではasync functionのみexport可能）
-import type { ShopChangeRequestData as _ShopChangeRequestData } from '@/lib/services/shop-change-helpers'
+// 変更リクエスト関連は `lib/actions/shop-change-request.ts` に分離済み。
+// 既存 import 互換性のため `@/lib/actions/shop` 経由でも参照できるようラッパー経由で公開する。
+// Why wrappers (not `export { } from`):
+//   Next.js 16 (SWC) の `'use server'` 制約により、ファイル内では async function declaration のみが許可される。
+//   `export { name } from '...'` の re-export は build 時 SWC で reject される (vitest はこの制約を通すため要注意)。
+import type { ShopChangeRequestData as _ShopChangeRequestData } from '@/lib/shop/change-request'
 import {
   createShopChangeRequest as _createShopChangeRequest,
   getShopChangeRequests as _getShopChangeRequests,

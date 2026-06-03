@@ -9,6 +9,7 @@
 import { prisma } from '@/lib/db'
 import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
 import { revalidatePath } from 'next/cache'
+import { revalidateShopRatingsCache } from '@/lib/cache'
 import type { ReportTargetType, ReportStatus } from '@/lib/constants/report'
 import { TARGET_TYPE_LABELS } from '@/lib/constants/report'
 import { ADMIN_LOGS_PAGE_LIMIT } from '@/lib/constants/limits'
@@ -119,6 +120,9 @@ export async function deleteReportedContent(targetType: ReportTargetType, target
     }
 
     await prisma.report.deleteMany({ where: { targetType, targetId } })
+
+    // review 削除は店舗一覧の集計平均（getCachedShopRatings）に影響するため無効化する
+    if (targetType === 'review') revalidateShopRatingsCache()
 
     const label = TARGET_TYPE_LABELS[targetType]
     await prisma.adminLog.create({

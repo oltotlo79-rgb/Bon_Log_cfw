@@ -27,6 +27,7 @@ export const MSG_RETRY_AFTER_WAIT = 'しばらく経ってから再度お試し�
 
 // 投稿
 export const MSG_POST_SUCCESS = '投稿しました'
+export const MSG_POST_UPDATED = '投稿を更新しました'
 export const MSG_POST_FAILED = '投稿に失敗しました'
 export const MSG_POST_DELETED = '投稿を削除しました'
 export const MSG_POST_DELETE_FAILED = '投稿の削除に失敗しました。再度お試しください'
@@ -49,6 +50,13 @@ export const MSG_LIKE_REMOVED = 'いいねを取り消しました'
 export const MSG_BOOKMARK_FAILED = 'ブックマークに失敗しました。再度お試しください'
 export const MSG_BOOKMARK_ADDED = 'ブックマークに追加しました'
 export const MSG_BOOKMARK_REMOVED = 'ブックマークを解除しました'
+
+// リポスト / 引用
+export const MSG_REPOST_DONE = 'リポストしました'
+export const MSG_REPOST_UNDONE = 'リポストを取り消しました'
+export const MSG_REPOST_FAILED = 'リポストに失敗しました。再度お試しください'
+export const MSG_QUOTE_DONE = '引用投稿しました'
+export const MSG_QUOTE_FAILED = '引用投稿に失敗しました。再度お試しください'
 
 // 盆栽
 export const MSG_BONSAI_DELETE_FAILED = '削除に失敗しました'
@@ -125,6 +133,7 @@ export const MSG_UPLOAD_FAILED = 'アップロードに失敗しました'
 
 // コメント
 export const MSG_COMMENT_DELETED = '削除されたコメントです'
+export const MSG_COMMENT_UPDATED = 'コメントを更新しました'
 
 // ログインフォーム固有（ERR_* と重複しない UI 専用）
 export const MSG_LOGIN_ERROR = 'ログイン中にエラーが発生しました。再度お試しください。'

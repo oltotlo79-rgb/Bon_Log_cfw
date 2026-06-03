@@ -473,20 +473,16 @@ describe('Search Actions 拡張テスト', async () => {
       expect(result.bonsais[0].name).toBe('テスト盆栽')
     })
 
-    it('userIdでフィルタリングできる', async () => {
+    it('引数 userId を信用せず認証ユーザーの盆栽のみ対象にする', async () => {
       mockPrisma.bonsai.findMany.mockResolvedValue([])
 
       const { searchBonsais } = await import('@/lib/actions/search')
-      // searchBonsais(query, cursor?, limit?, userId?)
-      await searchBonsais('テスト', undefined, 20, 'user-1')
+      // 旧シグネチャの第4引数（他者ID）を渡しても無視される
+      await (searchBonsais as unknown as (q: string, c: undefined, l: number, u: string) => Promise<unknown>)('テスト', undefined, 20, 'user-1')
 
       expect(mockPrisma.bonsai.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            AND: expect.arrayContaining([
-              { userId: 'user-1' },
-            ]),
-          }),
+          where: expect.objectContaining({ userId: mockUser.id }),
         })
       )
     })

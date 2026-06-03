@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file コンテンツ分析クライアントコンポーネント
- * @description 日別エンゲージメントテーブルとCSVエクスポートボタンを提供。
- */
 
 import { useState, useTransition } from 'react'
 import { Download, Loader2 } from 'lucide-react'

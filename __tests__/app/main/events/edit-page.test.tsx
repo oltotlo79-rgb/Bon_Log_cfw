@@ -49,7 +49,7 @@ describe('イベント編集ページ', async () => {
       const { generateMetadata } = await import('@/app/(main)/events/[id]/edit/page')
       const metadata = await generateMetadata({ params: Promise.resolve({ id: 'event-1' }) })
 
-      expect(metadata.title).toBe('盆栽展示会を編集 - BON-LOG')
+      expect(metadata.title).toBe('盆栽展示会を編集')
     })
 
     it('イベントが存在しない場合、フォールバックタイトルを返す', async () => {
@@ -61,7 +61,7 @@ describe('イベント編集ページ', async () => {
       const { generateMetadata } = await import('@/app/(main)/events/[id]/edit/page')
       const metadata = await generateMetadata({ params: Promise.resolve({ id: 'invalid' }) })
 
-      expect(metadata.title).toBe('イベントが見つかりません - BON-LOG')
+      expect(metadata.title).toBe('イベントが見つかりません')
     })
   })
 

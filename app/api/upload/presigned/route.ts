@@ -13,7 +13,7 @@
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
+import { requireUploadUser } from '../_shared/require-upload-user'
 import {
   ALLOWED_UPLOAD_FOLDERS,
   ALLOWED_UPLOAD_VIDEO_TYPES,
@@ -23,7 +23,6 @@ import {
   UPLOAD_MIME_EXTENSION_MAP,
 } from '@/lib/constants/limits'
 import {
-  ERR_AUTH_REQUIRED,
   ERR_DAILY_UPLOAD_LIMIT,
   ERR_PRESIGNED_URL_FAILED,
   ERR_RATE_LIMIT_UPLOAD,
@@ -60,11 +59,10 @@ const presignedUploadSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. 認証
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: ERR_AUTH_REQUIRED }, { status: 401 })
-    }
+    // 1. 認証 + 認可 (停止 / ゲストは quota 消費前に拒否し、Server Action と同じポリシーに揃える)
+    const userResult = await requireUploadUser()
+    if (!userResult.ok) return userResult.response
+    const userId = userResult.userId
 
     // 2. 入力検証 (未検証入力で rate / daily limit を消費しないため auth の直後)
     const body: unknown = await request.json()
@@ -96,13 +94,13 @@ export async function POST(request: NextRequest) {
     const { contentType, fileSize, folder } = parsed.data
 
     // 3. レート制限 / 日次上限 (Zod 通過後に消費)
-    const rateLimitResult = await checkUserRateLimit(session.user.id, 'upload')
+    const rateLimitResult = await checkUserRateLimit(userId, 'upload')
     if (!rateLimitResult.success) {
       return NextResponse.json({ error: ERR_RATE_LIMIT_UPLOAD }, { status: 429 })
     }
 
     // R2 課金保護のため Redis 障害時も fail-closed
-    const dailyLimitResult = await checkDailyLimit(session.user.id, 'upload', {
+    const dailyLimitResult = await checkDailyLimit(userId, 'upload', {
       failOpen: false,
     })
     if (!dailyLimitResult.allowed) {

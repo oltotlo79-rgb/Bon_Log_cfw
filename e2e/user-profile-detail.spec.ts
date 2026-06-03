@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ユーザープロフィール詳細ページのE2Eテスト
@@ -29,8 +30,7 @@ test.describe('ユーザープロフィール詳細', () => {
       await page.goto('/feed')
       const profileLink = page.locator('a[href^="/users/"]').first()
       if (await profileLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await profileLink.click()
-        await expect(page).toHaveURL(/\/users\//, { timeout: 10000 })
+        await clickAndWaitForUrl(page, profileLink, /\/users\//, { timeout: 10000 })
       }
       return
     }

@@ -61,7 +61,9 @@ vi.mock('@/lib/storage', () => ({
 beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.mockResolvedValue({ user: { id: 'u1', email: 'user@example.com' } })
-  mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+  mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+  // コメント対象投稿は閲覧可能（本人の非表示でない投稿）を既定とする
+  mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1', isHidden: false })
 })
 
 describe('createComment - notifyCommentParticipants error path (line 139)', () => {

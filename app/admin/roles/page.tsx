@@ -1,9 +1,3 @@
-/**
- * @file 管理者ロール管理ページ
- * @description 管理者ユーザーの一覧表示・ロール変更・追加・削除を行う管理者ページ。
- * @route /admin/roles
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getAdminRoles } from '@/lib/actions/admin/roles'
@@ -55,7 +49,6 @@ export default async function RolesPage() {
         </div>
       </div>
 
-      {/* ロール集計サマリーカード */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {(Object.entries(ROLE_LABELS) as [AdminRole, string][]).map(([role, label]) => (
           <div key={role} className="rounded-lg border bg-card p-3 text-center">
@@ -74,10 +67,8 @@ export default async function RolesPage() {
         ))}
       </div>
 
-      {/* ロール別の権限詳細（できる/できないをカテゴリ別に表示） */}
       <RoleAbilityDetails />
 
-      {/* 管理者一覧 */}
       <div className="rounded-lg border bg-card">
         <div className="p-4 border-b">
           <h2 className="font-semibold">管理者一覧（{admins.length}名）</h2>

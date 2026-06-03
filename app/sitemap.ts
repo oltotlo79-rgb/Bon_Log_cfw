@@ -59,6 +59,12 @@ import {
   ROUTE_TOKUSHOHO,
 } from '@/lib/constants/routes'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
+import {
+  buildUserPath,
+  buildPostPath,
+  buildShopPath,
+  buildEventPath,
+} from '@/lib/constants/path-builders'
 
 export const dynamic = 'force-dynamic'
 
@@ -245,28 +251,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ])
 
   const userPages: MetadataRoute.Sitemap = users.map((user: typeof users[number]) => ({
-    url: `${baseUrl}/users/${user.id}`,
+    url: `${baseUrl}${buildUserPath(user.id)}`,
     lastModified: user.updatedAt,
     changeFrequency: 'weekly' as const,
     priority: 0.6,
   }))
 
   const postPages: MetadataRoute.Sitemap = posts.map((post: typeof posts[number]) => ({
-    url: `${baseUrl}/posts/${post.id}`,
+    url: `${baseUrl}${buildPostPath(post.id)}`,
     lastModified: post.createdAt,
     changeFrequency: 'monthly' as const,
     priority: 0.5,
   }))
 
   const shopPages: MetadataRoute.Sitemap = shops.map((shop: typeof shops[number]) => ({
-    url: `${baseUrl}/shops/${shop.id}`,
+    url: `${baseUrl}${buildShopPath(shop.id)}`,
     lastModified: shop.updatedAt,
     changeFrequency: 'weekly' as const,
     priority: 0.7,
   }))
 
   const eventPages: MetadataRoute.Sitemap = events.map((event: typeof events[number]) => ({
-    url: `${baseUrl}/events/${event.id}`,
+    url: `${baseUrl}${buildEventPath(event.id)}`,
     lastModified: event.createdAt,
     changeFrequency: 'weekly' as const,
     priority: 0.7,

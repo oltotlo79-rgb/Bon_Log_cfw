@@ -5,7 +5,6 @@
 
 import { getMaintenanceSettings } from '@/lib/actions/maintenance'
 import { auth } from '@/lib/auth'
-import Link from 'next/link'
 import { MaintenanceLogoutButton } from './logout-button'
 import type { Metadata } from 'next'
 
@@ -66,22 +65,18 @@ export default async function MaintenancePage() {
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-        {/* アイコン */}
         <div className="mx-auto w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
           <WrenchIcon className="w-10 h-10 text-muted-foreground" />
         </div>
 
-        {/* タイトル */}
         <h1 className="text-2xl font-bold text-gray-800 mb-4">
           メンテナンス中
         </h1>
 
-        {/* メッセージ */}
         <p className="text-gray-600 mb-6 whitespace-pre-wrap">
           {settings.message || 'ただいまメンテナンス中です。しばらくお待ちください。'}
         </p>
 
-        {/* メンテナンス期間 */}
         {(settings.startTime || settings.endTime) && (
           <div className="bg-gray-50 rounded-lg p-4 mb-6 text-sm text-gray-600">
             <p className="font-medium text-gray-800 mb-2">メンテナンス期間</p>
@@ -94,18 +89,23 @@ export default async function MaintenancePage() {
           </div>
         )}
 
-        {/* ログアウトボタン */}
         {isLoggedIn && (
           <div className="mb-6">
             <MaintenanceLogoutButton />
           </div>
         )}
 
-        {/* ロゴ */}
         <div className="mt-8 pt-6 border-t">
-          <Link href="/" className="text-foreground font-bold text-xl">
+          {/*
+            意図的に `next/link` ではなく素の `<a>` を使う。
+            Why: proxy.ts は `/` をログイン状態に応じて `/feed` にリダイレクトする。
+            Router Cache がログイン中の `/` → `/feed` redirect を保持していると、
+            ログアウト後でも `/feed` に飛ばされる事象が発生する。full-page nav で回避する。
+          */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/" className="text-foreground font-bold text-xl">
             BON-LOG
-          </Link>
+          </a>
           <p className="text-xs text-gray-400 mt-1">
             盆栽愛好家のためのSNS
           </p>

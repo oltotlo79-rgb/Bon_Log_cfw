@@ -102,21 +102,6 @@ export async function isMaintenanceMode(): Promise<boolean> {
 }
 
 /**
- * 現在のユーザーが管理者かどうかをチェック
- * proxy.tsから呼び出し可能なバージョン
- */
-export async function checkIsAdmin(userId: string): Promise<boolean> {
-  try {
-    const adminUser = await prisma.adminUser.findUnique({
-      where: { userId },
-    })
-    return !!adminUser
-  } catch {
-    return false
-  }
-}
-
-/**
  * メンテナンス設定を更新（管理者のみ）
  */
 export async function updateMaintenanceSettings(

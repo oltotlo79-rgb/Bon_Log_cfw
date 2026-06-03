@@ -88,3 +88,12 @@ npx prisma db push         # 開発: スキーマを直接反映
 npx prisma migrate dev     # 開発: マイグレーションファイル作成
 npx prisma migrate deploy  # 本番: マイグレーション適用
 ```
+
+## Supabase Data API 非使用方針
+
+DB アクセスは **Prisma の postgres ロール経由のみ**。Supabase Data API (PostgREST `/rest/v1/*`、GraphQL `/graphql/v1`、`supabase-js` クライアント) は一切使用しない。
+- `@supabase/supabase-js` 等のクライアント依存追加は禁止（ESLint `no-restricted-imports` で阻止）。
+- `https://*.supabase.co/rest/v1/...` や `/graphql/v1/...` への直接 fetch も禁止。
+- クライアントから DB に触れる必要がある場合は必ず Server Action 経由。
+- 新規テーブル作成時、`anon` / `authenticated` への GRANT は **絶対に付与しない**。`prisma migrate` で生成される CREATE TABLE には自動で grant されないが、Supabase Dashboard の Table Editor / SQL Editor で作った場合は手動 REVOKE が必要。
+- `prisma/migrations/20260527000000_revoke_data_api_grants_from_public/` で既存 grant + 将来のデフォルト grant を全て剥がしている (`ALTER DEFAULT PRIVILEGES FOR ROLE postgres ... REVOKE`)。Dashboard 側でも Exposed schemas/tables を 0 化済み。両者を Defense in Depth として併用する。

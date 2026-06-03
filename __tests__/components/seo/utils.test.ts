@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { safeJsonLdStringify } from '@/components/seo/utils'
+import {
+  safeJsonLdStringify,
+  parseAdmissionFeeToOfferPrice,
+  isSchemaOrgOpeningHours,
+} from '@/components/seo/utils'
 
 describe('safeJsonLdStringify', () => {
   it('通常のオブジェクトをJSONシリアライズする', () => {
@@ -83,5 +87,51 @@ describe('safeJsonLdStringify', () => {
     const result = safeJsonLdStringify(data)
     const matches = result.match(/<\/script/gi)
     expect(matches).toBeNull()
+  })
+})
+
+describe('parseAdmissionFeeToOfferPrice', () => {
+  it('null / undefined / 空文字は null を返す', () => {
+    expect(parseAdmissionFeeToOfferPrice(null)).toBeNull()
+    expect(parseAdmissionFeeToOfferPrice(undefined)).toBeNull()
+    expect(parseAdmissionFeeToOfferPrice('')).toBeNull()
+    expect(parseAdmissionFeeToOfferPrice('   ')).toBeNull()
+  })
+
+  it('無料表記は "0" を返す', () => {
+    expect(parseAdmissionFeeToOfferPrice('無料')).toBe('0')
+    expect(parseAdmissionFeeToOfferPrice('入場無料')).toBe('0')
+    expect(parseAdmissionFeeToOfferPrice('Free')).toBe('0')
+    expect(parseAdmissionFeeToOfferPrice('むりょう')).toBe('0')
+  })
+
+  it('数値（カンマ区切り含む）を抽出して文字列で返す', () => {
+    expect(parseAdmissionFeeToOfferPrice('1,000円')).toBe('1000')
+    expect(parseAdmissionFeeToOfferPrice('前売1,000円 当日1,500円')).toBe('1000')
+    expect(parseAdmissionFeeToOfferPrice('￥500')).toBe('500')
+    expect(parseAdmissionFeeToOfferPrice('500円〜')).toBe('500')
+  })
+
+  it('数値を含まない自由記述は null を返す（offers を省略させる）', () => {
+    expect(parseAdmissionFeeToOfferPrice('応相談')).toBeNull()
+    expect(parseAdmissionFeeToOfferPrice('お問い合わせください')).toBeNull()
+  })
+})
+
+describe('isSchemaOrgOpeningHours', () => {
+  it('schema.org トークン形式に一致する値は true', () => {
+    expect(isSchemaOrgOpeningHours('Mo-Fr 09:00-17:00')).toBe(true)
+    expect(isSchemaOrgOpeningHours('Sa 10:00-15:00')).toBe(true)
+    expect(isSchemaOrgOpeningHours('Mo,We,Fr 09:00-12:00')).toBe(true)
+    expect(isSchemaOrgOpeningHours('Mo-Fr 09:00-12:00,13:00-17:00')).toBe(true)
+    expect(isSchemaOrgOpeningHours('Mo-Fr 09:00-17:00; Sa 10:00-15:00')).toBe(true)
+  })
+
+  it('自由記述（日本語等）は false', () => {
+    expect(isSchemaOrgOpeningHours('平日9:00〜18:00 土日祝休み')).toBe(false)
+    expect(isSchemaOrgOpeningHours('10:00-17:00')).toBe(false) // 曜日が無い
+    expect(isSchemaOrgOpeningHours('Mo-Fr')).toBe(false) // 時刻が無い
+    expect(isSchemaOrgOpeningHours('年中無休')).toBe(false)
+    expect(isSchemaOrgOpeningHours('')).toBe(false)
   })
 })

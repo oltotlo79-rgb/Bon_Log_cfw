@@ -14,6 +14,7 @@ const mockPrisma = {
   pesticideIncompatibility: { findMany: vi.fn() },
 }
 
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockRequireAuth = vi.fn()
@@ -29,16 +30,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getDiseasePests', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getDiseasePests } = await import('@/lib/actions/pesticide')
-      const result = await getDiseasePests()
-
-      expect(result).toEqual({ diseasePests: [], error: '認証が必要です' })
-      expect(mockPrisma.diseasePest.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は病害虫一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -122,16 +113,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getPesticides', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getPesticides } = await import('@/lib/actions/pesticide')
-      const result = await getPesticides()
-
-      expect(result).toEqual({ pesticides: [], error: '認証が必要です' })
-      expect(mockPrisma.pesticide.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は薬剤一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [{ id: 'p1', name: 'トリフミン乳剤', slug: 'trifumin-ec' }]
@@ -236,16 +217,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getFormulationTypes', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getFormulationTypes } = await import('@/lib/actions/pesticide')
-      const result = await getFormulationTypes()
-
-      expect(result).toEqual({ formulations: [], error: '認証が必要です' })
-      expect(mockPrisma.formulationType.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は剤型一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [{ id: 'ft1', code: 'EC', name: '乳剤' }]
@@ -260,16 +231,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getFormulationTypeByCode', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getFormulationTypeByCode } = await import('@/lib/actions/pesticide')
-      const result = await getFormulationTypeByCode('EC')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.formulationType.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はcodeで取得する', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const row = { id: 'ft1', code: 'EC', name: '乳剤' }
@@ -286,16 +247,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getDiseasePestBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getDiseasePestBySlug } = await import('@/lib/actions/pesticide')
-      const result = await getDiseasePestBySlug('udonko-byo')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.diseasePest.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はslugで取得する', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const row = { id: 'dp1', name: 'うどんこ病', slug: 'udonko-byo', effects: [] }
@@ -312,16 +263,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getPesticideBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getPesticideBySlug } = await import('@/lib/actions/pesticide')
-      const result = await getPesticideBySlug('trifumin-ec')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.pesticide.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はslugで取得する', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const row = { id: 'p1', name: 'トリフミン乳剤', slug: 'trifumin-ec' }
@@ -360,16 +301,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getActiveIngredients', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getActiveIngredients } = await import('@/lib/actions/pesticide')
-      const result = await getActiveIngredients()
-
-      expect(result).toEqual({ ingredients: [], error: '認証が必要です' })
-      expect(mockPrisma.activeIngredient.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は原体一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [{ id: 'ai1', name: 'トリフミゾール', slug: 'trifumizole', _count: { pesticides: 3 } }]
@@ -405,16 +336,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getActiveIngredientBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getActiveIngredientBySlug } = await import('@/lib/actions/pesticide')
-      const result = await getActiveIngredientBySlug('trifumizole')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.activeIngredient.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はslugで取得する', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const row = { id: 'ai1', name: 'トリフミゾール', slug: 'trifumizole', pesticides: [] }
@@ -431,16 +352,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getSpreaderTypes', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getSpreaderTypes } = await import('@/lib/actions/pesticide')
-      const result = await getSpreaderTypes()
-
-      expect(result).toEqual({ spreaders: [], error: '認証が必要です' })
-      expect(mockPrisma.spreaderType.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は展着剤タイプ一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [{ id: 'st1', name: '非イオン', slug: 'non-ionic' }]
@@ -455,16 +366,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getSpreaderProducts', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getSpreaderProducts } = await import('@/lib/actions/pesticide')
-      const result = await getSpreaderProducts()
-
-      expect(result).toEqual({ pesticides: [], error: '認証が必要です' })
-      expect(mockPrisma.pesticide.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は spreaderTypes を持つ薬剤一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -509,16 +410,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getSpreaderTypeBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getSpreaderTypeBySlug } = await import('@/lib/actions/pesticide')
-      const result = await getSpreaderTypeBySlug('non-ionic')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.spreaderType.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はslugで取得する（includeなし）', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const row = { id: 'st1', name: '非イオン', slug: 'non-ionic' }
@@ -535,16 +426,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getColumns', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getColumns } = await import('@/lib/actions/pesticide')
-      const result = await getColumns()
-
-      expect(result).toEqual({ columns: [], error: '認証が必要です' })
-      expect(mockPrisma.pesticideColumn.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はコラム一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [{ id: 'pc1', title: '農薬の基礎', slug: 'basics', publishedAt: new Date() }]
@@ -577,16 +458,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getColumnBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getColumnBySlug } = await import('@/lib/actions/pesticide')
-      const result = await getColumnBySlug('basics')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.pesticideColumn.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はslugで取得する', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const row = { id: 'pc1', title: '農薬の基礎', slug: 'basics' }
@@ -603,14 +474,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getPesticideIncompatibilities', () => {
-    it('未認証の場合は空配列とエラーを返し、prisma を呼ばない', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-      const { getPesticideIncompatibilities } = await import('@/lib/actions/pesticide')
-      const result = await getPesticideIncompatibilities()
-      expect(result).toEqual({ incompatibilities: [], error: '認証が必要です' })
-      expect(mockPrisma.pesticideIncompatibility.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は混用不可リストを { pesticideId, incompatibleWithId } のみ select で返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'u1' })
       const list = [
@@ -628,14 +491,6 @@ describe('Pesticide Actions', () => {
   })
 
   describe('getPesticideOptions', () => {
-    it('未認証の場合は空配列とエラーを返し、prisma を呼ばない', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-      const { getPesticideOptions } = await import('@/lib/actions/pesticide')
-      const result = await getPesticideOptions()
-      expect(result).toEqual({ pesticides: [], error: '認証が必要です' })
-      expect(mockPrisma.pesticide.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は id/name/slug/pesticideType の minimal フィールドで返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'u1' })
       const list = [

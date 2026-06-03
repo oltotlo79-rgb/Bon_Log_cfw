@@ -1,17 +1,9 @@
-/**
- * @file メンテナンス設定フォームコンポーネント
- * @description メンテナンスモードの有効化・無効化、期間設定、メッセージ設定を行うフォーム。
- *              クイックアクションで即座にメンテナンスモードを切り替え、または
- *              詳細設定で開始・終了時刻やカスタムメッセージを指定できる。
- */
-
 'use client'
 
 // ReactのuseStateフック（状態管理用）
 import { useState, useTransition } from 'react'
 // Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
-// メンテナンス設定更新のServer Actionと型定義
 import {
   updateMaintenanceSettings,
   type MaintenanceSettings,
@@ -20,9 +12,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { TIMEOUT_TOAST } from '@/lib/constants/limits'
 
-/**
- * MaintenanceFormコンポーネントのProps型定義
- */
 interface MaintenanceFormProps {
   /** 現在のメンテナンス設定 */
   settings: MaintenanceSettings
@@ -144,7 +133,6 @@ export function MaintenanceForm({ settings }: MaintenanceFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* クイックアクション */}
       <div className="flex gap-4">
         <Button
           type="button"
@@ -164,7 +152,6 @@ export function MaintenanceForm({ settings }: MaintenanceFormProps) {
         </Button>
       </div>
 
-      {/* メンテナンス期間設定 */}
       <div className="border-t pt-6">
         <h3 className="font-medium mb-4">メンテナンス期間（任意）</h3>
         <div className="grid gap-4 md:grid-cols-2">
@@ -199,7 +186,6 @@ export function MaintenanceForm({ settings }: MaintenanceFormProps) {
         </div>
       </div>
 
-      {/* メッセージ設定 */}
       <div className="border-t pt-6">
         <h3 className="font-medium mb-4">表示メッセージ</h3>
         <textarea
@@ -211,7 +197,6 @@ export function MaintenanceForm({ settings }: MaintenanceFormProps) {
         />
       </div>
 
-      {/* エラー/成功メッセージ */}
       {error && (
         <div className="bg-muted/50 border border-border text-destructive px-4 py-3 rounded-lg">
           {error}
@@ -223,7 +208,6 @@ export function MaintenanceForm({ settings }: MaintenanceFormProps) {
         </div>
       )}
 
-      {/* 保存ボタン */}
       <div className="border-t pt-6">
         <Button
           type="submit"

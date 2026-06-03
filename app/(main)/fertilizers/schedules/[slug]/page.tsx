@@ -19,9 +19,9 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const species = await getFertilizationSchedule(slug)
-  if (!species) return { title: '樹種が見つかりません - BON-LOG' }
+  if (!species) return { title: '樹種が見つかりません' }
   return {
-    title: `${species.name} 施肥スケジュール - 施肥ガイド - BON-LOG`,
+    title: `${species.name} 施肥スケジュール - 施肥ガイド`,
     alternates: { canonical: pageCanonical(`${ROUTE_FERTILIZERS_SCHEDULES}/${slug}`) },
   }
 }
@@ -117,7 +117,6 @@ export default async function ScheduleDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 季節サマリー */}
       {species.plans.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground">季節ごとの施肥傾向</h2>
@@ -139,7 +138,6 @@ export default async function ScheduleDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 年間タイムライン */}
       {species.plans.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">年間施肥タイムライン</h2>
@@ -149,7 +147,6 @@ export default async function ScheduleDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 月別カレンダー */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">月別施肥カレンダー</h2>
         <FertilizationCalendar plans={species.plans} />

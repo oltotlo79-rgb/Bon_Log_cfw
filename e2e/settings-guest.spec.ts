@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ゲスト時の設定ページ制限 E2E
@@ -13,8 +14,7 @@ test.describe('ゲスト時の設定ページ制限', () => {
   test('ゲストでプロフィール編集にアクセスすると案内が表示される', async ({ page }) => {
     await page.goto('/')
     const guestButton = page.getByRole('button', { name: 'のぞいてみる' }).first()
-    await guestButton.click({ timeout: 10000 })
-    await expect(page).toHaveURL(/\/(feed|)\/?/, { timeout: 15000 })
+    await clickAndWaitForUrl(page, guestButton, /\/(feed|)\/?/, { timeout: 15000 })
 
     await page.goto('/settings/profile')
     await expect(page).toHaveURL(/\/settings\/profile/, { timeout: 10000 })
@@ -26,8 +26,7 @@ test.describe('ゲスト時の設定ページ制限', () => {
   test('ゲストでアカウント設定にアクセスすると案内が表示される', async ({ page }) => {
     await page.goto('/')
     const guestButton = page.getByRole('button', { name: 'のぞいてみる' }).first()
-    await guestButton.click({ timeout: 10000 })
-    await expect(page).toHaveURL(/\/(feed|)\/?/, { timeout: 15000 })
+    await clickAndWaitForUrl(page, guestButton, /\/(feed|)\/?/, { timeout: 15000 })
 
     await page.goto('/settings/account')
     await expect(page).toHaveURL(/\/settings\/account/, { timeout: 10000 })

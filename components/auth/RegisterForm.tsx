@@ -229,7 +229,6 @@ export function RegisterForm() {
         </Link>
       </p>
 
-      {/* ソーシャルログイン区切り線 */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
@@ -239,7 +238,6 @@ export function RegisterForm() {
         </div>
       </div>
 
-      {/* Googleで登録ボタン */}
       <Button
         type="button"
         variant="outline"

@@ -1856,9 +1856,8 @@ describe('PostCard - Click Handlers Coverage', async () => {
       fireEvent.click(avatarLink)
     })
 
-    // Router push for post detail should NOT have been called
-    // (stopPropagation prevents the article onClick from firing)
-    // Note: The link itself has href, so clicking it might cause navigation via the mock
+    // stopPropagation on the avatar link prevents the article onClick from firing
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/post-1')
   })
 
   it('username link click stops propagation', async () => {
@@ -1869,6 +1868,9 @@ describe('PostCard - Click Handlers Coverage', async () => {
     await act(async () => {
       fireEvent.click(usernameLink)
     })
+
+    // stopPropagation on the username link prevents post-detail navigation
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/post-1')
   })
 
   it('repost link click stops propagation', async () => {
@@ -1892,6 +1894,9 @@ describe('PostCard - Click Handlers Coverage', async () => {
     await act(async () => {
       fireEvent.click(reposterLink)
     })
+
+    // stopPropagation on the reposter link prevents navigation to the reposted detail
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/original-post')
   })
 
   it('quoted post wrapper click stops propagation', async () => {
@@ -1912,6 +1917,9 @@ describe('PostCard - Click Handlers Coverage', async () => {
     await act(async () => {
       fireEvent.click(quotedPostDiv)
     })
+
+    // The quoted-post wrapper stops propagation, so the card does not navigate
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/post-1')
   })
 
   it('genre tag link click stops propagation', async () => {
@@ -1922,6 +1930,9 @@ describe('PostCard - Click Handlers Coverage', async () => {
     await act(async () => {
       fireEvent.click(genreLink)
     })
+
+    // stopPropagation on the genre tag prevents the card from navigating
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/post-1')
   })
 
   it('action buttons area click stops propagation', async () => {
@@ -1935,6 +1946,9 @@ describe('PostCard - Click Handlers Coverage', async () => {
     await act(async () => {
       fireEvent.click(actionsDiv)
     })
+
+    // The actions row stops propagation, so the card does not navigate
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/post-1')
   })
 
   it('menu container div click stops propagation', async () => {
@@ -1948,6 +1962,9 @@ describe('PostCard - Click Handlers Coverage', async () => {
     await act(async () => {
       fireEvent.click(menuContainer)
     })
+
+    // The menu container stops propagation, so the card does not navigate
+    expect(mockPush).not.toHaveBeenCalledWith('/posts/post-1')
   })
 
   it('renders media with disableNavigation (no onMediaClick)', () => {

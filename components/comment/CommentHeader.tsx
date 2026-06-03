@@ -1,14 +1,14 @@
 'use client'
 
 /**
- * @file CommentHeader.tsx
- * @description コメントヘッダーコンポーネント（アバター、ニックネーム、タイムスタンプ）
+ * @module components/comment/CommentHeader
  */
 
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
 import { ja } from 'date-fns/locale'
+import { buildUserPath } from '@/lib/constants/path-builders'
 
 interface CommentHeaderProps {
   user: {
@@ -19,11 +19,6 @@ interface CommentHeaderProps {
   createdAt: string | Date
 }
 
-/**
- * コメントヘッダーコンポーネント
- *
- * ユーザーアバター、ニックネーム、投稿時間を表示します。
- */
 export function CommentHeader({ user, createdAt }: CommentHeaderProps) {
   const timeAgo = formatDistanceToNow(new Date(createdAt), {
     addSuffix: true,
@@ -31,7 +26,7 @@ export function CommentHeader({ user, createdAt }: CommentHeaderProps) {
   })
 
   return (
-    <Link href={`/users/${user.id}`}>
+    <Link href={buildUserPath(user.id)}>
       <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex-shrink-0">
         {user.avatarUrl ? (
           <Image
@@ -64,9 +59,6 @@ interface CommentMetaProps {
   createdAt: string | Date
 }
 
-/**
- * コメントメタ情報（ニックネーム + 時刻）
- */
 export function CommentMeta({ user, createdAt }: CommentMetaProps) {
   const timeAgo = formatDistanceToNow(new Date(createdAt), {
     addSuffix: true,
@@ -76,7 +68,7 @@ export function CommentMeta({ user, createdAt }: CommentMetaProps) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <Link
-        href={`/users/${user.id}`}
+        href={buildUserPath(user.id)}
         className="font-medium hover:underline truncate"
       >
         {user.nickname}

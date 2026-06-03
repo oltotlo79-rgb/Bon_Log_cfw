@@ -129,6 +129,25 @@ describe('Cache Module', async () => {
 
       expect(result.genres).toHaveLength(1)
     })
+
+    it('非表示投稿・非公開/停止著者の投稿を集計から除外する（M-1）', async () => {
+      mockPrisma.postGenre.groupBy.mockResolvedValue([])
+      mockPrisma.genre.findMany.mockResolvedValue([])
+
+      const { getCachedTrendingGenres } = await import('@/lib/cache')
+      await getCachedTrendingGenres()
+
+      expect(mockPrisma.postGenre.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            post: expect.objectContaining({
+              isHidden: false,
+              user: { isPublic: true, isSuspended: false },
+            }),
+          },
+        })
+      )
+    })
   })
 
   describe('getCachedPopularTags', async () => {
@@ -194,6 +213,19 @@ describe('Cache Module', async () => {
       const result = await getCachedPopularTags(3)
 
       expect(result.tags).toHaveLength(3)
+    })
+
+    it('著者の可視性(is_public/is_suspended)で集計対象を絞る（M-6）', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([])
+
+      const { getCachedPopularTags } = await import('@/lib/cache')
+      await getCachedPopularTags()
+
+      const strings = mockPrisma.$queryRaw.mock.calls[0][0] as string[]
+      const sql = strings.join(' ')
+      expect(sql).toContain('JOIN users')
+      expect(sql).toContain('is_public')
+      expect(sql).toContain('is_suspended')
     })
   })
 

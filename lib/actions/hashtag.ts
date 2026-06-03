@@ -16,12 +16,16 @@
 'use server'
 
 import { prisma } from '@/lib/db'
+import { auth } from '@/lib/auth'
+import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import { requireAdmin, actionError, actionSuccess } from '@/lib/actions/utils'
 import type { ActionResult } from '@/types/action-result'
-import { GENRE_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
+import { GENRE_MINIMAL_SELECT, USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
 import { recalculateHashtagCountsCore } from '@/lib/services/hashtag-recount'
+import { visibleAuthorFilter } from '@/lib/services/post-visibility'
+import { normalizeCursorPagination, clampLimit } from './pagination'
 import logger from '@/lib/logger'
-import { DEFAULT_PAGE_LIMIT, DEFAULT_HASHTAG_LIMIT } from '@/lib/constants/limits'
+import { DEFAULT_HASHTAG_LIMIT, MAX_HASHTAG_LIMIT, MAX_HASHTAG_QUERY_LENGTH } from '@/lib/constants/limits'
 
 /**
  * トレンドハッシュタグを取得する。
@@ -29,11 +33,12 @@ import { DEFAULT_PAGE_LIMIT, DEFAULT_HASHTAG_LIMIT } from '@/lib/constants/limit
  * サイドバーの「トレンド」セクションや検索ページのおすすめタグ表示で使用する。
  */
 export async function getTrendingHashtags(limit: number = DEFAULT_HASHTAG_LIMIT) {
+  if (shouldSkipBuildTimeDbAccess()) return []
   try {
     const hashtags = await prisma.hashtag.findMany({
       where: { count: { gt: 0 } },
       orderBy: { count: 'desc' },
-      take: limit,
+      take: clampLimit(limit, MAX_HASHTAG_LIMIT),
     })
     return hashtags
   } catch (error) {
@@ -46,44 +51,57 @@ export async function getTrendingHashtags(limit: number = DEFAULT_HASHTAG_LIMIT)
  * 指定ハッシュタグを含む投稿をカーソルベースで検索する。
  *
  * `content` の `#hashtagName` 部分一致（大小文字無視）。
+ * `hashtag.count` は `Hashtag` テーブルに保持された総投稿数を返す（今回のページ件数ではない）。
  */
 export async function getPostsByHashtag(
   hashtagName: string,
   options: { cursor?: string; limit?: number } = {},
 ) {
-  const { limit = DEFAULT_PAGE_LIMIT } = options
+  // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination(options)
 
   try {
-    const posts = await prisma.post.findMany({
-      where: {
-        isHidden: false,
-        content: {
-          contains: `#${hashtagName}`,
-          mode: 'insensitive',
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            nickname: true,
-            avatarUrl: true,
+    const session = await auth()
+    const currentUserId = session?.user?.id
+
+    // 投稿一覧と総投稿数は独立クエリなので Promise.all で並列化する。
+    // findUnique は @unique 検索なのでテーブル全体への影響は限定的。
+    const [posts, hashtag] = await Promise.all([
+      prisma.post.findMany({
+        where: {
+          isHidden: false,
+          // 著者の公開可否を適用（非表示/非公開/停止著者の投稿を露出させない）
+          user: visibleAuthorFilter(currentUserId),
+          content: {
+            contains: `#${hashtagName}`,
+            mode: 'insensitive',
           },
         },
-        media: { orderBy: { sortOrder: 'asc' } },
-        genres: { select: { genre: { select: GENRE_MINIMAL_SELECT } } },
-        _count: { select: { likes: true, comments: { where: { deletedAt: null } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    })
+        include: {
+          user: USER_MINIMAL_RELATION,
+          media: { orderBy: { sortOrder: 'asc' } },
+          genres: { select: { genre: { select: GENRE_MINIMAL_SELECT } } },
+          _count: { select: { likes: true, comments: { where: { deletedAt: null } } } },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: safeLimit,
+        ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
+      }),
+      prisma.hashtag.findUnique({
+        where: { name: hashtagName.toLowerCase() },
+        select: { count: true },
+      }),
+    ])
 
-    const hasMore = posts.length === limit
+    const hasMore = posts.length === safeLimit
     const nextCursor = hasMore ? posts[posts.length - 1]?.id : undefined
 
     return {
       posts,
-      hashtag: { name: hashtagName, count: posts.length },
+      // Hashtag テーブルに見つからない場合 (誤入力タグ / 未集計) は 0 を返す。
+      // 今回返した posts.length をフォールバックにしてしまうと、ページネーション中の
+      // 累計件数と乖離して UI バッジが矛盾するため、あえて 0 を返す。
+      hashtag: { name: hashtagName, count: hashtag?.count ?? 0 },
       nextCursor,
     }
   } catch (error) {
@@ -114,17 +132,20 @@ export async function recalculateHashtagCounts(): Promise<ActionResult> {
 export async function searchHashtags(query: string, limit: number = DEFAULT_HASHTAG_LIMIT) {
   if (!query || query.length < 1) return []
 
+  // 過大入力による LIKE 走査コスト増を防ぐためクエリ長を上限で切り詰める
+  const safeQuery = query.slice(0, MAX_HASHTAG_QUERY_LENGTH)
+
   try {
     const hashtags = await prisma.hashtag.findMany({
       where: {
         name: {
-          contains: query.toLowerCase(),
+          contains: safeQuery.toLowerCase(),
           mode: 'insensitive',
         },
         count: { gt: 0 },
       },
       orderBy: { count: 'desc' },
-      take: limit,
+      take: clampLimit(limit, MAX_HASHTAG_LIMIT),
     })
     return hashtags
   } catch (error) {

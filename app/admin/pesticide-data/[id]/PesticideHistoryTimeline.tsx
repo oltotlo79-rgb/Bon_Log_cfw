@@ -1,10 +1,3 @@
-/**
- * @file 農薬データ更新履歴タイムライン（Server Component）
- * @description pesticideDataHistory を時系列で表示する。ランディング時点で完全な履歴を
- *              サーバーサイド描画するため、検索エンジンやアクセシビリティツールにも
- *              構造化された監査ログが露出する。
- */
-
 import { History } from 'lucide-react'
 import { ADMIN_ID_DISPLAY_LONG_LENGTH } from '@/lib/constants/limits'
 

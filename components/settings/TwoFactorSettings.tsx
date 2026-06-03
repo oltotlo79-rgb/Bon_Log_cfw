@@ -96,7 +96,6 @@ export function TwoFactorSettings() {
 
   return (
     <div className="space-y-6">
-      {/* エラー/成功メッセージ */}
       {error && (
         <div className="p-4 bg-destructive/10 text-destructive rounded-lg">
           {error}
@@ -108,7 +107,6 @@ export function TwoFactorSettings() {
         </div>
       )}
 
-      {/* 2FA無効状態またはセットアップ成功画面表示中: セットアップセクション */}
       {(!isEnabled || setupSuccessVisible) && (
         <SetupSection
           onSuccess={(backupCodesCount) => {
@@ -121,7 +119,6 @@ export function TwoFactorSettings() {
         />
       )}
 
-      {/* 2FA有効状態 */}
       {isEnabled && (
         <>
           <div className="border rounded-lg p-6 border-border bg-muted/50">
@@ -143,7 +140,6 @@ export function TwoFactorSettings() {
             </div>
           </div>
 
-          {/* 新しいバックアップコード表示 */}
           {newBackupCodes.length > 0 && (
             <div className="border rounded-lg p-6">
               <h3 className="font-semibold mb-2">新しいバックアップコード</h3>
@@ -187,7 +183,6 @@ export function TwoFactorSettings() {
             </div>
           )}
 
-          {/* バックアップコード再生成ボタン（フォーム非表示時のみ） */}
           {!showDisableForm && !showRegenerateForm && newBackupCodes.length === 0 && (
             <div className="border rounded-lg p-6">
               <h3 className="font-semibold mb-2">バックアップコード</h3>
@@ -200,7 +195,6 @@ export function TwoFactorSettings() {
             </div>
           )}
 
-          {/* バックアップコード再生成フォーム */}
           {showRegenerateForm && (
             <RegenerateBackupCodes
               onSuccess={(codes) => {
@@ -213,7 +207,6 @@ export function TwoFactorSettings() {
             />
           )}
 
-          {/* 2FA無効化ボタン（フォーム非表示時のみ） */}
           {!showDisableForm && !showRegenerateForm && newBackupCodes.length === 0 && (
             <div className="border rounded-lg p-6 border-destructive/30">
               <h3 className="font-semibold mb-2 text-destructive">2段階認証を無効化</h3>
@@ -229,7 +222,6 @@ export function TwoFactorSettings() {
             </div>
           )}
 
-          {/* 2FA無効化フォーム */}
           {showDisableForm && (
             <DisableForm
               onSuccess={() => {

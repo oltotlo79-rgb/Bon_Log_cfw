@@ -3,19 +3,20 @@
  *
  * 2段階認証（2FA）の設定を行うページです。
  *
- * @route /settings/security
  */
 
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { TwoFactorSettings } from '@/components/settings/TwoFactorSettings'
+import { SecurityActivity } from '@/components/settings/SecurityActivity'
 import { SettingsGuestRestriction } from '@/components/settings/SettingsGuestRestriction'
 
 export const metadata: Metadata = {
-  title: 'セキュリティ設定 - BON-LOG',
+  title: 'セキュリティ設定',
   description: '2段階認証などのセキュリティ設定を管理します',
   // 認証必須の個別設定のため検索エンジンには公開しない
   robots: { index: false, follow: false },
@@ -39,6 +40,10 @@ export default async function SecuritySettingsPage() {
           <TwoFactorSettings />
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <SecurityActivity />
+      </Suspense>
     </div>
   )
 }

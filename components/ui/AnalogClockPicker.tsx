@@ -1,11 +1,7 @@
 /**
- * アナログ時計型タイムピッカー
- *
+ * @module components/ui/AnalogClockPicker
  * 24時間制。外側リング=AM(0-11)、内側リング=PM(12-23)の 2 重リングで 24 時間を表現する。
  * 時→分の 2 段階選択で、マウスドラッグ / タッチ両対応。
- *
- * @example
- * <AnalogClockPicker value={time} onChange={setTime} label="開始時刻" />
  */
 
 'use client'
@@ -13,7 +9,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 
 interface AnalogClockPickerProps {
-  /** "HH:MM" 形式の時刻値 */
   value: string
   onChange: (value: string) => void
   label?: string

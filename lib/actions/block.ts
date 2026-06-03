@@ -6,38 +6,17 @@
 
 'use server'
 
-/**
- * Prismaクライアント
- * データベース操作に使用
- */
 import { prisma } from '@/lib/db'
-
-/**
- * 認証ヘルパー
- * 共通の認証チェックパターンを提供
- */
+import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { requireActiveNonGuestUser, requireAuth, requireNotGuest, actionSuccess, actionError, type ActionResult, invalidateUserRelationsCache, enforceUserRateLimit } from '@/lib/actions/utils'
-
-/**
- * Next.jsのキャッシュ再検証関数
- * ブロック後にページを更新するために使用
- */
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
+import { cuidSchema } from '@/lib/actions/schemas/common'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import { clampLimit } from '@/lib/actions/pagination'
 import { ERR_SELF_BLOCK, ERR_USER_NOT_FOUND, ERR_BLOCK_FAILED, ERR_UNBLOCK_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_FEED, ROUTE_SETTINGS_BLOCKED } from '@/lib/constants/routes'
 import { buildUserPath } from '@/lib/constants/path-builders'
 
-/**
- * ユーザーIDバリデーションスキーマ
- */
-const userIdSchema = z.string().min(1, ERR_INVALID_INPUT).max(30)
-
-/**
- * ロガー
- * エラーログの記録に使用
- */
 import logger from '@/lib/logger'
 
 /**
@@ -65,21 +44,13 @@ import logger from '@/lib/logger'
  *
  * @param targetUserId - ブロック対象のユーザーID
  * @returns 成功時は { success: true }、失敗時は { error: string }
- *
- * @example
- * ```typescript
- * const result = await blockUser('user-123')
- * if (result.success) {
- *   toast.success('ユーザーをブロックしました')
- * }
- * ```
  */
 export async function blockUser(targetUserId: string): Promise<ActionResult> {
   const authResult = await requireActiveNonGuestUser()
   if ('error' in authResult) return actionError(authResult.error)
   const userId = authResult.userId
 
-  const idParsed = userIdSchema.safeParse(targetUserId)
+  const idParsed = cuidSchema.safeParse(targetUserId)
   if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
 
   if (userId === targetUserId) {
@@ -140,21 +111,13 @@ export async function blockUser(targetUserId: string): Promise<ActionResult> {
  *
  * @param targetUserId - ブロック解除対象のユーザーID
  * @returns 成功時は { success: true }、失敗時は { error: string }
- *
- * @example
- * ```typescript
- * const result = await unblockUser('user-123')
- * if (result.success) {
- *   toast.success('ブロックを解除しました')
- * }
- * ```
  */
 export async function unblockUser(targetUserId: string): Promise<ActionResult> {
   const authResult = await requireActiveNonGuestUser()
   if ('error' in authResult) return actionError(authResult.error)
   const userId = authResult.userId
 
-  const idParsed = userIdSchema.safeParse(targetUserId)
+  const idParsed = cuidSchema.safeParse(targetUserId)
   if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
 
   const rl = await enforceUserRateLimit(userId, 'unblock_user')
@@ -199,11 +162,6 @@ export async function unblockUser(targetUserId: string): Promise<ActionResult> {
  * @param cursor - ページネーション用カーソル
  * @param limit - 取得件数（デフォルト: 20）
  * @returns ブロックしたユーザー一覧と次のカーソル
- *
- * @example
- * ```typescript
- * const { users, nextCursor } = await getBlockedUsers()
- * ```
  */
 export async function getBlockedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
   const auth = await requireAuth()
@@ -213,34 +171,17 @@ export async function getBlockedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMI
   const userId = auth.userId
 
   try {
-
-    /**
-     * ブロックレコードを取得
-     *
-     * blocked を include してブロックされたユーザーの情報を取得
-     */
+    const safeLimit = clampLimit(limit)
     const blocks = await prisma.block.findMany({
       where: { blockerId: userId },
       include: {
-        /**
-         * ブロックされたユーザーの情報
-         */
         blocked: {
-          select: {
-            id: true,
-            nickname: true,
-            avatarUrl: true,
-            bio: true,
-          },
+          select: USER_MINIMAL_WITH_BIO_SELECT,
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      /**
-       * カーソルベースページネーション
-       *
-       * 複合ユニークキーをカーソルとして使用
-       */
+      // 同時刻のページ境界を安定させるため複合キー(blockedId)を第2ソートキーにする
+      orderBy: [{ createdAt: 'desc' }, { blockedId: 'desc' }],
+      take: safeLimit,
       ...(cursor && {
         cursor: { blockerId_blockedId: { blockerId: userId, blockedId: cursor } },
         skip: 1,
@@ -248,14 +189,8 @@ export async function getBlockedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMI
     })
 
     return {
-      /**
-       * ブロックされたユーザーの配列を抽出
-       */
       users: blocks.map((b: typeof blocks[number]) => b.blocked),
-      /**
-       * 次のカーソル（blockedId）
-       */
-      nextCursor: blocks.length === limit ? blocks[blocks.length - 1]?.blockedId : undefined,
+      nextCursor: blocks.length === safeLimit ? blocks[blocks.length - 1]?.blockedId : undefined,
     }
   } catch (error) {
     logger.error('Get blocked users error:', error)
@@ -279,22 +214,6 @@ export async function getBlockedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMI
  *
  * @param targetUserId - 確認対象のユーザーID
  * @returns { blocked: boolean, blockedBy: boolean }
- *
- * @example
- * ```typescript
- * const { blocked, blockedBy } = await isBlocked('user-123')
- *
- * if (blockedBy) {
- *   // このユーザーのプロフィールにアクセスできない
- *   return <BlockedMessage />
- * }
- *
- * if (blocked) {
- *   // 「ブロック解除」ボタンを表示
- * } else {
- *   // 「ブロック」ボタンを表示
- * }
- * ```
  */
 export async function isBlocked(targetUserId: string) {
   const auth = await requireAuth()

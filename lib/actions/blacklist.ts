@@ -293,39 +293,6 @@ export async function isDeviceBlacklisted(fingerprint: string): Promise<boolean>
 }
 
 /**
- * ユーザーのデバイス情報を記録する
- */
-export async function recordUserDevice(
-  userId: string,
-  fingerprint: string,
-  userAgent?: string,
-  ipAddress?: string
-): Promise<void> {
-  if (!userId || !fingerprint) return
-
-  try {
-    await prisma.userDevice.upsert({
-      where: {
-        userId_fingerprint: { userId, fingerprint },
-      },
-      create: {
-        userId,
-        fingerprint,
-        userAgent: userAgent || null,
-        ipAddress: ipAddress || null,
-      },
-      update: {
-        lastSeenAt: new Date(),
-        userAgent: userAgent || undefined,
-        ipAddress: ipAddress || undefined,
-      },
-    })
-  } catch (error) {
-    logger.error('Failed to record user device:', error)
-  }
-}
-
-/**
  * ユーザーのデバイス一覧を取得する
  */
 export async function getUserDevices(userId: string) {
@@ -357,13 +324,11 @@ export async function blacklistUserDevices(
   const adminUserId = admin.userId
 
   try {
-    // ユーザー情報を取得
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true },
     })
 
-    // ユーザーのデバイスを取得
     const devices = await prisma.userDevice.findMany({
       where: { userId },
       select: { fingerprint: true },

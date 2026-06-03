@@ -78,6 +78,15 @@ export const DIAGRAM_SVG_HEIGHT = 500
 /** ノード半径（px） */
 export const DIAGRAM_NODE_RADIUS = 28
 
+/** ノードラベルのフォントサイズ（px） */
+export const DIAGRAM_NODE_LABEL_FONT_SIZE = 11
+
+/** この文字数を超えるノード名は省略表示する */
+export const DIAGRAM_NODE_LABEL_MAX_LENGTH = 5
+
+/** 省略時に残す先頭文字数（末尾に … を付与） */
+export const DIAGRAM_NODE_LABEL_TRUNCATE_LENGTH = 4
+
 /** インタラクションタイプ → エッジ色 */
 export const INTERACTION_EDGE_COLORS: Record<string, string> = {
   synergistic: '#22c55e',   // green-500

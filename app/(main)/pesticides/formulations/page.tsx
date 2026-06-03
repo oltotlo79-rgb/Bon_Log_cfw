@@ -34,13 +34,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     const formulation = await getFormulationTypeByCode(params.formulation)
     if (formulation) {
       return {
-        title: `${formulation.name}の薬剤一覧 - 剤型 - 農薬・病害虫 - BON-LOG`,
+        title: `${formulation.name}の薬剤一覧 - 剤型 - 農薬・病害虫`,
         alternates: { canonical },
       }
     }
   }
   return {
-    title: '剤型の違い - 農薬・病害虫 - BON-LOG',
+    title: '剤型の違い - 農薬・病害虫',
     description: '農薬の剤型（乳剤・水和剤・粒剤など）の特徴と使い分けを確認できます。',
     alternates: { canonical },
   }

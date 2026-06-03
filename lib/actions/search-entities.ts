@@ -13,7 +13,7 @@
 'use server'
 
 import { prisma } from '@/lib/db'
-import { USER_MINIMAL_RELATION, GENRE_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
+import { USER_MINIMAL_RELATION, USER_MINIMAL_WITH_BIO_SELECT, GENRE_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { auth } from '@/lib/auth'
 import {
   fulltextSearchShops,
@@ -24,11 +24,12 @@ import {
 } from '@/lib/search/fulltext'
 import { getExcludedUserIds } from './filter-helper'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { getClientIp, getGuestUserId } from '@/lib/actions/utils'
+import { getClientIp, getGuestUserId, requireAuth } from '@/lib/actions/utils'
 import { DEFAULT_PAGE_LIMIT, GLOBAL_SEARCH_PER_CATEGORY_LIMIT, MAX_SEARCH_QUERY_LENGTH } from '@/lib/constants/limits'
 import { ERR_SEARCH_QUERY_TOO_LONG, ERR_SEARCH_RATE_LIMIT } from '@/lib/constants/errors'
 import { preserveOrder } from '@/lib/utils/preserve-order'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
+import { normalizeCursorPagination } from './pagination'
 
 /**
  * 盆栽園を検索
@@ -62,18 +63,26 @@ export async function searchShops(
     return { shops: [], nextCursor: undefined, error: ERR_SEARCH_RATE_LIMIT }
   }
 
+  // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
   const searchMode = getSearchMode()
 
   // 全文検索モード
   if (query && (searchMode === 'bigm' || searchMode === 'trgm')) {
-    const shopIds = await fulltextSearchShops(query, { cursor, limit, prefecture })
+    const shopIds = await fulltextSearchShops(query, { cursor: safeCursor, limit: safeLimit, prefecture })
 
     if (shopIds.length === 0) {
       return { shops: [], nextCursor: undefined }
     }
 
+    // 非表示・都道府県条件を final fetch でも再適用する（raw SQL との二重防御）
     const fetchedShops = await prisma.bonsaiShop.findMany({
-      where: { id: { in: shopIds } },
+      where: {
+        id: { in: shopIds },
+        isHidden: false,
+        ...(prefecture ? { address: { contains: prefecture } } : {}),
+      },
       include: SEARCH_SHOP_INCLUDE,
     })
 
@@ -83,7 +92,7 @@ export async function searchShops(
 
     return {
       shops: shopsWithRating,
-      nextCursor: shops.length === limit ? shops[shops.length - 1]?.id : undefined,
+      nextCursor: shops.length === safeLimit ? shops[shops.length - 1]?.id : undefined,
     }
   }
 
@@ -104,16 +113,16 @@ export async function searchShops(
       ],
     },
     include: SEARCH_SHOP_INCLUDE,
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: safeLimit,
+    ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
   })
 
   const shopsWithRating = await enrichShopsWithRatings(shops)
 
   return {
     shops: shopsWithRating,
-    nextCursor: shops.length === limit ? shops[shops.length - 1]?.id : undefined,
+    nextCursor: shops.length === safeLimit ? shops[shops.length - 1]?.id : undefined,
   }
 }
 
@@ -196,20 +205,39 @@ export async function searchEvents(
     return { events: [], nextCursor: undefined, error: ERR_SEARCH_RATE_LIMIT }
   }
 
+  // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
   const searchMode = getSearchMode()
   const now = new Date()
   const { prefecture, includeExpired = false } = options || {}
 
+  // 非表示・都道府県・期限条件。LIKE と全文検索 final fetch の双方で再利用する。
+  const notExpiredWhere = !includeExpired
+    ? {
+        OR: [
+          { endDate: { gte: now } },
+          { AND: [{ endDate: null }, { startDate: { gte: now } }] },
+        ],
+      }
+    : {}
+
   // 全文検索モード
   if (query && (searchMode === 'bigm' || searchMode === 'trgm')) {
-    const eventIds = await fulltextSearchEvents(query, { cursor, limit, prefecture, includeExpired })
+    const eventIds = await fulltextSearchEvents(query, { cursor: safeCursor, limit: safeLimit, prefecture, includeExpired })
 
     if (eventIds.length === 0) {
       return { events: [], nextCursor: undefined }
     }
 
+    // 非表示・都道府県・期限条件を final fetch でも再適用する（raw SQL との二重防御）
     const fetchedEvents = await prisma.event.findMany({
-      where: { id: { in: eventIds } },
+      where: {
+        id: { in: eventIds },
+        isHidden: false,
+        ...(prefecture ? { prefecture } : {}),
+        ...notExpiredWhere,
+      },
       include: {
         creator: USER_MINIMAL_RELATION,
       },
@@ -220,7 +248,7 @@ export async function searchEvents(
 
     return {
       events,
-      nextCursor: events.length === limit ? events[events.length - 1]?.id : undefined,
+      nextCursor: events.length === safeLimit ? events[events.length - 1]?.id : undefined,
     }
   }
 
@@ -229,14 +257,7 @@ export async function searchEvents(
     where: {
       isHidden: false,
       AND: [
-        !includeExpired
-          ? {
-              OR: [
-                { endDate: { gte: now } },
-                { AND: [{ endDate: null }, { startDate: { gte: now } }] },
-              ],
-            }
-          : {},
+        notExpiredWhere,
         query
           ? {
               OR: [
@@ -251,14 +272,14 @@ export async function searchEvents(
     include: {
       creator: USER_MINIMAL_RELATION,
     },
-    orderBy: { startDate: 'asc' },
-    take: limit,
-    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+    take: safeLimit,
+    ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
   })
 
   return {
     events,
-    nextCursor: events.length === limit ? events[events.length - 1]?.id : undefined,
+    nextCursor: events.length === safeLimit ? events[events.length - 1]?.id : undefined,
   }
 }
 
@@ -273,21 +294,26 @@ export async function searchEvents(
  * - 樹種（species）
  * - 説明（description）
  *
+ * 盆栽は所有者専用リソースのため、認証済み本人の盆栽のみを対象にする。
+ *
  * @param query - 検索キーワード
  * @param cursor - ページネーション用カーソル
- * @param limit - 取得件数（デフォルト: 20）
- * @param userId - 特定ユーザーの盆栽のみ検索（オプション）
+ * @param limit - 取得件数（デフォルト: 20、MAX_PAGE_LIMIT で clamp）
  * @returns 検索結果の盆栽一覧と次のカーソル
  */
 export async function searchBonsais(
   query: string,
   cursor?: string,
   limit = DEFAULT_PAGE_LIMIT,
-  userId?: string
 ) {
   if (query && query.length > MAX_SEARCH_QUERY_LENGTH) {
     return { bonsais: [], nextCursor: undefined, error: ERR_SEARCH_QUERY_TOO_LONG }
   }
+
+  // 盆栽は所有者専用リソース。引数 userId を信用せず、認証済み本人の盆栽のみ検索する。
+  const authResult = await requireAuth()
+  if ('error' in authResult) return { bonsais: [], nextCursor: undefined, error: authResult.error }
+  const userId = authResult.userId
 
   const clientIp = await getClientIp()
   const rateLimitResult = await rateLimit(`search:${clientIp}`, RATE_LIMITS.search)
@@ -295,18 +321,21 @@ export async function searchBonsais(
     return { bonsais: [], nextCursor: undefined, error: ERR_SEARCH_RATE_LIMIT }
   }
 
+  // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
   const searchMode = getSearchMode()
 
   // 全文検索モード
   if (query && (searchMode === 'bigm' || searchMode === 'trgm')) {
-    const bonsaiIds = await fulltextSearchBonsais(query, { userId, cursor, limit })
+    const bonsaiIds = await fulltextSearchBonsais(query, { userId, cursor: safeCursor, limit: safeLimit })
 
     if (bonsaiIds.length === 0) {
       return { bonsais: [], nextCursor: undefined }
     }
 
     const fetchedBonsais = await prisma.bonsai.findMany({
-      where: { id: { in: bonsaiIds } },
+      where: { id: { in: bonsaiIds }, userId },
       include: {
         user: USER_MINIMAL_RELATION,
         _count: { select: { records: true, posts: true } },
@@ -322,33 +351,31 @@ export async function searchBonsais(
         recordCount: b._count.records,
         postCount: b._count.posts,
       })),
-      nextCursor: bonsais.length === limit ? bonsais[bonsais.length - 1]?.id : undefined,
+      nextCursor: bonsais.length === safeLimit ? bonsais[bonsais.length - 1]?.id : undefined,
     }
   }
 
   // LIKE検索
   const bonsais = await prisma.bonsai.findMany({
     where: {
-      AND: [
-        query
-          ? {
-              OR: [
-                { name: containsInsensitive(query) },
-                { species: containsInsensitive(query) },
-                { description: containsInsensitive(query) },
-              ],
-            }
-          : {},
-        userId ? { userId } : {},
-      ],
+      userId,
+      ...(query
+        ? {
+            OR: [
+              { name: containsInsensitive(query) },
+              { species: containsInsensitive(query) },
+              { description: containsInsensitive(query) },
+            ],
+          }
+        : {}),
     },
     include: {
       user: USER_MINIMAL_RELATION,
       _count: { select: { records: true, posts: true } },
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: safeLimit,
+    ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
   })
 
   return {
@@ -357,7 +384,7 @@ export async function searchBonsais(
       recordCount: b._count.records,
       postCount: b._count.posts,
     })),
-    nextCursor: bonsais.length === limit ? bonsais[bonsais.length - 1]?.id : undefined,
+    nextCursor: bonsais.length === safeLimit ? bonsais[bonsais.length - 1]?.id : undefined,
   }
 }
 
@@ -416,17 +443,15 @@ export async function searchGlobal(query: string) {
       ? prisma.user.findMany({
           where: { id: { in: userIds } },
           select: {
-            id: true,
-            nickname: true,
-            avatarUrl: true,
-            bio: true,
+            ...USER_MINIMAL_WITH_BIO_SELECT,
             _count: { select: { followers: true } },
           },
         })
       : [],
+    // 非表示は final fetch でも除外する（raw SQL との二重防御。post/user/bonsai と方針を揃える）
     shopIds.length > 0
       ? prisma.bonsaiShop.findMany({
-          where: { id: { in: shopIds } },
+          where: { id: { in: shopIds }, isHidden: false },
           select: {
             id: true,
             name: true,
@@ -437,7 +462,7 @@ export async function searchGlobal(query: string) {
       : [],
     eventIds.length > 0
       ? prisma.event.findMany({
-          where: { id: { in: eventIds } },
+          where: { id: { in: eventIds }, isHidden: false },
           select: {
             id: true,
             title: true,
@@ -448,9 +473,10 @@ export async function searchGlobal(query: string) {
           },
         })
       : [],
-    bonsaiIds.length > 0
+    // 盆栽は所有者専用。fulltext 側で本人所有に限定済みだが findMany でも owner 条件を再適用する。
+    bonsaiIds.length > 0 && currentUserId
       ? prisma.bonsai.findMany({
-          where: { id: { in: bonsaiIds } },
+          where: { id: { in: bonsaiIds }, userId: currentUserId },
           select: {
             id: true,
             name: true,

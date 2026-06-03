@@ -257,7 +257,7 @@ async function main() {
   await linkEffect(danitaro, "kanzawa-hadani", { preventionLevel: "fair", treatmentLevel: "excellent", efficacyLevel: "excellent", persistenceLevel: "good" });
 
   // ストマイ液剤: 細菌性病害
-  await linkEffect(stomai, "kontou-ganshu-byo", { preventionLevel: "excellent", treatmentLevel: "fair", efficacyLevel: "good", persistenceLevel: "fair", note: "接ぎ木・剪定時の切り口塗布で癌腫病予防" });
+  // kontou-ganshu-byo（根頭癌腫病）削除: 癌腫はAgrobacteriumのT-DNA組込みで形質転換した植物細胞の増殖であり抗生物質では治療不能。防除はバイオ防除(K84株)。ストマイ液剤(MAFF#24455)も癌腫病は適用外
   await linkEffect(stomai, "nanpu-byo", { preventionLevel: "good", treatmentLevel: "fair", efficacyLevel: "good", persistenceLevel: "fair" });
   await linkEffect(stomai, "kaiyou-saikin-byo", { preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "fair" });
 

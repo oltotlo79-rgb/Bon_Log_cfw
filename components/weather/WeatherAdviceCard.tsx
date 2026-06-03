@@ -73,7 +73,6 @@ export function WeatherAdviceCard() {
 
   return (
     <div className="bg-card border rounded-lg mb-4 overflow-hidden">
-      {/* ヘッダー */}
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
           <CloudSun className="w-5 h-5 text-amber-500" />
@@ -100,7 +99,6 @@ export function WeatherAdviceCard() {
         </button>
       </div>
 
-      {/* アドバイスリスト */}
       <div className="divide-y">
         {data.advice.map((item, index) => (
           <div key={index} className="flex items-start gap-3 px-4 py-3">
@@ -115,7 +113,6 @@ export function WeatherAdviceCard() {
         ))}
       </div>
 
-      {/* フッター: 設定リンク */}
       <div className="px-4 py-2 border-t bg-muted/30">
         <Link
           href={ROUTE_SETTINGS}

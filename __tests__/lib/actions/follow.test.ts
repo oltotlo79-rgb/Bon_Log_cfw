@@ -39,8 +39,8 @@ vi.mock('@/lib/rate-limit', () => ({
 /**
  * アナリティクスのモック
  */
-vi.mock('@/lib/actions/analytics', () => ({
-  recordNewFollower: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordNewFollowerService: vi.fn().mockResolvedValue(undefined),
 }))
 
 /**
@@ -193,6 +193,36 @@ describe('Follow Actions', async () => {
       const result = await toggleFollow('non-existent-user')
 
       expect(result).toEqual({ success: false, error: 'ユーザーが見つかりません' })
+    })
+
+    it('停止ユーザーへのフォローは拒否する（存在を秘匿）', async () => {
+      mockPrisma.follow.findUnique.mockResolvedValue(null)
+      // 自ユーザーの停止チェックと target の適格性判定で user.findUnique を共用するため id で出し分ける
+      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+        Promise.resolve(
+          where.id === 'suspended-user'
+            ? { id: 'suspended-user', isPublic: true, isSuspended: true, email: 's@example.com' }
+            : { isSuspended: false },
+        ),
+      )
+
+      const { toggleFollow } = await import('@/lib/actions/follow')
+      const result = await toggleFollow('suspended-user')
+
+      expect(result).toEqual({ success: false, error: 'ユーザーが見つかりません' })
+      expect(mockPrisma.follow.create).not.toHaveBeenCalled()
+    })
+
+    it('双方向ブロック関係があるユーザーへのフォローは拒否する', async () => {
+      mockPrisma.follow.findUnique.mockResolvedValue(null)
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+      mockPrisma.block.findFirst.mockResolvedValueOnce({ blockerId: 'target-user-id' })
+
+      const { toggleFollow } = await import('@/lib/actions/follow')
+      const result = await toggleFollow('target-user-id')
+
+      expect(result).toEqual({ success: false, error: 'ユーザーが見つかりません' })
+      expect(mockPrisma.follow.create).not.toHaveBeenCalled()
     })
 
     /**

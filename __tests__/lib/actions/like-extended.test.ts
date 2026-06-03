@@ -21,8 +21,8 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: { search: { maxRequests: 30, windowMs: 60000 } },
 }))
 
-vi.mock('@/lib/actions/analytics', () => ({
-  recordLikeReceived: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordLikeReceivedService: vi.fn().mockResolvedValue(undefined),
 }))
 
 const mockCreateNotification = vi.fn().mockResolvedValue({ success: true })
@@ -43,6 +43,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.mockResolvedValue({ user: { id: 'u1' } })
   mockCheckUserRateLimit.mockResolvedValue({ success: true })
+  // 自ユーザーの停止チェック兼、投稿著者の閲覧可否判定の双方で参照される
+  mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+  // engagement 対象は閲覧可能を既定とする（個別テストが null で上書き可能）
+  mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u2', isHidden: false })
 })
 
 // ============================================================
@@ -268,7 +272,9 @@ describe('getLikedPosts', () => {
         _count: { likes: 5, comments: 2 },
       },
     }]
-    mockPrisma.like.findMany.mockResolvedValueOnce(mockLikes)
+    // 1回目=対象ユーザー(u2)の like 一覧、2回目=閲覧者(u1)の like 状態。
+    // 同じ mock を返すことで閲覧者も p1 を like 済み = isLiked true となる。
+    mockPrisma.like.findMany.mockResolvedValue(mockLikes)
     mockPrisma.bookmark.findMany.mockResolvedValue([])
 
     const { getLikedPosts } = await importModule()
@@ -294,7 +300,7 @@ describe('getLikedPosts', () => {
         _count: { likes: 0, comments: 0 },
       },
     }))
-    mockPrisma.like.findMany.mockResolvedValueOnce(mockLikes)
+    mockPrisma.like.findMany.mockResolvedValue(mockLikes)
     mockPrisma.bookmark.findMany.mockResolvedValue([])
 
     const { getLikedPosts } = await importModule()

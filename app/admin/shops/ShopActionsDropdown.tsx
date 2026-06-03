@@ -1,9 +1,3 @@
-/**
- * @file 盆栽園アクションドロップダウンコンポーネント
- * @description 盆栽園管理テーブルの各行で使用されるドロップダウンメニュー。
- *              盆栽園の削除などの操作を提供する。
- */
-
 'use client'
 
 // ReactのuseStateとuseRefフック（状態管理とDOM参照用）
@@ -30,9 +24,6 @@ function MoreVerticalIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * ShopActionsDropdownコンポーネントのProps型定義
- */
 interface ShopActionsDropdownProps {
   /** 操作対象の盆栽園ID */
   shopId: string
@@ -135,7 +126,6 @@ export function ShopActionsDropdown({ shopId }: ShopActionsDropdownProps) {
         )}
       </div>
 
-      {/* 削除モーダル */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card rounded-lg border p-6 max-w-md w-full mx-4">

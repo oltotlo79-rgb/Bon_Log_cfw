@@ -76,6 +76,7 @@ vi.mock('@tanstack/react-query', () => ({
     isFetchingNextPage: false,
     isLoading: false,
   })),
+  useQuery: vi.fn(() => ({ data: undefined })),
   useQueryClient: vi.fn(() => ({
     invalidateQueries: vi.fn(),
     setQueryData: vi.fn(),

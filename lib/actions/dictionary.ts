@@ -14,6 +14,7 @@
 
 import 'server-only'
 
+import { cache } from 'react'
 import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
 import { MAX_DICTIONARY_TERMS_LIMIT } from '@/lib/constants/limits'
@@ -73,9 +74,11 @@ export async function getTerms({ search, category }: GetTermsOptions = {}): Prom
   }
 }
 
-export async function getTermBySlug(slug: string): Promise<{ term: BonsaiTermDetail | null }> {
-  try {
-    const term = await prisma.bonsaiTerm.findUnique({
+// generateMetadata と本体での二重取得を React cache() でリクエスト内 1 回に集約する。
+// unstable_cache は standalone 出力（CI は .next/cache を同梱しない）で不安定なため使わない。
+const getTermBySlugCached = cache(
+  (slug: string): Promise<BonsaiTermDetail | null> =>
+    prisma.bonsaiTerm.findUnique({
       where: { slug },
       select: {
         id: true,
@@ -86,8 +89,12 @@ export async function getTermBySlug(slug: string): Promise<{ term: BonsaiTermDet
         category: true,
         sortOrder: true,
       },
-    })
+    }),
+)
 
+export async function getTermBySlug(slug: string): Promise<{ term: BonsaiTermDetail | null }> {
+  try {
+    const term = await getTermBySlugCached(slug)
     return { term }
   } catch (error) {
     logger.error('getTermBySlug failed', { error: error instanceof Error ? error.message : String(error) })
@@ -95,7 +102,6 @@ export async function getTermBySlug(slug: string): Promise<{ term: BonsaiTermDet
   }
 }
 
-/** 同カテゴリの前後の用語を取得 */
 export async function getAdjacentTerms(
   slug: string,
   category: string

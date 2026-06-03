@@ -6,6 +6,7 @@ import { ShopActionsDropdown } from './ShopActionsDropdown'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { ROUTE_FEED } from '@/lib/constants/routes'
+import { buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 
 export const metadata = {
   title: '盆栽園管理 - BON-LOG 管理',
@@ -102,7 +103,7 @@ export default async function AdminShopsPage({ searchParams }: PageProps) {
               <tr key={shop.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3">
                   <Link
-                    href={`/shops/${shop.id}`}
+                    href={buildShopPath(shop.id)}
                     className="text-sm font-medium hover:underline line-clamp-1 max-w-[200px]"
                   >
                     {shop.name}
@@ -111,7 +112,7 @@ export default async function AdminShopsPage({ searchParams }: PageProps) {
                 <td className="px-4 py-3">
                   {shop.creator ? (
                   <Link
-                    href={`/users/${shop.creator.id}`}
+                    href={buildUserPath(shop.creator.id)}
                     className="text-sm hover:underline"
                   >
                     {shop.creator.nickname}

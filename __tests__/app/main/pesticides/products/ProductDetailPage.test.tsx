@@ -83,13 +83,13 @@ describe('ProductDetailPage (branches)', () => {
   it('generateMetadata: 薬剤が見つかった場合はタイトルを返す', async () => {
     mockGetPesticideBySlug.mockResolvedValue(makePesticide())
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'trifumin-ec' }) })
-    expect(meta.title).toBe('トリフミン乳剤 - 薬剤詳細 - BON-LOG')
+    expect(meta.title).toBe('トリフミン乳剤 - 薬剤詳細')
   })
 
   it('generateMetadata: 薬剤が見つからない場合はフォールバックタイトル', async () => {
     mockGetPesticideBySlug.mockResolvedValue(null)
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'unknown' }) })
-    expect(meta.title).toBe('薬剤が見つかりません - BON-LOG')
+    expect(meta.title).toBe('薬剤が見つかりません')
   })
 
   // --- notFound ---

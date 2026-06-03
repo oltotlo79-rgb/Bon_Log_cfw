@@ -1,11 +1,5 @@
 'use client'
 
-/**
- * @file 農薬編集フォーム（クライアントコンポーネント）
- * @description 農薬の基本情報（名称・登録番号・種別・説明）を編集するフォーム。
- *              Server Component から型付きの初期値を受け取り、編集結果を
- *              `updatePesticide` Server Action に委譲する。
- */
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'

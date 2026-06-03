@@ -1,9 +1,6 @@
 /**
- * @file JsonLd.tsx
- * @description 後方互換性のための再エクスポートファイル
- *
- * 各コンポーネントは個別ファイルに分割されました。
- * 新規コードでは '@/components/seo' または個別ファイルから直接インポートしてください。
+ * @module components/seo/JsonLd
+ * 後方互換のための再エクスポート。新規コードは個別ファイルから直接インポートする。
  */
 
 export { OrganizationJsonLd } from './OrganizationJsonLd'

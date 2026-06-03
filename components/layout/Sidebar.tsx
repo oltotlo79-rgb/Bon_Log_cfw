@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react'
 import {
   Home as HomeIcon,
   Search as SearchIcon,
+  Compass as CompassIcon,
   Bell as BellIcon,
   Bookmark as BookmarkIcon,
   MapPin as MapPinIcon,
@@ -29,6 +30,7 @@ import {
   ROUTE_HOME,
   ROUTE_LOGIN,
   ROUTE_SEARCH,
+  ROUTE_EXPLORE,
   ROUTE_SETTINGS,
   ROUTE_SCHEDULED_POSTS,
   ROUTE_PESTICIDES,
@@ -59,6 +61,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: ROUTE_FEED, icon: HomeIcon, label: 'ホーム', testId: 'nav-home' },
   { href: ROUTE_SEARCH, icon: SearchIcon, label: '検索', testId: 'nav-search' },
+  { href: ROUTE_EXPLORE, icon: CompassIcon, label: '発見', testId: 'nav-explore' },
   { href: ROUTE_NOTIFICATIONS, icon: BellIcon, label: '通知', testId: 'nav-notifications' },
   { href: ROUTE_MESSAGES, icon: MessageIcon, label: 'メッセージ', testId: 'nav-messages' },
   { href: ROUTE_BOOKMARKS, icon: BookmarkIcon, label: 'ブックマーク', testId: 'nav-bookmarks' },
@@ -98,7 +101,6 @@ export function Sidebar({ userId, isPremium, isAdmin: _isAdmin, isGuest = false 
 
   return (
     <aside aria-label="メインナビゲーション" className="sticky top-0 h-screen w-[260px] hidden lg:flex flex-col border-r border-border/30 bg-gradient-to-b from-card via-card to-muted/30">
-      {/* ロゴ + ブランド */}
       <div className="px-6 pt-7 pb-6">
         <Link href={ROUTE_FEED} className="block">
           <Image
@@ -113,10 +115,8 @@ export function Sidebar({ userId, isPremium, isAdmin: _isAdmin, isGuest = false 
         </Link>
       </div>
 
-      {/* 装飾ライン */}
       <div className="mx-5 brush-divider" />
 
-      {/* ナビゲーション */}
       <nav aria-label="メインメニュー" className="flex-1 px-3 py-3 overflow-y-auto">
         <ul className="space-y-0.5">
           {allNavItems.map((item) => {
@@ -157,7 +157,6 @@ export function Sidebar({ userId, isPremium, isAdmin: _isAdmin, isGuest = false 
         </ul>
       </nav>
 
-      {/* フッター */}
       <div className="px-3 pb-4 space-y-1">
         <div className="mx-2 mb-2 brush-divider" />
 

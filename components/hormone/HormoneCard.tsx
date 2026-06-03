@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { HormoneCategory } from '@prisma/client'
 import { HormoneCategoryBadge } from '@/components/hormone/HormoneCategoryBadge'
+import { buildHormonePath } from '@/lib/constants/path-builders'
 
 type Props = {
   hormone: {
@@ -21,7 +22,7 @@ export function HormoneCard({ hormone }: Props) {
 
   return (
     <Link
-      href={`/hormones/${hormone.slug}`}
+      href={buildHormonePath(hormone.slug)}
       className="block rounded-lg border p-4 hover:border-primary/40 transition-all group"
     >
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4">

@@ -89,7 +89,6 @@ function BonsaiCalendarMultiMonthGridInner({
       className="overflow-x-auto"
     >
       <div className="grid gap-px text-xs" style={{ gridTemplateColumns }}>
-        {/* 列ヘッダ行: 左端は日ラベル列のスペース、その後に各月名 */}
         <div role="rowheader" className="sticky left-0 z-20 bg-background py-1 pr-2 text-right text-muted-foreground">
           日 / 月
         </div>
@@ -103,7 +102,6 @@ function BonsaiCalendarMultiMonthGridInner({
           </div>
         ))}
 
-        {/* 各日（1..31）行: 左端に日ラベル → 各月のセル */}
         {DAY_LABELS.map((day) => (
           <div role="row" key={day} className="contents">
             <div

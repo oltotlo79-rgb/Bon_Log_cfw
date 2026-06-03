@@ -36,6 +36,17 @@ vi.mock('@/lib/logger', () => ({
   },
 }))
 
+const mockDeleteMediaFiles = vi.fn()
+vi.mock('@/lib/services/media-cleanup', () => ({
+  deleteMediaFiles: (...args: unknown[]) => mockDeleteMediaFiles(...args),
+}))
+
+// レート制限モック（create/update/delete/cancel が enforceUserRateLimit を呼ぶ）
+const mockCheckUserRateLimit = vi.fn().mockResolvedValue({ success: true })
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
+}))
+
 describe('Scheduled Post Actions', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -81,6 +92,22 @@ describe('Scheduled Post Actions', async () => {
       const result = await createScheduledPost(formData)
 
       expect(result).toMatchObject({ error: '認証が必要です' })
+    })
+
+    it('レート制限超過時はエラーを返し、作成しない', async () => {
+      mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
+
+      const formData = new FormData()
+      formData.set('content', '予約投稿テスト')
+      const futureDate = new Date()
+      futureDate.setDate(futureDate.getDate() + 1)
+      formData.set('scheduledAt', futureDate.toISOString())
+
+      const { createScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await createScheduledPost(formData)
+
+      expect(result).toMatchObject({ error: expect.stringContaining('操作が多すぎます') })
+      expect(mockPrisma.scheduledPost.create).not.toHaveBeenCalled()
     })
 
     it('無料会員の場合、エラーを返す', async () => {
@@ -462,10 +489,11 @@ describe('Scheduled Post Actions', async () => {
   // ============================================================
 
   describe('deleteScheduledPost', async () => {
-    it('予約投稿を削除できる', async () => {
+    it('予約投稿を削除でき、メディア実体も回収する', async () => {
       mockPrisma.scheduledPost.findUnique.mockResolvedValueOnce({
         userId: mockUser.id,
         status: 'pending',
+        media: [{ url: 'https://cdn/sched-a.webp' }],
       })
       mockPrisma.scheduledPost.delete.mockResolvedValueOnce(mockScheduledPost)
 
@@ -473,6 +501,7 @@ describe('Scheduled Post Actions', async () => {
       const result = await deleteScheduledPost(mockScheduledPost.id)
 
       expect(result).toEqual({ success: true })
+      expect(mockDeleteMediaFiles).toHaveBeenCalledWith(['https://cdn/sched-a.webp'])
     })
 
     it('未認証の場合、エラーを返す', async () => {
@@ -482,6 +511,18 @@ describe('Scheduled Post Actions', async () => {
       const result = await deleteScheduledPost(mockScheduledPost.id)
 
       expect(result).toMatchObject({ error: '認証が必要です' })
+    })
+
+    it('レート制限超過時はエラーを返し、DB 探索もしない', async () => {
+      mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
+
+      const { deleteScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await deleteScheduledPost(mockScheduledPost.id)
+
+      expect(result).toMatchObject({ error: expect.stringContaining('操作が多すぎます') })
+      // RL は findUnique の前に評価されるため、任意 id 探索が走らない
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
+      expect(mockPrisma.scheduledPost.delete).not.toHaveBeenCalled()
     })
 
     it('存在しない予約投稿の場合、エラーを返す', async () => {
@@ -534,6 +575,17 @@ describe('Scheduled Post Actions', async () => {
       const result = await cancelScheduledPost(mockScheduledPost.id)
 
       expect(result).toMatchObject({ error: '認証が必要です' })
+    })
+
+    it('レート制限超過時はエラーを返し、DB 探索もしない', async () => {
+      mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
+
+      const { cancelScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await cancelScheduledPost(mockScheduledPost.id)
+
+      expect(result).toMatchObject({ error: expect.stringContaining('操作が多すぎます') })
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
+      expect(mockPrisma.scheduledPost.update).not.toHaveBeenCalled()
     })
 
     it('pending以外のステータスはキャンセルできない', async () => {
@@ -708,6 +760,7 @@ describe('Scheduled Post Actions', async () => {
       mockPrisma.scheduledPost.findUnique.mockResolvedValueOnce({
         userId: mockUser.id,
         status: 'cancelled',
+        media: [],
       })
       mockPrisma.scheduledPost.delete.mockResolvedValueOnce(mockScheduledPost)
 

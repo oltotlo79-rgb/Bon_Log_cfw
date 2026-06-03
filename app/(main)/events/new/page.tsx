@@ -6,7 +6,8 @@ import { ROUTE_EVENTS, ROUTE_LOGIN } from '@/lib/constants/routes'
 import { EventForm } from '@/components/event/EventForm'
 
 export const metadata = {
-  title: 'イベントを登録 - BON-LOG',
+  title: 'イベントを登録',
+  robots: { index: false, follow: false },
 }
 
 export default async function NewEventPage() {

@@ -27,7 +27,6 @@ export function FollowerGrowthChart({ currentFollowers, totalNewInPeriod, growth
 
   return (
     <div className="space-y-4">
-      {/* サマリー */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-muted-foreground" />
@@ -41,10 +40,8 @@ export function FollowerGrowthChart({ currentFollowers, totalNewInPeriod, growth
         </div>
       </div>
 
-      {/* 折れ線グラフ風エリアチャート */}
       <div className="h-32 relative">
         <svg viewBox={`0 0 ${growth.length - 1} 100`} className="w-full h-full" preserveAspectRatio="none">
-          {/* エリア */}
           <path
             d={
               growth.map((g, i) => {
@@ -56,7 +53,6 @@ export function FollowerGrowthChart({ currentFollowers, totalNewInPeriod, growth
             }
             className="fill-primary/10"
           />
-          {/* ライン */}
           <path
             d={
               growth.map((g, i) => {
@@ -73,7 +69,6 @@ export function FollowerGrowthChart({ currentFollowers, totalNewInPeriod, growth
         </svg>
       </div>
 
-      {/* X軸ラベル */}
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>
           {growth[0] && new Date(growth[0].date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}

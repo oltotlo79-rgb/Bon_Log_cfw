@@ -83,7 +83,6 @@ describe('lib/constants/routes', () => {
       const adminRoutes = [
         routes.ROUTE_ADMIN_USERS,
         routes.ROUTE_ADMIN_REPORTS,
-        routes.ROUTE_ADMIN_CONTACTS,
         routes.ROUTE_ADMIN_CONTACT,
         routes.ROUTE_ADMIN_PESTICIDE_DATA,
         routes.ROUTE_ADMIN_PESTICIDE_DATA_NEW,

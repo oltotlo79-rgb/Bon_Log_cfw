@@ -631,7 +631,7 @@ describe('Fulltext Search Module', async () => {
   describe('fulltextSearchBonsais', async () => {
     it('空のクエリは空配列を返す', async () => {
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('')
+      const result = await fulltextSearchBonsais('', { userId: 'user-1' })
 
       expect(result).toEqual([])
     })
@@ -641,7 +641,7 @@ describe('Fulltext Search Module', async () => {
       mockQueryRaw.mockResolvedValueOnce([{ id: 'bonsai-1' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松')
+      const result = await fulltextSearchBonsais('黒松', { userId: 'user-1' })
 
       expect(result).toEqual(['bonsai-1'])
     })
@@ -651,7 +651,7 @@ describe('Fulltext Search Module', async () => {
       mockQueryRaw.mockResolvedValueOnce([{ id: 'bonsai-1' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松')
+      const result = await fulltextSearchBonsais('黒松', { userId: 'user-1' })
 
       expect(result).toEqual(['bonsai-1'])
     })
@@ -661,7 +661,7 @@ describe('Fulltext Search Module', async () => {
       mockQueryRaw.mockResolvedValueOnce([{ id: 'bonsai-1' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松')
+      const result = await fulltextSearchBonsais('黒松', { userId: 'user-1' })
 
       expect(result).toEqual(['bonsai-1'])
     })
@@ -681,7 +681,7 @@ describe('Fulltext Search Module', async () => {
       mockQueryRaw.mockResolvedValueOnce([{ id: 'bonsai-1' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松')
+      const result = await fulltextSearchBonsais('黒松', { userId: 'user-1' })
 
       expect(result).toEqual(['bonsai-1'])
     })
@@ -724,7 +724,8 @@ describe('Fulltext Search Module', async () => {
         .mockResolvedValueOnce([{ id: 'bonsai-1' }])
 
       const { fulltextSearchGlobal } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchGlobal('盆栽')
+      // 盆栽は所有者専用のため currentUserId が必要
+      const result = await fulltextSearchGlobal('盆栽', { currentUserId: 'user-1' })
 
       expect(result.postIds).toEqual(['post-1'])
       expect(result.userIds).toEqual(['user-1'])

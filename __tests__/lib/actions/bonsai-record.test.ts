@@ -35,6 +35,11 @@ vi.mock('@/lib/logger', () => ({
   default: { error: vi.fn(), warn: vi.fn(), log: vi.fn() },
 }))
 
+const mockDeleteMediaFiles = vi.fn()
+vi.mock('@/lib/services/media-cleanup', () => ({
+  deleteMediaFiles: (...args: unknown[]) => mockDeleteMediaFiles(...args),
+}))
+
 
 import {
   ERR_BONSAI_NOT_FOUND,
@@ -264,18 +269,20 @@ describe('bonsai-record actions', () => {
       expect(result).toMatchObject({ success: false, error: ERR_BONSAI_RECORD_NOT_FOUND })
     })
 
-    it('正常に削除できる', async () => {
+    it('正常に削除でき、メディア実体も回収する', async () => {
       mockRequireActiveNonGuestUser.mockResolvedValue({ userId: 'user-1' })
       mockPrisma.bonsaiRecord.findFirst.mockResolvedValue({
         id: 'rec-1',
         bonsaiId: 'b1',
         bonsai: { userId: 'user-1' },
+        images: [{ url: 'https://cdn/rec-a.webp' }],
       })
       mockPrisma.bonsaiRecord.delete.mockResolvedValue({})
       const deleteBonsaiRecord = await importAction()
 
       const result = await deleteBonsaiRecord('rec-1')
       expect(result).toMatchObject({ success: true })
+      expect(mockDeleteMediaFiles).toHaveBeenCalledWith(['https://cdn/rec-a.webp'])
     })
 
     it('DB例外時にエラーを返す', async () => {
@@ -297,6 +304,10 @@ describe('bonsai-record actions', () => {
   // getBonsaiTimeline
   // ============================================================
   describe('getBonsaiTimeline', () => {
+    beforeEach(() => {
+      mockRequireAuth.mockResolvedValue({ userId: 'u1' })
+    })
+
     async function importAction() {
       vi.resetModules()
       const mod = await import('@/lib/actions/bonsai-record')
@@ -373,6 +384,12 @@ describe('bonsai-record actions', () => {
   // getBonsaiRecords
   // ============================================================
   describe('getBonsaiRecords', () => {
+    beforeEach(() => {
+      mockRequireAuth.mockResolvedValue({ userId: 'u1' })
+      // 所有者一致を既定とする（マイ盆栽の所有者チェックを通過させる）
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: 'u1' })
+    })
+
     async function importAction() {
       vi.resetModules()
       const mod = await import('@/lib/actions/bonsai-record')
@@ -403,6 +420,24 @@ describe('bonsai-record actions', () => {
 
     it('DB例外時に空配列を返す', async () => {
       mockPrisma.bonsaiRecord.findMany.mockRejectedValue(new Error('DB error'))
+      const getBonsaiRecords = await importAction()
+
+      const result = await getBonsaiRecords('b1')
+      expect(result).toEqual({ success: true, data: { records: [], nextCursor: undefined } })
+    })
+
+    it('非所有者には記録を返さず findMany も呼ばない', async () => {
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: 'other-owner' })
+      mockPrisma.bonsaiRecord.findMany.mockResolvedValue([{ id: 'rec-1', images: [] }])
+      const getBonsaiRecords = await importAction()
+
+      const result = await getBonsaiRecords('b1')
+      expect(result).toEqual({ success: true, data: { records: [], nextCursor: undefined } })
+      expect(mockPrisma.bonsaiRecord.findMany).not.toHaveBeenCalled()
+    })
+
+    it('未認証では記録を返さない', async () => {
+      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
       const getBonsaiRecords = await importAction()
 
       const result = await getBonsaiRecords('b1')
@@ -585,6 +620,10 @@ describe('bonsai-record actions', () => {
   // getBonsaiTimeline - デフォルトlimitテスト
   // ============================================================
   describe('getBonsaiTimeline - defaults', () => {
+    beforeEach(() => {
+      mockRequireAuth.mockResolvedValue({ userId: 'u1' })
+    })
+
     async function importAction() {
       vi.resetModules()
       const mod = await import('@/lib/actions/bonsai-record')

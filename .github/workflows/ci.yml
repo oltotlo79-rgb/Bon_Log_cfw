@@ -339,6 +339,9 @@ jobs:
           HOSTNAME: "0.0.0.0"
           NODE_ENV: "production"
           GUEST_PASSWORD: "GuestPass1!"
+          # E2E は共有ユーザーで /feed を多数回ロードし get_timeline 枠 (30/分) を枯渇させるため
+          # レート制限を無効化する。loopback URL でのみ有効化される (lib/rate-limit.ts)。
+          DISABLE_RATE_LIMIT: "true"
 
       - name: Run E2E tests
         run: |

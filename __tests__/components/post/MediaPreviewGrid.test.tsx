@@ -3,8 +3,39 @@ import { render, screen } from '../../utils/test-utils'
 import { MediaPreviewGrid } from '@/components/post/MediaPreviewGrid'
 
 // next/image モック
+// Why: `fill` などの next/image 固有 boolean props を img へ流すと React が
+// `Received true for a non-boolean attribute fill` 警告を出すため除去する。
 vi.mock('next/image', () => ({
-  default: ({ src, alt, ...props }: { src: string; alt: string; [key: string]: unknown }) => (
+  default: ({
+    src,
+    alt,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    fill,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    priority,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    quality,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    placeholder,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    blurDataURL,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    loader,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    unoptimized,
+    ...props
+  }: {
+    src: string
+    alt: string
+    fill?: boolean
+    priority?: boolean
+    quality?: number
+    placeholder?: string
+    blurDataURL?: string
+    loader?: unknown
+    unoptimized?: boolean
+    [key: string]: unknown
+  }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt={alt} data-testid="next-image" {...props} />
   ),

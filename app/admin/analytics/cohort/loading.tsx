@@ -1,7 +1,3 @@
-/**
- * @file コホート分析ページのローディング画面
- */
-
 import { LoadingScreen } from '@/components/common/LoadingScreen'
 
 export default function CohortLoading() {

@@ -86,6 +86,7 @@ describe('getOrCreateConversation', () => {
   })
 
   it('既存の会話がある場合はそれを返す', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-2', isPublic: true, isSuspended: false, email: 'user2@example.com' })
     mockPrisma.block.findFirst.mockResolvedValue(null)
     mockPrisma.conversation.findFirst.mockResolvedValue({ id: 'conv-1' })
 

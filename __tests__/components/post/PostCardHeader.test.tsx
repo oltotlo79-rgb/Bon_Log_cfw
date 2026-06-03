@@ -4,10 +4,11 @@ import { render, screen, fireEvent } from '../../utils/test-utils'
 import { mockUser } from '../../utils/test-utils'
 
 const mockPush = vi.fn()
+const mockRefresh = vi.fn()
 const mockHidePost = vi.fn()
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
   usePathname: () => '/feed',
 }))
 vi.mock('next/image', () => ({
@@ -38,6 +39,13 @@ vi.mock('@/components/report/ReportButton', () => ({
 vi.mock('@/lib/actions/hide-post', () => ({
   hidePost: (...args: unknown[]) => mockHidePost(...args),
 }))
+const mockPinPost = vi.fn()
+const mockUnpinPost = vi.fn()
+vi.mock('@/lib/actions/pin-post', () => ({
+  pinPost: (...args: unknown[]) => mockPinPost(...args),
+  unpinPost: (...args: unknown[]) => mockUnpinPost(...args),
+}))
+vi.mock('@/hooks/use-toast', () => ({ toast: vi.fn() }))
 vi.mock('@/lib/constants/routes', () => ({
   ROUTE_FEED: '/feed',
 }))
@@ -58,6 +66,8 @@ describe('PostCardHeader', () => {
     vi.clearAllMocks()
     vi.resetModules()
     mockHidePost.mockResolvedValue({ success: true })
+    mockPinPost.mockResolvedValue({ success: true })
+    mockUnpinPost.mockResolvedValue({ success: true })
   })
 
   describe('基本表示', () => {
@@ -274,6 +284,72 @@ describe('PostCardHeader', () => {
       )
       fireEvent.click(screen.getByTestId('post-menu-button'))
       expect(screen.queryByTestId('delete-post-button')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('編集・固定', () => {
+    function renderOwner(extra: Record<string, unknown> = {}) {
+      return importComponent().then((PostCardHeader) =>
+        render(
+          <PostCardHeader
+            user={testUser}
+            timeAgo="1分前"
+            postId="post-9"
+            isOwner={true}
+            isRepost={false}
+            currentUserId={mockUser.id}
+            displayPostId="post-9"
+            disableNavigation={false}
+            onHidden={() => {}}
+            {...extra}
+          />
+        )
+      )
+    }
+
+    it('オーナーのメニューに編集リンクと固定ボタンが表示される', async () => {
+      await renderOwner()
+      fireEvent.click(screen.getByTestId('post-menu-button'))
+      expect(screen.getByTestId('edit-post-link')).toHaveAttribute('href', '/posts/post-9/edit')
+      expect(screen.getByTestId('pin-post-button')).toHaveTextContent('プロフィールに固定')
+    })
+
+    it('固定ボタンをクリックすると pinPost が呼ばれる', async () => {
+      await renderOwner()
+      fireEvent.click(screen.getByTestId('post-menu-button'))
+      fireEvent.click(screen.getByTestId('pin-post-button'))
+      expect(mockPinPost).toHaveBeenCalledWith('post-9')
+    })
+
+    it('固定済みの場合はバッジと「固定を解除」を表示し unpinPost を呼ぶ', async () => {
+      await renderOwner({ isPinned: true })
+      expect(screen.getByTestId('post-pinned-badge')).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('post-menu-button'))
+      const pinButton = screen.getByTestId('pin-post-button')
+      expect(pinButton).toHaveTextContent('固定を解除')
+      fireEvent.click(pinButton)
+      expect(mockUnpinPost).toHaveBeenCalled()
+      expect(mockPinPost).not.toHaveBeenCalled()
+    })
+
+    it('非オーナーには編集・固定が表示されない', async () => {
+      const PostCardHeader = await importComponent()
+      render(
+        <PostCardHeader
+          user={{ ...testUser, id: 'other' }}
+          timeAgo="1分前"
+          postId="post-9"
+          isOwner={false}
+          isRepost={false}
+          currentUserId={mockUser.id}
+          displayPostId="post-9"
+          disableNavigation={false}
+          onHidden={() => {}}
+        />
+      )
+      fireEvent.click(screen.getByTestId('post-menu-button'))
+      expect(screen.queryByTestId('edit-post-link')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('pin-post-button')).not.toBeInTheDocument()
     })
   })
 

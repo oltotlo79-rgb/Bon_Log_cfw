@@ -1,24 +1,5 @@
 /**
- * @file ShopForm.tsx
- * @description 盆栽園の新規登録・編集フォームコンポーネント
- *
- * 機能概要:
- * - 盆栽園の新規登録と既存データの編集に対応
- * - 住所入力時のリアルタイム候補検索（ジオコーディング）
- * - 位置情報（緯度・経度）の自動取得
- * - 取り扱いジャンルの複数選択
- * - 営業時間のアナログ時計による直感的な入力
- * - 位置情報未取得時の確認ダイアログ表示
- * - 盆栽園の削除機能（編集モード時のみ）
- *
- * 使用例:
- * ```tsx
- * // 新規登録
- * <ShopForm genres={genres} mode="create" />
- *
- * // 編集
- * <ShopForm genres={genres} initialData={shopData} mode="edit" />
- * ```
+ * @module components/shop/ShopForm
  */
 'use client'
 
@@ -33,18 +14,12 @@ import { BusinessHoursSection } from './form/BusinessHoursSection'
 import { ShopGenreSelector } from './form/ShopGenreSelector'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
-/**
- * ジャンル情報の型定義
- */
 interface Genre {
   id: string
   name: string
   category: string
 }
 
-/**
- * 編集モードで必要な盆栽園の初期データ。
- */
 type ShopFormInitialData = {
   id: string
   name: string
@@ -58,27 +33,18 @@ type ShopFormInitialData = {
   genres: Genre[]
 }
 
-/**
- * ShopFormコンポーネントのプロパティ定義。
- *
- * `mode === 'edit'` の場合は `initialData` が必須、`mode === 'create'` では渡せない、
- * という制約を discriminated union で型レベルに表現する。
- * これにより、サブミット内での `initialData!.id` のような非 null アサーションが不要になる。
- */
+// discriminated union により mode で initialData の有無を型レベルに表現し、
+// サブミット内での非 null アサーションを不要にする
 type ShopFormProps =
   | { genres: Genre[]; mode: 'create'; initialData?: never }
   | { genres: Genre[]; mode: 'edit'; initialData: ShopFormInitialData }
 
-/**
- * 盆栽園登録・編集フォームコンポーネント
- */
 export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   const [error, setError] = useState<string | null>(null)
 
-  // フォーム入力値
   const [name, setName] = useState(initialData?.name || '')
   const [address, setAddress] = useState(initialData?.address || '')
   const [latitude, setLatitude] = useState<number | null>(initialData?.latitude || null)
@@ -91,17 +57,12 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
     initialData?.genres.map((g) => g.id) || []
   )
 
-  // 確認ダイアログ
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState(false)
 
-  // 削除ダイアログ
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  /**
-   * 実際のフォーム送信処理
-   */
   const executeSubmit = () => {
     startTransition(async () => {
       const formData = new FormData()
@@ -115,7 +76,7 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
       if (closedDays) formData.append('closedDays', closedDays)
       selectedGenreIds.forEach((id) => formData.append('genreIds', id))
 
-      // discriminated union により mode で initialData の型が絞り込まれる。
+      // discriminated union により mode で initialData の型が絞り込まれる
       const result = mode === 'edit'
         ? await updateShop(initialData.id, formData)
         : await createShop(formData)
@@ -142,9 +103,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
     })
   }
 
-  /**
-   * フォーム送信ハンドラ
-   */
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
@@ -169,9 +127,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
     setPendingSubmit(false)
   }
 
-  /**
-   * 盆栽園削除処理
-   */
   const handleDelete = async () => {
     if (!initialData?.id) return
 
@@ -189,10 +144,8 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* エラーメッセージ */}
       <FormError message={error} />
 
-      {/* 名称入力 */}
       <div className="space-y-2">
         <label htmlFor="name" className="text-sm font-medium">
           名称 <span className="text-destructive">*</span>
@@ -208,7 +161,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         />
       </div>
 
-      {/* 住所入力 + ジオコーディング */}
       <AddressGeocodingSection
         address={address}
         latitude={latitude}
@@ -226,7 +178,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         disabled={isPending}
       />
 
-      {/* 電話番号 */}
       <div className="space-y-2">
         <label htmlFor="phone" className="text-sm font-medium">
           電話番号
@@ -241,7 +192,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         />
       </div>
 
-      {/* ウェブサイト */}
       <div className="space-y-2">
         <label htmlFor="website" className="text-sm font-medium">
           ウェブサイト
@@ -256,7 +206,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         />
       </div>
 
-      {/* 営業時間・定休日 */}
       <BusinessHoursSection
         businessHours={businessHours}
         closedDays={closedDays}
@@ -265,7 +214,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         disabled={isPending}
       />
 
-      {/* ジャンル選択 */}
       <ShopGenreSelector
         selectedGenreIds={selectedGenreIds}
         availableGenres={genres}
@@ -273,7 +221,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         disabled={isPending}
       />
 
-      {/* 送信・キャンセルボタン */}
       <div className="flex gap-3">
         <button
           type="button"
@@ -294,7 +241,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         </button>
       </div>
 
-      {/* 削除ボタン（編集モードのみ） */}
       {mode === 'edit' && (
         <div className="pt-4 border-t">
           <button
@@ -308,7 +254,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         </div>
       )}
 
-      {/* 位置取得未実行時の確認ダイアログ */}
       {showConfirmDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
@@ -348,7 +293,6 @@ export function ShopForm({ genres, initialData, mode }: ShopFormProps) {
         </div>
       )}
 
-      {/* 削除確認ダイアログ */}
       {showDeleteDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">

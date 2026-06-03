@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * イベントページのE2Eテスト
@@ -58,8 +59,7 @@ test.describe('イベントページ', () => {
 
     const createLink = page.getByRole('link', { name: /イベント登録|イベントを登録|新規登録|イベントを追加/i })
     if (await createLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await createLink.click()
-      await expect(page).toHaveURL(/\/events\/new/)
+      await clickAndWaitForUrl(page, createLink, /\/events\/new/)
     }
   })
 })

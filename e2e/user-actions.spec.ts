@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ユーザープロフィールアクションのE2Eテスト
@@ -34,7 +35,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     const feedUserLinks = page.locator('a[href^="/users/"]')
     if ((await feedUserLinks.count()) > 0) {
-      await feedUserLinks.first().click()
+      await clickAndWaitForUrl(page, feedUserLinks.first(), /\/users\//, { timeout: 10000 })
     } else {
       // フォールバック: ユーザー検索
       await page.goto('/search?q=E2E&tab=users')
@@ -44,20 +45,16 @@ test.describe('ユーザープロフィールアクション', () => {
       if ((await searchUserLinks.count()) === 0) {
         return false
       }
-      await searchUserLinks.first().click()
+      await clickAndWaitForUrl(page, searchUserLinks.first(), /\/users\//, { timeout: 10000 })
     }
 
-    await expect(page).toHaveURL(/\/users\//, { timeout: 10000 })
     return true
   }
 
   test.describe('フォロー/アンフォロー', () => {
     test('他のユーザーのプロフィールにフォローボタンが表示される', async ({ page }) => {
       const navigated = await navigateToOtherUser(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       const followButton = page.locator(
         '[data-testid="follow-button"], button:has-text("フォロー"), button:has-text("フォロー中"), button:has-text("フォローする")'
@@ -70,10 +67,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('フォローボタンをクリックできる', async ({ page }) => {
       const navigated = await navigateToOtherUser(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       const followButton = page.locator(
         '[data-testid="follow-button"], button:has-text("フォロー"), button:has-text("フォローする")'
@@ -90,10 +84,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('自分のプロフィールにフォローボタンが表示されない', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
@@ -115,10 +106,7 @@ test.describe('ユーザープロフィールアクション', () => {
   test.describe('ブロック/ミュートオプション', () => {
     test('他のユーザーのプロフィールにメニューボタンが存在する', async ({ page }) => {
       const navigated = await navigateToOtherUser(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // メニューボタン（三点リーダーなど）
       const menuButton = page.locator(
@@ -136,10 +124,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('メニューからブロック/ミュートオプションにアクセスできる', async ({ page }) => {
       const navigated = await navigateToOtherUser(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // メニューボタンをクリック
       const menuButton = page.locator(
@@ -170,10 +155,7 @@ test.describe('ユーザープロフィールアクション', () => {
   test.describe('ユーザープロフィールタブ', () => {
     test('投稿タブが表示される', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
@@ -184,14 +166,13 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('フォロワータブまたはリンクが表示される', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
       await page.waitForLoadState('load').catch(() => {})
+      // プロフィールのタブ/フォロワー数は client fetch 後に描画されるため待つ
+      await page.waitForLoadState('networkidle').catch(() => {})
 
       const followersLink = page.locator(
         'a[href*="/followers"], [data-testid="followers-tab"], button:has-text("フォロワー")'
@@ -206,10 +187,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('フォロー中タブまたはリンクが表示される', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
@@ -227,10 +205,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('いいねタブまたはリンクが表示される', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
@@ -248,10 +223,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('フォロワー一覧ページに遷移できる', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}/followers`)
 
@@ -268,10 +240,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('フォロー中一覧ページに遷移できる', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}/following`)
 
@@ -288,10 +257,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('いいね一覧ページに遷移できる', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}/likes`)
 
@@ -338,10 +304,7 @@ test.describe('ユーザープロフィールアクション', () => {
   test.describe('プロフィール表示', () => {
     test('プロフィールにアバター画像またはデフォルトアイコンが表示される', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
@@ -360,10 +323,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('プロフィールにニックネームが表示される', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')
@@ -375,10 +335,7 @@ test.describe('ユーザープロフィールアクション', () => {
 
     test('プロフィールに自己紹介文セクションが存在する', async ({ page }) => {
       const userId = await findUserId(page)
-      if (!userId) {
-        test.skip()
-        return
-      }
+      expect(userId).toBeTruthy()
 
       await page.goto(`/users/${userId}`)
       await page.waitForLoadState('domcontentloaded')

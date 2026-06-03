@@ -228,4 +228,138 @@ describe('Security Logger Module', async () => {
       expect(loggedMessage).toContain('"severity":"low"')
     })
   })
+
+  describe('Security Sinks', async () => {
+    beforeEach(async () => {
+      const { _clearSecuritySinksForTest } = await import('@/lib/security-logger')
+      _clearSecuritySinksForTest()
+    })
+
+    it('登録した sink にエントリと整形済み JSON を渡す', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const sink = vi.fn()
+      registerSecuritySink(sink)
+
+      logLoginSuccess('user-abc')
+
+      expect(sink).toHaveBeenCalledTimes(1)
+      const [entry, formatted] = sink.mock.calls[0]
+      expect(entry).toMatchObject({
+        type: 'LOGIN_SUCCESS',
+        userId: 'user-abc',
+        severity: 'low',
+      })
+      expect(typeof formatted).toBe('string')
+      expect(JSON.parse(formatted)).toMatchObject({
+        type: 'LOGIN_SUCCESS',
+        userId: 'user-abc',
+        app: 'bon-log',
+      })
+    })
+
+    it('登録解除関数を呼ぶと該当 sink だけ取り除く', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const sinkA = vi.fn()
+      const sinkB = vi.fn()
+      const unregisterA = registerSecuritySink(sinkA)
+      registerSecuritySink(sinkB)
+
+      unregisterA()
+      logLoginSuccess('user-1')
+
+      expect(sinkA).not.toHaveBeenCalled()
+      expect(sinkB).toHaveBeenCalledTimes(1)
+    })
+
+    it('同じ unregister を2回呼んでも他の sink を巻き込まない', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const sinkA = vi.fn()
+      const sinkB = vi.fn()
+      const unregisterA = registerSecuritySink(sinkA)
+      registerSecuritySink(sinkB)
+
+      unregisterA()
+      unregisterA()
+      logLoginSuccess('user-1')
+
+      expect(sinkB).toHaveBeenCalledTimes(1)
+    })
+
+    it('sink が同期例外を投げても他の sink と呼び出し元に影響しない', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const throwingSink = vi.fn(() => {
+        throw new Error('sink fails')
+      })
+      const followingSink = vi.fn()
+      registerSecuritySink(throwingSink)
+      registerSecuritySink(followingSink)
+
+      expect(() => logLoginSuccess('user-1')).not.toThrow()
+      expect(throwingSink).toHaveBeenCalledTimes(1)
+      expect(followingSink).toHaveBeenCalledTimes(1)
+    })
+
+    it('async sink が reject しても呼び出し元に伝播しない', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const rejectingSink = vi.fn(() => Promise.reject(new Error('async failure')))
+      registerSecuritySink(rejectingSink)
+
+      expect(() => logLoginSuccess('user-1')).not.toThrow()
+      // 非同期 reject の握りつぶしを保証するため、microtask flush を待つ
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(rejectingSink).toHaveBeenCalledTimes(1)
+    })
+
+    it('複数 sink は登録順に呼び出される', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const order: string[] = []
+      registerSecuritySink(() => {
+        order.push('first')
+      })
+      registerSecuritySink(() => {
+        order.push('second')
+      })
+
+      logLoginSuccess('user-1')
+
+      expect(order).toEqual(['first', 'second'])
+    })
+
+    it('_clearSecuritySinksForTest で登録済み sink を全削除する', async () => {
+      const { registerSecuritySink, _clearSecuritySinksForTest, logLoginSuccess } = await import(
+        '@/lib/security-logger'
+      )
+      const sink = vi.fn()
+      registerSecuritySink(sink)
+
+      _clearSecuritySinksForTest()
+      logLoginSuccess('user-1')
+
+      expect(sink).not.toHaveBeenCalled()
+    })
+
+    it('sync sink が void を返した場合に .catch を呼ばずに完了する', async () => {
+      const { registerSecuritySink, logLoginSuccess } = await import('@/lib/security-logger')
+      const sink = vi.fn(() => undefined)
+      registerSecuritySink(sink)
+
+      expect(() => logLoginSuccess('user-1')).not.toThrow()
+      expect(sink).toHaveBeenCalledTimes(1)
+    })
+
+    it('high 重大度のイベントも sink に届く', async () => {
+      const { registerSecuritySink, logUnauthorizedAccess } = await import('@/lib/security-logger')
+      const sink = vi.fn()
+      registerSecuritySink(sink)
+
+      logUnauthorizedAccess('/admin', '127.0.0.1', 'user-1')
+
+      expect(sink).toHaveBeenCalledTimes(1)
+      expect(sink.mock.calls[0][0]).toMatchObject({
+        type: 'UNAUTHORIZED_ACCESS',
+        severity: 'high',
+      })
+    })
+  })
 })

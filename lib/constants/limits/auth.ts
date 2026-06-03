@@ -52,8 +52,21 @@ export const TOTP_TOLERANCE_WINDOW = 1
 /** 2FAセットアップ一時保存のTTL（秒、10分） */
 export const TWO_FACTOR_SETUP_TTL_SECONDS = 600
 
+/**
+ * ログイン時 2FA 検証チケットの TTL（秒、2分）。
+ * verify2FAToken 成功時に発行し、authorize() がセッション発行前に消費する単回使用トークン。
+ * 短命にすることで、漏洩時の悪用窓口とリプレイ余地を最小化する。
+ */
+export const TWO_FACTOR_LOGIN_TICKET_TTL_SECONDS = 120
+
 /** 最大ログイン試行回数（IP+メール単位） */
 export const MAX_LOGIN_ATTEMPTS = 5
+
+/**
+ * verify-credentials Server Action のレート制限上限（IP+email、15分窓）。
+ * NextAuth.signIn の前段で動く Action のため bot による credential stuffing を抑止。
+ */
+export const VERIFY_CREDENTIALS_MAX_ATTEMPTS = 5
 
 /** 最大ログイン試行回数（IP単位、全メールアドレス合算） */
 export const MAX_IP_LOGIN_ATTEMPTS = 20

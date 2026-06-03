@@ -1,16 +1,7 @@
-/**
- * @file 盆栽関連ページのエラーバウンダリ
- * @description 盆栽ページでエラーが発生した際に表示されるエラー画面
- *              Next.js App Routerのerror.tsxファイル規約に基づく実装
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 盆栽エラー画面コンポーネント
- */
 export default function BonsaiError({
   error,
   reset,

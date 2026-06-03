@@ -1,9 +1,3 @@
-/**
- * @file NGワード管理ページのローディング画面
- * @description NGワード一覧の読み込み中に表示されるローディング画面。
- *              Next.jsのSuspense機能と連携して自動的に表示される。
- */
-
 import { LoadingScreen } from '@/components/common/LoadingScreen'
 
 /**

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * マイ盆栽ページのE2Eテスト
@@ -38,8 +39,7 @@ test.describe('マイ盆栽ページ', () => {
 
     const registerLink = page.getByRole('link', { name: /盆栽を登録|盆栽を追加|新規登録|追加/i })
     if (await registerLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await registerLink.click()
-      await expect(page).toHaveURL(/\/bonsai\/new/)
+      await clickAndWaitForUrl(page, registerLink, /\/bonsai\/new/)
     }
   })
 })

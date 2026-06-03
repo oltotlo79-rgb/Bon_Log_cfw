@@ -9,7 +9,7 @@ import { BASE_URL, ROUTE_HORMONES, ROUTE_HORMONE_DIAGRAM, ROUTE_HORMONE_INTERACT
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '相互作用ダイアグラム - 植物ホルモン - BON-LOG',
+  title: '相互作用ダイアグラム - 植物ホルモン',
   description: '植物ホルモン間の相乗・拮抗・調節関係をネットワーク図で可視化します。',
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_DIAGRAM) },
 }

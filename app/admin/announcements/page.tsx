@@ -1,9 +1,3 @@
-/**
- * @file お知らせ管理ページ
- * @description お知らせの一覧表示・作成・編集・削除を行う管理者ページ。
- * @route /admin/announcements
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getAnnouncements } from '@/lib/actions/admin/announcements'
@@ -34,7 +28,6 @@ export default async function AnnouncementsPage() {
         <h1 className="text-2xl font-bold">お知らせ管理</h1>
       </div>
 
-      {/* 統計カード */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">有効なお知らせ</p>
@@ -46,7 +39,6 @@ export default async function AnnouncementsPage() {
         </div>
       </div>
 
-      {/* お知らせリスト（Client Component） */}
       <AnnouncementList announcements={JSON.parse(JSON.stringify(announcements))} />
     </div>
   )

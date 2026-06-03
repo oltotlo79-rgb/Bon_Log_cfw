@@ -29,16 +29,23 @@ import {
   SESSION_UPDATE_AGE_SECONDS,
 } from '@/lib/constants/limits'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
+import { ERR_EMAIL_ALREADY_IN_USE } from '@/lib/constants/errors'
 import { assertSafeOAuthLinking } from '@/lib/security/oauth-guard'
 import { getGoogleOAuthConfig, getGuestPassword } from '@/lib/env'
+import { consumeTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
 
 /**
  * ログイン入力スキーマ。
  * email / password とも最低限の形式検証のみ実施（詳細な強度チェックは登録時）。
+ *
+ * `twoFactorTicket` は 2FA 有効ユーザーがクライアントで `verify2FAToken` 成功後に受け取る
+ * 単回使用チケット。2FA 強制はサーバー側（authorize）で行うため optional として受け取り、
+ * twoFactorEnabled なユーザーに対してのみ必須化する。
  */
 const loginSchema = z.object({
   email: z.string().email('有効なメールアドレスを入力してください'),
   password: z.string().min(8, 'パスワードは8文字以上である必要があります'),
+  twoFactorTicket: z.string().optional(),
 })
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -94,7 +101,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const result = loginSchema.safeParse(credentials)
         if (!result.success) return null
 
-        const { email, password } = result.data
+        const { email, password, twoFactorTicket } = result.data
 
         // ゲストログイン（共有アカウント）。
         // `GUEST_PASSWORD` 未設定時は無効（開発中の誤配信を防ぐ）。
@@ -140,6 +147,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             avatarUrl: true,
             isSuspended: true,
             emailVerified: true,
+            twoFactorEnabled: true,
           },
         })
 
@@ -150,6 +158,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const passwordMatch = await bcrypt.compare(password, user.password)
         if (!passwordMatch) return null
+
+        // 2FA 有効ユーザーはセッション発行前にサーバー側で第二要素を強制する。
+        // クライアントの LoginForm だけに依存すると、signIn('credentials') を直接呼ぶことで
+        // TOTP 提示なしにセッションを取得できてしまう（バイパス）。verify2FAToken 成功時に
+        // 発行された単回使用チケットの消費を必須化し、fail-closed で塞ぐ。
+        if (user.twoFactorEnabled) {
+          const ticketValid = await consumeTwoFactorLoginTicket(email, twoFactorTicket ?? '')
+          if (!ticketValid) return null
+        }
 
         return {
           id: user.id,
@@ -181,6 +198,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
+    /**
+     * サインイン可否の最終判定。
+     *
+     * Why: Google は `allowDangerousEmailAccountLinking: true` で連携しているため、
+     * 未検証 email を許すと同 email の既存アカウントを乗っ取られ得る。Google が
+     * `email_verified` を返す以上、明示的に true を要求して fail-closed にする
+     * （`assertSafeOAuthLinking` の provider whitelist と多重防御）。
+     */
+    async signIn({ account, profile }) {
+      if (account?.provider === 'google') {
+        const verified =
+          !!profile &&
+          typeof profile === 'object' &&
+          'email_verified' in profile &&
+          profile.email_verified === true
+        if (!verified) return false
+      }
+      return true
+    },
+
     /**
      * JWT 発行/更新時のコールバック。
      * 初回サインイン時のみ `user` が渡るので、そのタイミングで id / email / isAdmin を
@@ -233,7 +270,7 @@ export async function registerUser(data: {
   const existingUser = await prisma.user.findUnique({
     where: { email: data.email },
   })
-  if (existingUser) throw new Error('このメールアドレスは既に使用されています')
+  if (existingUser) throw new Error(ERR_EMAIL_ALREADY_IN_USE)
 
   const hashedPassword = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS)
 

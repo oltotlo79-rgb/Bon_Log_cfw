@@ -1,22 +1,10 @@
-/**
- * @file 管理者用投稿管理ページ
- * @description 投稿一覧の表示、検索、フィルタリング機能を提供する管理者ページ。
- *              投稿の削除や通報状況の確認が可能。
- */
-
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
-// Next.jsの画像最適化コンポーネント
 import Image from 'next/image'
-// Next.jsのリダイレクト関数
 import { redirect } from 'next/navigation'
-// 認証失敗時のリダイレクト先
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
-// 管理者用投稿一覧取得のServer Action
+import { buildPostPath, buildUserPath } from '@/lib/constants/path-builders'
 import { getAdminPosts } from '@/lib/actions/admin/posts'
-// 投稿操作用ドロップダウンメニューコンポーネント
 import { PostActionsDropdown } from './PostActionsDropdown'
-// ページネーション定数
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
@@ -36,7 +24,6 @@ function SearchIcon({ className }: { className?: string }) {
 }
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {
@@ -44,7 +31,6 @@ export const metadata = {
 }
 
 /**
- * ページコンポーネントのProps型定義
  * URLのクエリパラメータを受け取る
  */
 interface PageProps {
@@ -98,7 +84,6 @@ export default async function AdminPostsPage({ searchParams }: PageProps) {
         <span className="text-sm text-muted-foreground">全 {total} 件</span>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
@@ -134,7 +119,6 @@ export default async function AdminPostsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* 投稿テーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">
@@ -152,7 +136,7 @@ export default async function AdminPostsPage({ searchParams }: PageProps) {
               <tr key={post.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3">
                   <Link
-                    href={`/users/${post.user.id}`}
+                    href={buildUserPath(post.user.id)}
                     className="flex items-center gap-2 hover:underline"
                   >
                     {post.user.avatarUrl ? (
@@ -171,7 +155,7 @@ export default async function AdminPostsPage({ searchParams }: PageProps) {
                 </td>
                 <td className="px-4 py-3">
                   <Link
-                    href={`/posts/${post.id}`}
+                    href={buildPostPath(post.id)}
                     className="text-sm line-clamp-2 hover:underline max-w-[300px]"
                   >
                     {post.content || '（メディアのみ）'}

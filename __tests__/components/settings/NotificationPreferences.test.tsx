@@ -26,6 +26,9 @@ describe('NotificationPreferences', () => {
     expect(screen.getByText('引用投稿')).toBeInTheDocument()
     expect(screen.getByText('フォローリクエスト')).toBeInTheDocument()
     expect(screen.getByText('フォロー承認')).toBeInTheDocument()
+    expect(screen.getByText('メンション')).toBeInTheDocument()
+    expect(screen.getByText('ダイレクトメッセージ')).toBeInTheDocument()
+    expect(screen.getByText('リポスト')).toBeInTheDocument()
   })
 
   it('初期設定が反映される', () => {

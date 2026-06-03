@@ -197,41 +197,6 @@ describe('Maintenance Actions', async () => {
     })
   })
 
-  // ============================================================
-  // checkIsAdmin
-  // ============================================================
-
-  describe('checkIsAdmin', async () => {
-    it('管理者の場合はtrueを返す', async () => {
-      mtMockPrisma.adminUser.findUnique.mockResolvedValue({
-        userId: 'admin-1',
-        role: 'admin',
-      })
-
-      const { checkIsAdmin } = await import('@/lib/actions/maintenance')
-      const result = await checkIsAdmin('admin-1')
-
-      expect(result).toBe(true)
-    })
-
-    it('管理者でない場合はfalseを返す', async () => {
-      mtMockPrisma.adminUser.findUnique.mockResolvedValue(null)
-
-      const { checkIsAdmin } = await import('@/lib/actions/maintenance')
-      const result = await checkIsAdmin('user-1')
-
-      expect(result).toBe(false)
-    })
-
-    it('エラー時はfalseを返す', async () => {
-      mtMockPrisma.adminUser.findUnique.mockRejectedValue(new Error('DB error'))
-
-      const { checkIsAdmin } = await import('@/lib/actions/maintenance')
-      const result = await checkIsAdmin('user-1')
-
-      expect(result).toBe(false)
-    })
-  })
 
   // ============================================================
   // updateMaintenanceSettings

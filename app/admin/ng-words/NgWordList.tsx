@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file NGワードリストコンポーネント
- * @description NGワードの検索・フィルタリング・追加・削除・有効/無効切替を行うClient Component。
- */
 
 import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -18,7 +14,6 @@ import {
 } from 'lucide-react'
 import { createNgWord, deleteNgWord, toggleNgWord } from '@/lib/actions/admin/moderation'
 
-/** NGワードの型定義 */
 interface NgWord {
   id: string
   word: string
@@ -28,7 +23,6 @@ interface NgWord {
   createdAt: Date | string
 }
 
-/** コンポーネントのProps型定義 */
 interface NgWordListProps {
   /** NGワード一覧 */
   words: NgWord[]
@@ -174,7 +168,6 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
 
   return (
     <div className="space-y-6">
-      {/* 新規追加フォーム */}
       <div className="bg-card rounded-lg border p-4">
         <h2 className="text-sm font-semibold mb-3">NGワードを追加</h2>
         <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
@@ -238,7 +231,6 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
         {formError && <p className="mt-2 text-sm text-destructive">{formError}</p>}
       </div>
 
-      {/* 検索・フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <div className="flex flex-wrap gap-3">
           <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px] gap-2">
@@ -273,7 +265,6 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
         </div>
       </div>
 
-      {/* NGワードテーブル */}
       <div className="bg-card rounded-lg border relative">
         {isPending && (
           <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg">

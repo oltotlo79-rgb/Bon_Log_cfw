@@ -4,11 +4,16 @@ import { memo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Pencil as PencilIcon, Pin as PinIcon, PinOff as PinOffIcon } from 'lucide-react'
 import { MoreHorizontalIcon, EyeOffIcon } from './PostCardIcons'
 import { DeletePostButton } from './DeletePostButton'
 import { ReportButton } from '@/components/report/ReportButton'
 import { hidePost } from '@/lib/actions/hide-post'
+import { pinPost, unpinPost } from '@/lib/actions/pin-post'
+import { toast } from '@/hooks/use-toast'
+import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 import { ROUTE_FEED } from '@/lib/constants/routes'
+import { buildPostEditPath, buildUserPath } from '@/lib/constants/path-builders'
 import type { PostUser } from './PostCard.types'
 
 type PostCardHeaderProps = {
@@ -22,6 +27,8 @@ type PostCardHeaderProps = {
   disableNavigation: boolean
   onHidden: () => void
   createdAt?: Date | string
+  editedAt?: Date | string | null
+  isPinned?: boolean
 }
 
 function formatAbsoluteDate(date: Date): string {
@@ -45,14 +52,33 @@ export const PostCardHeader = memo(function PostCardHeader({
   disableNavigation,
   onHidden,
   createdAt,
+  editedAt,
+  isPinned,
 }: PostCardHeaderProps) {
   const router = useRouter()
   const [showMenu, setShowMenu] = useState(false)
 
+  async function handleTogglePin() {
+    setShowMenu(false)
+    const result = isPinned ? await unpinPost() : await pinPost(postId)
+    if (!result.success) {
+      toast({ description: ('error' in result ? result.error : null) ?? MSG_ERROR_FALLBACK, variant: 'destructive' })
+      return
+    }
+    router.refresh()
+  }
+
   return (
-    <div className="flex items-center gap-3 mb-2" data-testid="post-header">
+    <div className="flex flex-col gap-1 mb-2" data-testid="post-header">
+      {isPinned && (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="post-pinned-badge">
+          <PinIcon className="w-3 h-3" />
+          <span>固定された投稿</span>
+        </div>
+      )}
+      <div className="flex items-center gap-3">
       <Link
-        href={`/users/${user.id}`}
+        href={buildUserPath(user.id)}
         className="flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
@@ -75,7 +101,7 @@ export const PostCardHeader = memo(function PostCardHeader({
 
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Link
-          href={`/users/${user.id}`}
+          href={buildUserPath(user.id)}
           className="font-medium hover:text-primary transition-colors truncate text-[15px]"
           onClick={(e) => e.stopPropagation()}
           data-testid="post-author"
@@ -90,6 +116,11 @@ export const PostCardHeader = memo(function PostCardHeader({
         >
           {timeAgo}
         </time>
+        {editedAt && (
+          <span className="text-xs text-muted-foreground flex-shrink-0" data-testid="post-edited-badge">
+            （編集済み）
+          </span>
+        )}
       </div>
 
       <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -108,7 +139,26 @@ export const PostCardHeader = memo(function PostCardHeader({
             />
             <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border/50 rounded-xl shadow-washi-lg py-1.5 min-w-[160px]" data-testid="post-menu-dropdown">
               {isOwner && !isRepost && (
-                <DeletePostButton postId={postId} variant="menu" onDeleted={() => setShowMenu(false)} />
+                <>
+                  <Link
+                    href={buildPostEditPath(postId)}
+                    onClick={() => setShowMenu(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+                    data-testid="edit-post-link"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                    <span>編集</span>
+                  </Link>
+                  <button
+                    onClick={handleTogglePin}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+                    data-testid="pin-post-button"
+                  >
+                    {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
+                    <span>{isPinned ? '固定を解除' : 'プロフィールに固定'}</span>
+                  </button>
+                  <DeletePostButton postId={postId} variant="menu" onDeleted={() => setShowMenu(false)} />
+                </>
               )}
               {currentUserId && !isOwner && (
                 <>
@@ -143,6 +193,7 @@ export const PostCardHeader = memo(function PostCardHeader({
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   )

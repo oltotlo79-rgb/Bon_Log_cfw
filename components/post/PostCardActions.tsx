@@ -4,8 +4,10 @@ import { memo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
+import { buildPostPath } from '@/lib/constants/path-builders'
 import { LikeButton } from './LikeButton'
 import { BookmarkButton } from './BookmarkButton'
+import { RepostButton } from './RepostButton'
 import { HeartIcon, MessageCircleIcon, RepeatIcon, BookmarkIcon } from './PostCardIcons'
 
 type PostCardActionsProps = {
@@ -15,6 +17,9 @@ type PostCardActionsProps = {
   isBookmarked: boolean
   likesCount: number
   commentsCount: number
+  isReposted: boolean
+  repostCount: number
+  quoteTarget: { id: string; content: string | null; user: { nickname: string } }
 }
 
 export const PostCardActions = memo(function PostCardActions({
@@ -24,6 +29,9 @@ export const PostCardActions = memo(function PostCardActions({
   isBookmarked,
   likesCount,
   commentsCount,
+  isReposted,
+  repostCount,
+  quoteTarget,
 }: PostCardActionsProps) {
   return (
     <div className="flex items-center gap-4 -ml-2" data-testid="post-actions" onClick={(e) => e.stopPropagation()}>
@@ -43,15 +51,27 @@ export const PostCardActions = memo(function PostCardActions({
       )}
 
       <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1" aria-label="コメント" asChild>
-        <Link href={`/posts/${postId}`} data-testid="comment-link">
+        <Link href={buildPostPath(postId)} data-testid="comment-link">
           <MessageCircleIcon className="w-4 h-4" />
           <span className="text-xs">{commentsCount > 0 && commentsCount}</span>
         </Link>
       </Button>
 
-      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" aria-label="リポスト">
-        <RepeatIcon className="w-4 h-4" />
-      </Button>
+      {currentUserId ? (
+        <RepostButton
+          postId={postId}
+          quoteTarget={quoteTarget}
+          initialReposted={isReposted}
+          initialCount={repostCount}
+        />
+      ) : (
+        <Button variant="ghost" size="sm" className="text-muted-foreground gap-1" aria-label="リポスト" asChild>
+          <Link href={ROUTE_LOGIN}>
+            <RepeatIcon className="w-4 h-4" />
+            {repostCount > 0 && <span className="text-xs">{repostCount}</span>}
+          </Link>
+        </Button>
+      )}
 
       {currentUserId ? (
         <BookmarkButton

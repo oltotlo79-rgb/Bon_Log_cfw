@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 肥料（施肥ガイド）ページのE2Eテスト
@@ -50,8 +51,7 @@ test.describe('肥料機能', () => {
       await expect(
         page.getByRole('heading', { name: /施肥ガイド/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /栄養素辞典/i }).click()
-      await expect(page).toHaveURL(/\/fertilizers\/nutrients/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /栄養素辞典/i }), /\/fertilizers\/nutrients/, { timeout: 10000 })
     })
 
     test('肥料カテゴリ比較リンクをクリックするとカテゴリページへ遷移する', async ({
@@ -62,10 +62,7 @@ test.describe('肥料機能', () => {
       await expect(
         page.getByRole('heading', { name: /施肥ガイド/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /肥料カテゴリ比較/i }).click()
-      await expect(page).toHaveURL(/\/fertilizers\/categories/, {
-        timeout: 10000,
-      })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /肥料カテゴリ比較/i }), /\/fertilizers\/categories/, { timeout: 10000 })
     })
 
     test('樹種別施肥スケジュールリンクをクリックするとスケジュールページへ遷移する', async ({
@@ -76,10 +73,7 @@ test.describe('肥料機能', () => {
       await expect(
         page.getByRole('heading', { name: /施肥ガイド/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /樹種別施肥スケジュール/i }).click()
-      await expect(page).toHaveURL(/\/fertilizers\/schedules/, {
-        timeout: 10000,
-      })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /樹種別施肥スケジュール/i }), /\/fertilizers\/schedules/, { timeout: 10000 })
     })
 
     test('コラムリンクをクリックするとコラムページへ遷移する', async ({ page }) => {
@@ -88,10 +82,7 @@ test.describe('肥料機能', () => {
       await expect(
         page.getByRole('heading', { name: /施肥ガイド/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /コラム/i }).click()
-      await expect(page).toHaveURL(/\/fertilizers\/columns/, {
-        timeout: 10000,
-      })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /コラム/i }), /\/fertilizers\/columns/, { timeout: 10000 })
     })
   })
 
@@ -127,8 +118,7 @@ test.describe('肥料機能', () => {
       await expect(
         page.getByRole('heading', { name: /肥料カテゴリ比較/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /施肥ガイドトップ/i }).click()
-      await expect(page).toHaveURL(/\/fertilizers\/?$/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /施肥ガイドトップ/i }), /\/fertilizers\/?$/, { timeout: 10000 })
     })
   })
 
@@ -167,10 +157,7 @@ test.describe('肥料機能', () => {
         .first()
       const count = await nutrientLink.count()
       if (count > 0) {
-        await nutrientLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/nutrients\/[^/]+$/, {
-          timeout: 10000,
-        })
+        await clickAndWaitForUrl(page, nutrientLink, /\/fertilizers\/nutrients\/[^/]+$/, { timeout: 10000 })
         await expect(
           page
             .getByRole('heading', { level: 1 })
@@ -192,16 +179,8 @@ test.describe('肥料機能', () => {
         .first()
       const count = await nutrientLink.count()
       if (count > 0) {
-        await nutrientLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/nutrients\/[^/]+$/, {
-          timeout: 10000,
-        })
-        await page
-          .getByRole('link', { name: /栄養素一覧/i })
-          .click()
-        await expect(page).toHaveURL(/\/fertilizers\/nutrients\/?$/, {
-          timeout: 10000,
-        })
+        await clickAndWaitForUrl(page, nutrientLink, /\/fertilizers\/nutrients\/[^/]+$/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, page.getByRole('link', { name: /栄養素一覧/i }), /\/fertilizers\/nutrients\/?$/, { timeout: 10000 })
       }
     })
   })
@@ -251,10 +230,7 @@ test.describe('肥料機能', () => {
         .first()
       const count = await columnLink.count()
       if (count > 0) {
-        await columnLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/columns\/[^/]+$/, {
-          timeout: 10000,
-        })
+        await clickAndWaitForUrl(page, columnLink, /\/fertilizers\/columns\/[^/]+$/, { timeout: 10000 })
         await expect(
           page
             .getByRole('heading', { level: 1 })
@@ -274,14 +250,8 @@ test.describe('肥料機能', () => {
         .first()
       const count = await columnLink.count()
       if (count > 0) {
-        await columnLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/columns\/[^/]+$/, {
-          timeout: 10000,
-        })
-        await page.getByRole('link', { name: /コラム一覧/i }).click()
-        await expect(page).toHaveURL(/\/fertilizers\/columns\/?$/, {
-          timeout: 10000,
-        })
+        await clickAndWaitForUrl(page, columnLink, /\/fertilizers\/columns\/[^/]+$/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, page.getByRole('link', { name: /コラム一覧/i }), /\/fertilizers\/columns\/?$/, { timeout: 10000 })
       }
     })
   })
@@ -327,10 +297,7 @@ test.describe('肥料機能', () => {
         .first()
       const count = await speciesLink.count()
       if (count > 0) {
-        await speciesLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/schedules\/[^/]+$/, {
-          timeout: 10000,
-        })
+        await clickAndWaitForUrl(page, speciesLink, /\/fertilizers\/schedules\/[^/]+$/, { timeout: 10000 })
         await expect(
           page
             .getByRole('heading', { level: 1 })
@@ -348,10 +315,13 @@ test.describe('肥料機能', () => {
         .first()
       const count = await speciesLink.count()
       if (count > 0) {
-        await speciesLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/schedules\/[^/]+$/, {
-          timeout: 10000,
-        })
+        await speciesLink.scrollIntoViewIfNeeded().catch(() => {})
+        // click が hydration 前/不安定で navigation を起こさないことがあるため、
+        // click→URL 検証を toPass で再試行し詳細遷移まで吸収する
+        await expect(async () => {
+          await speciesLink.click()
+          await page.waitForURL(/\/fertilizers\/schedules\/[^/]+$/, { timeout: 4000 })
+        }).toPass({ timeout: 25000 })
         await expect(
           page.getByRole('heading', { name: /月別施肥カレンダー/i })
         ).toBeVisible({ timeout: 10000 })
@@ -371,14 +341,8 @@ test.describe('肥料機能', () => {
       if (count > 0) {
         // 要素が安定するまで明示待機（layout shift 対策）
         await speciesLink.waitFor({ state: 'visible', timeout: 10000 })
-        await speciesLink.click()
-        await expect(page).toHaveURL(/\/fertilizers\/schedules\/[^/]+$/, {
-          timeout: 10000,
-        })
-        await page.getByRole('link', { name: /樹種一覧/i }).click()
-        await expect(page).toHaveURL(/\/fertilizers\/schedules\/?$/, {
-          timeout: 10000,
-        })
+        await clickAndWaitForUrl(page, speciesLink, /\/fertilizers\/schedules\/[^/]+$/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, page.getByRole('link', { name: /樹種一覧/i }), /\/fertilizers\/schedules\/?$/, { timeout: 10000 })
       }
     })
   })

@@ -1,9 +1,3 @@
-/**
- * @file ユーザーアクションドロップダウンコンポーネント
- * @description ユーザー管理テーブルの各行で使用されるドロップダウンメニュー。
- *              アカウント停止・復帰などの操作を提供する。
- */
-
 'use client'
 
 // ReactのuseStateとuseRefフック（状態管理とDOM参照用）
@@ -30,9 +24,6 @@ function MoreVerticalIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * UserActionsDropdownコンポーネントのProps型定義
- */
 interface UserActionsDropdownProps {
   /** 操作対象のユーザーID */
   userId: string
@@ -167,7 +158,6 @@ export function UserActionsDropdown({ userId, isSuspended }: UserActionsDropdown
         )}
       </div>
 
-      {/* 停止モーダル */}
       {showSuspendModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card rounded-lg border p-6 max-w-md w-full mx-4">

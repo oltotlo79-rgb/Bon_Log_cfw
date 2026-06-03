@@ -201,6 +201,31 @@ describe('search-entities actions', () => {
       const result = await action('Shop')
       expect(result.shops[0].avgRating).toBe(0)
     })
+
+    it('過大な limit は MAX_PAGE_LIMIT に clamp する', async () => {
+      mockPrisma.bonsaiShop.findMany.mockResolvedValue([])
+      mockPrisma.shopReview.groupBy.mockResolvedValue([])
+      const action = await importAction()
+
+      await action('Shop', undefined, 1_000_000)
+      expect(mockPrisma.bonsaiShop.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      )
+    })
+
+    it('全文検索の final fetch で isHidden:false を再適用する', async () => {
+      mockGetSearchMode.mockReturnValue('bigm')
+      const { fulltextSearchShops } = await import('@/lib/search/fulltext')
+      vi.mocked(fulltextSearchShops).mockResolvedValue(['shop-1'])
+      mockPrisma.bonsaiShop.findMany.mockResolvedValue([])
+      mockPrisma.shopReview.groupBy.mockResolvedValue([])
+      const action = await importAction()
+
+      await action('盆栽')
+      expect(mockPrisma.bonsaiShop.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ isHidden: false }) }),
+      )
+    })
   })
 
   // ============================================================
@@ -314,12 +339,30 @@ describe('search-entities actions', () => {
       const result = await action('Event')
       expect(result.nextCursor).toBe('event-19')
     })
+
+    it('全文検索の final fetch で isHidden:false を再適用する', async () => {
+      mockGetSearchMode.mockReturnValue('bigm')
+      const { fulltextSearchEvents } = await import('@/lib/search/fulltext')
+      vi.mocked(fulltextSearchEvents).mockResolvedValue(['ev-1'])
+      mockPrisma.event.findMany.mockResolvedValue([])
+      const action = await importAction()
+
+      await action('盆栽展')
+      expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ isHidden: false }) }),
+      )
+    })
   })
 
   // ============================================================
   // searchBonsais
   // ============================================================
   describe('searchBonsais', () => {
+    beforeEach(() => {
+      // 盆栽検索は所有者専用（要認証）
+      mockAuth.mockResolvedValue({ user: { id: 'auth-user' } })
+    })
+
     async function importAction() {
       vi.resetModules()
       const mod = await import('@/lib/actions/search-entities')
@@ -331,6 +374,15 @@ describe('search-entities actions', () => {
       const result = await action(longQuery)
       expect(result).toMatchObject({ bonsais: [], error: ERR_SEARCH_QUERY_TOO_LONG })
       expect(result.nextCursor).toBeUndefined()
+    })
+
+    it('未認証の場合はエラーを返す', async () => {
+      mockAuth.mockResolvedValue(null)
+      const action = await importAction()
+      const result = await action('黒松')
+      expect(result.bonsais).toEqual([])
+      expect(result.error).toBeDefined()
+      expect(mockPrisma.bonsai.findMany).not.toHaveBeenCalled()
     })
 
     it('レート制限超過時にエラーを返す', async () => {
@@ -366,18 +418,15 @@ describe('search-entities actions', () => {
       expect(result.error).toBeUndefined()
     })
 
-    it('userId指定でフィルタリングする', async () => {
+    it('認証済み本人の盆栽のみを対象にする（引数 userId は信用しない）', async () => {
       mockPrisma.bonsai.findMany.mockResolvedValue([])
       const action = await importAction()
 
-      await action('', undefined, 20, 'user-123')
+      // 旧シグネチャの第4引数（他者ID）を渡しても無視され、auth ユーザーで絞られる
+      await (action as unknown as (q: string, c: undefined, l: number, u: string) => Promise<unknown>)('', undefined, 20, 'user-123')
       expect(mockPrisma.bonsai.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            AND: expect.arrayContaining([
-              { userId: 'user-123' },
-            ]),
-          }),
+          where: expect.objectContaining({ userId: 'auth-user' }),
         })
       )
     })
@@ -444,6 +493,8 @@ describe('search-entities actions', () => {
     })
 
     it('全カテゴリの結果を集約して返す', async () => {
+      // 盆栽カテゴリは所有者専用のため認証済みユーザーが必要
+      mockAuth.mockResolvedValue({ user: { id: 'current-user' } })
       const { fulltextSearchGlobal: mockFtGlobal } = await import('@/lib/search/fulltext')
       vi.mocked(mockFtGlobal).mockResolvedValue({
         postIds: ['p1'],

@@ -1,10 +1,3 @@
-/**
- * @file 管理者用IPアドレス管理ページ
- * @description IPアドレスの一覧表示と、同一IPからの複数アカウント検出を行う管理者ページ。
- *              自作自演や不正アカウントの検出に使用する。
- * @route /admin/ip-management
- */
-
 import { Suspense } from 'react'
 import { getIpAddresses, detectMultiAccounts } from '@/lib/actions/admin/ip-management'
 import { IpManagementClient } from './IpManagementClient'
@@ -12,9 +5,6 @@ import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: 'IPアドレス管理 - BON-LOG 管理',
 }
@@ -24,9 +14,6 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic'
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     search?: string

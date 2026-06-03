@@ -29,20 +29,6 @@ import {
   fetchBasicStats,
 } from '@/lib/services/analytics-service'
 
-// 既存 import 互換のため記録系を再 export。実体は `lib/services/analytics-recording`。
-// 'use server' は async function のみ re-export 可能なため明示 wrap する。
-import {
-  recordProfileView as _recordProfileView,
-  recordPostView as _recordPostView,
-  recordLikeReceived as _recordLikeReceived,
-  recordNewFollower as _recordNewFollower,
-} from './analytics-recording'
-
-export async function recordProfileView(userId: string) { return _recordProfileView(userId) }
-export async function recordPostView(userId: string) { return _recordPostView(userId) }
-export async function recordLikeReceived(userId: string) { return _recordLikeReceived(userId) }
-export async function recordNewFollower(userId: string) { return _recordNewFollower(userId) }
-
 type PremiumAuthResult =
   | { success: false; error: string }
   | { success: true; userId: string }

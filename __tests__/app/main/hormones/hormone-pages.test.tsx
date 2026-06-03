@@ -368,21 +368,21 @@ describe('Hormone detail page', () => {
     mockGetHormoneBySlug.mockResolvedValue({ name: 'オーキシン', nameEn: 'Auxin' })
     const { generateMetadata } = await import('@/app/(main)/hormones/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'auxin' }) })
-    expect(metadata.title).toBe('オーキシン（Auxin） - 植物ホルモン - BON-LOG')
+    expect(metadata.title).toBe('オーキシン（Auxin） - 植物ホルモン')
   })
 
   it('generateMetadata returns title without English name when absent', async () => {
     mockGetHormoneBySlug.mockResolvedValue({ name: 'オーキシン', nameEn: null })
     const { generateMetadata } = await import('@/app/(main)/hormones/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'auxin' }) })
-    expect(metadata.title).toBe('オーキシン - 植物ホルモン - BON-LOG')
+    expect(metadata.title).toBe('オーキシン - 植物ホルモン')
   })
 
   it('generateMetadata returns fallback when not found', async () => {
     mockGetHormoneBySlug.mockResolvedValue(null)
     const { generateMetadata } = await import('@/app/(main)/hormones/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
-    expect(metadata.title).toBe('ホルモンが見つかりません - BON-LOG')
+    expect(metadata.title).toBe('ホルモンが見つかりません')
   })
 
   it('generateStaticParams returns slugs from database', async () => {
@@ -595,14 +595,14 @@ describe('Hormone column detail page', () => {
     mockGetHormoneColumnBySlug.mockResolvedValue({ title: 'テストコラム' })
     const { generateMetadata } = await import('@/app/(main)/hormones/columns/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test' }) })
-    expect(metadata.title).toBe('テストコラム - コラム - BON-LOG')
+    expect(metadata.title).toBe('テストコラム - コラム')
   })
 
   it('generateMetadata returns fallback when not found', async () => {
     mockGetHormoneColumnBySlug.mockResolvedValue(null)
     const { generateMetadata } = await import('@/app/(main)/hormones/columns/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
-    expect(metadata.title).toBe('コラムが見つかりません - BON-LOG')
+    expect(metadata.title).toBe('コラムが見つかりません')
   })
 
   it('generateStaticParams returns slugs from database', async () => {

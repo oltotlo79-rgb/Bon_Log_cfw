@@ -12,10 +12,11 @@ import { DictionarySearch } from '@/components/dictionary/DictionarySearch'
 import { PostDetailAdUnit } from '@/components/ads'
 import type { BonsaiTermSummary } from '@/lib/actions/dictionary'
 import { ROUTE_DICTIONARY } from '@/lib/constants/routes'
-import { pageCanonical } from '@/lib/utils/seo'
+import { buildDictionaryPath } from '@/lib/constants/path-builders'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '盆栽用語辞典 - BON-LOG',
+  title: pageTitle('盆栽用語辞典'),
   description: '盆栽の樹形・技術・管理・道具・用土など、盆栽に関する用語をまとめた辞典です。',
   alternates: { canonical: pageCanonical(ROUTE_DICTIONARY) },
 }
@@ -47,7 +48,7 @@ function TermCard({ term }: { term: BonsaiTermSummary }) {
 
   return (
     <Link
-      href={`/dictionary/${term.slug}`}
+      href={buildDictionaryPath(term.slug)}
       className="block rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-2">

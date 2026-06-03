@@ -1,14 +1,9 @@
-/**
- * @file 管理者用操作ログページ
- * @description 管理者による操作履歴を時系列で表示する管理者ページ。
- *              アクション種別でのフィルタリングが可能。
- */
-
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getAdminLogs } from '@/lib/actions/admin/logs'
 import { ADMIN_LOGS_PAGE_LIMIT, ADMIN_ID_DISPLAY_LENGTH } from '@/lib/constants/limits'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
+import { buildUserPath } from '@/lib/constants/path-builders'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { parseJsonObject } from '@/lib/utils/json'
 import { CursorPagination } from '@/components/admin/CursorPagination'
@@ -65,7 +60,6 @@ export default async function AdminLogsPage({ searchParams }: PageProps) {
         <span className="text-sm text-muted-foreground">全 {total} 件</span>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex gap-4">
           <select
@@ -91,7 +85,6 @@ export default async function AdminLogsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* ログテーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">
@@ -115,7 +108,7 @@ export default async function AdminLogsPage({ searchParams }: PageProps) {
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      href={`/users/${log.admin.user.id}`}
+                      href={buildUserPath(log.admin.user.id)}
                       className="text-sm hover:underline"
                     >
                       {log.admin.user.nickname}

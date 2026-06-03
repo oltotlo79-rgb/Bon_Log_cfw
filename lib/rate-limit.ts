@@ -33,6 +33,26 @@ interface RateLimitResult {
 }
 
 /**
+ * E2E テスト環境でのみレート制限を無効化してよいかを判定する。
+ *
+ * Why: E2E は単一の共有ユーザーで `/feed` 等を多数回ロードするため、`get_timeline`
+ * (30/分) などの枠が枯渇し、`getTimeline` がエラー→空 feed になり feed 依存テストが
+ * 不安定化する。CI の E2E は `NODE_ENV=production` で動く (env-validation.ts 参照) ため
+ * NODE_ENV では本番と区別できない。そこで **明示フラグ + loopback URL** の二条件でのみ
+ * 有効化する。実本番 (例: bon-log.com) はフラグが漏れても loopback でないため発火しない。
+ * 起動時には `validateEnv()` が「フラグ on かつ非 loopback」を fail-closed で拒否する。
+ */
+function isRateLimitDisabled(): boolean {
+  if (process.env.DISABLE_RATE_LIMIT !== 'true') return false
+  try {
+    const host = new URL(process.env.NEXT_PUBLIC_APP_URL ?? '').hostname
+    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '[::1]'
+  } catch {
+    return false
+  }
+}
+
+/**
  * 指定キーのレート制限をチェック。
  * INCR → EXPIRE のアトミックパターンでTOCTOU競合を回避。
  */
@@ -41,6 +61,12 @@ export async function rateLimit(
   options: RateLimitOptions
 ): Promise<RateLimitResult> {
   const { windowMs, maxRequests, failOpen = true } = options
+
+  // E2E (loopback + 明示フラグ) のみレート制限をバイパスする。実本番では発火しない。
+  if (isRateLimitDisabled()) {
+    return { success: true, remaining: maxRequests, resetTime: Date.now() + windowMs }
+  }
+
   const redis = getRedisClient()
   const key = `ratelimit:${identifier}`
   const windowSeconds = Math.ceil(windowMs / 1000)
@@ -134,6 +160,7 @@ export const RATE_LIMITS = {
   passwordReset:  { windowMs: ONE_HOUR_MS,         maxRequests: 3,  failOpen: false },
   upload:         { windowMs: ONE_MINUTE_MS,       maxRequests: 5,  failOpen: false },  // R2課金保護
   search:         { windowMs: ONE_MINUTE_MS,       maxRequests: 20 },
+  mention_search: { windowMs: ONE_MINUTE_MS,       maxRequests: 30 },  // @入力サジェスト（debounce 前提）
   comment:        { windowMs: ONE_MINUTE_MS,       maxRequests: 5 },
   post:           { windowMs: ONE_MINUTE_MS,       maxRequests: 3 },
   engagement:     { windowMs: ONE_MINUTE_MS,       maxRequests: 30 },
@@ -171,6 +198,7 @@ export const RATE_LIMITS = {
   delete_event:   { windowMs: ONE_MINUTE_MS,       maxRequests: 5 },
   delete_review:  { windowMs: ONE_MINUTE_MS,       maxRequests: 5 },
   delete_comment: { windowMs: ONE_MINUTE_MS,       maxRequests: 10 },
+  update_comment: { windowMs: ONE_MINUTE_MS,       maxRequests: 15 },
   delete_post:    { windowMs: ONE_MINUTE_MS,       maxRequests: 5 },
   delete_bonsai:  { windowMs: ONE_MINUTE_MS,       maxRequests: 5 },
   delete_care_log:{ windowMs: ONE_MINUTE_MS,       maxRequests: 10 },

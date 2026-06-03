@@ -111,7 +111,6 @@ export function MixingChecker({ pesticides, incompatibilities }: Props) {
           <CardTitle className="text-base">農薬を選択</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 農薬1 */}
           <div className="space-y-2">
             <Label htmlFor="pesticide-1">農薬 1</Label>
             <Select value={selected1} onValueChange={setSelected1}>
@@ -129,7 +128,6 @@ export function MixingChecker({ pesticides, incompatibilities }: Props) {
             </Select>
           </div>
 
-          {/* 農薬2 */}
           <div className="space-y-2">
             <Label htmlFor="pesticide-2">農薬 2</Label>
             <Select value={selected2} onValueChange={setSelected2}>
@@ -149,7 +147,6 @@ export function MixingChecker({ pesticides, incompatibilities }: Props) {
             </Select>
           </div>
 
-          {/* 農薬3（オプション） */}
           <div className="space-y-2">
             <Label htmlFor="pesticide-3">農薬 3（任意）</Label>
             <Select value={selected3} onValueChange={setSelected3}>
@@ -171,7 +168,6 @@ export function MixingChecker({ pesticides, incompatibilities }: Props) {
         </CardContent>
       </Card>
 
-      {/* 結果 */}
       {showResults && (
         <Card>
           <CardHeader>
@@ -206,7 +202,6 @@ export function MixingChecker({ pesticides, incompatibilities }: Props) {
         </Card>
       )}
 
-      {/* 免責 */}
       <Alert className="border-border bg-muted/50">
         <AlertDescription className="text-muted-foreground text-xs leading-relaxed">
           この結果はデータベースに登録された混用不可情報に基づきます。未登録の組み合わせについては製品ラベルを必ず確認してください。

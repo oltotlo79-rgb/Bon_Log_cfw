@@ -4,10 +4,13 @@ import { memo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { deleteComment, getReplies } from '@/lib/actions/comment'
-import { AVATAR_SIZE_SM } from '@/lib/constants/limits'
+import { deleteComment, updateComment, getReplies } from '@/lib/actions/comment'
+import { AVATAR_SIZE_SM, MAX_COMMENT_LENGTH } from '@/lib/constants/limits'
 import { useToast } from '@/hooks/use-toast'
-import { MSG_COMMENT_DELETED } from '@/lib/constants/messages'
+import { MSG_COMMENT_DELETED, MSG_COMMENT_UPDATED, MSG_ERROR_TITLE } from '@/lib/constants/messages'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { buildPostPath, buildUserPath } from '@/lib/constants/path-builders'
 import { DeletedCommentPlaceholder } from './DeletedCommentPlaceholder'
 import { CommentMeta } from './CommentHeader'
 import { CommentContent } from './CommentContent'
@@ -28,6 +31,7 @@ type Comment = {
   id: string
   content: string
   createdAt: string | Date
+  editedAt?: string | Date | null
   parentId: string | null
   user: {
     id: string
@@ -81,6 +85,13 @@ function CommentCardInner({
   const [loadingReplies, setLoadingReplies] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // 編集状態。content/editedAt はローカルに持ち、保存成功で即時反映する。
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [content, setContent] = useState(comment.content)
+  const [editValue, setEditValue] = useState(comment.content)
+  const [editedAt, setEditedAt] = useState<string | Date | null>(comment.editedAt ?? null)
+
   const handleToggleReplyForm = useCallback(() => {
     setShowReplyForm(prev => !prev)
   }, [])
@@ -107,7 +118,7 @@ function CommentCardInner({
   if (depth >= MAX_COMMENT_DEPTH) {
     return (
       <div className="text-sm text-muted-foreground py-2">
-        <Link href={`/posts/${postId}`} className="text-primary hover:underline">
+        <Link href={buildPostPath(postId)} className="text-primary hover:underline">
           スレッドの続きを表示 →
         </Link>
       </div>
@@ -125,6 +136,33 @@ function CommentCardInner({
       onDeleted(comment.id)
     }
     setIsDeleting(false)
+  }
+
+  function handleEditStart() {
+    setEditValue(content)
+    setIsEditing(true)
+  }
+
+  function handleEditCancel() {
+    setIsEditing(false)
+  }
+
+  async function handleEditSave() {
+    if (editValue.trim() === content.trim()) {
+      setIsEditing(false)
+      return
+    }
+    setIsSaving(true)
+    const result = await updateComment(comment.id, editValue)
+    setIsSaving(false)
+    if (!result.success) {
+      toast({ title: MSG_ERROR_TITLE, description: result.error, variant: 'destructive' })
+      return
+    }
+    setContent(result.data?.content ?? editValue)
+    setEditedAt(result.data?.editedAt ?? new Date())
+    setIsEditing(false)
+    toast({ description: MSG_COMMENT_UPDATED })
   }
 
   async function handleToggleReplies() {
@@ -217,7 +255,7 @@ function CommentCardInner({
   return (
     <div>
       <div className="flex gap-3">
-        <Link href={`/users/${comment.user.id}`}>
+        <Link href={buildUserPath(comment.user.id)}>
           <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex-shrink-0">
             {comment.user.avatarUrl ? (
               <Image
@@ -239,11 +277,42 @@ function CommentCardInner({
         <div className="flex-1 min-w-0">
           <CommentMeta user={comment.user} createdAt={comment.createdAt} />
 
-          <CommentContent
-            content={comment.content}
-            media={comment.media}
-            mentionUsers={mentionUsers}
-          />
+          {isEditing ? (
+            <div className="mt-1 space-y-2">
+              <Textarea
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                rows={3}
+                maxLength={MAX_COMMENT_LENGTH}
+                aria-label="コメントを編集"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={handleEditCancel} disabled={isSaving}>
+                  キャンセル
+                </Button>
+                <Button
+                  variant="bonsai"
+                  size="sm"
+                  onClick={handleEditSave}
+                  disabled={isSaving || editValue.trim().length === 0}
+                >
+                  {isSaving ? '保存中...' : '保存'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <CommentContent
+                content={content}
+                media={comment.media}
+                mentionUsers={mentionUsers}
+              />
+              {editedAt && (
+                <span className="text-xs text-muted-foreground">（編集済み）</span>
+              )}
+            </>
+          )}
 
           <CommentActions
             commentId={comment.id}
@@ -259,6 +328,7 @@ function CommentCardInner({
             rootCommentId={rootCommentId ?? comment.id}
             onToggleReplyForm={handleToggleReplyForm}
             onDelete={handleDelete}
+            onEdit={handleEditStart}
           />
 
           <CommentReplySection

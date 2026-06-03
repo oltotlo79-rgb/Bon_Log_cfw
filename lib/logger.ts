@@ -17,6 +17,23 @@ import { isDevelopment as _isDevelopment } from '@/lib/env'
 
 const isDevelopment = _isDevelopment()
 
+/**
+ * captureMessage 用に引数を文字列化する。
+ * Why: 素の `String(arg)` だと plain object が `[object Object]` に潰れ、
+ * Sentry のメッセージ・グルーピングが無価値になる
+ * (例: `logger.error('x failed', { error: '...' })` → "x failed [object Object]")。
+ * 呼び出し側が context object を渡す慣習が多いため、JSON 直列化で中身を保持する。
+ */
+const formatLogArg = (arg: unknown): string => {
+  if (typeof arg === 'string') return arg
+  if (arg instanceof Error) return arg.message
+  try {
+    return JSON.stringify(arg)
+  } catch {
+    return String(arg)
+  }
+}
+
 export const logger = {
   log: (...args: unknown[]) => {
     if (isDevelopment) console.log(...args)
@@ -45,7 +62,7 @@ export const logger = {
           extra: { args: args.filter((arg) => !(arg instanceof Error)) },
         })
       } else {
-        Sentry.captureMessage(args.map(String).join(' '), {
+        Sentry.captureMessage(args.map(formatLogArg).join(' '), {
           level: 'error',
           extra: { args },
         })

@@ -1,20 +1,7 @@
-/**
- * @fileoverview 設定ページのエラーバウンダリ
- *
- * このファイルはNext.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /settingsページおよびその子ルートで発生したエラーをキャッチして表示します。
- *
- * @route /settings (およびその子ルート)
- * @requires 'use client' - エラーバウンダリはクライアントコンポーネントである必要がある
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 設定ページのエラーコンポーネント
- */
 export default function SettingsError({
   error,
   reset,

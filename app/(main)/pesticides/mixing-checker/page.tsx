@@ -33,7 +33,6 @@ export default async function MixingCheckerPage() {
 
   return (
     <div className="space-y-6">
-      {/* 戻るリンク */}
       <Link
         href="/pesticides"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -42,7 +41,6 @@ export default async function MixingCheckerPage() {
         農薬・病害虫トップへ
       </Link>
 
-      {/* ヘッダー */}
       <div>
         <h1 className="text-2xl font-bold">混用チェッカー</h1>
         <p className="text-sm text-muted-foreground mt-1">

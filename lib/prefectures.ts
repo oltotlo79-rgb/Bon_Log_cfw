@@ -4,9 +4,6 @@
  * 盆栽園の絞り込み検索で使用
  */
 
-/**
- * 地方の型定義
- */
 export interface Region {
   id: string
   name: string

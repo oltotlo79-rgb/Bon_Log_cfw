@@ -71,6 +71,21 @@ describe('CommentActions', () => {
     expect(deleteBtn).toBeUndefined()
   })
 
+  it('ログイン時かつ他人のコメントには通報ボタンを表示する', () => {
+    render(<CommentActions {...defaultProps} isOwner={false} />)
+    expect(screen.getByRole('button', { name: 'このコンテンツを通報' })).toBeInTheDocument()
+  })
+
+  it('自分のコメントには通報ボタンを表示しない', () => {
+    render(<CommentActions {...defaultProps} isOwner={true} />)
+    expect(screen.queryByRole('button', { name: 'このコンテンツを通報' })).not.toBeInTheDocument()
+  })
+
+  it('未ログイン時は通報ボタンを表示しない', () => {
+    render(<CommentActions {...defaultProps} currentUserId={undefined} />)
+    expect(screen.queryByRole('button', { name: 'このコンテンツを通報' })).not.toBeInTheDocument()
+  })
+
   it('未ログイン時にいいね数があればログインリンクを表示する', () => {
     render(<CommentActions {...defaultProps} currentUserId={undefined} likeCount={3} />)
     const link = screen.getByText('3').closest('a')

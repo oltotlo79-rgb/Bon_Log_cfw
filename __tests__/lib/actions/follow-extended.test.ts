@@ -79,11 +79,15 @@ describe('toggleFollow extended', async () => {
   })
 
   it('returns error for blocked user', async () => {
-    mockPrisma.follow.findFirst.mockResolvedValue(null)
-    mockPrisma.block.findFirst.mockResolvedValueOnce({ id: 'b1' })
+    mockPrisma.follow.findUnique.mockResolvedValue(null)
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u2', isPublic: true, isSuspended: false, email: 'u2@example.com' })
+    // 双方向 block を checkInteractionEligibility が findFirst で検出する
+    mockPrisma.block.findFirst.mockResolvedValue({ blockerId: 'u2', blockedId: 'u1' })
     const { toggleFollow } = await import('@/lib/actions/follow')
     const result = await toggleFollow('u2')
-    expect(result).toBeDefined()
+    // block は存在秘匿のため not_found 相当に丸める
+    expect(result).toEqual({ success: false, error: 'ユーザーが見つかりません' })
+    expect(mockPrisma.follow.create).not.toHaveBeenCalled()
   })
 })
 

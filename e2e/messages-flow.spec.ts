@@ -122,8 +122,7 @@ test.describe('ダイレクトメッセージ', () => {
       }
       const conversationLink = conversationLinks.first()
 
-      await conversationLink.click()
-      await expect(page).toHaveURL(/\/messages\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, conversationLink, /\/messages\//, { timeout: 10000 })
     })
 
     test('会話詳細にメッセージ入力フォームが表示される', async ({ page }) => {
@@ -155,7 +154,15 @@ test.describe('ダイレクトメッセージ', () => {
 
       // 会話詳細ページのヘッダー (戻る矢印 + 相手ニックネーム枠) が描画されたことを先に確認。
       // notFound() で 404 ページに飛んでいる場合はここで気付ける。
-      const backLink = page.locator(`a[href="/messages"]`).first()
+      //
+      // Why filter on hasNotText: サイドバー / モバイルナビにも `/messages` リンクがあり、
+      // 単純な `a[href="/messages"]` ではそれらに false-positive で match する。
+      // conversation header の back link は ArrowLeftIcon のみ (テキストなし)、
+      // sidebar/nav は「メッセージ」というテキストを含むため、`hasNotText` で除外できる。
+      const backLink = page
+        .locator(`a[href="/messages"]`)
+        .filter({ hasNotText: 'メッセージ' })
+        .first()
       const backVisible = await backLink.isVisible({ timeout: 15_000 }).catch(() => false)
       if (!backVisible) {
         // 404 (notFound) や認可エラー等の異常系では会話詳細自体が表示されないため skip。
@@ -186,8 +193,7 @@ test.describe('ダイレクトメッセージ', () => {
       }
       const conversationLink = conversationLinks.first()
 
-      await conversationLink.click()
-      await expect(page).toHaveURL(/\/messages\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, conversationLink, /\/messages\//, { timeout: 10000 })
 
       const messageInput = page.locator(
         'textarea, input[type="text"][placeholder*="メッセージ"], [data-testid="message-input"], input[placeholder*="入力"]'
@@ -211,8 +217,7 @@ test.describe('ダイレクトメッセージ', () => {
       }
       const conversationLink = conversationLinks.first()
 
-      await conversationLink.click()
-      await expect(page).toHaveURL(/\/messages\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, conversationLink, /\/messages\//, { timeout: 10000 })
 
       // ヘッダーにユーザー名が表示される
       const header = page.locator('header, [data-testid="chat-header"], [class*="header"]').first()
@@ -235,8 +240,7 @@ test.describe('ダイレクトメッセージ', () => {
       }
       const conversationLink = conversationLinks.first()
 
-      await conversationLink.click()
-      await expect(page).toHaveURL(/\/messages\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, conversationLink, /\/messages\//, { timeout: 10000 })
 
       const backLink = page.locator(
         'a[href="/messages"], button[aria-label*="戻る"], [data-testid="back-button"]'
@@ -260,8 +264,7 @@ test.describe('ダイレクトメッセージ', () => {
       }
       const conversationLink = conversationLinks.first()
 
-      await conversationLink.click()
-      await expect(page).toHaveURL(/\/messages\//, { timeout: 15000 })
+      await clickAndWaitForUrl(page, conversationLink, /\/messages\//, { timeout: 15000 })
       await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {})
 
       const sendButton = page.getByRole('button', { name: /送信|Send/i }).first()

@@ -1,22 +1,7 @@
-/**
- * @file 盆栽用語詳細ページ専用エラーコンポーネント
- * @description 盆栽用語の詳細データ取得時にエラーが発生した場合に表示されるUI
- *
- * このファイルはNext.js App Routerの規約に基づくエラーバウンダリです。
- * /dictionary/[slug]ページでサーバーエラーやネットワークエラーが発生した際に自動的に表示されます。
- *
- * 'use client'ディレクティブが必須です。
- * これはerror.tsxがクライアントサイドでエラーをキャッチする必要があるためです。
- *
- * @see https://nextjs.org/docs/app/building-your-application/routing/error-handling
- */
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 盆栽用語詳細エラーコンポーネント
- */
 export default function DictionaryTermError({
   error,
   reset,

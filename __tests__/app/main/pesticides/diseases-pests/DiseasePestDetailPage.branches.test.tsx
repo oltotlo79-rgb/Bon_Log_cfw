@@ -61,13 +61,13 @@ describe('DiseasePestDetailPage (branches)', () => {
   it('generateMetadata: 病害虫が見つかった場合はタイトルを返す', async () => {
     mockGetDiseasePestBySlug.mockResolvedValue(makeDiseasePest())
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'powdery-mildew' }) })
-    expect(meta.title).toBe('うどんこ病 - 病害虫・益虫図鑑 - BON-LOG')
+    expect(meta.title).toBe('うどんこ病 - 病害虫・益虫図鑑')
   })
 
   it('generateMetadata: 病害虫が見つからない場合はフォールバックタイトル', async () => {
     mockGetDiseasePestBySlug.mockResolvedValue(null)
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'unknown' }) })
-    expect(meta.title).toBe('病害虫が見つかりません - BON-LOG')
+    expect(meta.title).toBe('病害虫が見つかりません')
   })
 
   // --- notFound ---

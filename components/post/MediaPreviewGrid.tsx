@@ -45,7 +45,6 @@ export function MediaPreviewGrid({ mediaFiles, onRemove }: MediaPreviewGridProps
           ) : (
             <Image src={media.url} alt={`アップロード画像 ${index + 1}`} fill sizes="(max-width: 640px) 50vw, 300px" className="object-cover" />
           )}
-          {/* 削除ボタン */}
           <button
             type="button"
             onClick={() => onRemove(index)}

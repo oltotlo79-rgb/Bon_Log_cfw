@@ -15,6 +15,9 @@ vi.mock('@/lib/db', () => ({
     commentThreadMute: {
       findMany: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn().mockResolvedValue({ isPublic: true, isSuspended: false }),
+    },
   },
 }))
 vi.mock('@/lib/auth', () => ({ auth: vi.fn() }))

@@ -1,16 +1,7 @@
 /**
- * @file InFeedAdSlot.tsx
- * @description リスト型ページに In-feed 広告を挿入するための共通スロット
- *
- * N 件ごとに 1 枠を挿入する判定・末尾に広告が残らないようにする配慮・
- * 1 ページあたりの上限本数を 1 箇所に集約し、各ページでは map 内に
- * `<InFeedAdSlot>` を差し込むだけで一貫した挿入ルールを適用できる。
- *
- * プレミアム会員判定 (`usePremium`) が必要なため Client Component として動作する。
- * 内部で呼び出している {@link InFeedAdUnit} が Cookie 同意の確認と
- * プロバイダー切替（AdSense / 忍者 AdMax）を担う。
- *
  * @module components/ads/InFeedAdSlot
+ * N 件ごとに 1 枠を挿入する判定・末尾に広告を残さない配慮・1 ページの上限本数を集約し、
+ * 各ページは map 内に `<InFeedAdSlot>` を差し込むだけで一貫した挿入ルールを適用できる。
  */
 
 'use client'

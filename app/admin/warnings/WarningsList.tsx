@@ -1,9 +1,3 @@
-/**
- * @file 警告一覧クライアントコンポーネント
- * @description 統計カード、フィルター、テーブル、ページネーション、警告発行ダイアログを含む
- *              警告管理のメインUIコンポーネント。
- */
-
 'use client'
 
 import { useState } from 'react'
@@ -12,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { deactivateWarning } from '@/lib/actions/admin/warnings'
 import { IssueWarningDialog } from './IssueWarningDialog'
+import { buildUserPath } from '@/lib/constants/path-builders'
 import { useToast } from '@/hooks/use-toast'
 
 /** 警告レベルの日本語ラベル */
@@ -90,8 +85,8 @@ export function WarningsList({
     const result = await deactivateWarning(warningId)
     setDeactivatingId(null)
 
-    if ('error' in result) {
-      toast({ title: result.error as string, variant: 'destructive' })
+    if (!result.success) {
+      toast({ title: result.error, variant: 'destructive' })
       return
     }
 
@@ -111,7 +106,6 @@ export function WarningsList({
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">警告管理</h1>
         <button
@@ -122,7 +116,6 @@ export function WarningsList({
         </button>
       </div>
 
-      {/* 統計カード */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">総警告数</p>
@@ -150,7 +143,6 @@ export function WarningsList({
         </div>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
           <select
@@ -192,7 +184,6 @@ export function WarningsList({
         </form>
       </div>
 
-      {/* 警告テーブル */}
       <div className="bg-card rounded-lg border overflow-x-auto">
         <table className="w-full">
           <thead className="bg-muted/50">
@@ -211,7 +202,7 @@ export function WarningsList({
               <tr key={warning.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3">
                   <Link
-                    href={`/users/${warning.user.id}`}
+                    href={buildUserPath(warning.user.id)}
                     className="flex items-center gap-2 hover:underline"
                   >
                     {warning.user.avatarUrl ? (
@@ -285,7 +276,6 @@ export function WarningsList({
         </table>
       </div>
 
-      {/* 警告発行ダイアログ */}
       <IssueWarningDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}

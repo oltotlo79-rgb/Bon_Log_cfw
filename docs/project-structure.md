@@ -624,13 +624,19 @@ app/
 
 ---
 
-## components/ — Reactコンポーネント（263ファイル、33サブディレクトリ）
+## components/ — Reactコンポーネント（269ファイル、33サブディレクトリ）
 
 ### components/ ルートファイル
 
 | ファイル | 役割 |
 |---------|------|
 | `SakuraAnimation.tsx` | 季節背景アニメーション（桜・紅葉・雪・綿毛・雨・水面の波紋、デフォルトは季節自動切替） |
+
+### components/admin/ — 管理画面共通
+
+| ファイル | 役割 |
+|---------|------|
+| `CursorPagination.tsx` | 管理者一覧のカーソルベースページネーションUI |
 
 ### components/ads/ — 広告
 
@@ -639,6 +645,7 @@ app/
 | `AdBanner.tsx` | フィード内インフィード広告バナー |
 | `AdProvider.tsx` | 広告プロバイダー（スクリプト読み込み管理） |
 | `GoogleAdSense.tsx` | Google AdSense汎用広告コンポーネント |
+| `InFeedAdSlot.tsx` | タイムライン挿入用インフィード広告スロット |
 | `NinjaAdMax.tsx` | 忍者AdMax広告コンポーネント |
 | `index.ts` | エクスポートまとめ |
 
@@ -677,6 +684,7 @@ app/
 | `PasswordResetStates.tsx` | パスワードリセット状態表示コンポーネント |
 | `PasswordVisibilityToggle.tsx` | パスワード表示/非表示トグル |
 | `RegisterForm.tsx` | ユーザー登録フォーム（メール/パスワード + Googleソーシャルログイン） |
+| `TwoFactorStep.tsx` | ログイン 2 段階目（TOTP コード入力）ステップUI |
 
 ### components/bonsai/ — 盆栽成長記録
 
@@ -876,6 +884,13 @@ app/
 | `gallery/types.ts` | ギャラリー型定義 |
 | `hooks/useMediaUpload.ts` | メディアアップロードフック |
 
+### components/premium/ — プレミアム判定コンテキスト
+
+| ファイル | 役割 |
+|---------|------|
+| `PremiumContext.tsx` | プレミアム会員状態の React Context 定義 |
+| `PremiumProvider.tsx` | プレミアム状態プロバイダー（クライアント側で会員判定を供給） |
+
 ### components/pwa/ — PWA（Progressive Web App）
 
 | ファイル | 役割 |
@@ -1027,7 +1042,7 @@ app/
 
 ---
 
-## hooks/ — カスタムReact Hooks（7ファイル）
+## hooks/ — カスタムReact Hooks（8ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1035,6 +1050,7 @@ app/
 | `use-focus-trap.ts` | モーダル等のフォーカストラップ（Tab 循環・Escape 復帰） |
 | `use-follow-action.ts` | フォローアクション管理フック |
 | `use-infinite-scroll.ts` | 無限スクロール実装用フック（IntersectionObserver ベース） |
+| `use-is-client.ts` | クライアントマウント判定フック（SSR/CSR ハイドレーション差異の回避） |
 | `use-keyboard-shortcuts.ts` | グローバルキーボードショートカットフック（/検索、n投稿、g+hホーム等） |
 | `use-media-upload.ts` | メディアアップロードフック（画像・動画のアップロード管理） |
 | `use-toast.ts` | トースト通知フック |
@@ -1045,19 +1061,22 @@ app/
 
 ```
 lib/
-├── actions/          # Server Actions（66ファイル + admin/19ファイル + schemas/1 = 86）
-├── constants/        # 定数（19ルートファイル + limits/17 + errors/7 = 43）
+├── actions/          # Server Actions（root 66 + admin/20 + schemas/1 = 87 .ts、うち 'use server' 73）
+├── constants/        # 定数（22ルートファイル + limits/18 + errors/7 = 47）
 ├── email/            # メール送信（index.ts + templates/5）
+├── prisma/           # Prisma 形状共有定義（shared-includes.ts）
 ├── scraping/         # スクレイピング
+├── search/           # 全文検索（3ファイル）
 ├── security/         # セキュリティ
-├── services/         # サービス層（13ファイル）
-├── storage/          # ストレージ（R2 / S3 / local / Supabase 切替）
-├── utils/            # ドメイン別ユーティリティ（11ファイル）
+├── services/         # サービス層（15ファイル）
+├── shop/             # Shop ドメイン共有ユーティリティ（1ファイル）
+├── storage/          # ストレージ（R2 / S3 / local 切替）
+├── utils/            # ドメイン別ユーティリティ（12ファイル）
 ├── validations/      # バリデーション
-└── （28ルートファイル）
+└── （29ルートファイル）
 ```
 
-### lib/ ルートファイル（28ファイル）
+### lib/ ルートファイル（29ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1087,24 +1106,26 @@ lib/
 | `security-logger.ts` | セキュリティイベントロガー |
 | `stripe.ts` | Stripeクライアント設定 |
 | `two-factor.ts` | 2段階認証（TOTP）ユーティリティ（鍵バージョニング対応） |
+| `two-factor-login-ticket.ts` | 2FA ログイン中間チケット（サーバー側で 2FA 強制。1段目認証後の短命チケットを発行・検証し、TOTP 通過まで本セッションを発行しない） |
 | `utils.ts` | 汎用ユーティリティ関数（cn等） |
 | `web-push.ts` | Web Push通知送信 |
 
-### lib/actions/ — Server Actions（66ファイル + admin/19 + schemas/1 = 86）
+### lib/actions/ — Server Actions（root 66 + admin/20 + schemas/1 = 87 .ts）
 
 > 戻り値型ポリシー: すべての Server Action は `ActionResult<T>` を返す（`types/action-result.ts`、CLAUDE.md ルール2）。
 > 例外として、RSC からのみ呼ばれる / 内部 helper として使う読み取り専用モジュールは `'use server'` を付けず `'server-only'` ガードのみを置き、ドメイン型を直接返す。
 >
-> **2026-05 時点で `'server-only'` の RSC データ取得モジュール:**
+> **`'server-only'` の RSC データ取得モジュール:**
 > `dictionary.ts` / `fertilizer.ts` / `hormone.ts` / `pesticide.ts` / `search-meta.ts`
 >
 > **`'server-only'` の内部 helper:**
-> `filter-helper.ts` / `pagination.ts` / `post-include.ts` / `post-validation.ts` / `prisma-filters.ts` / `shared-includes.ts` / `utils.ts`
+> `filter-helper.ts` / `pagination.ts` / `post-include.ts` / `post-validation.ts` / `prisma-filters.ts` / `utils.ts`
+> （3箇所以上で共有される Prisma include/select 形状は `lib/prisma/shared-includes.ts` に集約。依存方向中立のため actions / services 双方から import 可能）
 >
 > **barrel re-export（自身は無ディレクティブ、再エクスポート先が `'use server'`）:**
 > `user.ts`
 >
-> 86 ファイル中 53 + admin 19 = 72 ファイルが `'use server'` を持つ。残り 14 ファイルが上記の `'server-only'` / barrel 群。
+> 計 73 ファイルが `'use server'` を持つ。残りが上記の `'server-only'` / barrel 群。
 
 | ファイル | 役割 |
 |---------|------|
@@ -1112,7 +1133,9 @@ lib/
 | `analytics.ts` | ユーザーアナリティクスデータ取得 |
 | `analytics-recording.ts` | アナリティクス記録（`recordProfileView`/`recordPostView`/`recordLikeReceived`/`recordNewFollower` を `ActionResult<void>` で返却。Zod で `userId` を境界検証） |
 | `announcement.ts` | お知らせ（公開用取得） |
-| `auth.ts` | 認証関連（登録、ログイン、パスワードリセット、メール確認） |
+| `auth.ts` | 認証関連（登録、ログイン、ゲストログイン） |
+| `auth-email-verify.ts` | メールアドレス確認トークンの送信・検証 |
+| `auth-password-reset.ts` | パスワードリセット要求・実行 |
 | `blacklist.ts` | メール/デバイスブラックリスト管理 |
 | `block.ts` | ブロック操作 |
 | `bonsai.ts` | 盆栽CRUD操作 |
@@ -1163,7 +1186,6 @@ lib/
 | `search-meta.ts` | 検索メタ情報（人気タグ・ジャンル・検索モード）。**RSC データ取得モジュール**（`'use server'` 不付与・`'server-only'`） |
 | `search-posts.ts` | 投稿検索（FTS / LIKE フォールバック）。返り値は `ActionResult<{posts, nextCursor}>` |
 | `search-users.ts` | ユーザー検索。返り値は `ActionResult<{users, nextCursor}>`（client component から RPC 呼び出しのため `'use server'` 必須） |
-| `shared-includes.ts` | 3箇所以上で使う Prisma include/select の集約（`USER_MINIMAL_SELECT`、`USER_MINIMAL_RELATION`（user/creator/sender/actor/reporter リレーション 24 箇所で統一）、`GENRE_MINIMAL_SELECT`、`POST_GENRE_RELATION`） |
 | `shop.ts` | 盆栽園CRUD |
 | `shop-change-request.ts` | 盆栽園変更リクエスト |
 | `subscription.ts` | サブスクリプション管理（Stripe連携） |
@@ -1176,10 +1198,11 @@ lib/
 | `weather.ts` | 天気アドバイス操作（位置情報設定、天気データ取得、Open-Meteo連携） |
 | `schemas/common.ts` | 共通バリデーションスキーマ |
 
-#### lib/actions/admin/ — 管理者用Server Actions（19ファイル）
+#### lib/actions/admin/ — 管理者用Server Actions（20ファイル）
 
 | ファイル | 役割 |
 |---------|------|
+| `_schemas.ts` | admin action 共有 Zod スキーマ（無ディレクティブの内部モジュール） |
 | `activity.ts` | アクティビティ管理 |
 | `analytics.ts` | アナリティクス管理 |
 | `announcements.ts` | お知らせ管理 |
@@ -1200,7 +1223,7 @@ lib/
 | `users.ts` | ユーザー管理 |
 | `warnings.ts` | ユーザー警告管理 |
 
-### lib/constants/ — 定数（ルート19ファイル + errors/7 + limits/17）
+### lib/constants/ — 定数（ルート22ファイル + errors/7 + limits/18）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1237,7 +1260,7 @@ lib/
 | `social.ts` | フォロー・ブロック・ミュート・メッセージ |
 | `admin.ts` | 管理者・セグメント・ブラックリスト + API_ERR_* 英語 |
 
-#### lib/constants/limits/ — 制限値定数（17ファイル）
+#### lib/constants/limits/ — 制限値定数（18ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1248,6 +1271,7 @@ lib/
 | `auth.ts` | 認証関連制限値（`REFERER_LOG_PREVIEW_LENGTH` 等の漏洩抑止用切り詰め長も含む） |
 | `bonsai-care.ts` | 盆栽手入れログの上限値（メモ最大文字数・取得期間・将来日トレランス等） |
 | `cache.ts` | キャッシュ関連制限値（`MAINTENANCE_CACHE_TTL_MS` を含む。proxy.ts のメンテキャッシュTTL） |
+| `database.ts` | データベース関連制限値 |
 | `event.ts` | イベント類似度判定（`EVENT_TITLE_SIMILARITY_PREFIX_LENGTH`、`event-import.ts` の重複検出に使用） |
 | `external.ts` | 外部連携制限値 |
 | `fertilizer.ts` | 肥料関連制限値 |
@@ -1270,17 +1294,25 @@ lib/
 | `templates/subscription-expiring.ts` | プレミアム期限警告メール |
 | `templates/verification.ts` | メール確認トークン送信 |
 
+### lib/prisma/ — Prisma 形状共有定義（1ファイル）
+
+| ファイル | 役割 |
+|---------|------|
+| `shared-includes.ts` | 3箇所以上で使う Prisma include/select の集約（`USER_MINIMAL_SELECT`、`USER_MINIMAL_RELATION`（user/creator/sender/actor/reporter リレーションで統一）、`GENRE_MINIMAL_SELECT`、`POST_GENRE_RELATION` 等）。純粋な Prisma 形状定数のため依存方向中立で actions / services 双方から import 可能 |
+
 ### lib/scraping/ — スクレイピング
 
 | ファイル | 役割 |
 |---------|------|
 | `bonsai-events.ts` | 盆栽イベント情報スクレイピング |
 
-### lib/search/ — 検索
+### lib/search/ — 全文検索（3ファイル）
 
 | ファイル | 役割 |
 |---------|------|
-| `fulltext.ts` | 全文検索ユーティリティ |
+| `fulltext.ts` | 全文検索バレル（config / search を再エクスポート） |
+| `fulltext-config.ts` | 検索 mode 判定・拡張機能（pg_bigm / pg_trgm）操作・GIN index 作成・状態取得 |
+| `fulltext-search.ts` | Entity 別 FTS クエリ実装（SEARCH_MODE で bigm/trgm/like 切替、失敗時 LIKE フォールバック） |
 
 ### lib/security/ — セキュリティ
 
@@ -1290,7 +1322,7 @@ lib/
 | `oauth-guard.ts` | OAuth プロバイダー連携時の検証ガード |
 | `index.ts` | エクスポートまとめ |
 
-### lib/services/ — サービス層（13ファイル）
+### lib/services/ — サービス層（15ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1298,30 +1330,45 @@ lib/
 | `analytics-service.ts` | アナリティクスデータ取得・集計サービス |
 | `authorization.ts` | 認可チェックサービス（権限判定の共通化） |
 | `comment-notifications.ts` | コメント通知サービス（`createNotification` / `createNotificationsBulk` へ delegate） |
+| `comment-thread-mute.ts` | コメントスレッドミュート状態の判定共有ロジック |
 | `hashtag-recount.ts` | ハッシュタグ参照件数の再計算（管理操作 / 定期 cron 用） |
 | `hashtag-sync.ts` | 投稿ハッシュタグの同期・差分更新（attach/detach 内部処理） |
+| `media-cleanup.ts` | アップロード済みメディアの実体削除（投稿/コメント/下書き/予約投稿/レビュー/盆栽記録の削除時に R2/local のオーファンを回収） |
+| `mention.ts` | メンション関連の解決・通知共有ロジック |
 | `notification-bulk.ts` | **複数受信者への通知一括作成**（block/prefs フィルタ + `createMany skipDuplicates` + push 並列） |
 | `notification-core.ts` | 通知のブロック/設定/重複チェック等の内部ヘルパー |
 | `security-events.ts` | セキュリティイベント記録サービス |
-| `shop-change-helpers.ts` | 盆栽園変更リクエスト適用・検証ヘルパー |
 | `usage.ts` | Vercel / Supabase / R2 / Resend 利用量集計サービス |
 | `webhook-idempotency.ts` | **外部 Webhook 冪等性ガード**（`webhook_events` UNIQUE INSERT、Stripe 等のリトライ抑止） |
 | `weather-service.ts` | 天気サービス（Open-Meteo API連携、天気データ取得・キャッシュ、盆栽管理アドバイス生成） |
 
-### lib/storage/ — ストレージ
+### lib/shop/ — Shop ドメイン共有ユーティリティ（1ファイル）
 
 | ファイル | 役割 |
 |---------|------|
-| `index.ts` | Cloudflare R2ストレージ操作 |
+| `change-request.ts` | 盆栽園変更リクエストの純粋型・Zod schema・parser。副作用を持たないため Server Action / Server Component 双方から dependency-neutral に import 可能（`lib/prisma/shared-includes.ts` と同方針）。旧 `lib/services/shop-change-helpers.ts` から layer 規約遵守のため移設。 |
+
+### lib/storage/ — ストレージ（Strategy パターン）
+
+| ファイル | 役割 |
+|---------|------|
+| `index.ts` | ストレージ抽象化レイヤーの barrel。`STORAGE_PROVIDER` で local / supabase / r2 を切替（公開 API は `uploadFile` / `deleteFile`） |
+| `types.ts` | プロバイダー共通型（`UploadResult` / `DeleteResult` 等） |
+| `helpers.ts` | プロバイダー共通ヘルパー |
+| `r2-provider.ts` | Cloudflare R2 プロバイダー実装 |
+| `local-provider.ts` | ローカルファイルシステムプロバイダー実装（開発用） |
+| `supabase-provider.ts` | Supabase Storage プロバイダー実装 |
+| `image-sanitize.ts` | アップロード画像のサニタイズ（EXIF 除去等） |
 | `s3-sign.ts` | S3/R2 presigned URL署名生成 |
 
-### lib/utils/ — ユーティリティ（ドメイン別、11ファイル）
+### lib/utils/ — ユーティリティ（ドメイン別、12ファイル）
 
 | ファイル | 役割 |
 |---------|------|
 | `admin-cursor.ts` | 管理者一覧のカーソル符号化・復号 |
 | `avatar.ts` | デフォルトアバター画像パス生成 |
 | `calendar-grid.ts` | カレンダー表示用グリッド生成（盆栽手入れログ・イベントカレンダー共用） |
+| `client-ip.ts` | Request からの IP 抽出ヘルパー（rate-limit / login-tracker 等で共有） |
 | `fertilizer.ts` | 肥料関連ユーティリティ |
 | `form-data.ts` | FormData → typed object 変換ヘルパー |
 | `json.ts` | JSON 安全パース・シリアライズヘルパー（`parseCachedWithSchema` 等 Redis キャッシュの型安全復元用） |
@@ -1353,7 +1400,7 @@ lib/
 
 ---
 
-## prisma/ — データベース（90モデル、24 enum、35マイグレーション）
+## prisma/ — データベース（90モデル、24 enum、38マイグレーション）
 
 ```
 prisma/
@@ -1406,10 +1453,10 @@ prisma/
 │       ├── additions2-parser.ts     # seed-pesticide-additions2.ts用パーサー
 │       ├── spray-parser.ts          # スプレー製品データ用パーサー
 │       └── supplement-parser.ts     # 効果補完データ用パーサー（互換性のため残存）
-└── migrations/                      # マイグレーション（35ディレクトリ）
+└── migrations/                      # マイグレーション（38ディレクトリ）
 ```
 
-### マイグレーション一覧（35ディレクトリ）
+### マイグレーション一覧（38ディレクトリ）
 
 | ディレクトリ | 内容 |
 |---------|------|
@@ -1448,6 +1495,9 @@ prisma/
 | `20260502000000_add_daily_visitors` | 日次訪問者ログテーブル（`daily_visitors`、`(date, visitor_id)` UNIQUE）追加 |
 | `20260512000000_lock_handle_new_user_security` | `handle_new_user` トリガーのセキュリティ強化（SECURITY DEFINER の検査・search_path 固定） |
 | `20260512100000_add_rls_policies_bonsai_care_logs_daily_visitors` | `bonsai_care_logs` / `daily_visitors` への RLS ポリシー追加（ユーザー自身のログのみ閲覧可、daily_visitors は service_role 限定） |
+| `20260516000000_add_likes_check_constraint` | `likes` テーブルに CHECK 制約追加（投稿/コメントいずれか一方のみを指す整合性保証） |
+| `20260527000000_revoke_data_api_grants_from_public` | Supabase Data API 用 grant を public/anon/authenticated から全剥奪 + 将来のデフォルト grant も REVOKE（Prisma postgres ロール経由のみに統一） |
+| `20260530000000_add_payment_status_refunded` | 決済ステータスに `refunded`（返金）追加 |
 
 ---
 
@@ -1480,9 +1530,9 @@ prisma/
 
 ---
 
-## __tests__/ — ユニットテスト（Vitest、805ファイル / 全 PASS）
+## __tests__/ — ユニットテスト（Vitest、825ファイル）
 
-テストファイルは `__tests__/` 配下にプロジェクト構造を反映して配置。Vitest 4.x を使用。内訳は `.test.ts` 327 + `.test.tsx` 478。
+テストファイルは `__tests__/` 配下にプロジェクト構造を反映して配置。Vitest 4.x を使用。内訳は `.test.ts` 343 + `.test.tsx` 482。
 
 カバレッジ閾値: Branches 80% / Functions / Lines / Statements 85%（`@vitest/coverage-istanbul`）。
 TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化）。配列インデックスや `Map.get` の戻り値は `T | undefined` として絞り込む必要があり、テスト側も同様に整備済み。
@@ -1662,7 +1712,7 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 
 ---
 
-## 統計サマリー（2026-05-14時点）
+## 統計サマリー（2026-05-30時点）
 
 | 項目 | 数量 |
 |------|------|
@@ -1674,19 +1724,23 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 | app/admin/ サブディレクトリ | 28 |
 | app/api/ 総ルート | 24 ハンドラ（`.ts` 23 + `.tsx` 1、`upload/_shared/` 2 ヘルパー）+ `/feed.xml` + `/auth/callback` = 26 |
 | components/ サブディレクトリ | 33 |
-| components/ ファイル数 | 263 |
-| hooks/ カスタムフック | 7 |
-| lib/ ルートファイル | 28 |
-| lib/actions/ ファイル | 66 + admin/19 + schemas/1（合計 86）。`'use server'` 持ち 53 + admin/19 = 72、`'server-only'` データ取得 / 内部 helper 13 + barrel 1 |
-| lib/services/ ファイル | 13（analytics-recording / analytics-service / authorization / comment-notifications / hashtag-recount / hashtag-sync / notification-bulk / notification-core / security-events / shop-change-helpers / usage / webhook-idempotency / weather-service） |
-| lib/constants/ ファイル | ルート 19（admin-actions / admin-stats / bonsai-care / dictionary / guest / hormone-techniques / images / locations / messages / path-builders / report / reserved / routes / search-media / search-setup / status / storage / storage-keys / system-settings）+ errors/ 7 + limits/ 17（合計 43） |
-| lib/utils/ ファイル | 11 |
+| components/ ファイル数 | 269 |
+| hooks/ カスタムフック | 8 |
+| lib/ ルートファイル | 29 |
+| lib/actions/ ファイル | root 66 + admin/20 + schemas/1（合計 87 .ts）。`'use server'` 持ち 73、残りが `'server-only'` データ取得 / 内部 helper / barrel |
+| lib/prisma/ ファイル | 1（shared-includes.ts — 依存方向中立な Prisma include/select 形状の集約） |
+| lib/services/ ファイル | 15（analytics-recording / analytics-service / authorization / comment-notifications / comment-thread-mute / hashtag-recount / hashtag-sync / media-cleanup / mention / notification-bulk / notification-core / security-events / usage / webhook-idempotency / weather-service） |
+| lib/search/ ファイル | 3（fulltext / fulltext-config / fulltext-search） |
+| lib/shop/ ファイル | 1（change-request.ts — 旧 services/shop-change-helpers から layer-neutral utility として移動） |
+| lib/storage/ ファイル | 8（index barrel + types/helpers/image-sanitize + r2/local/supabase provider + s3-sign） |
+| lib/constants/ ファイル | ルート 22 + errors/ 7 + limits/ 18（合計 47） |
+| lib/utils/ ファイル | 12 |
 | types/ ファイル | 7 |
 | prisma/ モデル数 | 90 |
 | prisma/ enum数 | 24 |
-| prisma/ マイグレーション | 35 |
+| prisma/ マイグレーション | 38 |
 | prisma/ シード構成 | `seed.ts` + `seed/` ドメイン別（dictionary, e2e, fertilizer, genre, hormone, pesticide, shared） |
-| __tests__/ テストファイル | 805（`.test.ts` 327 + `.test.tsx` 478。全 PASS。components / lib / app / coverage-boost / prisma / hooks / types / その他） |
+| __tests__/ テストファイル | 825（`.test.ts` 343 + `.test.tsx` 482。components / lib / app / coverage-boost / prisma / hooks / types / その他） |
 | __tests__/ カバレッジ閾値 | Branches 80% / Functions 85% / Lines 85% / Statements 85% |
 | TypeScript 厳格設定 | `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化） |
 | e2e/ specファイル | 60（Playwright 8 プロジェクト, CI ワーカー数 3） |

@@ -20,7 +20,7 @@ import {
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '施肥ガイド - BON-LOG',
+  title: '施肥ガイド',
   description: '盆栽の施肥に必要な栄養素・肥料カテゴリ・樹種別スケジュールを確認できます。',
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS) },
 }
@@ -120,7 +120,6 @@ export default async function FertilizerTopPage() {
 
   return (
     <div className="space-y-8">
-      {/* ヘッダー */}
       <div>
         <h1 className="text-2xl font-bold">施肥ガイド</h1>
         
@@ -152,7 +151,6 @@ export default async function FertilizerTopPage() {
         </p>
       </div>
 
-      {/* 季節の施肥ポイント */}
       <section className="rounded-lg border bg-card overflow-hidden">
         {/* セクション挿絵 — アスペクト比 16:9 (aspect-video) を厳守 */}
         <div className="relative w-full aspect-video border-b">
@@ -184,7 +182,6 @@ export default async function FertilizerTopPage() {
         </div>
       </section>
 
-      {/* ナビゲーションカード */}
       <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {navCards.map(({ href, icon: Icon, label, description, count }) => (
@@ -213,7 +210,6 @@ export default async function FertilizerTopPage() {
 
       <FertilizerDisclaimer />
 
-      {/* 三大栄養素 */}
       <section className="space-y-4">
         {/* セクション挿絵 — アスペクト比 16:9 (aspect-video) を厳守 */}
         <div className="relative w-full aspect-video rounded-lg overflow-hidden my-4">
@@ -251,7 +247,6 @@ export default async function FertilizerTopPage() {
         </div>
       </section>
 
-      {/* 二次要素 */}
       {secondaryNutrients.length > 0 && (
         <section className="space-y-4">
           {/* セクション挿絵 — アスペクト比 16:9 (aspect-video) を厳守 */}

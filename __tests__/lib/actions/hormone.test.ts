@@ -10,6 +10,7 @@ const mockPrisma = {
   hormoneSeasonalLevel: { findMany: vi.fn() },
 }
 
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockRequireAuth = vi.fn()
@@ -25,16 +26,6 @@ describe('Hormone Actions', () => {
   // ── getHormones ──────────────────────────────────────────────
 
   describe('getHormones', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormones } = await import('@/lib/actions/hormone')
-      const result = await getHormones()
-
-      expect(result).toEqual({ hormones: [], error: '認証が必要です' })
-      expect(mockPrisma.hormoneType.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はホルモン一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const list = [
@@ -88,16 +79,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneBySlug ──────────────────────────────────────────
 
   describe('getHormoneBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneBySlug } = await import('@/lib/actions/hormone')
-      const result = await getHormoneBySlug('auxin')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.hormoneType.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はホルモン詳細をeffects付きで返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const hormone = {
@@ -143,16 +124,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneInteractions ──────────────────────────────────────
 
   describe('getHormoneInteractions', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneInteractions } = await import('@/lib/actions/hormone')
-      const result = await getHormoneInteractions()
-
-      expect(result).toEqual({ interactions: [], error: '認証が必要です' })
-      expect(mockPrisma.hormoneInteraction.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は相互作用一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const interactions = [
@@ -186,15 +157,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneInteractionsBySlug ──────────────────────────────────
 
   describe('getHormoneInteractionsBySlug', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneInteractionsBySlug } = await import('@/lib/actions/hormone')
-      const result = await getHormoneInteractionsBySlug('auxin')
-
-      expect(result).toEqual({ interactions: [] })
-    })
-
     it('ホルモンが見つからない場合は空配列を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       mockPrisma.hormoneType.findUnique.mockResolvedValue(null)
@@ -234,16 +196,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneColumns ──────────────────────────────────────────
 
   describe('getHormoneColumns', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneColumns } = await import('@/lib/actions/hormone')
-      const result = await getHormoneColumns()
-
-      expect(result).toEqual({ columns: [], error: '認証が必要です' })
-      expect(mockPrisma.hormoneColumn.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はコラム一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const columns = [
@@ -286,16 +238,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneColumnBySlug ──────────────────────────────────────
 
   describe('getHormoneColumnBySlug', () => {
-    it('未認証の場合はnullを返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneColumnBySlug } = await import('@/lib/actions/hormone')
-      const result = await getHormoneColumnBySlug('auxin-basics')
-
-      expect(result).toBeNull()
-      expect(mockPrisma.hormoneColumn.findUnique).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はコラム詳細を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const column = { id: 'c1', title: 'オーキシンの基礎', slug: 'auxin-basics', content: '本文' }
@@ -325,16 +267,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneTechniques ──────────────────────────────────────────
 
   describe('getHormoneTechniques', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneTechniques } = await import('@/lib/actions/hormone')
-      const result = await getHormoneTechniques()
-
-      expect(result).toEqual({ techniques: [], error: '認証が必要です' })
-      expect(mockPrisma.hormoneTechnique.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合は技法一覧を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const techniques = [
@@ -387,15 +319,6 @@ describe('Hormone Actions', () => {
   // ── getHormoneTechniquesBySlug ──────────────────────────────────────
 
   describe('getHormoneTechniquesBySlug', () => {
-    it('未認証の場合は空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormoneTechniquesBySlug } = await import('@/lib/actions/hormone')
-      const result = await getHormoneTechniquesBySlug('auxin')
-
-      expect(result).toEqual({ techniques: [] })
-    })
-
     it('ホルモンが見つからない場合は空配列を返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       mockPrisma.hormoneType.findUnique.mockResolvedValue(null)
@@ -431,16 +354,6 @@ describe('Hormone Actions', () => {
   // ── getHormonesWithSeasonalLevels ──────────────────────────────────
 
   describe('getHormonesWithSeasonalLevels', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getHormonesWithSeasonalLevels } = await import('@/lib/actions/hormone')
-      const result = await getHormonesWithSeasonalLevels()
-
-      expect(result).toEqual({ hormones: [], error: '認証が必要です' })
-      expect(mockPrisma.hormoneType.findMany).not.toHaveBeenCalled()
-    })
-
     it('認証済みの場合はmajorホルモンとseasonalLevelsを返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const hormones = [
@@ -464,15 +377,6 @@ describe('Hormone Actions', () => {
   // ── getSimulatorData ──────────────────────────────────────────────
 
   describe('getSimulatorData', () => {
-    it('未認証の場合はエラーと空配列を返す', async () => {
-      mockRequireAuth.mockResolvedValue({ error: '認証が必要です' })
-
-      const { getSimulatorData } = await import('@/lib/actions/hormone')
-      const result = await getSimulatorData()
-
-      expect(result).toEqual({ hormones: [], techniques: [], seasonalLevels: [], error: '認証が必要です' })
-    })
-
     it('認証済みの場合はhormones, techniques, seasonalLevelsを返す', async () => {
       mockRequireAuth.mockResolvedValue({ userId: 'user-1' })
       const hormones = [{ id: 'h1', name: 'オーキシン', slug: 'auxin' }]

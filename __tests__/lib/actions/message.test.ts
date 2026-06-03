@@ -120,6 +120,7 @@ describe('getOrCreateConversation', () => {
   })
 
   it('既存の会話がある場合はそのIDを返す', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'other-user-id', isPublic: true, isSuspended: false, email: 'other@example.com' })
     mockPrisma.block.findFirst.mockResolvedValue(null)
     mockPrisma.conversation.findFirst.mockResolvedValue({ id: 'conv-1' })
     const { getOrCreateConversation } = await importModule()
@@ -128,6 +129,7 @@ describe('getOrCreateConversation', () => {
   })
 
   it('既存会話がない場合は新規作成して返す', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'other-user-id', isPublic: true, isSuspended: false, email: 'other@example.com' })
     mockPrisma.block.findFirst.mockResolvedValue(null)
     mockPrisma.conversation.findFirst.mockResolvedValue(null)
     mockPrisma.conversation.create.mockResolvedValue({ id: 'new-conv-1' })

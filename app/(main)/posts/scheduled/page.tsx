@@ -1,7 +1,4 @@
 /**
- * @file 予約投稿一覧ページ
- * @description ユーザーの予約投稿を一覧表示するページ（プレミアム会員限定）
- *
  * このファイルは予約投稿機能のメインページです。
  * プレミアム会員のみがアクセス可能で、未公開の予約投稿を管理できます。
  *
@@ -19,7 +16,7 @@
 import { redirect } from 'next/navigation'
 
 // ルート定数
-import { ROUTE_LOGIN } from '@/lib/constants/routes'
+import { ROUTE_LOGIN, ROUTE_SETTINGS_SUBSCRIPTION } from '@/lib/constants/routes'
 
 // NextAuth.jsの認証ヘルパー関数
 // ユーザー認証状態の確認に使用
@@ -53,6 +50,7 @@ import { CalendarPlus } from 'lucide-react'
  */
 export const metadata = {
   title: '予約投稿 | BONLOG',
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -100,7 +98,6 @@ export default async function ScheduledPostsPage() {
     return (
       <div className="max-w-2xl mx-auto py-8 px-4">
         <div className="text-center py-12 bg-card rounded-lg border">
-          {/* カレンダーアイコン - 予約投稿機能を象徴 */}
           <CalendarPlus className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
 
           <h1 className="text-2xl font-bold mb-2">予約投稿機能</h1>
@@ -108,9 +105,8 @@ export default async function ScheduledPostsPage() {
             予約投稿はプレミアム会員限定の機能です。
           </p>
 
-          {/* プレミアム登録ページへのリンク */}
           <Button asChild variant="bonsai">
-            <Link href="/settings/subscription">プレミアムに登録</Link>
+            <Link href={ROUTE_SETTINGS_SUBSCRIPTION}>プレミアムに登録</Link>
           </Button>
         </div>
       </div>
@@ -122,11 +118,9 @@ export default async function ScheduledPostsPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-4">
-      {/* ヘッダー部分 - タイトルと新規作成ボタン */}
       <div className="flex items-center justify-between mb-6 px-4">
         <h1 className="text-xl font-bold">予約投稿</h1>
 
-        {/* 新規予約投稿作成ボタン */}
         <Button asChild size="sm" variant="bonsai">
           <Link href="/posts/scheduled/new">
             <CalendarPlus className="w-4 h-4 mr-2" />
@@ -135,7 +129,6 @@ export default async function ScheduledPostsPage() {
         </Button>
       </div>
 
-      {/* 予約投稿一覧コンポーネント */}
       <ScheduledPostList scheduledPosts={scheduledPosts} />
     </div>
   )

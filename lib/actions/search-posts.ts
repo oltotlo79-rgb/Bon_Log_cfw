@@ -22,6 +22,8 @@ import { POST_LIST_INCLUDE, formatPostForClient } from './post-include'
 import { preserveOrder } from '@/lib/utils/preserve-order'
 import type { Post } from '@/types/post'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
+import { visibleAuthorFilter } from '@/lib/services/post-visibility'
+import { normalizeCursorPagination } from './pagination'
 
 /**
  * 投稿を検索（キーワード + ジャンル + 追加フィルター）。
@@ -54,6 +56,9 @@ export async function searchPosts(
     const session = await auth()
     const currentUserId = session?.user?.id
 
+    // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
     const excludedUserIds = currentUserId
       ? await getExcludedUserIds(currentUserId, { blocked: true, blockedBy: true, muted: true })
       : []
@@ -78,8 +83,9 @@ export async function searchPosts(
       const postIds = await fulltextSearchPosts(query, {
         excludedUserIds,
         genreIds,
-        cursor,
-        limit,
+        cursor: safeCursor,
+        limit: safeLimit,
+        viewerId: currentUserId,
         filters,
       })
 
@@ -87,8 +93,9 @@ export async function searchPosts(
         return actionSuccess({ posts: [], nextCursor: undefined })
       }
 
+      // fulltext で得た ID にも著者公開条件を防御的に再適用する（raw SQL 改修漏れに備える）
       const fetchedPosts = await prisma.post.findMany({
-        where: { id: { in: postIds } },
+        where: { id: { in: postIds }, isHidden: false, user: visibleAuthorFilter(currentUserId) },
         include: postInclude,
       })
 
@@ -104,7 +111,7 @@ export async function searchPosts(
 
       return actionSuccess({
         posts: formattedPosts,
-        nextCursor: posts.length === limit ? posts[posts.length - 1]?.id : undefined,
+        nextCursor: posts.length === safeLimit ? posts[posts.length - 1]?.id : undefined,
       })
     }
 
@@ -125,6 +132,10 @@ export async function searchPosts(
       filterConditions.push({ media: { none: {} } })
     }
 
+    // Why groupBy: Prisma `where` で `_count` 比較ができないため likes を集計してから
+     // post.id を絞る。LIKE 検索モード（fallback パス）でのみ通る経路で、
+     // bigm/trgm モードでは raw SQL の correlated subquery で同等処理を行う（fulltext-search.ts）。
+     // 大規模化時は Post.likeCount 非正規化カラム + insert/delete トリガーへの移行を検討。
     let minLikesPostIds: string[] | undefined
     if (filters?.minLikes && filters.minLikes > 0) {
       const likesResult = await prisma.like.groupBy({
@@ -141,6 +152,7 @@ export async function searchPosts(
     const posts = await prisma.post.findMany({
       where: {
         isHidden: false,
+        user: visibleAuthorFilter(currentUserId),
         ...(minLikesPostIds ? { id: { in: minLikesPostIds } } : {}),
         AND: [
           query ? { content: containsInsensitive(query) } : {},
@@ -152,9 +164,9 @@ export async function searchPosts(
         ],
       },
       include: postInclude,
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
     })
 
     const { likedSet, bookmarkedSet } = currentUserId
@@ -167,7 +179,7 @@ export async function searchPosts(
 
     return actionSuccess({
       posts: formattedPosts,
-      nextCursor: posts.length === limit ? posts[posts.length - 1]?.id : undefined,
+      nextCursor: posts.length === safeLimit ? posts[posts.length - 1]?.id : undefined,
     })
   } catch (error) {
     logger.error('searchPosts failed', { error: error instanceof Error ? error.message : String(error) })
@@ -193,17 +205,23 @@ export async function searchByTag(
     const session = await auth()
     const currentUserId = session?.user?.id
 
+    // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
     const excludedUserIds = currentUserId
       ? await getExcludedUserIds(currentUserId, { blocked: true, blockedBy: true, muted: true })
       : []
 
+    // Why Hashtag JOIN: 旧実装は `content: { contains: '#tag' }` の LIKE 全文走査だった。
+    // 投稿数が増えるとフルテーブルスキャンになる。`PostHashtag` 中間テーブルと
+    // `Hashtag.name @unique` インデックスを使い O(log n) で関連投稿を引く。
+    const normalizedTag = tag.toLowerCase()
     const posts = await prisma.post.findMany({
       where: {
         isHidden: false,
-        AND: [
-          { content: { contains: `#${tag}` } },
-          excludedUserIds.length > 0 ? { userId: { notIn: excludedUserIds } } : {},
-        ],
+        user: visibleAuthorFilter(currentUserId),
+        hashtags: { some: { hashtag: { name: normalizedTag } } },
+        ...(excludedUserIds.length > 0 ? { userId: { notIn: excludedUserIds } } : {}),
       },
       include: {
         user: USER_MINIMAL_RELATION,
@@ -220,9 +238,9 @@ export async function searchByTag(
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
     })
 
     const { likedSet, bookmarkedSet } = currentUserId
@@ -238,7 +256,7 @@ export async function searchByTag(
         isLiked: likedSet.has(post.id),
         isBookmarked: bookmarkedSet.has(post.id),
       })),
-      nextCursor: posts.length === limit ? posts[posts.length - 1]?.id : undefined,
+      nextCursor: posts.length === safeLimit ? posts[posts.length - 1]?.id : undefined,
     })
   } catch (error) {
     logger.error('searchByTag failed', { error: error instanceof Error ? error.message : String(error) })

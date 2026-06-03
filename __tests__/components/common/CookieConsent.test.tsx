@@ -127,11 +127,26 @@ describe('CookieConsent UI', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('「すべて同意」で localStorage=all に保存し reload を呼ぶ', () => {
+  it('「すべて同意」で localStorage=all に保存しバナーを閉じる（reload は呼ばない）', () => {
     render(<CookieConsent />)
     fireEvent.click(screen.getByRole('button', { name: 'すべて同意' }))
     expect(store.get(STORAGE_KEY)).toBe('all')
-    expect(reloadMock).toHaveBeenCalledTimes(1)
+    // VisitorBeacon / AdProvider が CustomEvent を購読して自動的に
+    // 広告スクリプト読み込みと beacon 送信を行うため、フルリロードは不要。
+    expect(reloadMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('「すべて同意」で cookie-consent-change CustomEvent が dispatch される', () => {
+    const listener = vi.fn()
+    window.addEventListener('cookie-consent-change', listener)
+    try {
+      render(<CookieConsent />)
+      fireEvent.click(screen.getByRole('button', { name: 'すべて同意' }))
+      expect(listener).toHaveBeenCalledTimes(1)
+    } finally {
+      window.removeEventListener('cookie-consent-change', listener)
+    }
   })
 
   it('「必要最小限のみ」で localStorage=essential に保存しバナーを閉じる（reload しない）', () => {

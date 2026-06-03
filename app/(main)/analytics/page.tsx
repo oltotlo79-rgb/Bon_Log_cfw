@@ -24,6 +24,7 @@ import {
 
 export const metadata = {
   title: '投稿分析',
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -98,7 +99,6 @@ export default async function AnalyticsPage({
 
   return (
     <div className="max-w-4xl mx-auto py-4 px-4">
-      {/* ヘッダー + 期間フィルター */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <BarChart3 className="w-6 h-6 text-primary" />

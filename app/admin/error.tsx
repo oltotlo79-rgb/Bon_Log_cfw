@@ -1,21 +1,7 @@
-/**
- * @file 管理画面のエラーバウンダリ
- * @description 管理画面でエラーが発生した際に表示されるエラー画面
- *
- * Next.js App Routerのerror.tsx規約に基づき、
- * /admin およびその子ルートで発生したエラーをキャッチして表示します。
- *
- * @route /admin (およびその子ルート)
- * @requires 'use client'
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 管理画面のエラーコンポーネント
- */
 export default function AdminError({
   error,
   reset,

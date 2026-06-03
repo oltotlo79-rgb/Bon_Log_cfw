@@ -11,11 +11,12 @@
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
 import { revalidatePath } from 'next/cache'
 import logger from '@/lib/logger'
-import { rateLimit, RATE_LIMITS, checkUserRateLimit } from '@/lib/rate-limit'
-import { getClientIp, requireAuth, requireActiveNonGuestUser, actionSuccess, actionError } from '@/lib/actions/utils'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { getClientIp, requireAuth, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
 import {
   MAX_SEARCH_QUERY_LENGTH,
@@ -24,11 +25,11 @@ import {
   MAX_BONSAI_NAME_LENGTH,
   MAX_BONSAI_SPECIES_LENGTH,
   MAX_BONSAI_DESCRIPTION_LENGTH,
+  BONSAI_DETAIL_RECORDS_LIMIT,
 } from '@/lib/constants/limits'
 import { ROUTE_BONSAI } from '@/lib/constants/routes'
 import { buildBonsaiPath } from '@/lib/constants/path-builders'
 import {
-  ERR_RATE_LIMIT_OPERATION,
   ERR_BONSAI_NOT_FOUND,
   ERR_BONSAI_LIST_FAILED,
   ERR_BONSAI_GET_FAILED,
@@ -42,7 +43,6 @@ import {
   ERR_BONSAI_SEARCH_QUERY_TOO_LONG,
 } from '@/lib/constants/errors'
 
-const optionalIdSchema = z.string().min(1).optional()
 const idSchema = z.string().min(1)
 
 const createBonsaiSchema = z.object({
@@ -72,20 +72,15 @@ const BONSAI_INCLUDE_BASE = {
 } as const
 
 /**
- * 盆栽一覧を取得する。`userId` を省略した場合は現在ログイン中のユーザーの盆栽。
+ * 現在ログイン中のユーザーの盆栽一覧を取得する。
+ * 盆栽は所有者専用リソースのため、対象は常に認証済み本人に限定する
+ * （引数由来の userId を認可境界として信用しない）。
  * 各盆栽には最新の成長記録 1 件とサムネイル画像が含まれる。
  */
-export async function getBonsais(userId?: string) {
-  if (userId !== undefined && !optionalIdSchema.safeParse(userId).success) {
-    return actionError(ERR_INVALID_BONSAI_ID)
-  }
-
-  let targetUserId = userId
-  if (!targetUserId) {
-    const authResult = await requireAuth()
-    if ('error' in authResult) return actionError(authResult.error)
-    targetUserId = authResult.userId
-  }
+export async function getBonsais() {
+  const authResult = await requireAuth()
+  if ('error' in authResult) return actionError(authResult.error)
+  const targetUserId = authResult.userId
 
   try {
     const bonsais = await prisma.bonsai.findMany({
@@ -103,10 +98,17 @@ export async function getBonsais(userId?: string) {
 }
 
 /**
- * 盆栽詳細を取得する。所有者情報、全成長記録（画像含む）、記録件数を返す。
+ * 盆栽詳細を取得する。マイ盆栽は所有者専用（公開フラグを持たない）ため、
+ * 非所有者には存在を秘匿して `ERR_BONSAI_NOT_FOUND` を返す。
+ * 初期表示は最新 {@link BONSAI_DETAIL_RECORDS_LIMIT} 件の成長記録に限り、
+ * 古い記録は `getBonsaiRecords` で追加ロードする。
  */
 export async function getBonsai(bonsaiId: string) {
   if (!idSchema.safeParse(bonsaiId).success) return actionError(ERR_INVALID_BONSAI_ID)
+
+  const authResult = await requireAuth()
+  if ('error' in authResult) return actionError(authResult.error)
+  const userId = authResult.userId
 
   try {
     const bonsai = await prisma.bonsai.findUnique({
@@ -115,6 +117,7 @@ export async function getBonsai(bonsaiId: string) {
         user: USER_MINIMAL_RELATION,
         records: {
           orderBy: { recordAt: 'desc' },
+          take: BONSAI_DETAIL_RECORDS_LIMIT,
           include: {
             images: { orderBy: { sortOrder: 'asc' } },
           },
@@ -123,7 +126,7 @@ export async function getBonsai(bonsaiId: string) {
       },
     })
 
-    if (!bonsai) return actionError(ERR_BONSAI_NOT_FOUND)
+    if (!bonsai || bonsai.userId !== userId) return actionError(ERR_BONSAI_NOT_FOUND)
     return actionSuccess({ bonsai })
   } catch (error) {
     logger.error('Get bonsai error:', error)
@@ -145,8 +148,8 @@ export async function createBonsai(data: {
   const parsed = createBonsaiSchema.safeParse(data)
   if (!parsed.success) return actionError(ERR_INVALID_INPUT)
 
-  const rl = await checkUserRateLimit(userId, 'create_bonsai')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(userId, 'create_bonsai')
+  if (rl) return actionError(rl.error)
 
   try {
     const bonsai = await prisma.bonsai.create({
@@ -185,8 +188,8 @@ export async function updateBonsai(
   const parsed = updateBonsaiSchema.safeParse(data)
   if (!parsed.success) return actionError(ERR_INVALID_INPUT)
 
-  const rl = await checkUserRateLimit(userId, 'update_bonsai')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(userId, 'update_bonsai')
+  if (rl) return actionError(rl.error)
 
   try {
     const existing = await prisma.bonsai.findFirst({
@@ -222,16 +225,20 @@ export async function deleteBonsai(bonsaiId: string) {
 
   if (!idSchema.safeParse(bonsaiId).success) return actionError(ERR_INVALID_BONSAI_ID)
 
-  const rl = await checkUserRateLimit(userId, 'delete_bonsai')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(userId, 'delete_bonsai')
+  if (rl) return actionError(rl.error)
 
   try {
     const existing = await prisma.bonsai.findFirst({
       where: { id: bonsaiId, userId },
+      include: { records: { select: { images: { select: { url: true } } } } },
     })
     if (!existing) return actionError(ERR_BONSAI_NOT_FOUND)
 
     await prisma.bonsai.delete({ where: { id: bonsaiId } })
+
+    // DB カスケード（records → images）後にストレージ実体も回収（オーファン防止、best-effort）
+    await deleteMediaFiles(existing.records.flatMap((r) => r.images.map((i) => i.url)))
 
     // 一覧と、削除済み盆栽の詳細ページ（404 化させる）の双方を再検証する。
     revalidatePath(ROUTE_BONSAI)

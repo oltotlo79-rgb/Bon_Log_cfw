@@ -31,7 +31,7 @@ BON-LOGは、盆栽愛好家が日々の管理記録・作品共有・情報交�
 | OGP | 水墨画ベースのOG画像（各ページで個別指定） |
 | 植物ホルモンガイド | 五大ホルモン・技法影響・相互作用・年間カレンダー・シミュレーター |
 | プレミアム | 月額350円 / 年額3,500円、予約投稿・アナリティクス・ゴールドフレーム |
-| 管理者 | コンテンツモデレーション・ユーザー管理・監査ログ（28サブディレクトリ） |
+| 管理者 | コンテンツモデレーション・ユーザー管理・監査ログ（28サブディレクトリ / 35画面） |
 
 ---
 
@@ -45,7 +45,8 @@ BON-LOGは、盆栽愛好家が日々の管理記録・作品共有・情報交�
 | State | TanStack React Query 5.90.16 |
 | ORM | Prisma 6.19.2 |
 | Database | PostgreSQL (Supabase) |
-| Auth | NextAuth.js v5 beta (Auth.js — `5.0.0-beta.31` を pinned) |
+| Auth | NextAuth.js v5 beta (Auth.js — `5.0.0-beta.31` を pinned、JWT戦略 + サーバーサイド2FA) |
+| Validation | Zod 4 |
 | Cache | Upstash Redis |
 | Storage | Cloudflare R2 |
 | Payment | Stripe |
@@ -105,8 +106,8 @@ docker compose --profile dev up -d
 ## 開発コマンド
 
 ```bash
-npm run dev          # 開発サーバー起動
-npm run build        # 本番ビルド
+npm run dev          # 開発サーバー起動（Webpack）
+npm run build        # 本番ビルド（prisma generate + next build --webpack）
 npm run start        # 本番サーバー起動
 npm run lint         # ESLint実行
 
@@ -173,8 +174,8 @@ bonsai-sns-project/
 │   ├── auth/callback/    # NextAuth コールバック（Route Handler）
 │   ├── maintenance/      # メンテナンス中ページ
 │   ├── feed.xml/         # 公開投稿の RSS 2.0 フィード（Route Handler）
-│   └── api/              # Route Handlers（24本: upload×4 + _shared×2, cron×4, admin×6, webhook×1, push×1, og, badges, auth, ad-frame, health, maintenance, analytics×2）
-├── components/           # 33サブディレクトリ / 263ファイル
+│   └── api/              # Route Handlers（24本: upload×4, cron×4, admin×6, webhooks/stripe, push/vapid-key, badges, ad-frame, og, auth/[...nextauth], analytics×2, health, maintenance/status）
+├── components/           # 33サブディレクトリ
 │   ├── post/             # 投稿関連（最大ディレクトリ）
 │   ├── shop/             # 盆栽園
 │   ├── ui/               # shadcn/ui + Radix UI 基本
@@ -191,14 +192,15 @@ bonsai-sns-project/
 │   ├── layout/           # ナビ・サイドバー
 │   └── admin/            # 管理者UI
 ├── lib/
-│   ├── actions/          # Server Actions（86ファイル: ルート 66 + admin/ 19 + schemas/ 1）。`'use server'` を持つ Server Action 公開モジュールは 53 本、残り 13 本は `'server-only'` の RSC データ取得 / 内部 helper（dictionary, fertilizer, filter-helper, hormone, pagination, pesticide, post-include, post-validation, prisma-filters, search-meta, shared-includes, user(barrel), utils）
-│   ├── services/         # サービス層（13ファイル: 通知バルク／コア、Webhook冪等性、認可、セキュリティイベント、ショップ変更、ハッシュタグ同期 / 再計算、コメント通知、利用統計、天気、アナリティクス記録／取得）
+│   ├── actions/          # Server Actions（87ファイル: ルート 66 + admin/ 20 + schemas/ 1）。`'use server'` を持つ Server Action 公開モジュールは 73 本、残りは `'server-only'` の RSC データ取得 / 内部 helper（filter-helper, post-include, post-validation, prisma-filters, shared-includes, utils 等）
+│   ├── services/         # サービス層（15ファイル: 通知バルク／コア、Webhook冪等性、認可、セキュリティイベント、ハッシュタグ同期 / 再計算、コメント通知 / スレッドミュート、メンション、利用統計、天気、アナリティクス記録／取得）
+│   ├── shop/             # Shop ドメイン共有ユーティリティ（change-request.ts: 変更リクエストの型・schema・parser。旧 services/shop-change-helpers を layer-neutral 配置へ移動）
 │   ├── security/         # セキュリティユーティリティ
 │   ├── validations/      # Zodスキーマ
 │   ├── email/            # メールテンプレート
 │   ├── storage/          # ファイルアップロード
-│   ├── constants/        # 定数・制限値（ルート 19 + limits/ 17 + errors/ 7、合計 43 ファイル。system-settings.ts で DB キーも定数化、limits/event.ts でイベント類似度閾値も集約、constants/dictionary.ts で辞典カテゴリ・配色を集約）
-│   ├── utils/            # ユーティリティ（admin-cursor, avatar, calendar-grid, fertilizer, form-data, json, pesticide, pesticide-badge, preserve-order, season, seo の 11 ファイル）
+│   ├── constants/        # 定数・制限値（ルート 22 + limits/ 18 + errors/ 7、合計 47 ファイル。system-settings.ts で DB キーも定数化、limits/event.ts でイベント類似度閾値も集約、constants/dictionary.ts で辞典カテゴリ・配色を集約）
+│   ├── utils/            # ユーティリティ（admin-cursor, avatar, calendar-grid, client-ip, fertilizer, form-data, json, pesticide, pesticide-badge, preserve-order, season, seo の 12 ファイル）
 │   ├── auth.ts           # NextAuth.js設定
 │   ├── db.ts             # Prismaクライアント
 │   ├── env.ts            # 環境変数のゲートウェイ getter（getCronSecret / getBasicAuthConfig / isProduction 等）
@@ -208,12 +210,13 @@ bonsai-sns-project/
 │   └── cache.ts          # unstable_cache ラッパ
 ├── prisma/
 │   ├── schema.prisma     # DBスキーマ（90モデル, 24 enum）
-│   ├── migrations/       # マイグレーション（35ディレクトリ + fulltext_search_indexes.sql + migration_lock.toml）
+│   ├── migrations/       # マイグレーション（38ディレクトリ + fulltext_search_indexes.sql + migration_lock.toml）
 │   ├── validation/       # 農薬データMAFF突合バリデーション
 │   ├── seed.ts           # シードエントリポイント
 │   └── seed/             # ドメイン別シード（dictionary, e2e, fertilizer, genre, hormone, pesticide, shared）
-├── __tests__/            # ユニット・コンポーネントテスト（Vitest, 805ファイル / 全 PASS）
+├── __tests__/            # ユニット・コンポーネントテスト（Vitest, 825ファイル）
 ├── e2e/                  # E2Eテスト（Playwright, 60 spec, 8プロジェクト構成）
+├── hooks/                # 共有Client Hooks（8ファイル: useFollowAction, useMediaUpload, useToast 等）
 ├── docs/                 # ドキュメント
 ├── scripts/              # 保守スクリプト（seed補助・PWAアイコン生成等）
 ├── proxy.ts              # 認証チェック・CSP nonce・HSTS・Origin/Referer 検証・メンテナンスゲート（Edge Runtime、セキュリティイベントは Sentry に送信）
@@ -225,9 +228,11 @@ bonsai-sns-project/
 ## テスト
 
 ```bash
-npm test                  # ユニットテスト（Watch モード）
+npm test                  # ユニットテスト（1回実行 / vitest run）
+npm run test:watch        # ユニットテスト（Watch モード）
 npm run test:coverage     # カバレッジレポート生成
-npm run test:e2e          # E2Eテスト（要: 開発サーバー起動）
+npm run test:e2e          # E2Eテスト（Playwright）
+npm run test:all          # ユニット + E2E
 ```
 
 ### カバレッジ閾値と規模
@@ -239,8 +244,8 @@ npm run test:e2e          # E2Eテスト（要: 開発サーバー起動）
 | Functions（閾値） | 85% |
 | Lines（閾値） | 85% |
 | Statements（閾値） | 85% |
-| TypeScript strict 設定 | `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化） |
-| ユニット・コンポーネントテスト | 805ファイル（`.test.ts` 327 + `.test.tsx` 478）/ 全 PASS |
+| TypeScript strict 設定 | `strict: true` + `noUncheckedIndexedAccess: true` + `noImplicitOverride: true` |
+| ユニット・コンポーネントテスト | 825ファイル（`.test.ts` + `.test.tsx`） |
 | E2Eテスト | 60 specファイル（Playwright、8プロジェクト構成: setup + 5ブラウザ + chromium-noauth + teardown） |
 | 主要分布 | components / lib / app / coverage-boost / prisma / hooks / types / その他 |
 
@@ -269,8 +274,8 @@ GitHub Actions により PR・mainブランチへのプッシュ時に自動実�
 ### Vercel（推奨）
 
 ```bash
-# ビルドコマンド（vercel.jsonで設定済み）
-npx prisma generate && npx prisma migrate deploy && next build
+# ビルドコマンド（npm script: build:deploy）
+prisma generate && prisma migrate deploy && next build --webpack
 ```
 
 ### Docker（本番）
@@ -289,7 +294,7 @@ docker compose --profile prod up -d
 | [`CLAUDE.md`](CLAUDE.md) + [`.claude/rules/`](.claude/rules/) | Claude Code向けプロジェクト指示書（機能別ルール分割） |
 | [`docs/requirements.md`](docs/requirements.md) | 要件定義書 |
 | [`docs/project-structure.md`](docs/project-structure.md) | ファイル構成詳細 |
-| [`docs/api-spec.md`](docs/api-spec.md) | Route Handler仕様（`app/api/` 24ルート + `/feed.xml` + `/auth/callback`） + Server Actions一覧 |
+| [`docs/api-spec.md`](docs/api-spec.md) | Route Handler仕様（`app/api/` 24ルート + `/feed.xml` + `/auth/callback`） + Server Actions一覧（87ファイル） |
 | [`docs/TESTING.md`](docs/TESTING.md) | テスト戦略・パターン集 |
 | [`docs/tutorial/`](docs/tutorial/) | 開発チュートリアル |
 | [`docs/code-reference/`](docs/code-reference/) | コードリファレンス |
@@ -299,4 +304,4 @@ docker compose --profile prod up -d
 
 ## ライセンス
 
-Private — All rights reserved.
+Private — Copyright (c) 2026 BON-LOG. All rights reserved.

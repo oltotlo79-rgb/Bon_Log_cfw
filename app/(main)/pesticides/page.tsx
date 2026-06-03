@@ -26,7 +26,7 @@ import {
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '農薬・病害虫 - BON-LOG',
+  title: '農薬・病害虫',
   description: '病害虫から効く薬剤を検索。農薬の成分・FRAC/IRACコード・剤型情報を確認できます。',
   alternates: { canonical: pageCanonical(ROUTE_PESTICIDES) },
 }
@@ -134,7 +134,6 @@ export default async function PesticideTopPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
       <div>
         <h1 className="text-2xl font-bold">農薬・病害虫</h1>
         
@@ -166,7 +165,6 @@ export default async function PesticideTopPage({ searchParams }: Props) {
         </p>
       </div>
 
-      {/* ナビゲーションカード */}
       <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navCards.map(({ href, icon: Icon, label, description }) => (
@@ -192,14 +190,12 @@ export default async function PesticideTopPage({ searchParams }: Props) {
 
       <PesticideDisclaimer />
 
-      {/* 検索フォーム */}
       <PesticideSearchForm
         defaultSearch={searchQuery}
         defaultType={isSpreaderView ? 'spreader' : pesticideType}
         defaultCategory={categoryParam}
       />
 
-      {/* 結果表示 */}
       <div className="grid grid-cols-1 gap-6">
         {!showResults && !categoryParam && (
           <div className="space-y-4">

@@ -10,7 +10,6 @@
  * - ブロックしているユーザーがいない場合の空状態表示
  * - 認証チェックによるアクセス制御
  *
- * @route /settings/blocked
  * @requires 認証必須 - 未ログインユーザーはログインページへリダイレクト
  */
 
@@ -37,7 +36,6 @@ import { getBlockedUsers } from '@/lib/actions/block'
 import { BlockedUserList } from '@/components/user/BlockedUserList'
 
 /**
- * 静的メタデータの定義
  * ページタイトルと説明の設定
  */
 export const metadata: Metadata = {
@@ -78,7 +76,6 @@ export default async function BlockedUsersPage() {
     <div className="max-w-2xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">ブロック中のユーザー</h1>
 
-      {/* ブロック中のユーザーがいない場合の空状態メッセージ */}
       {users.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p>ブロック中のユーザーはいません</p>

@@ -8,7 +8,7 @@ import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { MAX_EMAIL_LENGTH, MAX_NICKNAME_LENGTH } from '@/lib/constants/limits'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import { sendPasswordResetEmail, sendVerificationEmail } from '@/lib/email'
+import { sendVerificationEmail } from '@/lib/email'
 import logger from '@/lib/logger'
 import {
   checkLoginAttempt,
@@ -22,36 +22,25 @@ import {
   logLoginFailure,
   logLoginLockout,
   logRegisterSuccess,
-  logPasswordResetRequest,
-  logPasswordResetSuccess,
 } from '@/lib/security-logger'
 import { getAppUrl } from '@/lib/env'
 import { ROUTE_FEED, ROUTE_HOME } from '@/lib/constants/routes'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { Prisma } from '@prisma/client'
-import { PASSWORD_MIN_LENGTH, BCRYPT_SALT_ROUNDS, ONE_DAY_MS, ONE_HOUR_MS, FIFTEEN_MINUTES_MS, MIN_TOKEN_LENGTH, MAX_RESEND_VERIFICATION_ATTEMPTS, MAX_PASSWORD_RESET_ATTEMPTS, TOKEN_RANDOM_BYTES } from '@/lib/constants/limits'
+import { BCRYPT_SALT_ROUNDS, ONE_DAY_MS, FIFTEEN_MINUTES_MS, TOKEN_RANDOM_BYTES, VERIFY_CREDENTIALS_MAX_ATTEMPTS } from '@/lib/constants/limits'
 // 定数はドメイン別ファイルに分割されているため、用途別に直接 import する。
-// （ファイル先頭で 28 個まとめて import すると実装に到達するまでスクロールが必要になる）
+// （ファイル先頭でまとめて import すると実装に到達するまでスクロールが必要になる）
 import {
   ERR_ACCOUNT_SUSPENDED,
   ERR_DEVICE_BLACKLISTED,
   ERR_EMAIL_ALREADY_REGISTERED,
   ERR_EMAIL_BLACKLISTED,
   ERR_EMAIL_NOT_VERIFIED,
-  ERR_EMAIL_SEND_FAILED,
   ERR_GUEST_LOGIN_UNAVAILABLE,
-  ERR_INVALID_TOKEN,
   ERR_LOGIN_ERROR,
   ERR_LOGIN_FAILED,
   ERR_LOGIN_INVALID_CREDENTIALS,
   ERR_NICKNAME_RESERVED,
-  ERR_PASSWORD_ALPHANUMERIC,
-  ERR_PASSWORD_MIN_LENGTH,
-  ERR_RESEND_TOO_MANY,
-  ERR_RESET_LINK_INVALID,
-  ERR_RESET_TOO_MANY,
-  ERR_TOKEN_EXPIRED,
-  ERR_TOKEN_EXPIRED_OR_INVALID,
   ERR_VERIFICATION_EMAIL_FAILED,
 } from '@/lib/constants/errors/auth'
 import {
@@ -63,7 +52,6 @@ import {
   ERR_NICKNAME_TOO_LONG,
   ERR_RATE_LIMIT_OPERATION,
 } from '@/lib/constants/errors/content'
-import { ERR_USER_NOT_FOUND } from '@/lib/constants/errors/entity'
 import { isReservedNickname } from '@/lib/constants/reserved'
 import { isEmailBlacklisted, isDeviceBlacklisted } from '@/lib/actions/blacklist'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
@@ -151,11 +139,21 @@ export async function recordLoginFailure(email: string): Promise<LoginFailureRes
 /**
  * ログイン成功時に試行カウンタをリセットする。
  *
+ * Why email shape validation: `'use server'` ファイルから export しているため
+ * 任意クライアントから呼ばれうる公開 RPC である。形が不正な値で
+ * カウンタリセットが走らないよう、email shape を Zod で検証する。
+ *
  * 失敗パスを持たないため戻り値なし（Promise<void>）。
  */
 export async function clearLoginAttempts(email: string): Promise<void> {
+  const parsed = z
+    .string()
+    .email()
+    .max(MAX_EMAIL_LENGTH)
+    .safeParse(email)
+  if (!parsed.success) return
   const ip = await getClientIp()
-  const key = getLoginKey(ip, sanitizeInput(email))
+  const key = getLoginKey(ip, sanitizeInput(parsed.data))
   await resetLoginAttempts(key)
 }
 
@@ -168,22 +166,6 @@ const credentialsSchema = z.object({
     .email(ERR_EMAIL_INVALID)
     .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
   password: z.string().min(1, ERR_INPUT_INVALID_GENERIC),
-})
-
-const passwordResetRequestSchema = z.object({
-  email: z
-    .string()
-    .email(ERR_EMAIL_INVALID)
-    .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
-})
-
-const passwordResetConfirmSchema = z.object({
-  email: z
-    .string()
-    .email(ERR_EMAIL_INVALID)
-    .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
-  token: z.string().min(MIN_TOKEN_LENGTH, ERR_INVALID_TOKEN),
-  newPassword: z.string().min(PASSWORD_MIN_LENGTH, ERR_PASSWORD_MIN_LENGTH),
 })
 
 /**
@@ -211,7 +193,7 @@ export async function verifyCredentials(
     `verify-credentials:${ip}:${sanitizeInput(validEmail)}`,
     {
       windowMs: FIFTEEN_MINUTES_MS,
-      maxRequests: 5,
+      maxRequests: VERIFY_CREDENTIALS_MAX_ATTEMPTS,
       failOpen: false,
     }
   )
@@ -399,290 +381,42 @@ export async function registerUser(data: {
   return actionSuccess({ userId: user.id })
 }
 
-/**
- * Verify an email confirmation token and mark the user as verified.
- */
+// メール確認系 / パスワードリセット系は別ファイルに分離。
+// 既存 import 互換性のため `@/lib/actions/auth` 経由でも参照できるようラッパー経由で公開する。
+// Why wrappers (not `export { } from`):
+//   Next.js 16 (SWC) の `'use server'` 制約により、ファイル内では async function declaration のみが許可される。
+//   `export { name } from '...'` の re-export は build 時 SWC で reject される (vitest はこの制約を通すため要注意)。
+import {
+  verifyEmailToken as _verifyEmailToken,
+  resendVerificationEmail as _resendVerificationEmail,
+  getEmailVerificationStatus as _getEmailVerificationStatus,
+} from './auth-email-verify'
+import {
+  requestPasswordReset as _requestPasswordReset,
+  resetPassword as _resetPassword,
+  verifyPasswordResetToken as _verifyPasswordResetToken,
+} from './auth-password-reset'
+
 export async function verifyEmailToken(token: string) {
-  if (!token || typeof token !== 'string' || token.length < MIN_TOKEN_LENGTH) {
-    return actionError(ERR_INVALID_TOKEN)
-  }
-
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-  const record = await prisma.emailVerificationToken.findUnique({
-    where: { token: hashedToken },
-  })
-
-  if (!record) {
-    return actionError(ERR_TOKEN_EXPIRED_OR_INVALID)
-  }
-
-  if (record.expires < new Date()) {
-    await prisma.emailVerificationToken.delete({ where: { id: record.id } })
-    return actionError(ERR_TOKEN_EXPIRED)
-  }
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { email: record.email },
-      data: { emailVerified: new Date() },
-    }),
-    prisma.emailVerificationToken.delete({ where: { id: record.id } }),
-  ])
-
-  return actionSuccess()
+  return _verifyEmailToken(token)
 }
 
-/**
- * Resend verification email (rate-limited: 3 per hour per IP).
- *
- * Returns success even if the user doesn't exist or is already verified
- * to prevent email enumeration.
- */
 export async function resendVerificationEmail(email: string) {
-  const ip = await getClientIp()
-  const sanitizedEmail = sanitizeInput(email)
-
-  // Redis 障害時はフェイルクローズ: メール乱用と列挙攻撃を防ぐ。
-  const rateLimitResult = await rateLimit(`resend-verify:${ip}`, {
-    windowMs: ONE_HOUR_MS,
-    maxRequests: MAX_RESEND_VERIFICATION_ATTEMPTS,
-    failOpen: false,
-  })
-
-  if (!rateLimitResult.success) {
-    return actionError(ERR_RESEND_TOO_MANY)
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: sanitizedEmail },
-    select: { id: true, emailVerified: true },
-  })
-
-  // Return success even if user not found or already verified (enumeration prevention)
-  if (!user) {
-    return actionSuccess()
-  }
-
-  if (user.emailVerified) {
-    return actionSuccess()
-  }
-
-  await prisma.emailVerificationToken.deleteMany({
-    where: { email: sanitizedEmail },
-  })
-
-  const token = crypto.randomBytes(TOKEN_RANDOM_BYTES).toString('hex')
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-  const expires = new Date(Date.now() + ONE_DAY_MS)
-
-  await prisma.emailVerificationToken.create({
-    data: {
-      email: sanitizedEmail,
-      token: hashedToken,
-      expires,
-    },
-  })
-
-  const baseUrl = getAppUrl()
-  const verifyUrl = `${baseUrl}/verify-email?token=${token}`
-
-  const result = await sendVerificationEmail(sanitizedEmail, verifyUrl)
-  if (!result.success) {
-    return actionError(ERR_EMAIL_SEND_FAILED)
-  }
-
-  return actionSuccess()
+  return _resendVerificationEmail(email)
 }
 
-/**
- * Check email verification status (used to show unverified hint on login failure).
- * On DB error returns { verified: true } to avoid breaking the login form (E2E安定化).
- */
 export async function getEmailVerificationStatus(email: string) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email: sanitizeInput(email) },
-      select: { emailVerified: true },
-    })
-    // ユーザーが存在しない場合はメール未確認エラーにしない（通常のログインエラーに流す）
-    if (!user) return { verified: true }
-    return { verified: !!user.emailVerified }
-  } catch (error) {
-    logger.warn('getEmailVerificationStatus: DB error, assuming verified', {
-      cause: error instanceof Error ? error.message : undefined,
-    })
-    return { verified: true }
-  }
+  return _getEmailVerificationStatus(email)
 }
 
-/**
- * Send a password reset email.
- *
- * Returns success even if the user doesn't exist to prevent enumeration attacks.
- * Token is stored as SHA-256 hash; expires in 1 hour.
- */
 export async function requestPasswordReset(email: string) {
-  // 1. 入力検証 (Zod schema) — rate limit より前
-  const parsed = passwordResetRequestSchema.safeParse({ email })
-  if (!parsed.success) {
-    // 列挙攻撃対策として失敗時もユーザーが存在しなかった時と同等のレスポンスを返す
-    return actionSuccess()
-  }
-  const { email: validEmail } = parsed.data
-
-  // 2. レート制限 (IP + email)。Redis 障害時はフェイルクローズで列挙攻撃・乱用を遮断
-  const ip = await getClientIp()
-  const rateLimitResult = await rateLimit(
-    `password-reset:${ip}:${sanitizeInput(validEmail)}`,
-    {
-      windowMs: ONE_HOUR_MS,
-      maxRequests: MAX_PASSWORD_RESET_ATTEMPTS,
-      failOpen: false,
-    }
-  )
-
-  if (!rateLimitResult.success) {
-    return actionError(ERR_RESET_TOO_MANY)
-  }
-
-  logPasswordResetRequest(validEmail, ip)
-
-  const user = await prisma.user.findUnique({
-    where: { email: validEmail },
-  })
-
-  // Return success even if user not found (enumeration prevention)
-  if (!user) {
-    return actionSuccess()
-  }
-
-  await prisma.passwordResetToken.deleteMany({
-    where: { email: validEmail },
-  })
-
-  const token = crypto.randomBytes(TOKEN_RANDOM_BYTES).toString('hex')
-  // Store only the hash so the raw token can't be recovered from DB
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-  await prisma.passwordResetToken.create({
-    data: {
-      email: validEmail,
-      token: hashedToken,
-      expires: new Date(Date.now() + ONE_HOUR_MS),
-    },
-  })
-
-  const baseUrl = getAppUrl()
-  const resetUrl = `${baseUrl}/password-reset/confirm?token=${token}&email=${encodeURIComponent(validEmail)}`
-
-  logger.log('Attempting to send password reset email to:', validEmail.replace(/(.{2}).*(@.*)/, '$1***$2'))
-  logger.debug('Reset URL generated')
-
-  const result = await sendPasswordResetEmail(validEmail, resetUrl)
-
-  logger.log('Email send result:', result.success ? 'success' : 'failed')
-
-  if (!result.success) {
-    logger.error('Failed to send password reset email:', result.error)
-    return actionError(ERR_EMAIL_SEND_FAILED)
-  }
-
-  return actionSuccess()
+  return _requestPasswordReset(email)
 }
 
-/**
- * Reset password using a valid reset token.
- */
-export async function resetPassword(data: {
-  email: string
-  token: string
-  newPassword: string
-}) {
-  // 1. 入力検証 (Zod schema) — token / email / password 形式を rate limit より前に検証
-  const parsed = passwordResetConfirmSchema.safeParse(data)
-  if (!parsed.success) {
-    const first = parsed.error.flatten().fieldErrors
-    const message =
-      first.newPassword?.[0] ?? first.email?.[0] ?? first.token?.[0] ?? ERR_INPUT_INVALID_GENERIC
-    return actionError(message)
-  }
-  const { email, token, newPassword } = parsed.data
-
-  // password の英数字混在チェックは Zod では補えないため後段で実施
-  const hasLetter = /[a-zA-Z]/.test(newPassword)
-  const hasNumber = /[0-9]/.test(newPassword)
-  if (!hasLetter || !hasNumber) {
-    return actionError(ERR_PASSWORD_ALPHANUMERIC)
-  }
-
-  // 2. レート制限 (IP + email)。token 自体が十分長くても他の auth action と防御を統一
-  const ip = await getClientIp()
-  const rateLimitResult = await rateLimit(
-    `password-reset-confirm:${ip}:${sanitizeInput(email)}`,
-    {
-      windowMs: ONE_HOUR_MS,
-      maxRequests: MAX_PASSWORD_RESET_ATTEMPTS,
-      failOpen: false,
-    }
-  )
-  if (!rateLimitResult.success) {
-    return actionError(ERR_RESET_TOO_MANY)
-  }
-
-  // 3. token 検証 + パスワード更新
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-  const resetToken = await prisma.passwordResetToken.findFirst({
-    where: {
-      email,
-      token: hashedToken,
-      expires: { gt: new Date() },
-    },
-  })
-
-  if (!resetToken) {
-    return actionError(ERR_RESET_LINK_INVALID)
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email },
-  })
-
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS)
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { password: hashedPassword },
-  })
-
-  await prisma.passwordResetToken.deleteMany({
-    where: { email },
-  })
-
-  logPasswordResetSuccess(user.id)
-
-  return actionSuccess()
+export async function resetPassword(data: { email: string; token: string; newPassword: string }) {
+  return _resetPassword(data)
 }
 
-/**
- * Verify a password reset token is valid and not expired.
- * Used to check before showing the reset form.
- */
 export async function verifyPasswordResetToken(email: string, token: string) {
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-  const resetToken = await prisma.passwordResetToken.findFirst({
-    where: {
-      email,
-      token: hashedToken,
-      expires: { gt: new Date() },
-    },
-  })
-
-  return { valid: !!resetToken }
+  return _verifyPasswordResetToken(email, token)
 }

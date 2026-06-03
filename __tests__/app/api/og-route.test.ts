@@ -12,9 +12,22 @@ vi.mock('next/og', () => ({
     constructor(element: unknown, options?: Record<string, unknown>) {
       mockImageResponse(element, options)
       this.status = 200
-      this.headers = new Headers({ 'content-type': 'image/png' })
+      const responseHeaders = new Headers({ 'content-type': 'image/png' })
+      const optionHeaders = (options as { headers?: Record<string, string> } | undefined)?.headers
+      if (optionHeaders) {
+        for (const [k, v] of Object.entries(optionHeaders)) {
+          responseHeaders.set(k, v)
+        }
+      }
+      this.headers = responseHeaders
     }
   },
+}))
+
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 60, resetTime: Date.now() + 60000 }),
+  RATE_LIMITS: { api: { windowMs: 60000, maxRequests: 60 } },
+  getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
 }))
 
 import { GET } from '@/app/api/og/route'
@@ -105,5 +118,25 @@ describe('GET /api/og', () => {
   it('OG background PNG file exists under public/', () => {
     const pngPath = join(process.cwd(), 'public/images/generated/ui/og-default.png')
     expect(existsSync(pngPath)).toBe(true)
+  })
+
+  it('Cache-Control ヘッダで CDN/ブラウザにキャッシュさせる', async () => {
+    const res = await GET(createRequest('/api/og'))
+    expect(res.headers.get('cache-control')).toMatch(/public/)
+    expect(res.headers.get('cache-control')).toMatch(/max-age=/)
+    expect(res.headers.get('cache-control')).toMatch(/stale-while-revalidate=/)
+  })
+
+  it('IP rate-limit 超過時は 429 を返す', async () => {
+    const { rateLimit } = await import('@/lib/rate-limit')
+    ;(rateLimit as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      success: false,
+      remaining: 0,
+      resetTime: Date.now() + 60000,
+    })
+
+    const res = await GET(createRequest('/api/og'))
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBeDefined()
   })
 })

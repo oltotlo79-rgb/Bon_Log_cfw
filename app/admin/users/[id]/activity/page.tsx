@@ -1,10 +1,3 @@
-/**
- * @file 管理者用ユーザーアクティビティタイムラインページ
- * @description 特定ユーザーの全アクティビティ（投稿、コメント、いいね、フォロー、ログイン）を
- *              時系列で表示する管理者ページ。不審行動の検知結果も合わせて表示する。
- * @route /admin/users/[id]/activity
- */
-
 import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
@@ -21,16 +14,10 @@ import {
 import { getUserActivity, detectSuspiciousBehavior } from '@/lib/actions/admin/activity'
 import { getAdminUserDetail } from '@/lib/actions/admin/users'
 
-/**
- * ページコンポーネントのProps型定義
- */
 type Props = {
   params: Promise<{ id: string }>
 }
 
-/**
- * 動的メタデータ生成関数
- */
 export async function generateMetadata({ params }: Props) {
   const { id } = await params
   const result = await getAdminUserDetail(id)
@@ -48,7 +35,6 @@ export async function generateMetadata({ params }: Props) {
   }
 }
 
-/** アクティビティタイプに対応するアイコンを返す */
 function ActivityIcon({ type }: { type: string }) {
   const iconClass = 'w-4 h-4'
   switch (type) {
@@ -67,7 +53,6 @@ function ActivityIcon({ type }: { type: string }) {
   }
 }
 
-/** アクティビティタイプに対応する背景色を返す */
 function getActivityColor(type: string): string {
   switch (type) {
     case 'post':
@@ -85,7 +70,6 @@ function getActivityColor(type: string): string {
   }
 }
 
-/** 不審行動フラグのラベル */
 function getSuspiciousLabel(type: string): string {
   switch (type) {
     case 'mass_likes':
@@ -101,9 +85,6 @@ function getSuspiciousLabel(type: string): string {
   }
 }
 
-/**
- * 管理者用ユーザーアクティビティタイムラインページ
- */
 export default async function AdminUserActivityPage({ params }: Props) {
   const { id } = await params
 
@@ -124,7 +105,6 @@ export default async function AdminUserActivityPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
       <div className="flex items-center gap-4">
         <Link
           href={`/admin/users/${id}`}
@@ -135,7 +115,6 @@ export default async function AdminUserActivityPage({ params }: Props) {
         <h1 className="text-2xl font-bold">アクティビティタイムライン</h1>
       </div>
 
-      {/* ユーザー情報ヘッダー */}
       <div className="bg-card rounded-lg border p-6">
         <div className="flex items-center gap-4">
           {user.avatarUrl ? (
@@ -163,7 +142,6 @@ export default async function AdminUserActivityPage({ params }: Props) {
         </div>
       </div>
 
-      {/* 不審行動フラグ */}
       {isSuspicious && flags.length > 0 && (
         <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -184,7 +162,6 @@ export default async function AdminUserActivityPage({ params }: Props) {
         </div>
       )}
 
-      {/* アクティビティタイムライン */}
       <div className="bg-card rounded-lg border">
         <h3 className="px-4 py-3 font-semibold border-b">
           アクティビティ ({activities.length}件)
@@ -192,18 +169,15 @@ export default async function AdminUserActivityPage({ params }: Props) {
 
         {activities.length > 0 ? (
           <div className="relative">
-            {/* タイムラインの線 */}
             <div className="absolute left-8 top-0 bottom-0 w-px bg-border" />
 
             <div className="divide-y">
               {activities.map((activity: { type: string; id: string; description: string; createdAt: Date }) => (
                 <div key={`${activity.type}-${activity.id}`} className="relative flex items-start gap-4 p-4 pl-4">
-                  {/* アイコン */}
                   <div className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${getActivityColor(activity.type)}`}>
                     <ActivityIcon type={activity.type} />
                   </div>
 
-                  {/* コンテンツ */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">{activity.description}</p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -211,7 +185,6 @@ export default async function AdminUserActivityPage({ params }: Props) {
                     </p>
                   </div>
 
-                  {/* タイプラベル */}
                   <span className={`shrink-0 px-2 py-0.5 text-xs rounded-full ${getActivityColor(activity.type)}`}>
                     {activity.type === 'post' ? '投稿' :
                      activity.type === 'comment' ? 'コメント' :

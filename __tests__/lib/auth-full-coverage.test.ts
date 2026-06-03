@@ -97,6 +97,11 @@ vi.mock('@/lib/auth.config', () => ({
   authConfig: { pages: { signIn: '/login' }, callbacks: {} },
 }))
 
+const mockConsumeTwoFactorLoginTicket = vi.fn()
+vi.mock('@/lib/two-factor-login-ticket', () => ({
+  consumeTwoFactorLoginTicket: (...args: unknown[]) => mockConsumeTwoFactorLoginTicket(...args),
+}))
+
 // ============================================================
 // テスト
 // ============================================================
@@ -316,6 +321,65 @@ describe('auth.ts 完全カバレッジ', () => {
       expect(result).toBeNull()
       // bcrypt.compare should NOT be called because isSuspended check comes first
       expect(mockBcryptCompare).not.toHaveBeenCalled()
+    })
+  })
+
+  // ============================================================
+  // authorize - 2FA サーバーサイド強制 (チケット消費)
+  // ============================================================
+
+  describe('authorize - 2FA サーバーサイド強制', () => {
+    const twoFactorUser = {
+      id: 'u-2fa',
+      email: '2fa@example.com',
+      password: '$2a$12$hash',
+      nickname: 'TwoFactor',
+      avatarUrl: null,
+      isSuspended: false,
+      emailVerified: new Date(),
+      twoFactorEnabled: true,
+    }
+
+    it('2FA有効ユーザーは有効なチケットがあればログインできる', async () => {
+      mockUserFindUnique.mockResolvedValueOnce(twoFactorUser)
+      mockBcryptCompare.mockResolvedValueOnce(true)
+      mockConsumeTwoFactorLoginTicket.mockResolvedValueOnce(true)
+
+      const result = await capturedAuthorize({
+        email: '2fa@example.com',
+        password: 'password123',
+        twoFactorTicket: 'valid-ticket',
+      })
+
+      expect(result).toMatchObject({ id: 'u-2fa', email: '2fa@example.com' })
+      expect(mockConsumeTwoFactorLoginTicket).toHaveBeenCalledWith('2fa@example.com', 'valid-ticket')
+    })
+
+    it('2FA有効ユーザーはチケットが無効/欠落なら null（バイパス不可）', async () => {
+      mockUserFindUnique.mockResolvedValueOnce(twoFactorUser)
+      mockBcryptCompare.mockResolvedValueOnce(true)
+      mockConsumeTwoFactorLoginTicket.mockResolvedValueOnce(false)
+
+      const result = await capturedAuthorize({
+        email: '2fa@example.com',
+        password: 'password123',
+      })
+
+      expect(result).toBeNull()
+      expect(mockConsumeTwoFactorLoginTicket).toHaveBeenCalledWith('2fa@example.com', '')
+    })
+
+    it('2FA無効ユーザーはチケット検証を行わずログインできる', async () => {
+      mockUserFindUnique.mockResolvedValueOnce({ ...twoFactorUser, twoFactorEnabled: false })
+      mockBcryptCompare.mockResolvedValueOnce(true)
+
+      const result = await capturedAuthorize({
+        email: '2fa@example.com',
+        password: 'password123',
+      })
+
+      expect(result).toMatchObject({ id: 'u-2fa' })
+      expect(mockConsumeTwoFactorLoginTicket).not.toHaveBeenCalled()
     })
   })
 

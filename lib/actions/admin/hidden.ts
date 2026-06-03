@@ -11,7 +11,10 @@
 import { prisma } from '@/lib/db'
 import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
 import { revalidatePath } from 'next/cache'
-import { DEFAULT_PAGE_LIMIT, ADMIN_LOGS_PAGE_LIMIT, HIDDEN_CONTENT_FALLBACK_LIMIT } from '@/lib/constants/limits'
+import { revalidateShopRatingsCache, revalidatePopularTagsCache, revalidateTrendingGenresCache } from '@/lib/cache'
+import { detachHashtagsFromPost } from '@/lib/services/hashtag-sync'
+import { ADMIN_LOGS_PAGE_LIMIT, HIDDEN_CONTENT_FALLBACK_LIMIT } from '@/lib/constants/limits'
+import { clampLimit } from '@/lib/actions/pagination'
 import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_HIDDEN } from '@/lib/constants/routes'
@@ -28,7 +31,8 @@ export async function getHiddenContent(options?: {
   if ('error' in admin) return actionError(admin.error)
 
   try {
-    const { type, limit = ADMIN_LOGS_PAGE_LIMIT } = options || {}
+    const { type } = options || {}
+    const limit = clampLimit(options?.limit ?? ADMIN_LOGS_PAGE_LIMIT)
     // タイプ未指定時はタイプごとに HIDDEN_CONTENT_FALLBACK_LIMIT 件ずつ取得
     const takePerType = type ? limit : HIDDEN_CONTENT_FALLBACK_LIMIT
 
@@ -207,6 +211,14 @@ export async function restoreContent(type: ContentType, id: string) {
       },
     })
 
+    // review の可視性変更は店舗一覧の集計平均（getCachedShopRatings）に影響するため明示的に無効化する
+    if (parsedType === 'review') revalidateShopRatingsCache()
+    // 投稿の再表示は公開面の集計（人気タグ・トレンドジャンル）の対象に復帰させるため無効化する
+    if (parsedType === 'post') {
+      revalidatePopularTagsCache()
+      revalidateTrendingGenresCache()
+    }
+
     revalidatePath(ROUTE_ADMIN_HIDDEN)
     return actionSuccess()
   } catch (error) {
@@ -233,6 +245,8 @@ export async function deleteHiddenContent(type: ContentType, id: string) {
   try {
     switch (parsedType) {
       case 'post':
+        // denormalized な Hashtag.count を維持するため、cascade 削除前に detach する（best-effort）
+        await detachHashtagsFromPost(parsedId)
         await prisma.post.delete({ where: { id: parsedId } })
         break
       case 'comment':
@@ -267,6 +281,14 @@ export async function deleteHiddenContent(type: ContentType, id: string) {
       },
     })
 
+    // review 削除は店舗一覧の集計平均（getCachedShopRatings）に影響するため明示的に無効化する
+    if (parsedType === 'review') revalidateShopRatingsCache()
+    // 投稿削除は公開面の集計（人気タグ・トレンドジャンル）に影響するため無効化する
+    if (parsedType === 'post') {
+      revalidatePopularTagsCache()
+      revalidateTrendingGenresCache()
+    }
+
     revalidatePath(ROUTE_ADMIN_HIDDEN)
     return actionSuccess()
   } catch (error) {
@@ -282,15 +304,16 @@ export async function getAdminNotifications(options?: {
   const admin = await requireAdmin('hidden:view')
   if ('error' in admin) return actionError(admin.error)
 
-  const { unreadOnly = false, limit = DEFAULT_PAGE_LIMIT } = options || {}
+  const { unreadOnly = false } = options || {}
+  const safeLimit = clampLimit(options?.limit)
 
   try {
     const notifications = await prisma.adminNotification.findMany({
       where: {
         ...(unreadOnly && { isRead: false }),
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
     })
 
     const unreadCount = await prisma.adminNotification.count({

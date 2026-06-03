@@ -52,14 +52,14 @@ describe('getBonsais pagination', () => {
     expect(data.bonsais[0].id).toBe('bonsai-1')
   })
 
-  it('returns bonsais for specified userId', async () => {
+  it('ignores any passed userId and scopes to the authenticated user', async () => {
     const { getBonsais } = await import('@/lib/actions/bonsai')
     mockPrisma.bonsai.findMany.mockResolvedValue([mockBonsai])
 
-    await getBonsais('other-user-id')
+    await (getBonsais as unknown as (u: string) => ReturnType<typeof getBonsais>)('other-user-id')
     expect(mockPrisma.bonsai.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'other-user-id' },
+        where: { userId: mockUser.id },
       })
     )
   })

@@ -1,13 +1,14 @@
 'use client'
 
 /**
- * @file CommentContent.tsx
- * @description コメント本文コンポーネント（メンション・ハッシュタグのリンク化）
+ * @module components/comment/CommentContent
+ * コメント本文のメンション・ハッシュタグをリンク化する。
  */
 
 import Link from 'next/link'
 import Image from 'next/image'
 import { parseContentSegments, type ContentSegment } from '@/lib/mention-utils'
+import { buildUserPath, buildSearchPath } from '@/lib/constants/path-builders'
 
 type CommentMedia = {
   id: string
@@ -28,12 +29,6 @@ interface CommentContentProps {
   mentionUsers?: Map<string, MentionUser>
 }
 
-/**
- * コメント本文コンポーネント
- *
- * テキストのメンション・ハッシュタグをリンクに変換し、
- * 添付メディア（画像・動画）を表示します。
- */
 export function CommentContent({ content, media, mentionUsers = new Map() }: CommentContentProps) {
   function renderContent(text: string) {
     const segments: ContentSegment[] = parseContentSegments(text)
@@ -45,7 +40,7 @@ export function CommentContent({ content, media, mentionUsers = new Map() }: Com
           return (
             <Link
               key={i}
-              href={`/users/${segment.userId}`}
+              href={buildUserPath(segment.userId)}
               className="text-primary hover:underline font-medium"
             >
               @{user?.nickname || 'unknown'}
@@ -56,7 +51,7 @@ export function CommentContent({ content, media, mentionUsers = new Map() }: Com
           return (
             <Link
               key={i}
-              href={`/search?q=${encodeURIComponent(segment.tag)}`}
+              href={buildSearchPath(segment.tag)}
               className="text-bonsai-green hover:underline"
             >
               {segment.tag}

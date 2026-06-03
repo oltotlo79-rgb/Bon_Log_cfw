@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home as HomeIcon,
   Search as SearchIcon,
+  Compass as CompassIcon,
   Bell as BellIcon,
   MessageCircle as MessageIcon,
   MoreVertical as MoreIcon,
@@ -32,6 +33,7 @@ import {
 import {
   ROUTE_FEED,
   ROUTE_SEARCH,
+  ROUTE_EXPLORE,
   ROUTE_SETTINGS,
   ROUTE_SCHEDULED_POSTS,
   ROUTE_PESTICIDES,
@@ -70,6 +72,7 @@ const baseNavItems: NavItem[] = [
 ]
 
 const mainMenuItems: NavItem[] = [
+  { href: ROUTE_EXPLORE, icon: CompassIcon, label: '発見', testId: 'mobile-nav-explore' },
   { href: ROUTE_BONSAI, icon: BonsaiIcon, label: 'マイ盆栽', testId: 'mobile-nav-bonsai' },
   { href: ROUTE_SHOPS, icon: MapPinIcon, label: '盆栽園マップ', testId: 'mobile-nav-shops' },
   { href: ROUTE_EVENTS, icon: CalendarIcon, label: 'イベント', testId: 'mobile-nav-events' },
@@ -355,12 +358,10 @@ export function MobileNav({ userId, isPremium, isAdmin: _isAdmin }: MobileNavPro
 
   return (
     <nav aria-label="モバイルナビゲーション" className="fixed bottom-0 left-0 right-0 lg:hidden z-50">
-      {/* 上部の墨筆ストローク境界 */}
       <div className="relative">
         <InkStrokeBorder variant="top" className="absolute bottom-full left-0 w-full h-[6px] text-sumi/60 dark:text-washi/20" />
       </div>
 
-      {/* 和紙テクスチャ背景 */}
       <div className="relative bg-washi/90 dark:bg-sumi/90 backdrop-blur-xl backdrop-saturate-150">
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.3'/%3E%3C/svg%3E")`,
@@ -399,7 +400,6 @@ export function MobileNav({ userId, isPremium, isAdmin: _isAdmin }: MobileNavPro
             )
           })}
 
-          {/* もっと見るボタン + ドロップアップメニュー */}
           <div className="relative flex-1 h-full" ref={menuRef}>
             <button
               type="button"

@@ -48,10 +48,8 @@ export function ReportForm({
   return (
     <form onSubmit={onSubmit}>
       <div className="p-4 space-y-4">
-        {/* エラーメッセージ表示 */}
         <FormError message={error} />
 
-        {/* 説明文 - 通報についての案内 */}
         <p className="text-sm text-muted-foreground">
           この{TARGET_TYPE_LABELS[targetType]}に問題がある場合は、以下から該当する理由を選択してください。
           通報内容は匿名で処理されます。
@@ -84,7 +82,6 @@ export function ReportForm({
                   }}
                   className="sr-only"
                 />
-                {/* カスタムラジオボタンUI */}
                 <div
                   className={`w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center ${
                     reason === r.value
@@ -92,7 +89,6 @@ export function ReportForm({
                       : 'border-muted-foreground'
                   }`}
                 >
-                  {/* 選択時の内側ドット */}
                   {reason === r.value && (
                     <div className="w-2 h-2 rounded-full bg-primary" />
                   )}
@@ -103,7 +99,6 @@ export function ReportForm({
           </div>
         </div>
 
-        {/* 詳細説明入力（任意） */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium mb-2">
             詳細説明（任意）
@@ -117,16 +112,13 @@ export function ReportForm({
             className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             placeholder="問題の詳細があれば入力してください"
           />
-          {/* 文字数カウンター */}
           <p className="text-xs text-muted-foreground mt-1 text-right">
             {description.length}/{MAX_REPORT_DETAIL_LENGTH}
           </p>
         </div>
       </div>
 
-      {/* フッター - アクションボタン */}
       <div className="flex gap-3 p-4 border-t">
-        {/* キャンセルボタン */}
         <button
           type="button"
           onClick={onClose}

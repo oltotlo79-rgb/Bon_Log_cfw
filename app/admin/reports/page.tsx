@@ -1,26 +1,14 @@
-/**
- * @file 管理者用通報管理ページ
- * @description ユーザーからの通報一覧を表示し、対応状況の管理を行う管理者ページ。
- *              ステータス・対象タイプでのフィルタリングや、通報への対応操作が可能。
- */
-
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
-// Next.jsの画像最適化コンポーネント
 import Image from 'next/image'
-// 通報一覧取得のServer Action
 import { getReports } from '@/lib/actions/report'
-// 通報理由の定数定義
 import { REPORT_REASONS } from '@/lib/constants/report'
-// 通報操作用ドロップダウンメニューコンポーネント
 import { ReportActionsDropdown } from './ReportActionsDropdown'
-// ページネーション定数
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import { buildUserPath } from '@/lib/constants/path-builders'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {
@@ -28,7 +16,6 @@ export const metadata = {
 }
 
 /**
- * ページコンポーネントのProps型定義
  * URLのクエリパラメータを受け取る
  */
 interface PageProps {
@@ -113,7 +100,6 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         <span className="text-sm text-muted-foreground">全 {total} 件</span>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
           <select
@@ -150,7 +136,6 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* 通報テーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">
@@ -172,7 +157,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                 <tr key={report.id} className="hover:bg-muted/30">
                   <td className="px-4 py-3">
                     <Link
-                      href={`/users/${report.reporter.id}`}
+                      href={buildUserPath(report.reporter.id)}
                       className="flex items-center gap-2 hover:underline"
                     >
                       {report.reporter.avatarUrl ? (

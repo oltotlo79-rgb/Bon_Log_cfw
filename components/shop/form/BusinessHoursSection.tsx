@@ -24,14 +24,12 @@ export function BusinessHoursSection({
 }: BusinessHoursSectionProps) {
   return (
     <>
-      {/* 営業時間入力（アナログ時計コンポーネント使用） */}
       <BusinessHoursInput
         value={businessHours}
         onChange={onBusinessHoursChange}
         disabled={disabled}
       />
 
-      {/* 定休日入力フィールド */}
       <div className="space-y-2">
         <label htmlFor="closedDays" className="text-sm font-medium">
           定休日

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * マイ盆栽カレンダー機能の E2E テスト。
@@ -23,33 +24,33 @@ test.describe('マイ盆栽カレンダー', () => {
   test('カレンダータブクリックで切り替わる', async ({ page }) => {
     await page.goto('/bonsai')
     const calendarTab = page.getByRole('tab', { name: /カレンダー/ })
-    await calendarTab.click()
-    await expect(page).toHaveURL(/[?&]view=calendar/)
+    await clickAndWaitForUrl(page, calendarTab, /[?&]view=calendar/)
   })
 
   test('ナビ: 1ヶ月モードで次の月へ移動', async ({ page }) => {
     await page.goto('/bonsai?view=calendar&mode=month&anchor=2026-04')
-    await page.getByRole('button', { name: '次の月' }).click()
-    await expect(page).toHaveURL(/anchor=2026-05/)
+    await clickAndWaitForUrl(page, page.getByRole('button', { name: '次の月' }), /anchor=2026-05/)
   })
 
   test('モード切替: 6ヶ月ビュー → 6 列ヘッダ', async ({ page }) => {
     await page.goto('/bonsai?view=calendar&mode=half-year&anchor=2026-04')
-    const headers = await page.getByRole('columnheader').count()
-    expect(headers).toBeGreaterThanOrEqual(6)
+    // カレンダーは client 描画され得るため、count() の即時評価ではなく poll で確定を待つ
+    await expect
+      .poll(() => page.getByRole('columnheader').count(), { timeout: 10000 })
+      .toBeGreaterThanOrEqual(6)
   })
 
   test('モード切替: 12ヶ月ビュー → 12 列ヘッダ', async ({ page }) => {
     await page.goto('/bonsai?view=calendar&mode=year&anchor=2026-04')
-    // 12 月ヘッダ + 左端ラベル 1 個
-    const headers = await page.getByRole('columnheader').count()
-    expect(headers).toBeGreaterThanOrEqual(12)
+    // 12 月ヘッダ + 左端ラベル 1 個。client 描画完了まで poll で待つ
+    await expect
+      .poll(() => page.getByRole('columnheader').count(), { timeout: 10000 })
+      .toBeGreaterThanOrEqual(12)
   })
 
   test('全モード共通: ←→ は ±1 ヶ月のみ', async ({ page }) => {
     await page.goto('/bonsai?view=calendar&mode=year&anchor=2026-04')
-    await page.getByRole('button', { name: '前の月' }).click()
-    await expect(page).toHaveURL(/anchor=2026-03/)
+    await clickAndWaitForUrl(page, page.getByRole('button', { name: '前の月' }), /anchor=2026-03/)
   })
 
   test('「今日」ボタンで現在月へリセット', async ({ page }) => {

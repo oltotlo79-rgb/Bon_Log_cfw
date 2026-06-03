@@ -51,6 +51,7 @@ const MIGRATION_NAMES = [
   'add_daily_visitors',
   'lock_handle_new_user_security',
   'add_rls_policies_bonsai_care_logs_daily_visitors',
+  'revoke_data_api_grants_from_public',
 ] as const
 type MigrationName = typeof MIGRATION_NAMES[number]
 
@@ -106,6 +107,35 @@ const MIGRATIONS: Record<MigrationName, readonly string[]> = {
         FOR ALL TO postgres USING (true) WITH CHECK (true);
     EXCEPTION
       WHEN duplicate_object THEN NULL;
+    END $$`,
+  ],
+  // Supabase Data API (PostgREST / GraphQL / supabase-js) への露出を public schema 全体で
+  // 遮断する。本プロジェクトは Data API を一切使用しない方針 (Prisma の postgres ロール接続のみ)。
+  // 旧デフォルトで anon / authenticated に GRANT ALL されていた状態を剥がし、ALTER DEFAULT
+  // PRIVILEGES で今後新規作成されるテーブル等にも自動付与されないようにする。
+  // pg_roles 存在チェック付きでローカル Docker postgres でも noop で安全に通る。
+  revoke_data_api_grants_from_public: [
+    `DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon;
+        REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
+        REVOKE ALL ON ALL ROUTINES  IN SCHEMA public FROM anon;
+        REVOKE USAGE ON SCHEMA public FROM anon;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES    FROM anon;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON ROUTINES  FROM anon;
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM authenticated;
+        REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM authenticated;
+        REVOKE ALL ON ALL ROUTINES  IN SCHEMA public FROM authenticated;
+        REVOKE USAGE ON SCHEMA public FROM authenticated;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES    FROM authenticated;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM authenticated;
+        ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON ROUTINES  FROM authenticated;
+      END IF;
     END $$`,
   ],
 }

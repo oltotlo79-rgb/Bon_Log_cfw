@@ -1,19 +1,13 @@
 'use client'
 
 /**
- * @file ReviewEditForm.tsx
- * @description レビュー編集フォームコンポーネント
- *
- * 評価、コメント、画像の編集フォームを提供します。
+ * @module components/shop/review/ReviewEditForm
  */
 
 import Image from 'next/image'
 import { StarRatingInput } from '../StarRating'
 import { MAX_REVIEW_IMAGES } from '@/lib/constants/limits'
 
-/**
- * Xアイコンコンポーネント
- */
 function XIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -23,9 +17,6 @@ function XIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 画像アイコンコンポーネント
- */
 function ImageIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -37,37 +28,25 @@ function ImageIcon({ className }: { className?: string }) {
 }
 
 interface ReviewEditFormProps {
-  /** 編集中の評価値 */
   editRating: number
   onRatingChange: (rating: number) => void
-  /** 編集中のコメント */
   editContent: string
   onContentChange: (content: string) => void
-  /** 既存の画像リスト */
   existingImages: { id: string; url: string }[]
-  /** 削除対象としてマークされた画像IDの配列 */
   deleteImageIds: string[]
   onDeleteExistingImage: (imageId: string) => void
   onRestoreExistingImage: (imageId: string) => void
-  /** 新規追加する画像URLの配列 */
   newImages: string[]
   onRemoveNewImage: (index: number) => void
-  /** 現在の合計画像数 */
   totalImageCount: number
-  /** 画像アップロード中の状態 */
   uploading: boolean
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
-  /** エラーメッセージ */
   editError: string | null
-  /** 保存処理中かどうか */
   isPending: boolean
   onSave: () => void
   onCancel: () => void
 }
 
-/**
- * レビュー編集フォームコンポーネント
- */
 export function ReviewEditForm({
   editRating,
   onRatingChange,
@@ -89,18 +68,15 @@ export function ReviewEditForm({
 }: ReviewEditFormProps) {
   return (
     <div className="space-y-3">
-      {/* エラーメッセージ */}
       {editError && (
         <p className="text-sm text-destructive">{editError}</p>
       )}
 
-      {/* 評価入力 */}
       <div>
         <label className="text-sm font-medium mb-1 block">評価</label>
         <StarRatingInput value={editRating} onChange={onRatingChange} />
       </div>
 
-      {/* コメント入力 */}
       <div>
         <label className="text-sm font-medium mb-1 block">コメント</label>
         <textarea
@@ -112,13 +88,11 @@ export function ReviewEditForm({
         />
       </div>
 
-      {/* 画像編集エリア */}
       <div>
         <label className="text-sm font-medium mb-2 block">
           画像 ({totalImageCount}/{MAX_REVIEW_IMAGES}枚)
         </label>
 
-        {/* 既存の画像 */}
         {existingImages.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-2">
             {existingImages.map((image) => {
@@ -154,7 +128,6 @@ export function ReviewEditForm({
           </div>
         )}
 
-        {/* 新しく追加する画像（プレビュー） */}
         {newImages.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-2">
             {newImages.map((url, index) => (
@@ -180,7 +153,6 @@ export function ReviewEditForm({
           </div>
         )}
 
-        {/* 画像追加ボタン */}
         <label className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-muted ${totalImageCount >= MAX_REVIEW_IMAGES || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
           <ImageIcon className="w-4 h-4" />
           <span className="text-sm">
@@ -196,7 +168,6 @@ export function ReviewEditForm({
         </label>
       </div>
 
-      {/* 保存・キャンセルボタン */}
       <div className="flex gap-2 justify-end">
         <button
           type="button"

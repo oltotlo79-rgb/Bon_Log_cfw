@@ -17,6 +17,12 @@ vi.mock('@/lib/auth', () => ({
 // revalidatePathモック
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
+// メディア回収はストレージ層に依存するため mock し、削除アクションからの配線（URL 受け渡し）を検証する
+const mockDeleteMediaFiles = vi.fn()
+vi.mock('@/lib/services/media-cleanup', () => ({
+  deleteMediaFiles: (...args: unknown[]) => mockDeleteMediaFiles(...args),
+}))
+
 // ロガーモック
 vi.mock('@/lib/logger', () => ({
   __esModule: true,
@@ -287,14 +293,21 @@ describe('Draft Actions', async () => {
   // ============================================================
 
   describe('deleteDraft', async () => {
-    it('下書きを削除できる', async () => {
-      mockPrisma.draftPost.findFirst.mockResolvedValueOnce(mockDraft)
+    it('下書きを削除でき、メディア実体も回収する', async () => {
+      mockPrisma.draftPost.findFirst.mockResolvedValueOnce({
+        ...mockDraft,
+        media: [{ url: 'https://cdn/draft-a.webp' }, { url: 'https://cdn/draft-b.webp' }],
+      })
       mockPrisma.draftPost.delete.mockResolvedValueOnce(mockDraft)
 
       const { deleteDraft } = await import('@/lib/actions/draft')
       const result = await deleteDraft(mockDraft.id)
 
       expect(result).toEqual({ success: true })
+      expect(mockDeleteMediaFiles).toHaveBeenCalledWith([
+        'https://cdn/draft-a.webp',
+        'https://cdn/draft-b.webp',
+      ])
     })
 
     it('未認証の場合、エラーを返す', async () => {

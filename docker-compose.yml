@@ -56,6 +56,10 @@ services:
 
   # ===========================================
   # Next.js アプリケーション（本番モード）
+  #
+  # Why env_file: 本番想定のため secrets を YAML 内に平文で書かない。
+  # `.env.production` を別途用意し、`.gitignore` に登録されている前提で読み込む。
+  # `.env.production` 不在時は compose が失敗するので、起動前にローカルで準備する。
   # ===========================================
   app-prod:
     build:
@@ -65,13 +69,8 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bonsai_sns
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=docker-dev-secret-change-in-production
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
-      - STORAGE_PROVIDER=local
-      - EMAIL_PROVIDER=console
+    env_file:
+      - .env.production
     depends_on:
       postgres:
         condition: service_healthy

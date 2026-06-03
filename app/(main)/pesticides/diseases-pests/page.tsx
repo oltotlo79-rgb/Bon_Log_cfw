@@ -10,7 +10,7 @@ import { pageCanonical } from '@/lib/utils/seo'
 import { isDiseasePestCategory } from '@/lib/utils/pesticide-badge'
 
 export const metadata: Metadata = {
-  title: '病害虫・益虫図鑑 - 農薬・病害虫 - BON-LOG',
+  title: '病害虫・益虫図鑑 - 農薬・病害虫',
   alternates: { canonical: pageCanonical(ROUTE_PESTICIDES_DISEASES_PESTS) },
 }
 

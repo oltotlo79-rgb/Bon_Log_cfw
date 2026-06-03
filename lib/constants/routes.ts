@@ -11,13 +11,21 @@ import { getAppUrl } from '@/lib/env'
 
 // 基本ルート
 export const ROUTE_HOME = '/'
+// ログアウト直後に auth ページの「トップへ戻る」で使う home URL。
+// クエリ値はログイン中に訪問され得ないため、proxy がキャッシュした `/`→`/feed` 認証依存
+// リダイレクトの再生を構造的に回避できる。詳細は app/(auth)/layout.tsx を参照。
+export const HOME_RETURN_PARAM = 'from'
+export const HOME_RETURN_VALUE_AUTH = 'auth'
+export const ROUTE_HOME_FROM_AUTH = `${ROUTE_HOME}?${HOME_RETURN_PARAM}=${HOME_RETURN_VALUE_AUTH}`
 export const ROUTE_LOGIN = '/login'
 export const ROUTE_REGISTER = '/register'
 export const ROUTE_PASSWORD_RESET = '/password-reset'
 export const ROUTE_VERIFY_EMAIL = '/verify-email'
 export const ROUTE_VERIFY_EMAIL_SENT = '/register/verify-email-sent'
 export const ROUTE_FEED = '/feed'
+export const ROUTE_ONBOARDING = '/onboarding'
 export const ROUTE_SEARCH = '/search'
+export const ROUTE_EXPLORE = '/explore'
 export const ROUTE_MAINTENANCE = '/maintenance'
 
 // 公開ページ（ログイン不要）
@@ -101,7 +109,6 @@ export const ROUTE_HORMONE_COLUMNS = '/hormones/columns'
 export const ROUTE_ADMIN = '/admin'
 export const ROUTE_ADMIN_USERS = '/admin/users'
 export const ROUTE_ADMIN_REPORTS = '/admin/reports'
-export const ROUTE_ADMIN_CONTACTS = '/admin/contacts'
 export const ROUTE_ADMIN_CONTACT = '/admin/contact'
 export const ROUTE_ADMIN_PESTICIDE_DATA = '/admin/pesticide-data'
 export const ROUTE_ADMIN_PESTICIDE_DATA_NEW = '/admin/pesticide-data/new'
@@ -136,6 +143,9 @@ export const ROUTE_ADMIN_ANALYTICS_CONTENT = '/admin/analytics/content'
 /** アプリケーションのベースURL（getAppUrl() で一元管理） */
 export const BASE_URL = getAppUrl()
 
+/** サイト（ブランド）名。ページタイトルのブランド付与等に使う。 */
+export const SITE_NAME = 'BON-LOG'
+
 // パスプレフィックス（フレームワーク / API 系）
 /** Next.js 内部リソース（_next/static, _next/image 等）のプレフィックス */
 export const NEXT_INTERNAL_PREFIX = '/_next'
@@ -156,6 +166,8 @@ export const ROUTE_API_ANALYTICS_VIEW = '/api/analytics/view'
 /** 認証必須パス */
 export const PROTECTED_PATHS = [
   ROUTE_FEED,
+  ROUTE_ONBOARDING,
+  ROUTE_EXPLORE,
   ROUTE_SETTINGS,
   ROUTE_NOTIFICATIONS,
   ROUTE_BOOKMARKS,
@@ -164,6 +176,7 @@ export const PROTECTED_PATHS = [
   ROUTE_BONSAI,
   ROUTE_ADMIN,
   ROUTE_ANALYTICS,
+  ROUTE_SCHEDULED_POSTS,
 ] as const
 
 /** メンテナンス中にアクセス可能なパス */

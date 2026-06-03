@@ -8,6 +8,7 @@
 // @vitest-environment node
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { GUEST_EMAIL } from '@/lib/constants/guest'
 
 const mockAuth = vi.fn()
 const mockCheckUserRateLimit = vi.fn().mockResolvedValue({ success: true })
@@ -34,7 +35,12 @@ vi.mock('@/lib/db', () => ({
     },
   },
 }))
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+// requireActiveNonGuestUser 経由で lib/actions/utils が読み込まれ unstable_cache を参照するため、
+// next/cache mock にも含める。
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  unstable_cache: (fn: (...args: unknown[]) => unknown) => fn,
+}))
 
 // 実 JPEG マジックバイト (FF D8 FF E0 + JFIF)
 const VALID_JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46])
@@ -167,5 +173,75 @@ describe('handleProfileImageUpload (avatar)', () => {
     expect(mockCheckUserRateLimit).toHaveBeenCalledWith('user-1', 'upload')
     expect(mockCheckDailyLimit).toHaveBeenCalledWith('user-1', 'upload', { failOpen: false })
     expect(mockUploadFile).toHaveBeenCalled()
+  })
+})
+
+describe('upload 認可: 停止ユーザー / ゲストは Server Action と同じく拒否される', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuth.mockResolvedValue({ user: { id: 'user-1' } })
+    mockCheckUserRateLimit.mockResolvedValue({ success: true })
+    mockCheckDailyLimit.mockResolvedValue({ allowed: true, count: 0, limit: 50 })
+    mockUserFindUnique.mockResolvedValue({ isSuspended: false, avatarUrl: null, headerUrl: null })
+  })
+
+  function jpegRequest(url: string) {
+    const fd = new FormData()
+    fd.append('file', new File([VALID_JPEG], 'a.jpg', { type: 'image/jpeg' }))
+    return new Request(url, { method: 'POST', body: fd })
+  }
+
+  it('POST /api/upload: 停止ユーザーは 403 で validation/quota に進まない', async () => {
+    mockUserFindUnique.mockResolvedValue({ isSuspended: true })
+    const { POST } = await import('@/app/api/upload/route')
+    const res = await POST(jpegRequest('http://localhost/api/upload') as never)
+    expect(res.status).toBe(403)
+    expect(mockCheckUserRateLimit).not.toHaveBeenCalled()
+    expect(mockCheckDailyLimit).not.toHaveBeenCalled()
+    expect(mockUploadFile).not.toHaveBeenCalled()
+  })
+
+  it('POST /api/upload: ゲストは 403 で quota を消費しない', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'guest-1', email: GUEST_EMAIL } })
+    const { POST } = await import('@/app/api/upload/route')
+    const res = await POST(jpegRequest('http://localhost/api/upload') as never)
+    expect(res.status).toBe(403)
+    expect(mockCheckUserRateLimit).not.toHaveBeenCalled()
+    expect(mockUploadFile).not.toHaveBeenCalled()
+  })
+
+  it('未認証は 401 を返す', async () => {
+    mockAuth.mockResolvedValue(null)
+    const { POST } = await import('@/app/api/upload/route')
+    const res = await POST(jpegRequest('http://localhost/api/upload') as never)
+    expect(res.status).toBe(401)
+    expect(mockUploadFile).not.toHaveBeenCalled()
+  })
+
+  it('profile-image: 停止ユーザーは 403 で DB 更新に進まない', async () => {
+    mockUserFindUnique.mockResolvedValue({ isSuspended: true })
+    const { handleProfileImageUpload } = await import(
+      '@/app/api/upload/_shared/profile-image-upload'
+    )
+    const res = await handleProfileImageUpload(
+      jpegRequest('http://localhost/api/upload/avatar') as never,
+      'avatar',
+    )
+    expect(res.status).toBe(403)
+    expect(mockUploadFile).not.toHaveBeenCalled()
+    expect(mockUserUpdate).not.toHaveBeenCalled()
+  })
+
+  it('profile-image: ゲストは 403 を返す', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'guest-1', email: GUEST_EMAIL } })
+    const { handleProfileImageUpload } = await import(
+      '@/app/api/upload/_shared/profile-image-upload'
+    )
+    const res = await handleProfileImageUpload(
+      jpegRequest('http://localhost/api/upload/avatar') as never,
+      'avatar',
+    )
+    expect(res.status).toBe(403)
+    expect(mockUserUpdate).not.toHaveBeenCalled()
   })
 })

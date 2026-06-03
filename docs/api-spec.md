@@ -58,20 +58,24 @@
 
 #### GET `/api/push/vapid-key`
 - **認証:** None
-- **説明:** Web Push用VAPID公開鍵を返す
+- **レート制限:** IP ベース（超過時 `429 { error: API_ERR_TOO_MANY_REQUESTS }`）
+- **説明:** Web Push用VAPID公開鍵を返す（環境変数 `NEXT_PUBLIC_VAPID_PUBLIC_KEY`）
 - **レスポンス:**
   - `200`: `{ publicKey: string }`
-  - `503`: VAPID鍵未設定
+  - `429`: レート制限超過
+  - `503`: `{ error: API_ERR_PUSH_NOT_CONFIGURED }`（VAPID鍵未設定）
 
 #### GET `/api/og`
 - **認証:** None
 - **ランタイム:** Node.js（Next.js 16 デフォルト。`next/og` の `ImageResponse` は Next.js 14+ で Node.js / Edge 双方をサポート）
+- **レート制限:** `RATE_LIMITS.api`（60req/分・IPベース、fail-open）
 - **説明:** 動的OG画像生成（墨絵背景 + タイトル）
 - **パラメータ:** `?title=string` (任意)
 - **レスポンス:** `image/png`
 
 #### GET `/api/ad-frame`
 - **認証:** None
+- **レート制限:** `RATE_LIMITS.api`（60req/分・IPベース、fail-open）
 - **説明:** 広告iframe HTML返却。親ページの厳密CSPを継承しないよう、ピンポイント許可の独自CSPを付与する（`default-src 'none'` をベースに、忍者AdMax / Google Syndication / DoubleClick / Google Ad Services のみ script/connect/frame 許可）。`X-Frame-Options: SAMEORIGIN` と `Referrer-Policy: strict-origin-when-cross-origin` も併設。
 - **パラメータ:** `?id=string` (32桁hex, 必須)
 - **レスポンス:** `text/html`
@@ -162,6 +166,7 @@
 
 #### POST `/api/webhooks/stripe`
 - **認証:** Stripe 署名検証 (`stripe.webhooks.constructEvent()`)
+- **レート制限:** `RATE_LIMITS.api`（60req/分・IPベース、fail-open）。署名検証 (HMAC) は軽量だが、偽 webhook 大量送信による計算コスト消費・障害誘発を防ぐため
 - **冪等性:** `ensureWebhookEventOnce('stripe', event.id)` で `webhook_events` テーブルへ UNIQUE INSERT。
   重複イベントは `200 { received: true, duplicate: true }` を返してリトライを終了させる。
   冪等性 INSERT 自体が DB エラーで失敗した場合は処理を継続（5xx 応答による Stripe 再配信を回避）。
@@ -270,7 +275,7 @@
 
 ---
 
-## Server Actions (86 ファイル: ルート 66 + 管理者 19 + schemas 1)
+## Server Actions (87 ファイル: ルート 66 + 管理者 20 + schemas 1。うち `'use server'` ディレクティブ付きは 73 本)
 
 ### 戻り値型ポリシー（CLAUDE.md ルール2）
 
@@ -286,7 +291,7 @@ type ActionResult<T = void> =
 
 #### `'use server'` を持たないモジュール（規約対象外）
 
-`lib/actions/` 配下でも以下は **クライアントから RPC 公開しない内部 helper / RSC データ取得モジュール** として `'use server'` を外し、`'server-only'` ガードのみを置く設計に統一されている。これらは Server Action ではないため ActionResult 規約は適用されず、ドメイン型を直接返す（**lib/actions/ 86 ファイル中 13 ファイル**が該当）:
+`lib/actions/` 配下でも以下は **クライアントから RPC 公開しない内部 helper / RSC データ取得モジュール** として `'use server'` を外し、`'server-only'` ガードのみを置く設計に統一されている。これらは Server Action ではないため ActionResult 規約は適用されず、ドメイン型を直接返す（**lib/actions/ ルート 66 ファイル中 12 ファイル** + `admin/_schemas.ts` + `schemas/common.ts` が該当）:
 
 **RSC データ取得モジュール（読み取り専用 query、RSC からの直接 await 用途）:**
 - `lib/actions/dictionary.ts` — 盆栽用語辞典の取得（`getTerms` / `getTermBySlug` / `getAdjacentTerms`）
@@ -299,7 +304,6 @@ type ActionResult<T = void> =
 - `lib/actions/filter-helper.ts` — ブロック/ミュート除外 ID 取得（`getExcludedUserIds` / `getBlockedUserIds` / `getMutedUserIds`）。以前は `'use server'` 配下で公開されており任意 userId で他人の関係を取得できる懸念があったため、`'server-only'` 化により RPC 露出を遮断
 - `lib/actions/post-include.ts` — Prisma include 共有定義（`POST_LIST_INCLUDE` / `POST_QUOTE_INCLUDE` / `POST_REPOST_INCLUDE` / `buildPostPollInclude(currentUserId?)` / `formatPostForClient`）
 - `lib/actions/post-validation.ts` — `createPost` の純粋検証ヘルパー（`validatePollOptions` / `parseCreatePostShape` / `applyCreatePostBusinessRules`）
-- `lib/actions/shared-includes.ts` — 共有 select 定数（`USER_MINIMAL_SELECT` / `USER_MINIMAL_RELATION` / `GENRE_MINIMAL_SELECT` / `POST_GENRE_RELATION`）
 - `lib/actions/prisma-filters.ts` — Prisma where 句生成 helper（ブロック・非公開・凍結除外）
 - `lib/actions/pagination.ts` — カーソルベース pagination ヘルパ（`MAX_PAGE_LIMIT` で clamp）
 - `lib/actions/utils.ts` — 認証/権限ゲート（`requireAuth`, `requireActiveNonGuestUser` 等）・media 検証・relation キャッシュ・`ActionResult` 再エクスポート
@@ -307,38 +311,45 @@ type ActionResult<T = void> =
 **barrel re-export:**
 - `lib/actions/user.ts` — `user-profile` / `user-media` / `user-account` の再エクスポート（`export *` のみ、`'use server'` ディレクティブを持たないが、再エクスポート先の各ファイルが `'use server'` を持つ）
 
+**schema 定義モジュール（`'use server'` 不付与）:**
+- `lib/actions/schemas/common.ts` — 共有 Zod schema 定義
+- `lib/actions/admin/_schemas.ts` — admin Action 用 Zod schema 定義
+
+> 共有 Prisma select/include 定数（`USER_MINIMAL_SELECT` / `USER_MINIMAL_RELATION` / `USER_MINIMAL_WITH_BIO_SELECT` / `GENRE_MINIMAL_SELECT` / `POST_GENRE_RELATION` 等）は `lib/actions/` ではなく **`lib/prisma/shared-includes.ts`** に集約されている（依存方向中立のため actions/services 双方から import 可能）。
+
 これらのうち、client component から呼ぶ必要があるものは `lib/actions/search.ts` バレル等が `'use server'` で再エクスポートしているため、従来通り呼び出せる。RSC データ取得モジュール（fertilizer/hormone/pesticide/dictionary/search-meta）は **page.tsx から直接 await** することを想定。
 
 ### ファイル一覧
 
-**ルートActions (66):** admin, analytics, analytics-recording, announcement, auth, blacklist, block, bonsai, bonsai-care-log, bonsai-record, bookmark, comment, comment-thread-mute, contact, dictionary\*, draft, event, event-import, feed, fertilizer\*, filter-helper\*, follow, follow-request, hashtag, hide-post, hormone\*, like, maintenance, mention, message, message-conversations, message-messages, mute, notification, notification-preferences, pagination\*, pesticide\*, poll, post, post-include\*, post-validation\*, prisma-filters\*, push-subscription, report, report-admin, report-user, review, scheduled-post, scheduled-post-crud, scheduled-post-publish, search, search-entities, search-meta\*, search-posts, search-users, shared-includes\*, shop, shop-change-request, subscription, two-factor, user\*\*, user-account, user-media, user-profile, utils\*, weather
+**ルートActions (66):** admin, analytics, announcement, auth, auth-email-verify, auth-password-reset, blacklist, block, bonsai, bonsai-care-log, bonsai-record, bookmark, comment, comment-thread-mute, contact, dictionary\*, draft, event, event-import, feed, fertilizer\*, filter-helper\*, follow, follow-request, hashtag, hide-post, hormone\*, like, maintenance, mention, message, message-conversations, message-messages, mute, notification, notification-preferences, pagination\*, pesticide\*, poll, post, post-include\*, post-validation\*, prisma-filters\*, push-subscription, report, report-admin, report-user, review, scheduled-post, scheduled-post-crud, scheduled-post-publish, search, search-entities, search-meta\*, search-posts, search-users, shop, shop-change-request, subscription, two-factor, user\*\*, user-account, user-media, user-profile, utils\*, weather
 
 \* 印は `'use server'` を持たない RSC データ取得 / 内部 helper モジュール（`'server-only'` ガード付き）。
 \*\* `user.ts` は `user-profile` / `user-media` / `user-account` の barrel re-export（自身は `'use server'` を持たないが、再エクスポート先は持つ）。
 
-**管理者Actions (19):** activity, analytics, announcements, cms, content, hidden, ip-management, logs, moderation, monitoring, pesticide-data, posts, premium, roles, security, segments, stats, users, warnings
+**管理者Actions (20):** activity, analytics, announcements, cms, content, hidden, ip-management, logs, moderation, monitoring, pesticide-data, posts, premium, roles, security, segments, stats, users, warnings, _schemas（`'use server'` 不付与の Zod schema 定義）
 
-**schemas (1):** common
+**schemas (1):** common（`'use server'` 不付与の Zod schema 定義）
 
 ### サービス層ヘルパー（CLAUDE.md ルール6 / lib/services/）
 
 | 関数 | 場所 | 用途 |
 |------|------|------|
-| `createNotification(params)` | `lib/actions/notification.ts` | **単発通知** — ブロック/設定/重複チェック + push 配信。`system` / `subscription_expiring` 型はブロックチェックをスキップし、actor=userId 自身の self-notification を許容 |
-| `deleteNotification(params)` | `lib/actions/notification.ts` | 通知削除 |
+| `createNotification(params)` | `lib/services/notification-core.ts` | **単発通知** — ブロック/設定/重複チェック + push 配信。`system` / `subscription_expiring` 型はブロックチェックをスキップし、actor=userId 自身の self-notification を許容 |
+| `deleteNotification(params)` | `lib/services/notification-core.ts` | 通知削除 |
 | `createNotificationsBulk(params)` | `lib/services/notification-bulk.ts` | **複数受信者への同種通知** — block/prefs フィルタ + `createMany({ skipDuplicates: true })` + 個別 push（`Promise.allSettled`）|
 | （各種通知コア処理） | `lib/services/notification-core.ts` | 通知フィルタリング・設定チェック等の内部ヘルパー |
 | `ensureWebhookEventOnce(provider, eventId)` | `lib/services/webhook-idempotency.ts` | UNIQUE INSERT による冪等性ロック（Stripe 等のリトライ抑止）。重複は `{ alreadyProcessed: true }` を返す |
 | `requireAuthorization(...)` | `lib/services/authorization.ts` | 認可チェック共通化 |
 | `commentNotifications` | `lib/services/comment-notifications.ts` | コメント関連通知（`createNotification`/`createNotificationsBulk` へ delegate） |
-| `hashtag-sync` | `lib/services/hashtag-sync.ts` | 投稿ハッシュタグの同期・差分更新 |
+| `attachHashtagsToPost` / `detachHashtagsFromPost` | `lib/services/hashtag-sync.ts` | 投稿ハッシュタグの同期・差分更新（`post.ts` の投稿作成/削除から呼ばれる） |
 | `hashtag-recount` | `lib/services/hashtag-recount.ts` | ハッシュタグ参照件数の再計算（管理操作 / cron 用） |
-| `security-events` | `lib/services/security-events.ts` | セキュリティイベント記録 |
-| `shop-change-helpers` | `lib/services/shop-change-helpers.ts` | 盆栽園変更リクエスト用ヘルパー |
+| `notifyMentionedUsers` / `resolveMentionUsers` | `lib/services/mention.ts` | メンション通知送信・メンションユーザー情報解決（`post.ts` / `comment.ts` から呼ばれる） |
+| `logSecurityEvent` | `lib/services/security-events.ts` | セキュリティイベント記録 |
+| `shop/change-request` | `lib/shop/change-request.ts` | 盆栽園変更リクエストの型・Zod schema・parser（純粋関数のみ。dependency-neutral として `lib/shop/` 配下に配置） |
 | `usage` | `lib/services/usage.ts` | Vercel / Supabase / R2 / Resend の利用量集計 |
 | `weather-service` | `lib/services/weather-service.ts` | Open-Meteo API 連携・天気キャッシュ・盆栽管理アドバイス生成 |
 | `analytics-service` | `lib/services/analytics-service.ts` | アナリティクスデータ取得・集計 |
-| `analytics-recording` | `lib/services/analytics-recording.ts` | UserAnalytics の累積カウンタ更新（`recordPostViewService` / `recordProfileViewService` / `recordLikeReceivedService` / `recordNewFollowerService`）。Server Action と Route Handler（`/api/analytics/view`）の双方から呼ばれる共有 domain logic |
+| `analytics-recording` | `lib/services/analytics-recording.ts` | UserAnalytics の累積カウンタ更新（`recordPostViewService` / `recordProfileViewService` / `recordLikeReceivedService` / `recordNewFollowerService`）。閲覧/いいね/フォロー beacon の Route Handler（`/api/analytics/view`）から呼ばれる共有 domain logic（個別の `record*` Server Action は廃止済み） |
 
 `prisma.notification.create` / `createMany` の直接呼び出しは禁止。バリデーション失敗時は `actionError(ERR_INVALID_INPUT)` を返す。
 
@@ -346,7 +357,7 @@ type ActionResult<T = void> =
 
 ### 認証 (`lib/actions/auth.ts`)
 
-認証不要（ログイン前に使用）。
+認証不要（ログイン前に使用）。メール認証系（`verifyEmailToken` / `resendVerificationEmail` / `getEmailVerificationStatus`）は `lib/actions/auth-email-verify.ts`、パスワードリセット系（`requestPasswordReset` / `resetPassword` / `verifyPasswordResetToken`）は `lib/actions/auth-password-reset.ts` に実装され、`auth.ts` がラッパー経由で再エクスポートしている。
 
 | 関数 | 説明 |
 |------|------|
@@ -388,6 +399,7 @@ type ActionResult<T = void> =
 
 | 関数 | ソース | 説明 |
 |------|--------|------|
+| `getUser(userId)` | user-profile | 指定ユーザー情報取得（React `cache` でメモ化） |
 | `getCurrentUser()` | user-profile | 現在のユーザー情報取得 |
 | `updateProfile(formData)` | user-profile | プロフィール更新 |
 | `updatePrivacy(isPublic)` | user-profile | 公開/非公開切り替え |
@@ -536,8 +548,8 @@ type ActionResult<T = void> =
 | `markAsRead(notificationId)` | 通知を既読にする |
 | `markAllAsRead()` | 全通知を既読にする |
 | `getUnreadCount()` | 未読通知数取得 |
-| `createNotification(data)` | 通知作成（内部用） |
-| `deleteNotification(data)` | 通知削除（内部用） |
+
+通知の作成・削除は Server Action ではなく `lib/services/notification-core.ts` の `createNotification()` / `deleteNotification()` を各 Action 内から呼び出す（CLAUDE.md ルール6。`'use server'` ファイルからは公開しない）。
 
 ---
 
@@ -593,11 +605,13 @@ type ActionResult<T = void> =
 
 | 関数 | 説明 |
 |------|------|
-| `addCareLog(input)` | 手入れログ追加（`type` / `performedAt` / `note?`） |
-| `updateCareLog(id, input)` | 手入れログ更新 |
-| `deleteCareLog(id)` | 手入れログ削除 |
-| `listCareLogs(range)` | 期間指定で取得（最大 `MAX_CARE_LOG_RANGE_DAYS` 日） |
-| `BonsaiCareType` enum | `watering` / `fertilizing` / `pruning` / `wiring` / `repotting` / `other` 等 |
+| `addBonsaiCareLog(input)` | 手入れログ追加（`type: BonsaiCareType` / `performedAt: Date \| string` / `note?`） |
+| `updateBonsaiCareLog(id, input)` | 手入れログ更新（`type?` / `performedAt?` / `note?`） |
+| `deleteBonsaiCareLog(id)` | 手入れログ削除 |
+| `getCareLogsInRange(input)` | 期間指定で取得（`fromIso` / `toIso` / `types?: BonsaiCareType[]`） |
+| `getBonsaiCalendarOverlaysInRange(input)` | カレンダー重ね合わせ用データ取得（`fromIso` / `toIso`） |
+
+`BonsaiCareType` は `watering` / `fertilizing` / `pruning` / `wiring` / `repotting` / `other` 等。
 
 ---
 
@@ -756,20 +770,11 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 
 ---
 
-### アナリティクス (`lib/actions/analytics.ts` + `lib/actions/analytics-recording.ts`)
+### アナリティクス (`lib/actions/analytics.ts`)
 
-**Session 認証必須**。
+**Session 認証必須**。取得系のみ Server Action として提供。
 
-#### 記録系
-
-`'use server'` 付き Server Action。すべて **`ActionResult<void>`** を返す。`userId` は Zod (`z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)`) で検証され、無効な場合は `actionError(ERR_INVALID_INPUT)`。未認証時は no-op の `actionSuccess()` を返す（fire-and-forget の呼び出し元を汚染しない設計）。失敗時もスローせず、ログ出力後に `actionError` を返す。
-
-| 関数 | 説明 |
-|------|------|
-| `recordProfileView(userId)` | プロフィール閲覧記録 |
-| `recordPostView(userId)` | 投稿閲覧記録 |
-| `recordLikeReceived(userId)` | いいね受信記録 |
-| `recordNewFollower(userId)` | 新規フォロワー記録 |
+> 閲覧・いいね・フォロー等の記録系（旧 `recordProfileView` / `recordPostView` / `recordLikeReceived` / `recordNewFollower` Server Action）は廃止され、記録は `/api/analytics/view` Route Handler 経由で `lib/services/analytics-recording.ts` に集約された。
 
 #### 取得系
 
@@ -877,12 +882,12 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 
 | 関数 | 説明 |
 |------|------|
-| `attachHashtagsToPost(postId, content)` | 投稿にハッシュタグを紐付け（内部用） |
-| `detachHashtagsFromPost(postId)` | 投稿からハッシュタグを除去（内部用） |
 | `getTrendingHashtags(limit?)` | トレンドハッシュタグ取得 |
 | `getPostsByHashtag(tag, cursor?, limit?)` | ハッシュタグ別投稿取得 |
 | `recalculateHashtagCounts()` | ハッシュタグカウント再計算（管理用） |
 | `searchHashtags(query, limit?)` | ハッシュタグ検索 |
+
+投稿へのハッシュタグ紐付け・除去（`attachHashtagsToPost` / `detachHashtagsFromPost`）は `lib/services/hashtag-sync.ts` に移動済み（`post.ts` の投稿作成/削除から呼ばれる内部 service）。
 
 ---
 
@@ -893,9 +898,9 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 | 関数 | 説明 |
 |------|------|
 | `searchMentionUsers(query, limit?)` | メンション候補ユーザー検索 |
-| `notifyMentionedUsers(postId, content)` | メンション通知送信（内部用） |
-| `resolveMentionUsers(userIds)` | メンションユーザー情報解決 |
 | `getRecentMentionedUsers(limit?)` | 最近メンションしたユーザー取得 |
+
+メンション通知送信・ユーザー解決（`notifyMentionedUsers` / `resolveMentionUsers`）は `lib/services/mention.ts` に移動済み（Server Action ではなく内部 service）。
 
 ---
 
@@ -948,7 +953,8 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 |------|------|
 | `muteThread(rootCommentId)` | スレッドミュート |
 | `unmuteThread(rootCommentId)` | スレッドミュート解除 |
-| `isThreadMuted(userId, rootCommentId)` | ミュート状態判定 |
+
+ミュート状態判定（`isThreadMuted(userId, rootCommentId)`）は `lib/services/comment-thread-mute.ts` の内部 service として提供（Server Action ではない）。
 
 ---
 
@@ -1054,6 +1060,7 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 | 関数 | 説明 |
 |------|------|
 | `getNgWords(options?)` | NGワード一覧取得 |
+| `getNgWordStats()` | NGワード統計取得 |
 | `createNgWord(data)` | NGワード追加 |
 | `deleteNgWord(id)` | NGワード削除 |
 | `toggleNgWord(id)` | NGワード有効/無効切り替え |
@@ -1117,6 +1124,7 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 | `getAdminStats()` | 管理者ダッシュボード統計 |
 | `getDailyActiveUsers()` | DAU取得 |
 | `getStatsHistory(days?)` | 統計履歴取得 |
+| `getDailyVisitorsHistory(days?)` | 日次実訪問者数の推移取得（`daily_visitors` 由来） |
 | `getStatsSummary()` | 統計サマリー |
 
 ---
@@ -1160,9 +1168,10 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 
 | 関数 | 説明 |
 |------|------|
-| `logSecurityEvent(data)` | セキュリティイベント記録 |
 | `getSecurityEvents(options?)` | セキュリティイベント一覧 |
 | `getSecurityDashboard()` | セキュリティダッシュボード |
+
+セキュリティイベントの記録（`logSecurityEvent`）は `lib/services/security-events.ts` の内部 service として提供（Server Action ではない）。
 
 ---
 
@@ -1187,7 +1196,8 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 | `createAnnouncement(data)` | Admin | お知らせ作成 |
 | `updateAnnouncement(id, data)` | Admin | お知らせ更新 |
 | `deleteAnnouncement(id)` | Admin | お知らせ削除 |
-| `getActiveAnnouncements()` | None | 公開中のお知らせ取得 |
+
+公開中のお知らせ取得（`getActiveAnnouncements()`、認証不要）は `lib/actions/announcement.ts`（admin 配下ではない）に分離されている。
 
 ---
 

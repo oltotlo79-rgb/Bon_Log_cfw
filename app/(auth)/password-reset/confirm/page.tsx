@@ -1,7 +1,4 @@
 /**
- * @file パスワードリセット確認ページ（新パスワード設定）
- * @description パスワードリセットメールのリンクからアクセスし、新しいパスワードを設定するページ
- *
  * 機能概要:
  * - 新しいパスワードの入力フォーム表示
  * - パスワード確認入力によるバリデーション
@@ -61,9 +58,7 @@ function LoadingFallback() {
   return (
     // 中央揃えのコンテナ
     <div className="text-center py-8">
-      {/* 回転するスピナー - CSSアニメーションで実現 */}
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-      {/* 読み込み中のテキスト表示 */}
       <p className="mt-4 text-muted-foreground">読み込み中...</p>
     </div>
   )
@@ -88,7 +83,6 @@ export default function PasswordResetConfirmPage() {
   return (
     // shadcn/uiのCardコンポーネントでフォームを囲む
     <Card>
-      {/* カードヘッダー - タイトル表示領域 */}
       <CardHeader>
         {/* ページタイトル - 中央揃えで表示。
             CardTitle は <div> 要素として描画されるため、
@@ -98,13 +92,9 @@ export default function PasswordResetConfirmPage() {
         </h1>
       </CardHeader>
 
-      {/* カードコンテンツ - フォーム表示領域 */}
       <CardContent>
-        {/* Suspense境界でフォームをラップ */}
         {/* useSearchParamsを使用するコンポーネントには必須 */}
         <Suspense fallback={<LoadingFallback />}>
-          {/* パスワードリセット確認フォーム */}
-          {/* 新パスワード入力と確認入力、設定処理を担当 */}
           <PasswordResetConfirmForm />
         </Suspense>
       </CardContent>

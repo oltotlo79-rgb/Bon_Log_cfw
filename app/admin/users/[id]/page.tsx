@@ -1,30 +1,13 @@
-/**
- * @file 管理者用ユーザー詳細ページ
- * @description 特定ユーザーの詳細情報、最近の投稿、通報履歴を表示する管理者ページ。
- *              ユーザーに対する管理操作（停止/復帰/削除）へのアクセスを提供する。
- */
-
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-// Next.jsの画像最適化コンポーネント
 import Image from 'next/image'
-// 404ページ表示用の関数
 import { notFound } from 'next/navigation'
-// 管理者用ユーザー詳細取得のServer Action
 import { getAdminUserDetail } from '@/lib/actions/admin/users'
-// Prismaデータベースクライアント
 import { prisma } from '@/lib/db'
-// ユーザー詳細アクションコンポーネント
 import { UserDetailActions } from './UserDetailActions'
-// 制限値定数
 import { ADMIN_USER_RECENT_POSTS_LIMIT, ADMIN_USER_RECENT_ACTIVITY_LIMIT } from '@/lib/constants/limits'
+import { buildPostPath, buildUserPath } from '@/lib/constants/path-builders'
 
-/**
- * 左矢印アイコンコンポーネント（戻る用）
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
 function ArrowLeftIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -65,9 +48,6 @@ function AlertTriangleIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * ページコンポーネントのProps型定義
- */
 type Props = {
   /** URLパラメータ（ユーザーID） */
   params: Promise<{ id: string }>
@@ -164,7 +144,6 @@ export default async function AdminUserDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
       <div className="flex items-center gap-4">
         <Link
           href="/admin/users"
@@ -176,9 +155,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ユーザー情報 */}
         <div className="lg:col-span-2 space-y-6">
-          {/* 基本情報 */}
           <div className="bg-card rounded-lg border p-6">
             <div className="flex items-start gap-4">
               {user.avatarUrl ? (
@@ -232,7 +209,6 @@ export default async function AdminUserDetailPage({ params }: Props) {
               </div>
             </div>
 
-            {/* 統計 */}
             <div className="mt-6 grid grid-cols-4 gap-4 text-center border-t pt-4">
               <div>
                 <p className="text-2xl font-bold">{user._count.posts}</p>
@@ -253,7 +229,6 @@ export default async function AdminUserDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* 最近の投稿 */}
           <div className="bg-card rounded-lg border">
             <h3 className="px-4 py-3 font-semibold border-b">最近の投稿</h3>
             {recentPosts.length > 0 ? (
@@ -266,7 +241,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                       <span>いいね: {post._count.likes}</span>
                       <span>コメント: {post._count.comments}</span>
                       <Link
-                        href={`/posts/${post.id}`}
+                        href={buildPostPath(post.id)}
                         className="text-primary hover:underline"
                       >
                         詳細を見る
@@ -280,7 +255,6 @@ export default async function AdminUserDetailPage({ params }: Props) {
             )}
           </div>
 
-          {/* 通報履歴 */}
           {reportsAgainstUser.length > 0 && (
             <div className="bg-card rounded-lg border">
               <h3 className="px-4 py-3 font-semibold border-b flex items-center gap-2">
@@ -316,7 +290,6 @@ export default async function AdminUserDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* サイドバー - アクション */}
         <div className="space-y-6">
           <div className="bg-card rounded-lg border p-4">
             <h3 className="font-semibold mb-4">アクション</h3>
@@ -331,7 +304,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
             <h3 className="font-semibold mb-4">クイックリンク</h3>
             <div className="space-y-2">
               <Link
-                href={`/users/${user.id}`}
+                href={buildUserPath(user.id)}
                 className="flex items-center justify-between px-3 py-2 text-sm hover:bg-muted rounded-lg"
               >
                 公開プロフィールを見る <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />

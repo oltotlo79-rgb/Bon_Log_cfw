@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file 管理者ロールテーブルコンポーネント
- * @description 管理者の一覧表示・ロール変更・追加・削除を行うClient Component。
- */
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -201,7 +197,6 @@ export default function RolesTable({ admins }: { admins: AdminUser[] }) {
         </table>
       </div>
 
-      {/* 管理者追加セクション */}
       <div className="p-4 border-t">
         <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
           <UserPlus className="w-4 h-4" />

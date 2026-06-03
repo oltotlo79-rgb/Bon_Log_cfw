@@ -490,25 +490,28 @@ describe('CommentCard - uncovered functions and branches', () => {
   })
 
   it('shows delete button for own comment and handles delete', async () => {
-    mockDeleteComment.mockResolvedValue({})
+    mockDeleteComment.mockResolvedValue({ success: true })
     const comment = createComment()
     render(<CommentCard comment={comment} postId="post-1" currentUserId="user-1" />)
 
-    // Find the delete trigger (Trash icon button)
-    const _deleteButton = screen.getByRole('button', { name: '' })
-    // The delete button has Trash2 icon - find by traversing
-    const buttons = screen.getAllByRole('button')
-    const _trashButton = buttons.find(b => b.querySelector('.lucide-trash-2') || b.closest('[class*="destructive"]'))
+    // Open the AlertDialog via the Trash icon trigger
+    const trashTrigger = screen
+      .getAllByRole('button')
+      .find(b => b.querySelector('.lucide-trash-2') !== null)
+    expect(trashTrigger).toBeDefined()
+    fireEvent.click(trashTrigger as HTMLElement)
 
-    // Click on the AlertDialogTrigger
-    const allButtons = screen.getAllByRole('button')
-    // Find the button that triggers the delete dialog
-    for (const btn of allButtons) {
-      if (btn.querySelector('svg') && !btn.textContent?.includes('返信') && !btn.textContent?.includes('Mute') && !btn.textContent?.includes('Like')) {
-        fireEvent.click(btn)
-        break
-      }
-    }
+    // Confirm dialog appears with its title and destructive action
+    expect(screen.getByText('コメントを削除')).toBeInTheDocument()
+    const confirmBtn = screen.getByText('削除')
+
+    await act(async () => {
+      fireEvent.click(confirmBtn)
+    })
+
+    await waitFor(() => {
+      expect(mockDeleteComment).toHaveBeenCalledWith('comment-1')
+    })
   })
 
   it('toggles replies (show/hide)', async () => {
@@ -1970,9 +1973,13 @@ describe('AnalogClockPicker - uncovered branches', () => {
     // Find the minutes button in the header (should show "30")
     const headerButtons = document.querySelectorAll('.text-3xl.font-bold')
     const minuteButton = Array.from(headerButtons).find(b => b.textContent === '30')
-    if (minuteButton) {
-      fireEvent.click(minuteButton)
-    }
+    expect(minuteButton).toBeDefined()
+    fireEvent.click(minuteButton as HTMLElement)
+
+    // Active mode is reflected by the bg-primary highlight on the header button
+    expect(minuteButton).toHaveClass('bg-primary')
+    const hourButton = Array.from(headerButtons).find(b => b.textContent === '09')
+    expect(hourButton).not.toHaveClass('bg-primary')
   })
 
   it('switches to hours mode on header click', () => {
@@ -1983,15 +1990,16 @@ describe('AnalogClockPicker - uncovered branches', () => {
     // Switch to minutes first
     const headerButtons = document.querySelectorAll('.text-3xl.font-bold')
     const minuteButton = Array.from(headerButtons).find(b => b.textContent === '30')
-    if (minuteButton) {
-      fireEvent.click(minuteButton)
-    }
+    expect(minuteButton).toBeDefined()
+    fireEvent.click(minuteButton as HTMLElement)
+    expect(minuteButton).toHaveClass('bg-primary')
 
     // Then switch back to hours
     const hourButton = Array.from(headerButtons).find(b => b.textContent === '09')
-    if (hourButton) {
-      fireEvent.click(hourButton)
-    }
+    expect(hourButton).toBeDefined()
+    fireEvent.click(hourButton as HTMLElement)
+    expect(hourButton).toHaveClass('bg-primary')
+    expect(minuteButton).not.toHaveClass('bg-primary')
   })
 
   it('handles mouse interaction on clock face (hours mode)', () => {
@@ -2000,30 +2008,36 @@ describe('AnalogClockPicker - uncovered branches', () => {
     fireEvent.click(screen.getByText('09:00'))
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      // Mock getBoundingClientRect for the clock face
-      vi.spyOn(clockFace, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        right: 224,
-        bottom: 224,
-        width: 224,
-        height: 224,
-        x: 0,
-        y: 0,
-        toJSON: () => {},
-      })
+    expect(clockFace).not.toBeNull()
+    // Mock getBoundingClientRect for the clock face
+    vi.spyOn(clockFace as Element, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 224,
+      bottom: 224,
+      width: 224,
+      height: 224,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
 
-      // MouseDown on outer ring (AM hours)
-      fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 10 }) // top = 12/0 o'clock area
-      expect(onChange).toHaveBeenCalled()
+    // MouseDown on outer ring top => 12 o'clock (00:00)
+    fireEvent.mouseDown(clockFace as Element, { clientX: 112, clientY: 10 })
+    expect(onChange).toHaveBeenCalledWith('00:00')
 
-      // MouseMove with button pressed
-      fireEvent.mouseMove(clockFace, { clientX: 200, clientY: 112, buttons: 1 }) // right = 3 o'clock area
+    onChange.mockClear()
+    // MouseMove with button pressed => right edge = 3 o'clock (03:00)
+    fireEvent.mouseMove(clockFace as Element, { clientX: 200, clientY: 112, buttons: 1 })
+    expect(onChange).toHaveBeenCalledWith('03:00')
 
-      // MouseUp - should transition to minutes mode
-      fireEvent.mouseUp(clockFace, { clientX: 200, clientY: 112 })
-    }
+    onChange.mockClear()
+    // MouseUp finalizes hours and transitions to minutes mode
+    fireEvent.mouseUp(clockFace as Element, { clientX: 200, clientY: 112 })
+    expect(onChange).toHaveBeenCalledWith('03:00')
+    const headerButtons = document.querySelectorAll('.text-3xl.font-bold')
+    const minuteHeader = Array.from(headerButtons).find(b => b.textContent === '00')
+    expect(minuteHeader).toHaveClass('bg-primary')
   })
 
   it('handles mouse interaction on clock face (PM / inner ring)', () => {
@@ -2032,23 +2046,23 @@ describe('AnalogClockPicker - uncovered branches', () => {
     fireEvent.click(screen.getByText('09:00'))
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      vi.spyOn(clockFace, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        right: 224,
-        bottom: 224,
-        width: 224,
-        height: 224,
-        x: 0,
-        y: 0,
-        toJSON: () => {},
-      })
+    expect(clockFace).not.toBeNull()
+    vi.spyOn(clockFace as Element, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 224,
+      bottom: 224,
+      width: 224,
+      height: 224,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
 
-      // Click near center (inner ring = PM)
-      fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 90 }) // near center
-      fireEvent.mouseUp(clockFace, { clientX: 112, clientY: 90 })
-    }
+    // Click near center top (inner ring = PM, 12 o'clock => 12:00)
+    fireEvent.mouseDown(clockFace as Element, { clientX: 112, clientY: 90 })
+    expect(onChange).toHaveBeenCalledWith('12:00')
+    fireEvent.mouseUp(clockFace as Element, { clientX: 112, clientY: 90 })
   })
 
   it('handles touch interaction', () => {
@@ -2057,37 +2071,44 @@ describe('AnalogClockPicker - uncovered branches', () => {
     fireEvent.click(screen.getByText('09:00'))
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      vi.spyOn(clockFace, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        right: 224,
-        bottom: 224,
-        width: 224,
-        height: 224,
-        x: 0,
-        y: 0,
-        toJSON: () => {},
-      })
+    expect(clockFace).not.toBeNull()
+    vi.spyOn(clockFace as Element, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 224,
+      bottom: 224,
+      width: 224,
+      height: 224,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
 
-      // Touch start
-      fireEvent.touchStart(clockFace, {
-        touches: [{ clientX: 112, clientY: 10 }],
-        preventDefault: vi.fn(),
-      })
+    // Touch start at top outer ring => 12 o'clock (00:00)
+    fireEvent.touchStart(clockFace as Element, {
+      touches: [{ clientX: 112, clientY: 10 }],
+      preventDefault: vi.fn(),
+    })
+    expect(onChange).toHaveBeenCalledWith('00:00')
 
-      // Touch move
-      fireEvent.touchMove(clockFace, {
-        touches: [{ clientX: 200, clientY: 112 }],
-        preventDefault: vi.fn(),
-      })
+    onChange.mockClear()
+    // Touch move to right edge => 3 o'clock (03:00)
+    fireEvent.touchMove(clockFace as Element, {
+      touches: [{ clientX: 200, clientY: 112 }],
+      preventDefault: vi.fn(),
+    })
+    expect(onChange).toHaveBeenCalledWith('03:00')
 
-      // Touch end
-      fireEvent.touchEnd(clockFace, {
-        changedTouches: [{ clientX: 200, clientY: 112 }],
-        preventDefault: vi.fn(),
-      })
-    }
+    onChange.mockClear()
+    // Touch end finalizes and switches to minutes mode
+    fireEvent.touchEnd(clockFace as Element, {
+      changedTouches: [{ clientX: 200, clientY: 112 }],
+      preventDefault: vi.fn(),
+    })
+    expect(onChange).toHaveBeenCalledWith('03:00')
+    const headerButtons = document.querySelectorAll('.text-3xl.font-bold')
+    const minuteHeader = Array.from(headerButtons).find(b => b.textContent === '00')
+    expect(minuteHeader).toHaveClass('bg-primary')
   })
 
   it('handles minute mode mouse interaction', () => {
@@ -2098,28 +2119,32 @@ describe('AnalogClockPicker - uncovered branches', () => {
     // Switch to minutes mode
     const headerButtons = document.querySelectorAll('button.text-3xl')
     const minuteBtn = Array.from(headerButtons).find(b => b.textContent === '00')
-    if (minuteBtn) {
-      fireEvent.click(minuteBtn)
-    }
+    expect(minuteBtn).toBeDefined()
+    fireEvent.click(minuteBtn as HTMLElement)
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      vi.spyOn(clockFace, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        right: 224,
-        bottom: 224,
-        width: 224,
-        height: 224,
-        x: 0,
-        y: 0,
-        toJSON: () => {},
-      })
+    expect(clockFace).not.toBeNull()
+    vi.spyOn(clockFace as Element, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 224,
+      bottom: 224,
+      width: 224,
+      height: 224,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
 
-      // Click on a minute position
-      fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 10 })
-      fireEvent.mouseUp(clockFace, { clientX: 112, clientY: 10 })
-    }
+    // Click right edge (3 o'clock => 15 minutes), keeping hours=09
+    fireEvent.mouseDown(clockFace as Element, { clientX: 200, clientY: 112 })
+    expect(onChange).toHaveBeenCalledWith('09:15')
+
+    onChange.mockClear()
+    // MouseUp in minute mode finalizes and closes the picker
+    fireEvent.mouseUp(clockFace as Element, { clientX: 200, clientY: 112 })
+    expect(onChange).toHaveBeenCalledWith('09:15')
+    expect(screen.queryByText('OK')).not.toBeInTheDocument()
   })
 
   it('ignores mouse move without button pressed', () => {
@@ -2128,10 +2153,10 @@ describe('AnalogClockPicker - uncovered branches', () => {
     fireEvent.click(screen.getByText('09:00'))
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      // MouseMove without button pressed (buttons: 0)
-      fireEvent.mouseMove(clockFace, { clientX: 200, clientY: 112, buttons: 0 })
-    }
+    expect(clockFace).not.toBeNull()
+    // MouseMove without button pressed (buttons: 0) must be ignored => no onChange
+    fireEvent.mouseMove(clockFace as Element, { clientX: 200, clientY: 112, buttons: 0 })
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('closes on mobile overlay click', () => {

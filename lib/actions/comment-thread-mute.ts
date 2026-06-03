@@ -1,9 +1,13 @@
 'use server'
 
+import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit, type ActionResult } from '@/lib/actions/utils'
 import logger from '@/lib/logger'
-import { ERR_THREAD_MUTE_FAILED, ERR_THREAD_UNMUTE_FAILED } from '@/lib/constants/errors'
+import { ERR_INVALID_INPUT, ERR_THREAD_MUTE_FAILED, ERR_THREAD_UNMUTE_FAILED } from '@/lib/constants/errors'
+import { MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/limits'
+
+const rootCommentIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
 
 /**
  * コメントスレッドをミュート
@@ -15,6 +19,9 @@ export async function muteThread(rootCommentId: string): Promise<ActionResult> {
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  const parsed = rootCommentIdSchema.safeParse(rootCommentId)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 
@@ -23,12 +30,12 @@ export async function muteThread(rootCommentId: string): Promise<ActionResult> {
       where: {
         userId_commentId: {
           userId,
-          commentId: rootCommentId,
+          commentId: parsed.data,
         },
       },
       create: {
         userId,
-        commentId: rootCommentId,
+        commentId: parsed.data,
       },
       update: {},
     })
@@ -50,6 +57,9 @@ export async function unmuteThread(rootCommentId: string): Promise<ActionResult>
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  const parsed = rootCommentIdSchema.safeParse(rootCommentId)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 
@@ -57,7 +67,7 @@ export async function unmuteThread(rootCommentId: string): Promise<ActionResult>
     await prisma.commentThreadMute.deleteMany({
       where: {
         userId,
-        commentId: rootCommentId,
+        commentId: parsed.data,
       },
     })
 
@@ -65,29 +75,5 @@ export async function unmuteThread(rootCommentId: string): Promise<ActionResult>
   } catch (error) {
     logger.error('Unmute thread error:', error)
     return actionError(ERR_THREAD_UNMUTE_FAILED)
-  }
-}
-
-/**
- * スレッドがミュートされているかチェック
- *
- * @param userId - ユーザーID
- * @param rootCommentId - ルートコメントのID
- */
-export async function isThreadMuted(userId: string, rootCommentId: string) {
-  try {
-    const mute = await prisma.commentThreadMute.findUnique({
-      where: {
-        userId_commentId: {
-          userId,
-          commentId: rootCommentId,
-        },
-      },
-    })
-
-    return !!mute
-  } catch (error) {
-    logger.error('Check thread mute error:', error)
-    return false
   }
 }

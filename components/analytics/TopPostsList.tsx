@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Heart, MessageSquare, Trophy } from 'lucide-react'
+import { buildPostPath } from '@/lib/constants/path-builders'
 
 type TopPost = {
   id: string
@@ -27,7 +28,7 @@ export function TopPostsList({ posts }: TopPostsListProps) {
       {posts.map((post, index) => (
         <Link
           key={post.id}
-          href={`/posts/${post.id}`}
+          href={buildPostPath(post.id)}
           className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
         >
           <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${

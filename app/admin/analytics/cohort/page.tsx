@@ -1,10 +1,3 @@
-/**
- * @file コホート分析ページ
- * @description 登録月/週ごとのユーザーリテンション率を
- *              コホートテーブルで可視化する管理者ページ。
- * @route /admin/analytics/cohort
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getCohortAnalysis } from '@/lib/actions/admin/analytics'
@@ -82,7 +75,6 @@ export default async function CohortPage({ searchParams }: PageProps) {
         <h1 className="text-2xl font-bold">コホート分析</h1>
       </div>
 
-      {/* サマリーカード */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-2 mb-1">
@@ -103,7 +95,6 @@ export default async function CohortPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* コホートテーブル（Client Component: 期間切り替え） */}
       <CohortTable
         tableData={tableData}
         activeMonths={allActiveMonths}

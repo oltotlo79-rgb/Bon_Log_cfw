@@ -7,7 +7,6 @@
  * ゲストユーザー（GUEST_EMAIL）はテーマ・背景アニメーションのみ変更可能。
  * その他のメニューと天気アドバイスは「表示はするが選択不可」の状態で描画する。
  *
- * @route /settings
  */
 
 import Link from 'next/link'
@@ -33,7 +32,8 @@ import { BgAnimationSelect } from '@/components/settings/SakuraPetalsToggle'
 import { WeatherLocationSetting } from '@/components/weather/WeatherLocationSetting'
 
 export const metadata = {
-  title: '設定 - BON-LOG',
+  title: '設定',
+  robots: { index: false, follow: false },
 }
 
 type SettingsMenuItem = {
@@ -127,7 +127,6 @@ export default async function SettingsPage() {
         </p>
       )}
 
-      {/* メニュー（ゲストは表示するが選択不可） */}
       <div className="bg-card rounded-lg border">
         <h1 className="px-4 py-3 font-bold text-lg border-b">設定</h1>
         <div className="divide-y">
@@ -137,7 +136,6 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* 表示設定（ゲストも操作可能） */}
       <div className="bg-card rounded-lg border">
         <h2 className="px-4 py-3 font-bold border-b">表示設定</h2>
         <div className="p-4 space-y-6">
@@ -146,7 +144,6 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* 天気アドバイス（ゲストは表示するが操作不可・データフェッチもスキップ） */}
       <div
         data-testid="weather-advice-section"
         data-disabled={isGuest || undefined}

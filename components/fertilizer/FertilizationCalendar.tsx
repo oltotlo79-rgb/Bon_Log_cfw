@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { FertilizerAction, NutrientLevel } from '@prisma/client'
 import { FertilizerActionBadge } from '@/components/fertilizer/FertilizerActionBadge'
 import { NutrientLevelIndicator } from '@/components/fertilizer/NutrientLevelIndicator'
@@ -41,7 +42,6 @@ export function FertilizationCalendar({ plans }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* 凡例 */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground px-1">
         <span className="font-medium text-foreground">凡例:</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> たっぷり</span>
@@ -50,7 +50,6 @@ export function FertilizationCalendar({ plans }: Props) {
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" /> 不要</span>
       </div>
 
-      {/* デスクトップ: テーブル */}
       <div className="hidden sm:block overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead>
@@ -67,16 +66,18 @@ export function FertilizationCalendar({ plans }: Props) {
             {sortedPlans.map((plan) => {
               const season = getSeasonForMonth(plan.month)
               const seasonLabel = getSeasonLabel(plan.month)
+              // Fragment に key を載せるため React.Fragment を明示。
+              // `<></>` shorthand は key を受け取らないため `Each child in a list should have a unique "key" prop` 警告が出る。
               return (
-                <>
+                <Fragment key={plan.month}>
                   {seasonLabel && (
-                    <tr key={`season-${plan.month}`}>
+                    <tr>
                       <td colSpan={6} className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/30 border-b">
                         {seasonLabel}
                       </td>
                     </tr>
                   )}
-                  <tr key={plan.month} className={`border-b last:border-b-0 ${season.className}`}>
+                  <tr className={`border-b last:border-b-0 ${season.className}`}>
                     <td className="px-3 py-2.5 font-bold tabular-nums">{plan.month}月</td>
                     <td className="px-3 py-2.5">
                       <FertilizerActionBadge action={plan.action} />
@@ -100,14 +101,13 @@ export function FertilizationCalendar({ plans }: Props) {
                       )}
                     </td>
                   </tr>
-                </>
+                </Fragment>
               )
             })}
           </tbody>
         </table>
       </div>
 
-      {/* モバイル: カード形式 */}
       <div className="sm:hidden space-y-1">
         {sortedPlans.map((plan) => {
           const season = getSeasonForMonth(plan.month)
@@ -124,7 +124,6 @@ export function FertilizationCalendar({ plans }: Props) {
                   <span className="font-bold tabular-nums">{plan.month}月</span>
                   <FertilizerActionBadge action={plan.action} />
                 </div>
-                {/* N/P/K 横並び */}
                 <div className="flex gap-3">
                   <NutrientLevelIndicator level={plan.nitrogenLevel} nutrient="N" />
                   <NutrientLevelIndicator level={plan.phosphorusLevel} nutrient="P" />

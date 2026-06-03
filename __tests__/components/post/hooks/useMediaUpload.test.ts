@@ -11,6 +11,10 @@ vi.mock('@/lib/client-image-compression', () => ({
 }))
 
 import { useMediaUpload } from '@/components/post/hooks/useMediaUpload'
+import { isVideoFile, uploadVideoToR2 } from '@/lib/client-image-compression'
+
+const mockIsVideoFile = vi.mocked(isVideoFile)
+const mockUploadVideoToR2 = vi.mocked(uploadVideoToR2)
 
 describe('useMediaUpload', () => {
   const mockOnError = vi.fn()
@@ -22,6 +26,7 @@ describe('useMediaUpload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsVideoFile.mockReturnValue(false)
   })
 
   it('初期状態が正しいこと', () => {
@@ -145,5 +150,31 @@ describe('useMediaUpload', () => {
     })
 
     expect(result.current.uploadProgress).toBe(50)
+  })
+
+  it('複数ファイルを一度に選んでも上限を超えてアップロードしない（ループ内カウンタで判定）', async () => {
+    // maxVideos=1。動画を2本同時選択しても、1本目アップロード後にカウンタが上限へ達し
+    // 2本目は弾かれる（state の非同期更新に依存していた旧実装ではすり抜けていた）。
+    mockIsVideoFile.mockReturnValue(true)
+    mockUploadVideoToR2.mockResolvedValue({ url: 'https://example.com/v.mp4' } as never)
+
+    const { result } = renderHook(() => useMediaUpload(defaultParams))
+
+    const files = [
+      new File(['a'], 'v1.mp4', { type: 'video/mp4' }),
+      new File(['b'], 'v2.mp4', { type: 'video/mp4' }),
+    ]
+    const event = {
+      target: { files, value: '' },
+    } as unknown as React.ChangeEvent<HTMLInputElement>
+
+    await act(async () => {
+      await result.current.handleFileSelect(event)
+    })
+
+    // 1本目だけがアップロードされ、2本目は上限で拒否される
+    expect(mockUploadVideoToR2).toHaveBeenCalledTimes(1)
+    expect(result.current.mediaFiles.filter((m) => m.type === 'video')).toHaveLength(1)
+    expect(mockOnError).toHaveBeenCalledWith('動画は1本まで添付できます')
   })
 })

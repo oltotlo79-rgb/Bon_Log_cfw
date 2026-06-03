@@ -8,7 +8,7 @@ import { ROUTE_FERTILIZERS_CATEGORIES } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '肥料カテゴリ比較 - 施肥ガイド - BON-LOG',
+  title: '肥料カテゴリ比較 - 施肥ガイド',
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS_CATEGORIES) },
 }
 

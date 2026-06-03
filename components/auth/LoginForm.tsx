@@ -168,9 +168,12 @@ export function LoginForm() {
         return
       }
 
+      // 2FA 強制はサーバー側 authorize() がチケット消費で行う。
+      // verify2FAToken が発行した単回使用チケットを signIn に渡す。
       const signInResult = await signIn('credentials', {
         email: pendingCredentials.email,
         password: pendingCredentials.password,
+        twoFactorTicket: verifyResult.data?.ticket,
         redirect: false,
       })
       if (signInResult?.error) {

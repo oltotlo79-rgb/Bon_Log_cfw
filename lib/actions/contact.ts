@@ -5,6 +5,7 @@ import type { ContactStatus, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
 import { sendEmail } from '@/lib/email'
+import { renderEmailShell, renderCard, EMAIL_BRAND } from '@/lib/email/templates/shared'
 import logger from '@/lib/logger'
 import {
   DEFAULT_PAGE_LIMIT,
@@ -20,6 +21,7 @@ import { requireAdmin, actionSuccess, actionError, getClientIp } from '@/lib/act
 import { actionZodError } from '@/lib/actions/schemas/common'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { ROUTE_ADMIN_CONTACT } from '@/lib/constants/routes'
+import { buildAdminContactPath } from '@/lib/constants/path-builders'
 import {
   ERR_CONTACT_RATE_LIMIT,
   ERR_CONTACT_SEND_FAILED,
@@ -134,29 +136,17 @@ export async function submitContactInquiry(data: {
     await sendEmail({
       to: email,
       subject: '【BON-LOG】お問い合わせを受け付けました',
-      html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>お問い合わせ確認</title></head>
-<body style="font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #2d5016 0%, #4a7c23 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="color: #fff; margin: 0; font-size: 24px;">BON-LOG</h1>
-    <p style="color: #e8f5e9; margin: 10px 0 0 0; font-size: 14px;">盆栽愛好家のためのSNS</p>
-  </div>
-  <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
-    <h2 style="color: #2d5016; font-size: 20px; margin-top: 0;">お問い合わせを受け付けました</h2>
+      html: renderEmailShell(
+        'お問い合わせ確認',
+        renderCard(`    <h2 style="color: ${EMAIL_BRAND.primaryDark}; font-size: 20px; margin-top: 0;">お問い合わせを受け付けました</h2>
     <p>${safeName} 様</p>
     <p>以下の内容でお問い合わせを受け付けました。</p>
     <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
       <p style="margin: 5px 0;"><strong>カテゴリ:</strong> ${safeCategoryLabel}</p>
       <p style="margin: 5px 0;"><strong>件名:</strong> ${safeSubject}</p>
     </div>
-    <p>回答まで${CONTACT_RESPONSE_MIN_DAYS}〜${CONTACT_RESPONSE_MAX_DAYS}営業日程度お時間をいただく場合がございます。</p>
-    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-    <p style="font-size: 12px; color: #888;">このメールはBON-LOG（${appUrl}）から自動送信されています。</p>
-  </div>
-</body>
-</html>`,
+    <p>回答まで${CONTACT_RESPONSE_MIN_DAYS}〜${CONTACT_RESPONSE_MAX_DAYS}営業日程度お時間をいただく場合がございます。</p>`)
+      ),
       text: `${name} 様\n\nお問い合わせを受け付けました。\nカテゴリ: ${CATEGORY_LABELS[category] ?? category}\n件名: ${subject}\n\n回答まで${CONTACT_RESPONSE_MIN_DAYS}〜${CONTACT_RESPONSE_MAX_DAYS}営業日程度お時間をいただく場合がございます。`,
     })
 
@@ -166,23 +156,19 @@ export async function submitContactInquiry(data: {
       await sendEmail({
         to: adminEmail,
         subject: `【BON-LOG管理】新規お問い合わせ: ${subject}`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>新規お問い合わせ</title></head>
-<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h2 style="color: #d32f2f;">新規お問い合わせ</h2>
-  <div style="background: #f5f5f5; padding: 15px; border-radius: 4px;">
-    <p><strong>名前:</strong> ${safeName}</p>
-    <p><strong>メール:</strong> ${safeEmail}</p>
-    <p><strong>カテゴリ:</strong> ${safeCategoryLabel}</p>
-    <p><strong>件名:</strong> ${safeSubject}</p>
-    <p><strong>内容:</strong></p>
-    <p style="white-space: pre-wrap;">${safeMessage}</p>
-  </div>
-  <p><a href="${appUrl}/admin/contact/${inquiry.id}">管理画面で確認する</a></p>
-</body>
-</html>`,
+        html: renderEmailShell(
+          '新規お問い合わせ',
+          renderCard(`    <h2 style="color: ${EMAIL_BRAND.primaryDark}; font-size: 20px; margin-top: 0;">新規お問い合わせ</h2>
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+      <p style="margin: 5px 0;"><strong>名前:</strong> ${safeName}</p>
+      <p style="margin: 5px 0;"><strong>メール:</strong> ${safeEmail}</p>
+      <p style="margin: 5px 0;"><strong>カテゴリ:</strong> ${safeCategoryLabel}</p>
+      <p style="margin: 5px 0;"><strong>件名:</strong> ${safeSubject}</p>
+      <p style="margin: 5px 0;"><strong>内容:</strong></p>
+      <p style="white-space: pre-wrap;">${safeMessage}</p>
+    </div>
+    <p><a href="${appUrl}${buildAdminContactPath(inquiry.id)}" style="color: ${EMAIL_BRAND.primary};">管理画面で確認する</a></p>`)
+        ),
         text: `新規お問い合わせ\n\n名前: ${name}\nメール: ${email}\nカテゴリ: ${CATEGORY_LABELS[category] ?? category}\n件名: ${subject}\n\n${message}`,
       })
     }

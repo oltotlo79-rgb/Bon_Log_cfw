@@ -13,9 +13,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { MessageCircle, Trash2 } from 'lucide-react'
+import { MessageCircle, Trash2, Pencil } from 'lucide-react'
 import { CommentLikeButton } from './CommentLikeButton'
 import { ThreadMuteButton } from './ThreadMuteButton'
+import { ReportButton } from '@/components/report/ReportButton'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 
 interface CommentActionsProps {
@@ -32,6 +33,7 @@ interface CommentActionsProps {
   rootCommentId: string
   onToggleReplyForm: () => void
   onDelete: () => void
+  onEdit?: () => void
 }
 
 export function CommentActions({
@@ -47,6 +49,7 @@ export function CommentActions({
   rootCommentId,
   onToggleReplyForm,
   onDelete,
+  onEdit,
 }: CommentActionsProps) {
   return (
     <div className="flex items-center gap-4 mt-2">
@@ -89,6 +92,22 @@ export function CommentActions({
           rootCommentId={rootCommentId}
           initialMuted={isMuted}
         />
+      )}
+
+      {currentUserId && !isOwner && (
+        <ReportButton targetType="comment" targetId={commentId} variant="icon" />
+      )}
+
+      {isOwner && onEdit && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-muted-foreground hover:text-foreground"
+          onClick={onEdit}
+          aria-label="コメントを編集"
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
       )}
 
       {isOwner && (

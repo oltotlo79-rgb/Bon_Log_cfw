@@ -2,7 +2,6 @@
 
 import { prisma } from '@/lib/db'
 import {
-  DEFAULT_PAGE_LIMIT,
   ONE_HOUR_MS,
   ONE_DAY_MS,
   SUSPICIOUS_LIKES_PER_HOUR,
@@ -13,6 +12,7 @@ import {
   ACTIVITY_ID_PREVIEW_LENGTH,
 } from '@/lib/constants/limits'
 import { requireAdmin, actionError } from '@/lib/actions/utils'
+import { clampLimit } from '@/lib/actions/pagination'
 import { ERR_USER_NOT_FOUND, ERR_OPERATION_FAILED } from '@/lib/constants/errors'
 import { logger } from '@/lib/logger'
 
@@ -40,8 +40,7 @@ export async function getUserActivity(userId: string, options?: {
     })
     if (!user) return actionError(ERR_USER_NOT_FOUND)
 
-    const limit = options?.limit ?? DEFAULT_PAGE_LIMIT
-    // 各テーブルから最新のアクティビティを取得して統合
+    const limit = clampLimit(options?.limit)
     const [posts, comments, likes, follows, devices] = await Promise.all([
       prisma.post.findMany({
         where: { userId },

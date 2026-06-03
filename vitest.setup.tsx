@@ -321,28 +321,65 @@ if (typeof window !== 'undefined') {
  * - `Missing \`Description\` or \`aria-describedby\`` (Radix): production では accessible
  *   description を必ず付ける ARIA リント方針があるが、生 UI primitive の小さな test では
  *   省略しているため発生。Radix 側からの開発時 guidance であり、production に runtime 影響なし。
+ * - `<html>/<body> cannot be a child of <div>`: global-error.tsx は最終防衛線として
+ *   自前の `<html><body>` を描画する仕様 (Next.js 規約)。testing-library は div container に
+ *   mount するため必ずこの DOM nesting warning が出る。`<html>`/`<body>` を描画するのは
+ *   global-error のみのため、この 2 fragment に限定すれば他の nesting バグは隠さない。
  */
 const SUPPRESSED_WARNING_FRAGMENTS = [
   'Warning: ReactDOM.render',
   'Warning: An update to',
   'act(...)',
   'is an async Client Component',
-  'Missing `Description` or `aria-describedby`',
+  // Radix の warning は `aria-describedby={undefined}` まで含む形のため、末尾 backtick を
+  // 含めると substring match に失敗する。`aria-describedby` のリテラルだけで照合する。
+  'Missing `Description` or `aria-describedby',
+  // jsdom 環境の未実装機能ログ。production/React のバグではなく jsdom の制約
+  // （matchMedia/ResizeObserver 等を mock しているのと同じ理由）。アプリ例外は隠さない。
+  'Not implemented: navigation',
+  "Not implemented: HTMLCanvasElement",
 ] as const
 
 const originalError = console.error
+const originalWarn = console.warn
+
+function shouldSuppress(args: unknown[]): boolean {
+  const first = args[0]
+  // jsdom の未実装ログは Error オブジェクトとして渡るため message/stack も照合対象にする。
+  const message =
+    typeof first === 'string'
+      ? first
+      : first instanceof Error
+        ? `${first.message}\n${first.stack ?? ''}`
+        : ''
+  if (!message) return false
+  if (SUPPRESSED_WARNING_FRAGMENTS.some((fragment) => message.includes(fragment))) return true
+  // global-error.tsx は最終防衛線として自前の <html><body> を描画する仕様 (Next.js 規約)。
+  // testing-library は div container に mount するため必ず DOM nesting warning が出る。
+  // React 19 は format-string 警告 ("In HTML, %s cannot be a child of %s" + 引数に '<html>')
+  // を使うため、テンプレートと interpolation 引数の両方を見て <html>/<body> 限定で抑制する
+  // (他の nesting バグは隠さない)。
+  if (message.includes('cannot be a child of')) {
+    const interpolated = args.slice(1).map((a) => String(a))
+    if (interpolated.includes('<html>') || interpolated.includes('<body>')) return true
+  }
+  return false
+}
+
 beforeAll(() => {
+  // React.warn / dev warnings は console.error 経由、Radix の一部 dev hint は
+  // console.warn 経由で出るため両方を intercept する。
   console.error = (...args: unknown[]) => {
-    if (
-      typeof args[0] === 'string' &&
-      SUPPRESSED_WARNING_FRAGMENTS.some((fragment) => (args[0] as string).includes(fragment))
-    ) {
-      return
-    }
+    if (shouldSuppress(args)) return
     originalError.call(console, ...args)
+  }
+  console.warn = (...args: unknown[]) => {
+    if (shouldSuppress(args)) return
+    originalWarn.call(console, ...args)
   }
 })
 
 afterAll(() => {
   console.error = originalError
+  console.warn = originalWarn
 })

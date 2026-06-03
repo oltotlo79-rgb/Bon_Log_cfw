@@ -22,6 +22,9 @@ const NOTIFICATION_TYPES: ReadonlyArray<{
   { key: 'quote', label: '引用投稿', description: '投稿が引用された時' },
   { key: 'follow_request', label: 'フォローリクエスト', description: 'フォローリクエストを受けた時' },
   { key: 'follow_request_approved', label: 'フォロー承認', description: 'フォローリクエストが承認された時' },
+  { key: 'mention', label: 'メンション', description: '投稿やコメントでメンションされた時' },
+  { key: 'message', label: 'ダイレクトメッセージ', description: 'DM を受信した時' },
+  { key: 'repost', label: 'リポスト', description: '投稿がリポストされた時' },
 ]
 
 interface Props {

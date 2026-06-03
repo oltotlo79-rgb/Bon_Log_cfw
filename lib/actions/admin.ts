@@ -1,43 +1,21 @@
 /**
- * 管理者機能のServer Actions（共通）
- *
- * このファイルには、多数の箇所から参照される共通の管理者機能を残しています。
- * 機能別の詳細な実装は以下のファイルに分割されています：
- *
- * - `lib/actions/admin/users.ts`   - ユーザー管理
- * - `lib/actions/admin/posts.ts`   - 投稿管理
- * - `lib/actions/admin/content.ts` - コンテンツ管理（イベント/盆栽園/レビュー）
- * - `lib/actions/admin/stats.ts`   - 統計情報
- * - `lib/actions/admin/logs.ts`    - 管理者ログ
- *
  * @module lib/actions/admin
+ *
+ * 管理者ページ（Server Component）専用の認可ヘルパー。
+ *
+ * Why no `'use server'`: これらは admin Server Component からのみ await される。
+ * `'use server'` を付けると `isAdmin` が公開 RPC エンドポイントになり攻撃面が増えるため、
+ * `server-only` モジュールとして提供する（`lib/actions/utils.ts` と同じ方針）。
+ * 機能別の write 系 Server Action は `lib/actions/admin/{users,posts,content,stats,logs}.ts`。
  */
 
-'use server'
+import 'server-only'
 
 import { requireAdmin } from '@/lib/actions/utils'
 
 /**
- * 現在のユーザーが管理者かどうかを判定
- *
- * ## 用途
- * 管理者ページへのアクセス制御に使用します。
- * ページコンポーネントの冒頭で呼び出し、
- * 管理者でなければリダイレクトします。
- *
- * @returns 管理者の場合はtrue、それ以外はfalse
- *
- * @example
- * ```typescript
- * // 管理者ページのレイアウト
- * export default async function AdminLayout({ children }) {
- *   const admin = await isAdmin()
- *   if (!admin) {
- *     redirect('/login')
- *   }
- *   return <div>{children}</div>
- * }
- * ```
+ * 現在のユーザーが管理者かどうかを判定する。admin ページ冒頭で呼び、false なら redirect する。
+ * `requireAdmin()` は JWT を信頼せず毎回 DB を引き直す fresh check のため、権限剥奪が即時反映される。
  */
 export async function isAdmin() {
   const admin = await requireAdmin()
@@ -45,21 +23,8 @@ export async function isAdmin() {
 }
 
 /**
- * 管理者情報を取得
- *
- * ## 用途
- * 管理者のロール（役割）を確認するために使用します。
- * 例: スーパー管理者のみが特定の操作を実行できる場合など
- *
- * @returns 管理者情報またはnull
- *
- * @example
- * ```typescript
- * const adminInfo = await getAdminInfo()
- * if (adminInfo?.role === 'super_admin') {
- *   // スーパー管理者のみの処理
- * }
- * ```
+ * 管理者のロール込みで情報を取得する。スーパー管理者限定操作の出し分け等に使う。
+ * 管理者でなければ null。
  */
 export async function getAdminInfo() {
   const admin = await requireAdmin()

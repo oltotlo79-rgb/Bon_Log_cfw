@@ -411,7 +411,7 @@ describe('coverage-boost25', () => {
         params: Promise.resolve({ conversationId: 'conv1' }),
       })
 
-      expect(metadata.title).toBe('メッセージ - BON-LOG')
+      expect(metadata.title).toBe('メッセージ')
     })
 
     it('otherUserのnicknameがnullの場合、ユーザーと表示する', async () => {
@@ -425,7 +425,7 @@ describe('coverage-boost25', () => {
         params: Promise.resolve({ conversationId: 'conv1' }),
       })
 
-      expect(metadata.title).toBe('ユーザーとのメッセージ - BON-LOG')
+      expect(metadata.title).toBe('ユーザーとのメッセージ')
     })
 
     it('正常な場合、相手のニックネームをタイトルに含める', async () => {
@@ -444,7 +444,7 @@ describe('coverage-boost25', () => {
         params: Promise.resolve({ conversationId: 'conv1' }),
       })
 
-      expect(metadata.title).toBe('テストユーザーとのメッセージ - BON-LOG')
+      expect(metadata.title).toBe('テストユーザーとのメッセージ')
     })
   })
 

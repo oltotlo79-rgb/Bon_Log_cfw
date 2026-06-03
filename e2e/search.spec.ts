@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 test.describe('検索機能', () => {
   test('検索ページが表示される', async ({ page }) => {
@@ -49,18 +50,14 @@ test.describe('検索機能', () => {
     await page.goto('/search?q=盆栽')
     await page.waitForLoadState('load')
 
-    await page.getByRole('button', { name: 'ユーザー', exact: true }).click()
-
-    await expect(page).toHaveURL(/tab=users/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, page.getByRole('button', { name: 'ユーザー', exact: true }), /tab=users/, { timeout: 10000 })
   })
 
   test('タグタブに切り替えられる', async ({ page }) => {
     await page.goto('/search?q=盆栽')
     await page.waitForLoadState('load')
 
-    await page.getByRole('button', { name: 'タグ', exact: true }).click()
-
-    await expect(page).toHaveURL(/tab=tags/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, page.getByRole('button', { name: 'タグ', exact: true }), /tab=tags/, { timeout: 10000 })
   })
 
   test('ジャンルフィルターが表示される', async ({ page }) => {
@@ -76,10 +73,8 @@ test.describe('検索機能', () => {
     // ジャンルフィルター内のボタンを探す
     const genreButton = page.locator('[data-testid="genre-filter"] button, [class*="genre"] button').first()
     if (await genreButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await genreButton.click()
-
       // URLにジャンルパラメータが追加されることを確認
-      await expect(page).toHaveURL(/genre=/)
+      await clickAndWaitForUrl(page, genreButton, /genre=/)
     }
   })
 
@@ -105,8 +100,7 @@ test.describe('検索機能', () => {
     // 人気タグがある場合クリック
     const tagLink = page.locator('a[href*="/search?tag="]').first()
     if (await tagLink.isVisible()) {
-      await tagLink.click()
-      await expect(page).toHaveURL(/tag=/)
+      await clickAndWaitForUrl(page, tagLink, /tag=/)
     }
   })
 })

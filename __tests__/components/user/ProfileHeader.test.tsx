@@ -73,6 +73,16 @@ describe('ProfileHeader', () => {
     expect(screen.getByText('東京都')).toBeInTheDocument()
   })
 
+  it('他人のプロフィールには通報ボタンを表示する', () => {
+    render(<ProfileHeader user={mockUser} isOwner={false} />)
+    expect(screen.getByRole('button', { name: 'このコンテンツを通報' })).toBeInTheDocument()
+  })
+
+  it('自分のプロフィールには通報ボタンを表示しない', () => {
+    render(<ProfileHeader user={mockUser} isOwner={true} />)
+    expect(screen.queryByRole('button', { name: 'このコンテンツを通報' })).not.toBeInTheDocument()
+  })
+
   it('盆栽歴を表示する', () => {
     render(<ProfileHeader user={mockUser} isOwner={false} />)
     // 盆栽歴が計算されて表示される

@@ -15,7 +15,6 @@ import { EventEditFormModal } from './EventEditFormModal'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
 /**
- * 表示モードの型定義
  * - card: カード形式の一覧表示
  * - table: テーブル形式での一括編集
  */
@@ -187,10 +186,8 @@ export function EventImportClient() {
 
   return (
     <div className="space-y-6">
-      {/* 操作パネル */}
       <div className="bg-card rounded-lg border p-4">
         <div className="flex flex-wrap items-center gap-4">
-          {/* 地方選択 */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">取得する地方:</label>
             <select
@@ -208,7 +205,6 @@ export function EventImportClient() {
             </select>
           </div>
 
-          {/* スクレイピングボタン */}
           <button
             onClick={handleScrape}
             disabled={isScraping}
@@ -224,7 +220,6 @@ export function EventImportClient() {
             )}
           </button>
 
-          {/* インポートボタン（イベントがある場合のみ） */}
           {events.length > 0 && (
             <>
               <button
@@ -242,7 +237,6 @@ export function EventImportClient() {
                 )}
               </button>
 
-              {/* 表示モード切り替え */}
               <div className="flex items-center gap-1 ml-auto border rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('table')}
@@ -272,7 +266,6 @@ export function EventImportClient() {
         </div>
       </div>
 
-      {/* メッセージ */}
       {error && (
         <div className="p-4 rounded-lg bg-destructive/10 text-destructive">
           {error}
@@ -284,10 +277,8 @@ export function EventImportClient() {
         </div>
       )}
 
-      {/* イベント一覧 */}
       {events.length > 0 && (
         <div className="bg-card rounded-lg border">
-          {/* ヘッダー */}
           <div className="px-4 py-3 border-b bg-muted/50 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <input
@@ -312,7 +303,6 @@ export function EventImportClient() {
             </div>
           </div>
 
-          {/* テーブル表示モード */}
           {viewMode === 'table' ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -338,7 +328,6 @@ export function EventImportClient() {
                         event.isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
                       } ${!event.startDate ? 'opacity-50' : ''}`}
                     >
-                      {/* チェックボックス */}
                       <td className="px-2 py-1">
                         <input
                           type="checkbox"
@@ -348,7 +337,6 @@ export function EventImportClient() {
                           className="w-4 h-4"
                         />
                       </td>
-                      {/* タイトル */}
                       <td className="px-2 py-1">
                         <input
                           type="text"
@@ -364,7 +352,6 @@ export function EventImportClient() {
                           </div>
                         )}
                       </td>
-                      {/* 開始日 */}
                       <td className="px-2 py-1">
                         <input
                           type="date"
@@ -373,7 +360,6 @@ export function EventImportClient() {
                           className="w-full px-2 py-1 border rounded bg-background text-sm"
                         />
                       </td>
-                      {/* 終了日 */}
                       <td className="px-2 py-1">
                         <input
                           type="date"
@@ -382,7 +368,6 @@ export function EventImportClient() {
                           className="w-full px-2 py-1 border rounded bg-background text-sm"
                         />
                       </td>
-                      {/* 都道府県 */}
                       <td className="px-2 py-1">
                         <select
                           value={event.prefecture || ''}
@@ -397,7 +382,6 @@ export function EventImportClient() {
                           ))}
                         </select>
                       </td>
-                      {/* 市区町村 */}
                       <td className="px-2 py-1">
                         <input
                           type="text"
@@ -407,7 +391,6 @@ export function EventImportClient() {
                           placeholder="市区町村"
                         />
                       </td>
-                      {/* 会場 */}
                       <td className="px-2 py-1">
                         <input
                           type="text"
@@ -417,7 +400,6 @@ export function EventImportClient() {
                           placeholder="会場名"
                         />
                       </td>
-                      {/* 入場料 */}
                       <td className="px-2 py-1">
                         <input
                           type="text"
@@ -427,7 +409,6 @@ export function EventImportClient() {
                           placeholder="無料/有料"
                         />
                       </td>
-                      {/* 即売 */}
                       <td className="px-2 py-1 text-center">
                         <input
                           type="checkbox"
@@ -436,7 +417,6 @@ export function EventImportClient() {
                           className="w-4 h-4"
                         />
                       </td>
-                      {/* 操作 */}
                       <td className="px-2 py-1">
                         <div className="flex items-center gap-1">
                           <button
@@ -473,7 +453,6 @@ export function EventImportClient() {
                   } ${!event.startDate ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-start gap-3">
-                    {/* チェックボックス */}
                     <input
                       type="checkbox"
                       checked={selectedIds.has(event.id)}
@@ -482,7 +461,6 @@ export function EventImportClient() {
                       className="w-4 h-4 mt-1"
                     />
 
-                    {/* イベント情報 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-medium text-sm">{event.title}</h3>
@@ -564,14 +542,12 @@ export function EventImportClient() {
         </div>
       )}
 
-      {/* 空の状態 */}
       {!isScraping && events.length === 0 && (
         <div className="bg-card rounded-lg border p-8 text-center text-muted-foreground">
           <p>「イベント情報を取得」ボタンを押してイベントを取得してください</p>
         </div>
       )}
 
-      {/* 編集モーダル */}
       <EventEditFormModal
         event={editingEvent}
         onSave={handleUpdateEvent}

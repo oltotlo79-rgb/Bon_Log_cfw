@@ -1,20 +1,11 @@
-/**
- * @file 通報アクションドロップダウンコンポーネント
- * @description 通報管理テーブルの各行で使用されるドロップダウンメニュー。
- *              ステータス変更、通報対象の削除、通報レコードの削除などの操作を提供する。
- */
-
 'use client'
 
-// ReactのuseStateとuseRefフック（状態管理とDOM参照用）
 import { useState, useRef } from 'react'
-// Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
-// Next.jsのLinkコンポーネント（対象確認リンク用）
 import Link from 'next/link'
-// 通報関連のServer Action（ステータス更新、コンテンツ削除、通報削除）
 import { updateReportStatus, deleteReportedContent, deleteReport } from '@/lib/actions/report'
 import { REPORT_DROPDOWN_DIRECTION_THRESHOLD } from '@/lib/constants/limits'
+import { buildPostPath, buildEventPath, buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 import { useToast } from '@/hooks/use-toast'
 
 /**
@@ -32,9 +23,6 @@ function MoreVerticalIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * ReportActionsDropdownコンポーネントのProps型定義
- */
 interface ReportActionsDropdownProps {
   /** 操作対象の通報ID */
   reportId: string
@@ -156,13 +144,13 @@ export function ReportActionsDropdown({
   const getTargetLink = () => {
     switch (targetType) {
       case 'post':
-        return `/posts/${targetId}`
+        return buildPostPath(targetId)
       case 'event':
-        return `/events/${targetId}`
+        return buildEventPath(targetId)
       case 'shop':
-        return `/shops/${targetId}`
+        return buildShopPath(targetId)
       case 'user':
-        return `/users/${targetId}`
+        return buildUserPath(targetId)
       default:
         return null
     }

@@ -1,6 +1,10 @@
 import { vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
+const mockUserFindUnique = vi.fn()
+vi.mock('@/lib/db', () => ({
+  prisma: { user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) } },
+}))
 vi.mock('@/lib/auth', () => ({ auth: vi.fn() }))
 vi.mock('@/lib/actions/post', () => ({ getPost: vi.fn() }))
 vi.mock('@/lib/actions/comment', () => ({
@@ -128,6 +132,8 @@ describe('generateMetadata for posts', async () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    // 既定では公開・非停止ユーザー（noindex なし）
+    mockUserFindUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
     const mod = await import('@/app/(main)/posts/[id]/page')
     generateMetadata = mod.generateMetadata
   })
@@ -136,7 +142,7 @@ describe('generateMetadata for posts', async () => {
     mockGetPost.mockResolvedValue({ success: true, data: { post: makePost() } } as never)
 
     const result = await generateMetadata({ params: Promise.resolve({ id: 'post-1' }) })
-    expect(result.title).toBe('Authorさんの投稿')
+    expect(result.title).toBe('Authorさんの投稿 | BON-LOG')
   })
 
   it('returns fallback when not found', async () => {
@@ -144,5 +150,37 @@ describe('generateMetadata for posts', async () => {
 
     const result = await generateMetadata({ params: Promise.resolve({ id: 'x' }) })
     expect(result.title).toBe('投稿が見つかりません')
+  })
+
+  it('公開ユーザーの投稿は noindex を設定しない', async () => {
+    mockGetPost.mockResolvedValue({ success: true, data: { post: makePost() } } as never)
+    mockUserFindUnique.mockResolvedValueOnce({ isPublic: true, isSuspended: false })
+
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'post-1' }) })
+    expect(result.robots).toBeUndefined()
+  })
+
+  it('非公開ユーザーの投稿は noindex を設定する', async () => {
+    mockGetPost.mockResolvedValue({ success: true, data: { post: makePost() } } as never)
+    mockUserFindUnique.mockResolvedValueOnce({ isPublic: false, isSuspended: false })
+
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'post-1' }) })
+    expect(result.robots).toEqual({ index: false, follow: false })
+  })
+
+  it('停止ユーザーの投稿は noindex を設定する', async () => {
+    mockGetPost.mockResolvedValue({ success: true, data: { post: makePost() } } as never)
+    mockUserFindUnique.mockResolvedValueOnce({ isPublic: true, isSuspended: true })
+
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'post-1' }) })
+    expect(result.robots).toEqual({ index: false, follow: false })
+  })
+
+  it('著者が取得できない場合も安全側で noindex にする', async () => {
+    mockGetPost.mockResolvedValue({ success: true, data: { post: makePost() } } as never)
+    mockUserFindUnique.mockResolvedValueOnce(null)
+
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'post-1' }) })
+    expect(result.robots).toEqual({ index: false, follow: false })
   })
 })

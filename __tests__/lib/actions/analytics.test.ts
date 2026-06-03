@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { vi } from 'vitest'
-import { createMockPrismaClient, mockUser, mockPost, mockUserAnalytics } from '../../utils/test-utils'
+import { createMockPrismaClient, mockUser, mockPost } from '../../utils/test-utils'
 import type { ActionResult } from '@/types/action-result'
 
 /**
@@ -320,94 +320,6 @@ describe('Analytics Actions', async () => {
   })
 
   // ============================================================
-  // recordProfileView
-  // ============================================================
-
-  describe('recordProfileView', async () => {
-    it('プロフィール閲覧を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordProfileView } = await import('@/lib/actions/analytics')
-      await recordProfileView(mockUser.id)
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('Database error'))
-
-      const { recordProfileView } = await import('@/lib/actions/analytics')
-      await expect(recordProfileView(mockUser.id)).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
-  // recordPostView
-  // ============================================================
-
-  describe('recordPostView', async () => {
-    it('投稿閲覧を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordPostView } = await import('@/lib/actions/analytics')
-      await recordPostView(mockUser.id)
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('Database error'))
-
-      const { recordPostView } = await import('@/lib/actions/analytics')
-      await expect(recordPostView(mockUser.id)).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
-  // recordLikeReceived
-  // ============================================================
-
-  describe('recordLikeReceived', async () => {
-    it('いいね受信を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordLikeReceived } = await import('@/lib/actions/analytics')
-      await recordLikeReceived(mockUser.id)
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('Database error'))
-
-      const { recordLikeReceived } = await import('@/lib/actions/analytics')
-      await expect(recordLikeReceived(mockUser.id)).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
-  // recordNewFollower
-  // ============================================================
-
-  describe('recordNewFollower', async () => {
-    it('フォロワー増加を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordNewFollower } = await import('@/lib/actions/analytics')
-      await recordNewFollower(mockUser.id)
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('Database error'))
-
-      const { recordNewFollower } = await import('@/lib/actions/analytics')
-      await expect(recordNewFollower(mockUser.id)).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
   // getDetailedAnalytics
   // ============================================================
 
@@ -518,7 +430,7 @@ describe('Analytics Actions', async () => {
       expect(result.dailyData).toBeDefined()
       if (result.dailyData) {
         for (let i = 1; i < result.dailyData.length; i++) {
-          expect(result.dailyData[i].date >= result.dailyData[i - 1].date).toBe(true)
+          expect(result.dailyData[i]!.date >= result.dailyData[i - 1]!.date).toBe(true)
         }
       }
     })
@@ -669,6 +581,311 @@ describe('Analytics Actions', async () => {
       const result = unwrap(await getKeywordAnalytics(30))
 
       expect(result.keywords).toBeDefined()
+    })
+  })
+
+  // ============================================================
+  // getGenrePerformance
+  // ============================================================
+
+  describe('getGenrePerformance', async () => {
+    it('ジャンル別パフォーマンスを取得できる', async () => {
+      mockPrisma.postGenre.findMany.mockResolvedValueOnce([
+        {
+          genre: { id: 'g1', name: '松柏類' },
+          post: { _count: { likes: 10, comments: 4 } },
+        },
+        {
+          genre: { id: 'g1', name: '松柏類' },
+          post: { _count: { likes: 6, comments: 2 } },
+        },
+        {
+          genre: { id: 'g2', name: '雑木類' },
+          post: { _count: { likes: 4, comments: 1 } },
+        },
+      ])
+
+      const { getGenrePerformance } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getGenrePerformance(30))
+
+      expect(result.genres).toBeDefined()
+      expect(result.genres!.length).toBe(2)
+      const matsu = result.genres!.find(g => g.name === '松柏類')!
+      expect(matsu.postCount).toBe(2)
+      // (10+6)/2 = 8, (4+2)/2 = 3, ((10+6)+(4+2))/2 = 11
+      expect(matsu.avgLikes).toBe(8)
+      expect(matsu.avgComments).toBe(3)
+      expect(matsu.avgEngagement).toBe(11)
+    })
+
+    it('avgEngagement の降順でソートされる', async () => {
+      mockPrisma.postGenre.findMany.mockResolvedValueOnce([
+        { genre: { id: 'low', name: 'Low' }, post: { _count: { likes: 1, comments: 0 } } },
+        { genre: { id: 'high', name: 'High' }, post: { _count: { likes: 100, comments: 50 } } },
+        { genre: { id: 'mid', name: 'Mid' }, post: { _count: { likes: 10, comments: 5 } } },
+      ])
+
+      const { getGenrePerformance } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getGenrePerformance(30))
+
+      expect(result.genres!.map(g => g.name)).toEqual(['High', 'Mid', 'Low'])
+    })
+
+    it('GENRE_PERFORMANCE_LIMIT (10) を超える件数は切り捨てられる', async () => {
+      const many = Array.from({ length: 15 }, (_, i) => ({
+        genre: { id: `g${i}`, name: `Genre ${i}` },
+        post: { _count: { likes: 15 - i, comments: 0 } },
+      }))
+      mockPrisma.postGenre.findMany.mockResolvedValueOnce(many)
+
+      const { getGenrePerformance } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getGenrePerformance(30))
+
+      expect(result.genres!.length).toBe(10)
+    })
+
+    it('投稿がない場合は空配列を返す', async () => {
+      mockPrisma.postGenre.findMany.mockResolvedValueOnce([])
+
+      const { getGenrePerformance } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getGenrePerformance(30))
+
+      expect(result.genres).toEqual([])
+    })
+
+    it('未認証の場合、エラーを返す', async () => {
+      mockAuth.mockResolvedValueOnce(null)
+
+      const { getGenrePerformance } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getGenrePerformance())
+
+      expect(result).toMatchObject({ error: '認証が必要です' })
+    })
+
+    it('無料会員の場合、エラーを返す', async () => {
+      mockIsPremiumUser.mockResolvedValueOnce(false)
+
+      const { getGenrePerformance } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getGenrePerformance())
+
+      expect(result).toMatchObject({ error: 'プレミアム会員限定機能です' })
+    })
+  })
+
+  // ============================================================
+  // getFollowerGrowth
+  // ============================================================
+
+  describe('getFollowerGrowth', async () => {
+    it('フォロワー成長を取得できる', async () => {
+      // 期間内の新規フォロワーが range に確実に入るよう、3〜5日前の日付を生成
+      const days = 30
+      const dayAgo = (n: number) => {
+        const d = new Date()
+        d.setDate(d.getDate() - n)
+        return d
+      }
+      mockPrisma.follow.count.mockResolvedValueOnce(100)
+      mockPrisma.follow.findMany.mockResolvedValueOnce([
+        { createdAt: dayAgo(5) },
+        { createdAt: dayAgo(5) },
+        { createdAt: dayAgo(3) },
+      ])
+
+      const { getFollowerGrowth } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getFollowerGrowth(days))
+
+      expect(result.currentFollowers).toBe(100)
+      expect(result.totalNewInPeriod).toBe(3)
+      expect(result.growth).toBeDefined()
+      // 期間日数ぶんの daily エントリ
+      expect(result.growth!.length).toBe(days)
+      // 最後の日の totalFollowers が currentFollowers と一致する
+      // (runningTotal = 100-3 = 97 から始まり、+2 +1 で 100 に到達)
+      const last = result.growth![result.growth!.length - 1]!
+      expect(last.totalFollowers).toBe(100)
+    })
+
+    it('runningTotal は新規フォロワーの累積を正しく反映する', async () => {
+      const days = 7
+      const dayAgo = (n: number) => {
+        const d = new Date()
+        d.setDate(d.getDate() - n)
+        return d
+      }
+      mockPrisma.follow.count.mockResolvedValueOnce(50)
+      // 6日前に2人、4日前に1人
+      mockPrisma.follow.findMany.mockResolvedValueOnce([
+        { createdAt: dayAgo(6) },
+        { createdAt: dayAgo(6) },
+        { createdAt: dayAgo(4) },
+      ])
+
+      const { getFollowerGrowth } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getFollowerGrowth(days))
+
+      // runningTotal は単調非減少
+      const totals = result.growth!.map(g => g.totalFollowers)
+      for (let i = 1; i < totals.length; i++) {
+        expect(totals[i]!).toBeGreaterThanOrEqual(totals[i - 1]!)
+      }
+      // 新規合計と一致
+      const newSum = result.growth!.reduce((s, g) => s + g.newFollowers, 0)
+      expect(newSum).toBe(3)
+    })
+
+    it('フォロワーがいない場合は currentFollowers が 0', async () => {
+      mockPrisma.follow.count.mockResolvedValueOnce(0)
+      mockPrisma.follow.findMany.mockResolvedValueOnce([])
+
+      const { getFollowerGrowth } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getFollowerGrowth(30))
+
+      expect(result.currentFollowers).toBe(0)
+      expect(result.totalNewInPeriod).toBe(0)
+      expect(result.growth!.every(g => g.newFollowers === 0 && g.totalFollowers === 0)).toBe(true)
+    })
+
+    it('期間内に新規フォロワーがいない既存フォロワー保持', async () => {
+      mockPrisma.follow.count.mockResolvedValueOnce(42)
+      mockPrisma.follow.findMany.mockResolvedValueOnce([])
+
+      const { getFollowerGrowth } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getFollowerGrowth(30))
+
+      expect(result.currentFollowers).toBe(42)
+      expect(result.totalNewInPeriod).toBe(0)
+      // 全日 totalFollowers = 42 で一定
+      expect(result.growth!.every(g => g.totalFollowers === 42 && g.newFollowers === 0)).toBe(true)
+    })
+
+    it('未認証の場合、エラーを返す', async () => {
+      mockAuth.mockResolvedValueOnce(null)
+
+      const { getFollowerGrowth } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getFollowerGrowth())
+
+      expect(result).toMatchObject({ error: '認証が必要です' })
+    })
+
+    it('無料会員の場合、エラーを返す', async () => {
+      mockIsPremiumUser.mockResolvedValueOnce(false)
+
+      const { getFollowerGrowth } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getFollowerGrowth())
+
+      expect(result).toMatchObject({ error: 'プレミアム会員限定機能です' })
+    })
+  })
+
+  // ============================================================
+  // getPeriodComparison
+  // ============================================================
+
+  describe('getPeriodComparison', async () => {
+    // current: posts/likes/comments/follows, previous: posts/likes/comments/follows の順で
+    // Promise.all されるため、count モックは 8 回 mockResolvedValueOnce を積む。
+    // 順序: currentPosts, previousPosts, currentLikes, previousLikes,
+    //       currentComments, previousComments, currentFollows, previousFollows
+    function stubCounts(values: {
+      posts: [number, number]
+      likes: [number, number]
+      comments: [number, number]
+      follows: [number, number]
+    }) {
+      mockPrisma.post.count
+        .mockResolvedValueOnce(values.posts[0])
+        .mockResolvedValueOnce(values.posts[1])
+      mockPrisma.like.count
+        .mockResolvedValueOnce(values.likes[0])
+        .mockResolvedValueOnce(values.likes[1])
+      mockPrisma.comment.count
+        .mockResolvedValueOnce(values.comments[0])
+        .mockResolvedValueOnce(values.comments[1])
+      mockPrisma.follow.count
+        .mockResolvedValueOnce(values.follows[0])
+        .mockResolvedValueOnce(values.follows[1])
+    }
+
+    it('期間比較データを取得できる (増加・減少・無変化を含む)', async () => {
+      stubCounts({
+        posts: [20, 10],     // +100%
+        likes: [50, 100],    // -50%
+        comments: [10, 10],  // 0%
+        follows: [8, 4],     // +100%
+      })
+
+      const { getPeriodComparison } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getPeriodComparison(30))
+
+      expect(result.posts).toEqual({ current: 20, previous: 10, change: 100 })
+      expect(result.likes).toEqual({ current: 50, previous: 100, change: -50 })
+      expect(result.comments).toEqual({ current: 10, previous: 10, change: 0 })
+      expect(result.followers).toEqual({ current: 8, previous: 4, change: 100 })
+    })
+
+    it('前期 0 で現期 > 0 の場合は change = 100', async () => {
+      stubCounts({
+        posts: [5, 0],
+        likes: [0, 0],
+        comments: [0, 0],
+        follows: [0, 0],
+      })
+
+      const { getPeriodComparison } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getPeriodComparison(30))
+
+      expect(result.posts.change).toBe(100)
+    })
+
+    it('前期も現期も 0 の場合は change = null', async () => {
+      stubCounts({
+        posts: [0, 0],
+        likes: [0, 0],
+        comments: [0, 0],
+        follows: [0, 0],
+      })
+
+      const { getPeriodComparison } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getPeriodComparison(30))
+
+      expect(result.posts.change).toBeNull()
+      expect(result.likes.change).toBeNull()
+      expect(result.comments.change).toBeNull()
+      expect(result.followers.change).toBeNull()
+    })
+
+    it('小数点以下を四捨五入する', async () => {
+      stubCounts({
+        // (current - previous) / previous = 1/3 = 0.333..., *100 = 33.33..., round = 33
+        posts: [4, 3],
+        likes: [0, 0],
+        comments: [0, 0],
+        follows: [0, 0],
+      })
+
+      const { getPeriodComparison } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getPeriodComparison(30))
+
+      expect(result.posts.change).toBe(33)
+    })
+
+    it('未認証の場合、エラーを返す', async () => {
+      mockAuth.mockResolvedValueOnce(null)
+
+      const { getPeriodComparison } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getPeriodComparison())
+
+      expect(result).toMatchObject({ error: '認証が必要です' })
+    })
+
+    it('無料会員の場合、エラーを返す', async () => {
+      mockIsPremiumUser.mockResolvedValueOnce(false)
+
+      const { getPeriodComparison } = await import('@/lib/actions/analytics')
+      const result = unwrap(await getPeriodComparison())
+
+      expect(result).toMatchObject({ error: 'プレミアム会員限定機能です' })
     })
   })
 })

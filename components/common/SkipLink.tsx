@@ -10,22 +10,6 @@
 
 'use client'
 
-/**
- * SkipLinkコンポーネント
- *
- * 通常は非表示で、Tabキーでフォーカスされた時のみ表示される
- * クリックまたはEnterキーでメインコンテンツにジャンプ
- *
- * @example
- * ```tsx
- * // app/layout.tsx
- * <body>
- *   <SkipLink />
- *   <header>...</header>
- *   <main id="main-content">...</main>
- * </body>
- * ```
- */
 export function SkipLink() {
   return (
     <a

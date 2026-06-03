@@ -23,9 +23,7 @@ async function fetchActiveAnnouncements() {
       take: ACTIVE_ANNOUNCEMENTS_LIMIT,
     })
   } catch (error) {
-    logger.error('getActiveAnnouncements failed', {
-      error: error instanceof Error ? error.message : String(error),
-    })
+    logger.error('getActiveAnnouncements failed', error)
     return []
   }
 }

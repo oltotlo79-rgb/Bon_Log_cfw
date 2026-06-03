@@ -60,13 +60,13 @@ describe('IngredientDetailPage', () => {
   it('generateMetadata: 原体が見つかった場合はタイトルを返す', async () => {
     mockGetActiveIngredientBySlug.mockResolvedValue(makeIngredient())
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'triflumizole' }) })
-    expect(meta.title).toBe('トリフルミゾール - 原体詳細 - BON-LOG')
+    expect(meta.title).toBe('トリフルミゾール - 原体詳細')
   })
 
   it('generateMetadata: 原体が見つからない場合はフォールバックタイトル', async () => {
     mockGetActiveIngredientBySlug.mockResolvedValue(null)
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'unknown' }) })
-    expect(meta.title).toBe('原体が見つかりません - BON-LOG')
+    expect(meta.title).toBe('原体が見つかりません')
   })
 
   // --- notFound ---

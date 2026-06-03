@@ -81,7 +81,6 @@ export default async function MonitoringPage() {
         </p>
       </div>
 
-      {/* インフラヘルス */}
       <section>
         <h2 className="text-lg font-semibold mb-3">インフラストラクチャ</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -98,7 +97,6 @@ export default async function MonitoringPage() {
         </div>
       </section>
 
-      {/* アプリケーション統計 */}
       <section>
         <h2 className="text-lg font-semibold mb-3">アプリケーション統計</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -123,7 +121,6 @@ export default async function MonitoringPage() {
         </div>
       </section>
 
-      {/* 外部監視セットアップガイド */}
       <section>
         <h2 className="text-lg font-semibold mb-3">外部監視</h2>
         <div className="bg-card rounded-lg border p-4 space-y-3">

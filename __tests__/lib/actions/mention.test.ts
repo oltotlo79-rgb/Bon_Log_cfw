@@ -126,7 +126,7 @@ describe('Mention Actions', async () => {
       ]
       mockPrisma.user.findMany.mockResolvedValueOnce(mockUsers)
 
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       // 新形式: <@userId>
       await notifyMentionedUsers(mockPost.id, '<@mentioned-user-1> <@mentioned-user-2> こんにちは', mockUser.id)
 
@@ -142,7 +142,7 @@ describe('Mention Actions', async () => {
     })
 
     it('contentがnullの場合、何もしない', async () => {
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       await notifyMentionedUsers(mockPost.id, null, mockUser.id)
 
       expect(mockPrisma.user.findMany).not.toHaveBeenCalled()
@@ -150,7 +150,7 @@ describe('Mention Actions', async () => {
     })
 
     it('メンションがない場合、何もしない', async () => {
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       await notifyMentionedUsers(mockPost.id, 'メンションなしの投稿', mockUser.id)
 
       expect(mockPrisma.user.findMany).not.toHaveBeenCalled()
@@ -158,7 +158,7 @@ describe('Mention Actions', async () => {
     })
 
     it('旧形式の@mentionはメンションとして認識しない', async () => {
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       // 旧形式: @nickname（新システムでは認識しない）
       await notifyMentionedUsers(mockPost.id, '@nonexistent_user こんにちは', mockUser.id)
 
@@ -169,7 +169,7 @@ describe('Mention Actions', async () => {
     it('該当ユーザーが見つからない場合、通知を送信しない', async () => {
       mockPrisma.user.findMany.mockResolvedValueOnce([])
 
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       await notifyMentionedUsers(mockPost.id, '<@nonexistent-user> こんにちは', mockUser.id)
 
       expect(mockPrisma.notification.createMany).not.toHaveBeenCalled()
@@ -178,7 +178,7 @@ describe('Mention Actions', async () => {
     it('エラーが発生しても例外をスローしない', async () => {
       mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Database error'))
 
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       await expect(notifyMentionedUsers(mockPost.id, '<@user1>', mockUser.id)).resolves.not.toThrow()
     })
 
@@ -187,7 +187,7 @@ describe('Mention Actions', async () => {
       mockPrisma.user.findMany.mockResolvedValueOnce(mockUsers)
       mockPrisma.notification.createMany.mockResolvedValueOnce({ count: 1 })
 
-      const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+      const { notifyMentionedUsers } = await import('@/lib/services/mention')
       // 同じIDへの重複メンション
       await notifyMentionedUsers(mockPost.id, '<@user1> <@user1> <@user1> こんにちは', mockUser.id)
 
@@ -302,7 +302,7 @@ describe('Mention Actions', async () => {
       ]
       mockPrisma.user.findMany.mockResolvedValueOnce(mockUsers)
 
-      const { resolveMentionUsers } = await import('@/lib/actions/mention')
+      const { resolveMentionUsers } = await import('@/lib/services/mention')
       const result = await resolveMentionUsers(['user-1', 'user-2'])
 
       expect(result.get('user-1')).toEqual({
@@ -318,7 +318,7 @@ describe('Mention Actions', async () => {
     })
 
     it('空の配列の場合、空のMapを返す', async () => {
-      const { resolveMentionUsers } = await import('@/lib/actions/mention')
+      const { resolveMentionUsers } = await import('@/lib/services/mention')
       const result = await resolveMentionUsers([])
 
       expect(result.size).toBe(0)
@@ -329,7 +329,7 @@ describe('Mention Actions', async () => {
         { id: 'user-1', nickname: 'user1', avatarUrl: null },
       ])
 
-      const { resolveMentionUsers } = await import('@/lib/actions/mention')
+      const { resolveMentionUsers } = await import('@/lib/services/mention')
       const result = await resolveMentionUsers(['user-1', 'nonexistent'])
 
       expect(result.size).toBe(1)
@@ -340,7 +340,7 @@ describe('Mention Actions', async () => {
     it('エラーが発生した場合、空のMapを返す', async () => {
       mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Database error'))
 
-      const { resolveMentionUsers } = await import('@/lib/actions/mention')
+      const { resolveMentionUsers } = await import('@/lib/services/mention')
       const result = await resolveMentionUsers(['user-1'])
 
       expect(result.size).toBe(0)

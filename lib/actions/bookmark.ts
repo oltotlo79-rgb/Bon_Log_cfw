@@ -14,11 +14,13 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireActiveNonGuestUser, requireAuth, actionError, actionSuccess, enforceUserRateLimit } from '@/lib/actions/utils'
 import logger from '@/lib/logger'
-import { ERR_BOOKMARK_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ERR_BOOKMARK_FAILED, ERR_INVALID_INPUT, ERR_POST_NOT_FOUND } from '@/lib/constants/errors'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { ROUTE_BOOKMARKS } from '@/lib/constants/routes'
 import { buildPostPath } from '@/lib/constants/path-builders'
+import { normalizeCursorPagination } from './pagination'
 import { POST_LIST_INCLUDE, formatPostForClient } from './post-include'
+import { assertCanViewPost, visiblePostWhere } from '@/lib/services/post-visibility'
 
 const postIdSchema = z.string().min(1)
 
@@ -37,6 +39,11 @@ export async function toggleBookmark(postId: string) {
 
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
+
+  // 対象リソース認可: 見えない投稿（非表示/非公開/停止著者）はブックマークできない
+  if (!(await assertCanViewPost(userId, postId))) {
+    return actionError(ERR_POST_NOT_FOUND)
+  }
 
   try {
     // ブックマーク済みチェック + 作成/削除をトランザクションで原子的に実行
@@ -103,18 +110,21 @@ export async function getBookmarkedPosts(cursor?: string, limit = DEFAULT_PAGE_L
 
   const currentUserId = userId
 
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
   try {
     const bookmarks = await prisma.bookmark.findMany({
-      where: { userId: currentUserId },
+      // ブックマーク後に対象が非表示/非公開/停止著者になった投稿は一覧から除外する
+      where: { userId: currentUserId, post: visiblePostWhere(currentUserId) },
       include: {
         post: {
           include: POST_LIST_INCLUDE,
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor && {
-        cursor: { id: cursor },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && {
+        cursor: { id: safeCursor },
         skip: 1,
       }),
     })
@@ -144,7 +154,7 @@ export async function getBookmarkedPosts(cursor?: string, limit = DEFAULT_PAGE_L
       formatPostForClient(bookmark.post, likedPostIds, bookmarkedSet),
     )
 
-    const hasMore = bookmarks.length === limit
+    const hasMore = bookmarks.length === safeLimit
 
     return {
       posts,

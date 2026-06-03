@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast'
 import { MSG_DRAFT_DELETE_FAILED, MSG_DRAFT_POST_FAILED } from '@/lib/constants/messages'
 import { DRAFT_CARD_MEDIA_PREVIEW_COUNT } from '@/lib/constants/limits'
 import { ROUTE_FEED } from '@/lib/constants/routes'
+import { buildDraftEditPath } from '@/lib/constants/path-builders'
 
 type DraftMedia = {
   id: string
@@ -153,7 +154,7 @@ export function DraftCard({ draft }: DraftCardProps) {
       <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between">
         <div className="flex gap-2">
           <Link
-            href={`/drafts/${draft.id}/edit`}
+            href={buildDraftEditPath(draft.id)}
             className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg hover:bg-muted transition-colors"
           >
             <PencilIcon className="w-4 h-4" />

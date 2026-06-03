@@ -20,6 +20,9 @@ export function isAnimationPref(value: string): value is AnimationPref {
 
 export const BG_ANIMATION_STORAGE_KEY = 'bg-animation-type'
 
+/** 旧バージョンの localStorage キー。後方互換マイグレーションのためにのみ参照する。 */
+const LEGACY_ANIMATION_STORAGE_KEY = 'sakura-petals-enabled'
+
 /** 設定変更時に発火するカスタムイベント名（同一タブで即時反映するため） */
 export const BG_ANIMATION_CHANGE_EVENT = 'bg-animation-change'
 
@@ -50,12 +53,12 @@ export function getSeasonalAnimationType(): AnimationType {
 export function getBgAnimationPref(): AnimationPref {
   if (typeof window === 'undefined') return DEFAULT_PREF
 
-  // 旧キーからのマイグレーション
-  const oldStored = localStorage.getItem('sakura-petals-enabled')
+  // 旧キーに値が残っているユーザーは新キーへ移行してから読む（旧 true=seasonal / false=none）
+  const oldStored = localStorage.getItem(LEGACY_ANIMATION_STORAGE_KEY)
   if (oldStored !== null) {
     const pref: AnimationPref = oldStored === 'true' ? 'seasonal' : 'none'
     localStorage.setItem(BG_ANIMATION_STORAGE_KEY, pref)
-    localStorage.removeItem('sakura-petals-enabled')
+    localStorage.removeItem(LEGACY_ANIMATION_STORAGE_KEY)
     return pref
   }
 

@@ -178,6 +178,43 @@ export function parseCreatePostShape(
   }
 }
 
+export type UpdatePostValidatedData = {
+  content: string
+  genreIds: string[]
+  mediaUrls: string[]
+  mediaTypes: MediaType[]
+}
+
+/**
+ * 投稿編集の業務ルール検証。作成版から「1 日投稿上限」と「投票検証」を除く。
+ *
+ * Why no daily limit: 編集は新規投稿ではないため `checkDailyPostLimit` を消費させない。
+ * Why no poll: 既存の投票は票が紐づくため編集対象外（content / genre / media のみ差し替える）。
+ */
+export async function applyUpdatePostBusinessRules(
+  shape: CreatePostShapeData,
+  userId: string,
+): Promise<{ ok: true; data: UpdatePostValidatedData } | ValidationFailure> {
+  const { content, genreIds, mediaUrls, mediaTypes } = shape
+
+  const limits = await getMembershipLimits(userId)
+
+  if (!content && mediaUrls.length === 0) {
+    return { ok: false, result: actionError(ERR_CONTENT_REQUIRED) }
+  }
+  if (content && content.length > limits.maxPostLength) {
+    return { ok: false, result: actionError(ERR_POST_CONTENT_TOO_LONG(limits.maxPostLength)) }
+  }
+  if (genreIds.length > MAX_GENRES_PER_POST) {
+    return { ok: false, result: actionError(ERR_GENRE_LIMIT(MAX_GENRES_PER_POST)) }
+  }
+
+  const mediaValidation = await validateMediaCounts(mediaUrls, mediaTypes, limits)
+  if (mediaValidation && !mediaValidation.success) return { ok: false, result: mediaValidation }
+
+  return { ok: true, data: { content, genreIds, mediaUrls, mediaTypes } }
+}
+
 /**
  * 業務ルール検証（プレミアム制限・コンテンツ必須・1 日上限・投票検証）。
  * 形状検証済みの値を受け取り、DB / Redis を叩いてユーザー固有の制限を確認する。

@@ -32,9 +32,15 @@ vi.mock('@/lib/storage', () => ({
   uploadFile: (...args: unknown[]) => mockUploadFile(...args),
 }))
 
+const mockDeleteMediaFiles = vi.fn()
+vi.mock('@/lib/services/media-cleanup', () => ({
+  deleteMediaFiles: (...args: unknown[]) => mockDeleteMediaFiles(...args),
+}))
+
 // ファイル検証モック（マジックバイト検証は別途 lib/file-validation.test.ts でカバー）
 vi.mock('@/lib/file-validation', () => ({
   validateImageFile: vi.fn().mockReturnValue({ valid: true, detectedType: 'image/jpeg' }),
+  validateVideoFile: vi.fn().mockReturnValue({ valid: true, detectedType: 'video/mp4' }),
   generateSafeFileName: vi.fn((name: string) => name),
 }))
 
@@ -70,7 +76,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
 }))
 
 // メンションモック
-vi.mock('@/lib/actions/mention', () => ({
+vi.mock('@/lib/services/mention', () => ({
   notifyMentionedUsers: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -92,7 +98,7 @@ describe('Post Actions', async () => {
       user: { id: mockUser.id },
     })
     // isSuspended check用
-    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
   })
 
   describe('createPost', async () => {
@@ -195,10 +201,11 @@ describe('Post Actions', async () => {
       expect('error' in result && result.error).toBe('削除権限がありません')
     })
 
-    it('自分の投稿を削除できる', async () => {
+    it('自分の投稿を削除でき、メディア実体も回収する', async () => {
       mockPrisma.post.findUnique.mockResolvedValue({
         ...mockPost,
         userId: mockUser.id,
+        media: [{ url: 'https://cdn/post-a.webp' }, { url: 'https://cdn/post-b.webp' }],
       })
       mockPrisma.post.delete.mockResolvedValue(mockPost)
 
@@ -206,6 +213,10 @@ describe('Post Actions', async () => {
       const result = await deletePost('post-id')
 
       expect(result).toEqual({ success: true })
+      expect(mockDeleteMediaFiles).toHaveBeenCalledWith([
+        'https://cdn/post-a.webp',
+        'https://cdn/post-b.webp',
+      ])
     })
 
     it('DBエラー時はエラーを返す', async () => {
@@ -250,6 +261,69 @@ describe('Post Actions', async () => {
 
       expect(result.success).toBe(false)
       expect(!result.success && result.error).toBe('投稿が見つかりません')
+    })
+  })
+
+  describe('getPost - 公開範囲ガード', async () => {
+    function buildPost(authorId: string) {
+      return {
+        ...mockPost,
+        userId: authorId,
+        user: { ...mockPost.user, id: authorId },
+        _count: { likes: 0, comments: 0 },
+        genres: [],
+        quotePost: null,
+        repostPost: null,
+      }
+    }
+
+    beforeEach(() => {
+      mockAuth.mockResolvedValue({ user: { id: 'viewer-1' } })
+      mockPrisma.like.findFirst.mockResolvedValue(null)
+      mockPrisma.bookmark.findUnique.mockResolvedValue(null)
+    })
+
+    it('公開ユーザーの投稿は閲覧できる', async () => {
+      mockPrisma.post.findUnique.mockResolvedValue(buildPost('author-1'))
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+      const { getPost } = await import('@/lib/actions/post')
+      const result = await getPost('post-id')
+      expect(result.success).toBe(true)
+    })
+
+    it('停止ユーザーの投稿は本人以外には not found になる', async () => {
+      mockPrisma.post.findUnique.mockResolvedValue(buildPost('author-1'))
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: true })
+      const { getPost } = await import('@/lib/actions/post')
+      const result = await getPost('post-id')
+      expect(result.success).toBe(false)
+      expect(!result.success && result.error).toBe('投稿が見つかりません')
+    })
+
+    it('非公開ユーザーの投稿はフォローしていなければ not found になる', async () => {
+      mockPrisma.post.findUnique.mockResolvedValue(buildPost('author-1'))
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: false, isSuspended: false })
+      mockPrisma.follow.findUnique.mockResolvedValue(null)
+      const { getPost } = await import('@/lib/actions/post')
+      const result = await getPost('post-id')
+      expect(result.success).toBe(false)
+    })
+
+    it('非公開ユーザーでもフォロワーは閲覧できる', async () => {
+      mockPrisma.post.findUnique.mockResolvedValue(buildPost('author-1'))
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: false, isSuspended: false })
+      mockPrisma.follow.findUnique.mockResolvedValue({ followerId: 'viewer-1' })
+      const { getPost } = await import('@/lib/actions/post')
+      const result = await getPost('post-id')
+      expect(result.success).toBe(true)
+    })
+
+    it('著者本人は非公開/停止でも閲覧できる（owner bypass）', async () => {
+      mockPrisma.post.findUnique.mockResolvedValue(buildPost('viewer-1'))
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: false, isSuspended: true })
+      const { getPost } = await import('@/lib/actions/post')
+      const result = await getPost('post-id')
+      expect(result.success).toBe(true)
     })
   })
 
@@ -298,6 +372,23 @@ describe('Post Actions', async () => {
       expect(mockPrisma.post.findMany).toHaveBeenCalled()
     })
 
+    it('createdAt + id の決定的順序で取得する（cursor 安定化）', async () => {
+      mockPrisma.follow.findMany.mockResolvedValue([])
+      mockPrisma.block.findMany.mockResolvedValue([])
+      mockPrisma.mute.findMany.mockResolvedValue([])
+      mockPrisma.userHiddenPost.findMany.mockResolvedValue([])
+      mockPrisma.post.findMany.mockResolvedValue([])
+      mockPrisma.like.findMany.mockResolvedValue([])
+      mockPrisma.bookmark.findMany.mockResolvedValue([])
+
+      const { getPosts } = await import('@/lib/actions/post')
+      await getPosts()
+
+      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
+      )
+    })
+
     it('ページネーションが動作する', async () => {
       mockPrisma.post.findMany.mockResolvedValue([])
       mockPrisma.follow.findMany.mockResolvedValue([])
@@ -318,6 +409,20 @@ describe('Post Actions', async () => {
         })
       )
     })
+
+    it('未認証時は公開かつ非停止著者の投稿のみ取得する（M-1）', async () => {
+      mockAuth.mockResolvedValue(null)
+      mockPrisma.post.findMany.mockResolvedValue([])
+
+      const { getPosts } = await import('@/lib/actions/post')
+      await getPosts()
+
+      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isHidden: false, user: { isSuspended: false, OR: [{ isPublic: true }] } },
+        })
+      )
+    })
   })
 
   describe('createPost - 追加テスト', async () => {
@@ -335,7 +440,7 @@ describe('Post Actions', async () => {
     })
 
     it('レート制限に達した場合はエラーを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
 
       const { createPost } = await import('@/lib/actions/post')
@@ -349,7 +454,7 @@ describe('Post Actions', async () => {
     })
 
     it('ジャンルが3つを超える場合はエラーを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
 
       const { createPost } = await import('@/lib/actions/post')
       const formData = new FormData()
@@ -366,7 +471,7 @@ describe('Post Actions', async () => {
     })
 
     it('画像が上限を超える場合はエラーを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
 
       const { createPost } = await import('@/lib/actions/post')
       const formData = new FormData()
@@ -384,7 +489,7 @@ describe('Post Actions', async () => {
     })
 
     it('動画が上限を超える場合はエラーを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
 
       const { createPost } = await import('@/lib/actions/post')
       const formData = new FormData()
@@ -402,7 +507,7 @@ describe('Post Actions', async () => {
     })
 
     it('メディアのみの投稿も作成できる', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'media-only-post' })
 
@@ -419,7 +524,7 @@ describe('Post Actions', async () => {
     })
 
     it('エラー発生時はエラーメッセージを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockRejectedValue(new Error('Database error'))
 
@@ -462,7 +567,7 @@ describe('Post Actions', async () => {
 
     it('引用コメントが空の場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
 
       const { createQuotePost } = await import('@/lib/actions/post')
       const formData = new FormData()
@@ -475,7 +580,7 @@ describe('Post Actions', async () => {
 
     it('引用コメントが文字数制限を超える場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
 
       const { createQuotePost } = await import('@/lib/actions/post')
       const formData = new FormData()
@@ -488,7 +593,7 @@ describe('Post Actions', async () => {
 
     it('投稿上限に達した場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.count.mockResolvedValue(20)
 
       const { createQuotePost } = await import('@/lib/actions/post')
@@ -502,10 +607,10 @@ describe('Post Actions', async () => {
 
     it('正常に引用投稿を作成できる', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'quote-post-id' })
-      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id' })
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false, user: { isPublic: true, isSuspended: false } })
       mockPrisma.notification.create.mockResolvedValue({})
 
       const { createQuotePost } = await import('@/lib/actions/post')
@@ -521,7 +626,7 @@ describe('Post Actions', async () => {
 
     it('自分の投稿を引用した場合は通知が作成されない', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'quote-post-id' })
       mockPrisma.post.findUnique.mockResolvedValue({ userId: mockUser.id })
@@ -538,7 +643,7 @@ describe('Post Actions', async () => {
 
     it('レート制限に達した場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
 
       const { createQuotePost } = await import('@/lib/actions/post')
@@ -552,8 +657,9 @@ describe('Post Actions', async () => {
 
     it('DBエラー時はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false, user: { isPublic: true, isSuspended: false } })
       mockPrisma.post.create.mockRejectedValue(new Error('DB error'))
 
       const { createQuotePost } = await import('@/lib/actions/post')
@@ -563,6 +669,40 @@ describe('Post Actions', async () => {
       const result = await createQuotePost(formData, 'post-id')
 
       expect('error' in result && result.error).toBe('投稿の作成に失敗しました')
+    })
+
+    it('閲覧権限のない非公開著者の投稿は引用できない（可視性ガード）', async () => {
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.count.mockResolvedValue(0)
+      // 引用元は非公開著者・viewer は非フォロワー
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'private-author', isHidden: false, user: { isPublic: false, isSuspended: false } })
+      mockPrisma.follow.findUnique.mockResolvedValue(null)
+
+      const { createQuotePost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', '引用コメント')
+
+      const result = await createQuotePost(formData, 'post-id')
+
+      expect('error' in result && result.error).toBe('投稿が見つかりません')
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+    })
+
+    it('非表示(isHidden)の投稿は引用できない', async () => {
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: true, user: { isPublic: true, isSuspended: false } })
+
+      const { createQuotePost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', '引用コメント')
+
+      const result = await createQuotePost(formData, 'post-id')
+
+      expect('error' in result && result.error).toBe('投稿が見つかりません')
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
     })
   })
 
@@ -588,7 +728,7 @@ describe('Post Actions', async () => {
 
     it('既にリポスト済みの場合は削除する', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.findFirst.mockResolvedValue({ id: 'existing-repost-id' })
       mockPrisma.post.delete.mockResolvedValue({})
 
@@ -601,7 +741,7 @@ describe('Post Actions', async () => {
 
     it('投稿上限に達した場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.findFirst.mockResolvedValue(null)
       mockPrisma.post.count.mockResolvedValue(20)
 
@@ -613,11 +753,11 @@ describe('Post Actions', async () => {
 
     it('正常にリポストを作成できる', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.findFirst.mockResolvedValue(null)
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockResolvedValue({ id: 'repost-id' })
-      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id' })
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false, user: { isPublic: true, isSuspended: false } })
 
       const { createRepost } = await import('@/lib/actions/post')
       const result = await createRepost('post-id')
@@ -627,9 +767,26 @@ describe('Post Actions', async () => {
       expect(mockPrisma.$transaction).toHaveBeenCalled()
     })
 
+    it('競合で既にリポストが存在する場合は冪等に reposted:true を返し再作成しない', async () => {
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      // 1回目（トグル判定）は未リポスト、2回目（作成 tx 内の再確認）で別リクエストの作成を検出
+      mockPrisma.post.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'dup-repost' })
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false })
+      mockPrisma.post.create.mockResolvedValue({})
+
+      const { createRepost } = await import('@/lib/actions/post')
+      const result = await createRepost('post-id')
+
+      expect(result).toEqual({ success: true, data: { reposted: true } })
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+      expect(mockPrisma.notification.create).not.toHaveBeenCalled()
+    })
+
     it('自分の投稿をリポストした場合は通知が作成されない', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.findFirst.mockResolvedValue(null)
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockResolvedValue({ id: 'repost-id' })
@@ -644,11 +801,11 @@ describe('Post Actions', async () => {
 
     it('既に通知がある場合は重複して作成しない', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.findFirst.mockResolvedValue(null)
       mockPrisma.post.count.mockResolvedValue(0)
       mockPrisma.post.create.mockResolvedValue({ id: 'repost-id' })
-      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id' })
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false, user: { isPublic: true, isSuspended: false } })
 
       const { createRepost } = await import('@/lib/actions/post')
       const result = await createRepost('post-id')
@@ -660,7 +817,7 @@ describe('Post Actions', async () => {
 
     it('レート制限に達した場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
 
       const { createRepost } = await import('@/lib/actions/post')
@@ -671,15 +828,49 @@ describe('Post Actions', async () => {
 
     it('DBエラー時はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
       mockPrisma.post.findFirst.mockResolvedValue(null)
       mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false })
       mockPrisma.post.create.mockRejectedValue(new Error('DB error'))
 
       const { createRepost } = await import('@/lib/actions/post')
       const result = await createRepost('post-id')
 
       expect('error' in result && result.error).toBe('リポストに失敗しました')
+    })
+
+    it('閲覧権限のない非公開著者の投稿はリポストできない（可視性ガード）', async () => {
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      // 著者は非公開・viewer は非フォロワー（actor の停止チェックは isSuspended:false で通過）
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: false })
+      mockPrisma.post.findFirst.mockResolvedValue(null)
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'private-author', isHidden: false })
+      mockPrisma.follow.findUnique.mockResolvedValue(null)
+
+      const { createRepost } = await import('@/lib/actions/post')
+      const result = await createRepost('post-id')
+
+      expect('error' in result && result.error).toBe('投稿が見つかりません')
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+    })
+
+    it('unique 制約違反(P2002)は冪等に reposted:true を返す', async () => {
+      const { Prisma } = await import('@prisma/client')
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findFirst.mockResolvedValue(null)
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false })
+      mockPrisma.post.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: '6' }),
+      )
+
+      const { createRepost } = await import('@/lib/actions/post')
+      const result = await createRepost('post-id')
+
+      expect(result).toEqual({ success: true, data: { reposted: true } })
     })
   })
 
@@ -844,6 +1035,29 @@ describe('Post Actions', async () => {
       expect(result.success && result.data?.type).toBe('video')
     })
 
+    it('動画 magic byte 検証で valid:false が返ったらアップロード前に拒否する', async () => {
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockCheckUserRateLimit.mockResolvedValue({ success: true })
+      mockCheckDailyLimit.mockResolvedValue({ allowed: true, count: 0, limit: 50 })
+      // 偽装 video/mp4 (中身は別形式) を validateVideoFile が検出した想定
+      const { validateVideoFile } = await import('@/lib/file-validation')
+      vi.mocked(validateVideoFile).mockReturnValueOnce({
+        valid: false,
+        error: '動画ファイルとして認識できません',
+      })
+
+      const { uploadPostMedia } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      const file = new File(['fake content'], 'fake.mp4', { type: 'video/mp4' })
+      formData.append('file', file)
+
+      const result = await uploadPostMedia(formData)
+
+      // upload は呼ばれず、validation error を返す
+      expect(result.success).toBe(false)
+      expect(mockUploadFile).not.toHaveBeenCalled()
+    })
+
     it('アップロード失敗時はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
       mockCheckUserRateLimit.mockResolvedValue({ success: true })
@@ -862,6 +1076,11 @@ describe('Post Actions', async () => {
   })
 
   describe('getPostsByBonsai', async () => {
+    beforeEach(() => {
+      // マイ盆栽は所有者専用。閲覧者を所有者として扱い owner チェックを通過させる
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: mockUser.id })
+    })
+
     /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
     function unwrapOk<T>(result: { success: true; data?: T } | { success: false; error: string }): T {
       if (!result.success) throw new Error(`Expected success, got error: ${result.error}`)
@@ -886,7 +1105,7 @@ describe('Post Actions', async () => {
       expect(data.posts).toHaveLength(1)
       expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { bonsaiId: 'bonsai-1' },
+          where: { bonsaiId: 'bonsai-1', isHidden: false },
         })
       )
     })
@@ -1000,6 +1219,8 @@ describe('Post Actions', async () => {
         repostPost: null,
       }
       mockPrisma.post.findUnique.mockResolvedValue(fullPost)
+      // ネスト可視性判定(getVisiblePostIds)で引用元を可視として返す
+      mockPrisma.post.findMany.mockResolvedValue([{ id: 'quoted-post-id' }])
       mockPrisma.like.findFirst.mockResolvedValue(null)
       mockPrisma.bookmark.findUnique.mockResolvedValue(null)
 
@@ -1008,6 +1229,34 @@ describe('Post Actions', async () => {
 
       expect(result.success).toBe(true)
       expect(result.success && result.data?.post.quotePost).toBeDefined()
+    })
+
+    it('閲覧権限のない引用元は null に落とす（ネスト可視性ガード）', async () => {
+      const fullPost = {
+        ...mockPost,
+        _count: { likes: 0, comments: 0 },
+        genres: [],
+        quotePost: {
+          ...mockPost,
+          id: 'hidden-quote-id',
+          user: mockUser,
+          media: [],
+          genres: [],
+          _count: { likes: 0, comments: 0 },
+        },
+        repostPost: null,
+      }
+      mockPrisma.post.findUnique.mockResolvedValue(fullPost)
+      // getVisiblePostIds が引用元を不可視（空）として返す
+      mockPrisma.post.findMany.mockResolvedValue([])
+      mockPrisma.like.findFirst.mockResolvedValue(null)
+      mockPrisma.bookmark.findUnique.mockResolvedValue(null)
+
+      const { getPost } = await import('@/lib/actions/post')
+      const result = await getPost('post-id')
+
+      expect(result.success).toBe(true)
+      expect(result.success && result.data?.post.quotePost).toBeNull()
     })
   })
 
@@ -1080,6 +1329,8 @@ describe('Post Actions', async () => {
         },
       }
       mockPrisma.post.findUnique.mockResolvedValue(fullPost)
+      // ネスト可視性判定(getVisiblePostIds)でリポスト元を可視として返す
+      mockPrisma.post.findMany.mockResolvedValue([{ id: 'repost-original' }])
       mockPrisma.like.findFirst.mockResolvedValue(null)
       mockPrisma.bookmark.findUnique.mockResolvedValue(null)
 
@@ -1113,6 +1364,108 @@ describe('Post Actions', async () => {
 
       expect(result.success && result.data?.post.isLiked).toBe(false)
       expect(result.success && result.data?.post.isBookmarked).toBe(false)
+    })
+  })
+
+  describe('updatePost', async () => {
+    function editForm(content: string) {
+      const formData = new FormData()
+      formData.append('content', content)
+      return formData
+    }
+
+    it('認証なしの場合はエラーを返す', async () => {
+      mockAuth.mockResolvedValue(null)
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm('更新後'))
+
+      expect(result).toMatchObject({ success: false, error: '認証が必要です' })
+    })
+
+    it('自分の投稿を編集でき editedAt を更新する', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        repostPostId: null,
+        media: [],
+      })
+      mockPrisma.post.update.mockResolvedValue({ id: 'post-1' })
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm('更新後の本文'))
+
+      expect(result.success).toBe(true)
+      const updateArg = mockPrisma.post.update.mock.calls[0][0]
+      expect(updateArg.data.editedAt).toBeInstanceOf(Date)
+      expect(updateArg.data.content).toBe('更新後の本文')
+    })
+
+    it('他人の投稿は編集できない', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: 'other-user',
+        repostPostId: null,
+        media: [],
+      })
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm('更新後'))
+
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.post.update).not.toHaveBeenCalled()
+    })
+
+    it('純粋リポストは編集できない', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        repostPostId: 'original-post',
+        media: [],
+      })
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm('更新後'))
+
+      expect(result).toMatchObject({ success: false, error: 'この投稿は編集できません' })
+      expect(mockPrisma.post.update).not.toHaveBeenCalled()
+    })
+
+    it('本文もメディアも無い場合はエラー', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm(''))
+
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.post.update).not.toHaveBeenCalled()
+    })
+
+    it('レート制限超過時はエラー', async () => {
+      mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm('更新後'))
+
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.post.update).not.toHaveBeenCalled()
+    })
+
+    it('差し替えで外れた旧メディアを回収する', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        repostPostId: null,
+        media: [{ url: 'https://cdn/old.webp' }],
+      })
+      mockPrisma.post.update.mockResolvedValue({ id: 'post-1' })
+
+      const { updatePost } = await import('@/lib/actions/post')
+      // 新しい mediaUrls を送らない＝旧メディアは全て削除対象
+      const result = await updatePost('post-1', editForm('本文のみに変更'))
+
+      expect(result.success).toBe(true)
+      expect(mockDeleteMediaFiles).toHaveBeenCalledWith(['https://cdn/old.webp'])
     })
   })
 })

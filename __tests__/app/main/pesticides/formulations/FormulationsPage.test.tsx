@@ -137,19 +137,19 @@ describe('FormulationsPage', () => {
   describe('generateMetadata', () => {
     it('formulationなしの場合はデフォルトタイトルを返す', async () => {
       const metadata = await generateMetadata({ searchParams: Promise.resolve({}) })
-      expect(metadata.title).toBe('剤型の違い - 農薬・病害虫 - BON-LOG')
+      expect(metadata.title).toBe('剤型の違い - 農薬・病害虫')
     })
 
     it('formulation指定で剤型が見つかった場合はタイトルを返す', async () => {
       mockGetFormulationTypeByCode.mockResolvedValue(makeFormulation({ name: '水和剤' }))
       const metadata = await generateMetadata({ searchParams: Promise.resolve({ formulation: 'WP' }) })
-      expect(metadata.title).toBe('水和剤の薬剤一覧 - 剤型 - 農薬・病害虫 - BON-LOG')
+      expect(metadata.title).toBe('水和剤の薬剤一覧 - 剤型 - 農薬・病害虫')
     })
 
     it('formulation指定で剤型が見つからない場合はデフォルトタイトルを返す', async () => {
       mockGetFormulationTypeByCode.mockResolvedValue(null)
       const metadata = await generateMetadata({ searchParams: Promise.resolve({ formulation: 'UNKNOWN' }) })
-      expect(metadata.title).toBe('剤型の違い - 農薬・病害虫 - BON-LOG')
+      expect(metadata.title).toBe('剤型の違い - 農薬・病害虫')
     })
   })
 })

@@ -59,3 +59,30 @@ describe('ensureWebhookEventOnce', () => {
     await expect(ensureWebhookEventOnce('stripe', 'evt_123')).rejects.toThrow('Connection refused')
   })
 })
+
+describe('deleteWebhookEvent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(mockPrisma as unknown as { webhookEvent: { deleteMany: ReturnType<typeof vi.fn> } }).webhookEvent = {
+      deleteMany: vi.fn(),
+    }
+  })
+
+  it('冪等レコードを provider/eventId で削除する', async () => {
+    ;(mockPrisma.webhookEvent.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ count: 1 })
+
+    const { deleteWebhookEvent } = await import('@/lib/services/webhook-idempotency')
+    await deleteWebhookEvent('stripe', 'evt_123')
+
+    expect(mockPrisma.webhookEvent.deleteMany).toHaveBeenCalledWith({
+      where: { provider: 'stripe', eventId: 'evt_123' },
+    })
+  })
+
+  it('削除失敗は握り潰してスローしない（応答を妨げない）', async () => {
+    ;(mockPrisma.webhookEvent.deleteMany as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('DB down'))
+
+    const { deleteWebhookEvent } = await import('@/lib/services/webhook-idempotency')
+    await expect(deleteWebhookEvent('stripe', 'evt_123')).resolves.toBeUndefined()
+  })
+})

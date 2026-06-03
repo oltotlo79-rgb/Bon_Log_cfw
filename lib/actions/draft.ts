@@ -6,10 +6,6 @@
 
 'use server'
 
-/**
- * 認証ヘルパー
- * 共通の認証チェックパターンを提供
- */
 import {
   requireActiveNonGuestUser,
   requireAuth,
@@ -18,24 +14,10 @@ import {
   actionError,
   enforceUserRateLimit,
 } from '@/lib/actions/utils'
-
-/**
- * Prismaクライアント
- * データベース操作に使用
- */
 import { prisma } from '@/lib/db'
+import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import { GENRE_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
-
-/**
- * Next.jsのキャッシュ再検証関数
- * 投稿作成後にフィードを更新するために使用
- */
 import { revalidatePath } from 'next/cache'
-
-/**
- * ロガー
- * エラーログの記録に使用
- */
 import logger from '@/lib/logger'
 import { z } from 'zod'
 import {
@@ -77,19 +59,6 @@ const draftIdSchema = z.string().min(1, ERR_DRAFT_ID_REQUIRED)
  * 更新日時の新しい順（最近編集したものが先頭）
  *
  * @returns 下書き一覧、または { error: string }
- *
- * @example
- * ```typescript
- * const { drafts } = await getDrafts()
- *
- * return (
- *   <ul>
- *     {drafts.map(draft => (
- *       <DraftCard key={draft.id} draft={draft} />
- *     ))}
- *   </ul>
- * )
- * ```
  */
 export async function getDrafts() {
   const auth = await requireAuth()
@@ -160,22 +129,6 @@ export async function getDraftCount(): Promise<number> {
  *
  * @param data - 下書きデータ
  * @returns 保存された下書き、または { error: string }
- *
- * @example
- * ```typescript
- * // 新規作成
- * const result = await saveDraft({
- *   content: '投稿の本文',
- *   mediaUrls: ['/uploads/image.jpg'],
- *   genreIds: ['genre-1', 'genre-2'],
- * })
- *
- * // 既存の更新
- * const result = await saveDraft({
- *   id: 'draft-123',
- *   content: '更新した本文',
- * })
- * ```
  */
 export async function saveDraft(data: {
   id?: string
@@ -289,15 +242,6 @@ export async function saveDraft(data: {
  *
  * @param draftId - 下書きID
  * @returns 作成された投稿のID、または { error: string }
- *
- * @example
- * ```typescript
- * const result = await publishDraft('draft-123')
- *
- * if (result.success && result.data) {
- *   router.push(`/posts/${result.data.postId}`)
- * }
- * ```
  */
 export async function publishDraft(draftId: string) {
   const authResult = await requireActiveNonGuestUser()
@@ -385,15 +329,6 @@ export async function publishDraft(draftId: string) {
  *
  * @param draftId - 下書きID
  * @returns 成功時は { success: true }、失敗時は { error: string }
- *
- * @example
- * ```typescript
- * const result = await deleteDraft('draft-123')
- *
- * if (result.success) {
- *   toast.success('下書きを削除しました')
- * }
- * ```
  */
 export async function deleteDraft(draftId: string) {
   const authResult = await requireActiveNonGuestUser()
@@ -412,6 +347,7 @@ export async function deleteDraft(draftId: string) {
   try {
     const draft = await prisma.draftPost.findFirst({
       where: { id, userId },
+      include: { media: { select: { url: true } } },
     })
 
     if (!draft) {
@@ -419,6 +355,9 @@ export async function deleteDraft(draftId: string) {
     }
 
     await prisma.draftPost.delete({ where: { id, userId } })
+
+    // DB カスケード後にストレージ実体も回収（オーファン防止、best-effort）
+    await deleteMediaFiles(draft.media.map((m) => m.url))
 
     return actionSuccess()
   } catch (error) {
@@ -439,16 +378,6 @@ export async function deleteDraft(draftId: string) {
  *
  * @param draftId - 下書きID
  * @returns 下書き詳細、または { error: string }
- *
- * @example
- * ```typescript
- * const { draft } = await getDraft('draft-123')
- *
- * // 編集フォームに初期値を設定
- * setContent(draft.content)
- * setMediaUrls(draft.media.map(m => m.url))
- * setGenreIds(draft.genres.map(g => g.genreId))
- * ```
  */
 export async function getDraft(draftId: string) {
   // 1. 認証（読み取り系なのでレート制限・非ゲスト判定は省略、ただし認証は必須）

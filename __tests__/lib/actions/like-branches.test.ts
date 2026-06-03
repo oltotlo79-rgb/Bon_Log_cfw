@@ -31,8 +31,8 @@ vi.mock('@/lib/rate-limit', () => ({
 }))
 
 const mockRecordLikeReceived = vi.fn()
-vi.mock('@/lib/actions/analytics', () => ({
-  recordLikeReceived: (...args: unknown[]) => mockRecordLikeReceived(...args),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordLikeReceivedService: (...args: unknown[]) => mockRecordLikeReceived(...args),
 }))
 
 vi.mock('next/cache', () => ({
@@ -71,6 +71,10 @@ beforeEach(() => {
   mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
   mockCheckUserRateLimit.mockResolvedValue({ success: true })
   mockRecordLikeReceived.mockResolvedValue(undefined)
+  // 自ユーザーの停止チェック兼、投稿著者の閲覧可否判定で参照される
+  mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+  // engagement 対象は閲覧可能を既定とする（個別テストが null で上書き可能）
+  mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user', isHidden: false })
 })
 
 describe('togglePostLike - 未カバーブランチ', () => {
@@ -94,22 +98,13 @@ describe('togglePostLike - 未カバーブランチ', () => {
     expect(mockRecordLikeReceived).not.toHaveBeenCalled()
   })
 
-  it('投稿が見つからない場合は通知を作成しない', async () => {
+  it('投稿が見つからない場合はエラーを返し通知を作成しない', async () => {
     mockPrisma.post.findUnique.mockResolvedValue(null)
-    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
-      const tx = {
-        like: {
-          findFirst: vi.fn().mockResolvedValue(null),
-          create: vi.fn().mockResolvedValue({ id: 'l1' }),
-        },
-      }
-      return fn(tx)
-    })
 
     const { togglePostLike } = await importModule()
     const result = await togglePostLike('p1')
 
-    expect(result).toMatchObject({ success: true, data: { liked: true } })
+    expect(result).toMatchObject({ success: false })
     expect(mockCreateNotification).not.toHaveBeenCalled()
   })
 
@@ -214,22 +209,13 @@ describe('toggleCommentLike - 未カバーブランチ', () => {
     expect(result).toMatchObject({ success: true, data: { liked: false } })
   })
 
-  it('コメントが見つからない場合は通知しない', async () => {
-    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
-      const tx = {
-        like: {
-          findFirst: vi.fn().mockResolvedValue(null),
-          create: vi.fn().mockResolvedValue({ id: 'l1' }),
-        },
-      }
-      return fn(tx)
-    })
+  it('コメントが見つからない場合はエラーを返し通知しない', async () => {
     mockPrisma.comment.findUnique.mockResolvedValue(null)
 
     const { toggleCommentLike } = await importModule()
     const result = await toggleCommentLike('c1', 'p1')
 
-    expect(result).toMatchObject({ success: true, data: { liked: true } })
+    expect(result).toMatchObject({ success: false })
     expect(mockCreateNotification).not.toHaveBeenCalled()
   })
 

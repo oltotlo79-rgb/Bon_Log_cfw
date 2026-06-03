@@ -1,20 +1,7 @@
-/**
- * @fileoverview アナリティクスページのエラーバウンダリ
- *
- * このファイルはNext.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /analyticsページで発生したエラーをキャッチして表示します。
- *
- * @route /analytics
- * @requires 'use client' - エラーバウンダリはクライアントコンポーネントである必要がある
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * アナリティクスページのエラーコンポーネント
- */
 export default function AnalyticsError({
   error,
   reset,

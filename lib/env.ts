@@ -81,6 +81,15 @@ export function getResendApiKey(): string {
 }
 
 /**
+ * Supabase ダッシュボードの URL。管理画面のバックアップ案内リンクに使う。
+ * 未設定時は `null` を返し、呼び出し側はリンクを描画しない（壊れた `#` リンクを出さない）。
+ */
+export function getSupabaseDashboardUrl(): string | null {
+  const url = process.env.SUPABASE_DASHBOARD_URL?.trim()
+  return url ? url : null
+}
+
+/**
  * Cron ジョブの共通署名シークレット。
  * 未設定の場合は `undefined` を返し、呼び出し側で fail-closed 判定させる。
  * （既存の `cron-auth.ts` の検証ロジックは undefined/空文字の場合に認証失敗を返す）

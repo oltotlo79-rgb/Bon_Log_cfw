@@ -1,10 +1,3 @@
-/**
- * @file 盆栽園検索フォームコンポーネント
- * @description 盆栽園の検索・フィルタリング・ソート機能を提供するClient Component。
- * キーワード検索、ジャンルフィルター、地方・都道府県フィルター、ソート順の選択が可能で、
- * 選択時に自動的にURLパラメータを更新してページを再レンダリングする。
- */
-
 'use client'
 
 // Next.jsのルーター・検索パラメータ取得フック
@@ -15,18 +8,12 @@ import { useState, useTransition } from 'react'
 import { REGIONS, PREFECTURES } from '@/lib/prefectures'
 import { ROUTE_SHOPS } from '@/lib/constants/routes'
 
-/**
- * ジャンルデータの型定義
- */
 interface Genre {
   id: string       // ジャンルID
   name: string     // ジャンル名
   category: string // カテゴリ（グループ分け用）
 }
 
-/**
- * コンポーネントのProps型定義
- */
 interface ShopSearchFormProps {
   genres: Genre[]           // 利用可能なジャンル一覧
   initialSearch?: string    // 初期検索キーワード
@@ -177,12 +164,9 @@ export function ShopSearchForm({
 
   return (
     <div className="bg-card rounded-lg border p-4 space-y-4">
-      {/* 検索入力セクション */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          {/* 検索アイコン */}
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-          {/* 検索入力フィールド */}
           <label htmlFor="shop-search" className="sr-only">
             盆栽園を名前または住所で検索
           </label>
@@ -196,7 +180,6 @@ export function ShopSearchForm({
             className="w-full pl-10 pr-4 py-2 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        {/* 検索ボタン */}
         <button
           onClick={handleSearch}
           disabled={isPending}
@@ -206,9 +189,7 @@ export function ShopSearchForm({
         </button>
       </div>
 
-      {/* フィルターセクション */}
       <div className="flex flex-wrap gap-4">
-        {/* ジャンルフィルター */}
         <div className="flex items-center gap-2">
           <label htmlFor="shop-filter-genre" className="text-sm text-muted-foreground">ジャンル:</label>
           <select
@@ -230,7 +211,6 @@ export function ShopSearchForm({
             className="px-3 py-1.5 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           >
             <option value="">すべて</option>
-            {/* カテゴリごとにoptgroupで表示 */}
             {Object.entries(groupedGenres).map(([category, categoryGenres]) => (
               <optgroup key={category} label={category}>
                 {categoryGenres.map((g) => (
@@ -243,7 +223,6 @@ export function ShopSearchForm({
           </select>
         </div>
 
-        {/* 地方フィルター */}
         <div className="flex items-center gap-2">
           <label htmlFor="shop-filter-region" className="text-sm text-muted-foreground">地方:</label>
           <select
@@ -277,7 +256,6 @@ export function ShopSearchForm({
           </select>
         </div>
 
-        {/* 都道府県フィルター */}
         <div className="flex items-center gap-2">
           <label htmlFor="shop-filter-prefecture" className="text-sm text-muted-foreground">都道府県:</label>
           <select
@@ -307,7 +285,6 @@ export function ShopSearchForm({
           </select>
         </div>
 
-        {/* ソート順フィルター */}
         <div className="flex items-center gap-2">
           <label htmlFor="shop-filter-sort" className="text-sm text-muted-foreground">並び順:</label>
           <select
@@ -335,7 +312,6 @@ export function ShopSearchForm({
           </select>
         </div>
 
-        {/* リセットボタン（フィルターが適用されている場合のみ表示） */}
         {(search || genre || region || prefecture || sort !== 'location') && (
           <button
             onClick={handleReset}

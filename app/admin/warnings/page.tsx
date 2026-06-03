@@ -1,9 +1,3 @@
-/**
- * @file 管理者用警告管理ページ
- * @description ユーザーへの警告一覧を表示し、警告の発行・無効化を行う管理者ページ。
- *              レベル・有効/無効・ユーザー検索でのフィルタリングが可能。
- */
-
 import { getWarnings } from '@/lib/actions/admin/warnings'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { WarningsList } from './WarningsList'
@@ -11,16 +5,10 @@ import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 import type { WarningLevel } from '@prisma/client'
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: '警告管理 - BON-LOG 管理',
 }
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     /** 警告レベルフィルター */

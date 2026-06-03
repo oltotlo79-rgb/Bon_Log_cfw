@@ -89,3 +89,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 - Server Component にクライアント専用ライブラリ（`leaflet`, `recharts` 等）をインポートしない
 - 重いライブラリは `next/dynamic` で遅延読み込み（`nextjs-performance.md` 参照）
 - barrel export (`index.ts`) からの部分インポートに注意 — tree-shaking が効かない場合は直接パスで import
+
+## 画像
+
+- 通常は `next/image` を使用 (auto WebP / lazy loading / responsive)
+- **例外**: `data:` URL (base64 等) は `next/image` の remote optimization の対象外。
+  optimization の必要が無いため、生 `<img>` を許可する。
+  - 該当例: `components/settings/two-factor/SetupSection.tsx` の 2FA QR コード
+  - 必ず `alt` / `width` / `height` を明示し、`eslint-disable-next-line @next/next/no-img-element`
+    に理由コメントを付ける

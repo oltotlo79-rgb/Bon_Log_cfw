@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 盆栽用語辞典 拡張E2Eテスト
@@ -67,8 +68,7 @@ test.describe('盆栽用語辞典 — 拡張テスト', () => {
 
       const backLink = page.getByRole('link', { name: /辞典|一覧|戻る/i })
       if (await backLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await backLink.click()
-        await expect(page).toHaveURL(/\/dictionary$/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, backLink, /\/dictionary$/, { timeout: 10000 })
       }
     }
   })

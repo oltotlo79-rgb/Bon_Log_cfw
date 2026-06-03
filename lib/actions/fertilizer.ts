@@ -3,12 +3,15 @@
  *
  * 肥料・栄養素・樹種関連の読み取り専用 query を提供する。RSC からの直接 await 用途で
  * `'use server'` ではなく `server-only` モジュールとし、公開 RPC 面を持たない。
+ *
+ * 認証なしで参照可能（公開 SEO ページ）。sitemap に列挙され未ログイン/crawler が入口にするため、
+ * requireAuth を付けると soft 404 / 空表示になる。入力は Zod、件数は上限定数で保護する。
  */
 import 'server-only'
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { requireAuth } from '@/lib/actions/utils'
+import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import { NutrientCategory, TreeCategory, type Prisma } from '@prisma/client'
 import {
   MAX_NUTRIENT_LIST_LIMIT,
@@ -27,9 +30,7 @@ const treeCategorySchema = z.nativeEnum(TreeCategory)
 // ── 栄養素 ────────────────────────────────────────────────────────
 
 export async function getNutrients(params?: { category?: NutrientCategory }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { nutrients: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { nutrients: [] }
   // 境界検証: category が渡されていれば Prisma enum と一致することを確認
   let category: NutrientCategory | undefined
   if (params?.category !== undefined) {
@@ -48,9 +49,7 @@ export async function getNutrients(params?: { category?: NutrientCategory }) {
 }
 
 export async function getNutrientBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -60,9 +59,7 @@ export async function getNutrientBySlug(slug: string) {
 // ── 肥料カテゴリ ──────────────────────────────────────────────────
 
 export async function getFertilizerCategories() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { categories: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { categories: [] }
   const categories = await prisma.fertilizerCategory.findMany({
     orderBy: { sortOrder: 'asc' },
     take: MAX_FERTILIZER_LIST_LIMIT,
@@ -74,9 +71,7 @@ export async function getFertilizerCategories() {
 // ── 樹種 ──────────────────────────────────────────────────────────
 
 export async function getTreeSpecies(params?: { category?: TreeCategory }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { treeSpecies: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { treeSpecies: [] }
   let category: TreeCategory | undefined
   if (params?.category !== undefined) {
     const parsed = treeCategorySchema.safeParse(params.category)
@@ -99,9 +94,7 @@ export async function getTreeSpecies(params?: { category?: TreeCategory }) {
 // ── 施肥スケジュール ──────────────────────────────────────────────
 
 export async function getFertilizationSchedule(treeSpeciesSlug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(treeSpeciesSlug)
   if (!parsed.success) return null
 
@@ -116,9 +109,7 @@ export async function getFertilizationSchedule(treeSpeciesSlug: string) {
 // ── コラム ────────────────────────────────────────────────────────
 
 export async function getFertilizerColumns(params?: { category?: string }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { columns: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
   let category: string | undefined
   if (params?.category !== undefined) {
     const parsed = slugSchema.safeParse(params.category)
@@ -143,9 +134,7 @@ export async function getFertilizerColumns(params?: { category?: string }) {
 }
 
 export async function getFertilizerColumnBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 

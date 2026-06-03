@@ -229,7 +229,7 @@ describe('two-factor actions', async () => {
       verifyTOTP.mockReturnValue(true)
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('u1@example.com', '123456')
-      expect(result).toEqual({ success: true })
+      expect(result).toMatchObject({ success: true, data: { ticket: expect.any(String) } })
     })
 
     it('verifies backup code', async () => {
@@ -245,7 +245,7 @@ describe('two-factor actions', async () => {
       verifyBackupCode.mockReturnValue(0)
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('u1@example.com', 'backup-code')
-      expect(result).toEqual({ success: true })
+      expect(result).toMatchObject({ success: true, data: { ticket: expect.any(String) } })
       expect(mockPrisma.user.update).toHaveBeenCalled()
     })
 
@@ -279,14 +279,16 @@ describe('two-factor actions', async () => {
       expect(result).toMatchObject({ error: 'バックアップコードが正しくありません' })
     })
 
-    it('handles user not found', async () => {
+    // ユーザー列挙対策: 該当ユーザーなし / 2FA 未設定 / コード不一致を区別できないよう
+    // verify2FAToken は全て同一の汎用エラー（ERR_2FA_INVALID_CODE）を返す。
+    it('returns the generic invalid-code error when user not found (enumeration-safe)', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null)
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('nonexistent@example.com', '123456')
-      expect(result).toMatchObject({ error: 'ユーザーが見つかりません' })
+      expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
 
-    it('handles 2FA not enabled', async () => {
+    it('returns the generic invalid-code error when 2FA not enabled (enumeration-safe)', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: 'u1',
         twoFactorEnabled: false,
@@ -295,7 +297,7 @@ describe('two-factor actions', async () => {
       })
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('u1@example.com', '123456')
-      expect(result).toMatchObject({ error: '2段階認証が有効ではありません' })
+      expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
   })
 

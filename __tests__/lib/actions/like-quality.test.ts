@@ -29,8 +29,8 @@ vi.mock('@/lib/rate-limit', () => ({
 }))
 
 const mockRecordLikeReceived = vi.fn()
-vi.mock('@/lib/actions/analytics', () => ({
-  recordLikeReceived: (...args: unknown[]) => mockRecordLikeReceived(...args),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordLikeReceivedService: (...args: unknown[]) => mockRecordLikeReceived(...args),
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn: (...a: unknown[]) => unknown) => fn), cache: vi.fn((fn: (...a: unknown[]) => unknown) => fn) }))
@@ -52,6 +52,9 @@ beforeEach(() => {
   mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
   mockCheckUserRateLimit.mockResolvedValue({ success: true })
   mockRecordLikeReceived.mockResolvedValue(undefined)
+  // 自ユーザーの停止チェック兼、投稿著者の閲覧可否判定で参照される
+  mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+  mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'other-user', isHidden: false })
 })
 
 describe('toggleCommentLike - empty string validation (line 103)', () => {

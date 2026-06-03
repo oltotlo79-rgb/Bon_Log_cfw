@@ -144,6 +144,13 @@ export const PREMIUM_FALLBACK_DAYS = 30
 /** サブスクリプション期限切れ警告日数 */
 export const SUBSCRIPTION_EXPIRY_WARNING_DAYS = 3
 
+/**
+ * サブスクリプション関連メールの一括送信バッチサイズ。
+ * プレミアム会員が増えた際に全件を一度に Promise.allSettled すると Resend のレート制限・
+ * メモリにスパイクが出るため、チャンクごとに送る (WEATHER_CRON_BATCH_SIZE と同方針)。
+ */
+export const SUBSCRIPTION_EMAIL_BATCH_SIZE = 50
+
 /** プレミアム期限切れ警告日数 */
 export const PREMIUM_EXPIRING_WARN_DAYS = 7
 
@@ -155,6 +162,13 @@ export const USAGE_R2_MAX_FETCH_PAGES = 10
 
 /** イベント保持期間（月） */
 export const EVENT_RETENTION_MONTHS = 6
+
+/**
+ * Webhook 冪等性レコード（`webhook_events`）の保持期間（日）。
+ * Stripe 等のリトライ window はおおむね 14 日以内なので、30 日経過した
+ * イベントは安全に削除できる。
+ */
+export const WEBHOOK_EVENT_RETENTION_DAYS = 30
 
 /** 署名付きURLの有効期限（秒） */
 export const PRESIGNED_URL_EXPIRY_SECONDS = 3600

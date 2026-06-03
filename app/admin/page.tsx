@@ -80,7 +80,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">ダッシュボード</h1>
 
-      {/* 主要統計カード */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
@@ -144,7 +143,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </div>
       </div>
 
-      {/* サブ統計: イベント・盆栽園 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
@@ -167,7 +165,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </div>
       </div>
 
-      {/* 過去 N 日のアクセス推移（ユニーク訪問者）グラフ */}
       {visitorsHistory.length > 0 && (
         <div className="bg-card rounded-lg border p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
@@ -176,7 +173,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
               延べ {visitorsTotalRange.toLocaleString()} 人 / ピーク {visitorsPeak.toLocaleString()} 人
             </p>
           </div>
-          {/* 期間切替タブ */}
           <div
             role="tablist"
             aria-label="アクセス推移の表示期間"
@@ -213,7 +209,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </div>
       )}
 
-      {/* 通報統計: ステータス別・種別別 */}
       {'stats' in reportResult && reportResult.stats && (
         <div className="bg-card rounded-lg border p-6">
           <h2 className="text-lg font-semibold mb-4">通報統計</h2>
@@ -256,7 +251,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </div>
       )}
 
-      {/* クイックアクション */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-lg font-semibold mb-4">クイックアクション</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

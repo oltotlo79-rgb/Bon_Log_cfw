@@ -18,6 +18,14 @@ vi.mock('@/lib/auth', () => ({
 // revalidatePathモック
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
+// storage は uploadReviewImage と deleteReview(メディア回収) の双方で参照される。
+// vi.mock は hoist されるため、参照する mock 関数も vi.hoisted で先に定義する。
+const { mockUploadFile } = vi.hoisted(() => ({ mockUploadFile: vi.fn() }))
+vi.mock('@/lib/storage', () => ({
+  uploadFile: mockUploadFile,
+  deleteFile: vi.fn().mockResolvedValue({ success: true }),
+}))
+
 // レート制限モック
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn().mockResolvedValue({ success: true }),
@@ -242,6 +250,7 @@ describe('Review Actions', async () => {
         ...mockReview,
         userId: mockUser.id,
         shopId: 'test-shop-id',
+        images: [],
       })
       mockPrisma.shopReview.delete.mockResolvedValue(mockReview)
 
@@ -325,14 +334,6 @@ describe('Review Actions', async () => {
   // ============================================================
 
   describe('uploadReviewImage', async () => {
-    const mockUploadFile = vi.fn()
-
-    beforeEach(() => {
-      vi.mock('@/lib/storage', () => ({
-        uploadFile: mockUploadFile,
-      }))
-    })
-
     it('認証なしの場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue(null)
 

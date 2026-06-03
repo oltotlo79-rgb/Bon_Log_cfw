@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 盆栽園レビュー機能のE2Eテスト
@@ -19,18 +20,14 @@ test.describe('盆栽園レビュー', () => {
       return false
     }
 
-    await shopLinks.first().click()
-    await expect(page).toHaveURL(/\/shops\/(?!new)/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, shopLinks.first(), /\/shops\/(?!new)/, { timeout: 10000 })
     return true
   }
 
   test.describe('レビューセクション表示', () => {
     test('盆栽園詳細ページにレビューセクションが表示される', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // レビューセクションのヘッダーが表示される
       const reviewSection = page.getByText(/レビュー|口コミ|評価/i).first()
@@ -39,10 +36,7 @@ test.describe('盆栽園レビュー', () => {
 
     test('レビューまたは空メッセージが表示される', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // レビューセクションが非同期で読み込まれるのを待つ
       await page.waitForTimeout(2000)
@@ -67,10 +61,7 @@ test.describe('盆栽園レビュー', () => {
   test.describe('星評価表示', () => {
     test('盆栽園の平均評価が表示される', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // 星アイコンまたは評価スコアが表示される
       const starRating = page.locator(
@@ -93,10 +84,7 @@ test.describe('盆栽園レビュー', () => {
 
     test('個別レビューに星評価が付いている', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       const reviewItem = page.locator(
         '[data-testid="review-card"], [data-testid="review-item"], [class*="review"]'
@@ -123,10 +111,7 @@ test.describe('盆栽園レビュー', () => {
   test.describe('レビューフォーム', () => {
     test('レビュー投稿ボタンまたはフォームが存在する', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // レビュー投稿ボタン
       const writeReviewButton = page.getByRole('button', {
@@ -152,10 +137,7 @@ test.describe('盆栽園レビュー', () => {
 
     test('レビューフォームに星評価入力がある', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // レビュー投稿ボタンをクリック（モーダル形式の場合）
       const writeReviewButton = page.getByRole('button', {
@@ -184,10 +166,7 @@ test.describe('盆栽園レビュー', () => {
 
     test('レビューフォームにテキスト入力欄がある', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // レビュー投稿ボタンをクリック
       const writeReviewButton = page.getByRole('button', {
@@ -212,10 +191,7 @@ test.describe('盆栽園レビュー', () => {
   test.describe('レビューリスト', () => {
     test('レビューにユーザー名が表示される', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       const reviewItem = page.locator(
         '[data-testid="review-card"], [data-testid="review-item"], [class*="review"]'
@@ -238,10 +214,7 @@ test.describe('盆栽園レビュー', () => {
 
     test('レビューに投稿日時が表示される', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       const reviewItem = page.locator(
         '[data-testid="review-card"], [data-testid="review-item"], [class*="review"]'
@@ -266,10 +239,7 @@ test.describe('盆栽園レビュー', () => {
 
     test('レビューリストのページネーションが表示される', async ({ page }) => {
       const navigated = await navigateToShopDetail(page)
-      if (!navigated) {
-        test.skip()
-        return
-      }
+      expect(navigated).toBe(true)
 
       // ページネーションまたは「もっと見る」ボタン
       const pagination = page.locator(

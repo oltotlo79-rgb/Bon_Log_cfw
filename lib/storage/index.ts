@@ -10,6 +10,7 @@ import type { StorageProvider, UploadResult, DeleteResult } from './types'
 import { LocalStorageProvider } from './local-provider'
 import { SupabaseStorageProvider } from './supabase-provider'
 import { CloudflareR2StorageProvider } from './r2-provider'
+import { stripImageMetadata } from './image-sanitize'
 
 export type { UploadResult, DeleteResult } from './types'
 
@@ -35,15 +36,21 @@ function getStorageProvider(): StorageProvider {
   return storageProvider
 }
 
-/** 設定されたプロバイダーへファイルをアップロードする。呼び出し側はプロバイダー差を意識しない。 */
+/**
+ * 設定されたプロバイダーへファイルをアップロードする。呼び出し側はプロバイダー差を意識しない。
+ *
+ * Why stripImageMetadata: ユーザー投稿画像から EXIF / GPS / IPTC を必ず剥離してから
+ * 公開ストレージへ送る（プライバシー保護）。詳細は `image-sanitize.ts` の JSDoc を参照。
+ */
 export async function uploadFile(
   file: Buffer,
   filename: string,
   contentType: string,
   folder: string
 ): Promise<UploadResult> {
+  const sanitizedBuffer = await stripImageMetadata(file, contentType)
   const provider = getStorageProvider()
-  return provider.upload(file, filename, contentType, folder)
+  return provider.upload(sanitizedBuffer, filename, contentType, folder)
 }
 
 /** 設定されたプロバイダーからファイルを削除する。URL 形式はプロバイダーごとに異なる。 */

@@ -37,7 +37,8 @@ vi.mock('@/components/user/PrivacyToggle', () => ({ PrivacyToggle: () => <div da
 vi.mock('@/components/user/DeleteAccountButton', () => ({ DeleteAccountButton: () => <div data-testid="delete-account" /> }))
 vi.mock('@/components/settings/TwoFactorSettings', () => ({ TwoFactorSettings: () => <div data-testid="2fa-settings" /> }))
 vi.mock('@/components/post/ScheduledPostList', () => ({ ScheduledPostList: () => <div data-testid="scheduled-list" /> }))
-vi.mock('@/components/ui/button', () => ({ Button: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => <button {...props}>{children}</button> }))
+// asChild は Radix Slot 用の prop。DOM の <button> に流すと React warning になるため destructure して除外する
+vi.mock('@/components/ui/button', () => ({ Button: ({ children, asChild: _asChild, ...props }: React.PropsWithChildren<Record<string, unknown>>) => <button {...props}>{children}</button> }))
 vi.mock('lucide-react', () => ({ CalendarPlus: () => <span /> }))
 
 import { render, screen } from '@testing-library/react'
@@ -49,7 +50,7 @@ import React from 'react'
 describe('FollowersPage', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser' })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: true, isSuspended: false })
     mockPrisma.follow.findMany.mockResolvedValue([])
   })
 
@@ -80,7 +81,7 @@ describe('FollowersPage', async () => {
   it('generateMetadata returns user title', async () => {
     const { generateMetadata } = await import('@/app/(main)/users/[id]/followers/page')
     const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
-    expect(result.title).toBe('TestUserのフォロワー - BON-LOG')
+    expect(result.title).toBe('TestUserのフォロワー')
   })
 
   it('generateMetadata returns fallback for missing user', async () => {
@@ -97,7 +98,7 @@ describe('FollowersPage', async () => {
 describe('FollowingPage', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser' })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: true, isSuspended: false })
     mockPrisma.follow.findMany.mockResolvedValue([])
   })
 
@@ -128,7 +129,7 @@ describe('FollowingPage', async () => {
   it('generateMetadata returns user title', async () => {
     const { generateMetadata } = await import('@/app/(main)/users/[id]/following/page')
     const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
-    expect(result.title).toBe('TestUserがフォロー中 - BON-LOG')
+    expect(result.title).toBe('TestUserがフォロー中')
   })
 
   it('generateMetadata returns fallback for missing user', async () => {
@@ -145,7 +146,7 @@ describe('FollowingPage', async () => {
 describe('UserLikesPage', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser' })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: true, isSuspended: false })
     mockPrisma.like.findMany.mockResolvedValue([])
   })
 
@@ -185,7 +186,7 @@ describe('UserLikesPage', async () => {
   it('generateMetadata returns user title', async () => {
     const { generateMetadata } = await import('@/app/(main)/users/[id]/likes/page')
     const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
-    expect(result.title).toBe('TestUserのいいね - BON-LOG')
+    expect(result.title).toBe('TestUserのいいね')
   })
 })
 
@@ -195,7 +196,7 @@ describe('UserLikesPage', async () => {
 describe('UserPostsPage', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser' })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: true, isSuspended: false })
     mockPrisma.post.findMany.mockResolvedValue([])
   })
 
@@ -226,7 +227,7 @@ describe('UserPostsPage', async () => {
   it('generateMetadata returns user title', async () => {
     const { generateMetadata } = await import('@/app/(main)/users/[id]/posts/page')
     const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
-    expect(result.title).toBe('TestUserの投稿 - BON-LOG')
+    expect(result.title).toBe('TestUserの投稿')
   })
 
   it('generateMetadata returns fallback for missing user', async () => {

@@ -1,22 +1,17 @@
 'use client'
 
 /**
- * @file ReviewDisplay.tsx
- * @description レビュー表示コンポーネント（読み取り専用）
- *
- * 評価、コメント、画像を表示する読み取り専用ビュー。
+ * @module components/shop/review/ReviewDisplay
  */
 
 import Image from 'next/image'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
+import { buildUserPath } from '@/lib/constants/path-builders'
 import { ja } from 'date-fns/locale'
 import { StarRatingDisplay } from '../StarRating'
 import { ReportButton } from '@/components/report/ReportButton'
 
-/**
- * ゴミ箱アイコンコンポーネント
- */
 function TrashIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -27,9 +22,6 @@ function TrashIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 鉛筆アイコンコンポーネント
- */
 function PencilIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -54,9 +46,7 @@ interface ReviewDisplayProps {
   }
   isOwner: boolean
   currentUserId?: string
-  /** 削除確認中かどうか */
   showDeleteConfirm: boolean
-  /** 削除処理中かどうか */
   isPending: boolean
   onEdit: () => void
   onShowDeleteConfirm: () => void
@@ -64,9 +54,6 @@ interface ReviewDisplayProps {
   onDelete: () => void
 }
 
-/**
- * レビュー読み取り専用表示コンポーネント
- */
 export function ReviewDisplay({
   review,
   isOwner,
@@ -85,10 +72,8 @@ export function ReviewDisplay({
 
   return (
     <>
-      {/* ヘッダー: ユーザー情報、投稿日時、アクションボタン */}
       <div className="flex items-start gap-3 mb-3">
-        {/* ユーザーアバター */}
-        <Link href={`/users/${review.user.id}`} className="flex-shrink-0">
+        <Link href={buildUserPath(review.user.id)} className="flex-shrink-0">
           {review.user.avatarUrl ? (
             <Image
               src={review.user.avatarUrl}
@@ -109,7 +94,7 @@ export function ReviewDisplay({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Link
-              href={`/users/${review.user.id}`}
+              href={buildUserPath(review.user.id)}
               className="font-medium hover:underline"
             >
               {review.user.nickname}
@@ -119,7 +104,6 @@ export function ReviewDisplay({
           <StarRatingDisplay rating={review.rating} size="sm" />
         </div>
 
-        {/* アクションボタンエリア */}
         <div className="flex items-center gap-1">
           {isOwner ? (
             showDeleteConfirm ? (
@@ -166,12 +150,10 @@ export function ReviewDisplay({
         </div>
       </div>
 
-      {/* コメント表示 */}
       {review.content && (
         <p className="text-sm whitespace-pre-wrap mb-3">{review.content}</p>
       )}
 
-      {/* 画像表示 */}
       {review.images.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {review.images.map((image) => (

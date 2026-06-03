@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 盆栽コレクション管理のE2Eテスト
@@ -81,8 +82,7 @@ test.describe('盆栽コレクション管理', () => {
       const addLink = page.locator('a[href="/bonsai/new"]').first()
       await expect(addLink).toBeVisible({ timeout: 15000 })
 
-      await addLink.click()
-      await expect(page).toHaveURL(/\/bonsai\/new/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, addLink, /\/bonsai\/new/, { timeout: 10000 })
     })
 
     test('新規登録ページにフォームが表示される', async ({ page }) => {
@@ -157,8 +157,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
 
       // 盆栽名が表示される
       const nameElement = page.locator('h1, h2, [data-testid="bonsai-name"]').first()
@@ -176,8 +175,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
 
       // 編集リンクまたはボタン（オーナーの場合のみ表示される）
       const editLink = page.locator('a[href*="/edit"]').first()
@@ -208,8 +206,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
 
       // タイムラインまたは成長記録
       const timeline = page.getByText(/タイムライン|成長記録|記録|履歴/i).first()
@@ -236,8 +233,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
 
       const editLinks = page.locator('a[href*="/edit"]')
       if ((await editLinks.count()) === 0) {
@@ -245,8 +241,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await editLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLinks.first(), /\/bonsai\/.*\/edit/, { timeout: 10000 })
 
       // 編集フォームが表示される
       const form = page.locator('form').first()
@@ -264,8 +259,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await bonsaiLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
 
       const editLinks = page.locator('a[href*="/edit"]')
       if ((await editLinks.count()) === 0) {
@@ -273,8 +267,7 @@ test.describe('盆栽コレクション管理', () => {
         return
       }
 
-      await editLinks.first().click()
-      await expect(page).toHaveURL(/\/bonsai\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLinks.first(), /\/bonsai\/.*\/edit/, { timeout: 10000 })
 
       // 名前入力欄に値が入っている
       const nameInput = page.locator(

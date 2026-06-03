@@ -55,6 +55,35 @@ describe('validateEnv', () => {
     })
   })
 
+  describe('DISABLE_RATE_LIMIT の fail-closed ガード', () => {
+    beforeEach(() => {
+      process.env.NODE_ENV = 'production'
+      process.env.DATABASE_URL = 'postgresql://test'
+      process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
+    })
+
+    it('本番 + 非 loopback URL でフラグ on なら起動を中断する', async () => {
+      process.env.NEXT_PUBLIC_APP_URL = 'https://www.bon-log.com'
+      process.env.DISABLE_RATE_LIMIT = 'true'
+      const { validateEnv } = await import('@/lib/env-validation')
+      expect(() => validateEnv()).toThrow(/DISABLE_RATE_LIMIT/)
+    })
+
+    it('loopback URL (CI E2E) ならフラグ on でも中断しない', async () => {
+      process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
+      process.env.DISABLE_RATE_LIMIT = 'true'
+      const { validateEnv } = await import('@/lib/env-validation')
+      expect(() => validateEnv()).not.toThrow()
+    })
+
+    it('フラグ未設定なら本番 URL でも中断しない', async () => {
+      process.env.NEXT_PUBLIC_APP_URL = 'https://www.bon-log.com'
+      delete process.env.DISABLE_RATE_LIMIT
+      const { validateEnv } = await import('@/lib/env-validation')
+      expect(() => validateEnv()).not.toThrow()
+    })
+  })
+
   describe('本番のオプショナル変数欠落警告', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'production'

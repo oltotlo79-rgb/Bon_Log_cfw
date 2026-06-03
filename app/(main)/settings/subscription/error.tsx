@@ -1,22 +1,7 @@
-/**
- * @file サブスクリプション設定ページ専用エラーコンポーネント
- * @description サブスクリプション設定のデータ取得時にエラーが発生した場合に表示されるUI
- *
- * このファイルはNext.js App Routerの規約に基づくエラーバウンダリです。
- * /settings/subscriptionページでサーバーエラーやネットワークエラーが発生した際に自動的に表示されます。
- *
- * 'use client'ディレクティブが必須です。
- * これはerror.tsxがクライアントサイドでエラーをキャッチする必要があるためです。
- *
- * @see https://nextjs.org/docs/app/building-your-application/routing/error-handling
- */
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * サブスクリプション設定エラーコンポーネント
- */
 export default function SubscriptionSettingsError({
   error,
   reset,

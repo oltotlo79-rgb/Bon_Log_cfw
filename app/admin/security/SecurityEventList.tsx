@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file セキュリティイベントリストコンポーネント
- * @description セキュリティイベントのフィルタリング・ページネーション付きログテーブルを表示するClient Component。
- */
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -19,7 +15,6 @@ import {
 import { ADMIN_ID_DISPLAY_LONG_LENGTH } from '@/lib/constants/limits'
 import { ROUTE_ADMIN_SECURITY } from '@/lib/constants/routes'
 
-/** セキュリティイベントの型定義 */
 interface SecurityEvent {
   id: string
   eventType: string
@@ -30,7 +25,6 @@ interface SecurityEvent {
   createdAt: string
 }
 
-/** コンポーネントのProps型定義 */
 interface SecurityEventListProps {
   /** イベント一覧 */
   events: SecurityEvent[]
@@ -119,9 +113,7 @@ export function SecurityEventList({
     <div className="bg-card rounded-lg border p-6">
       <h2 className="text-lg font-semibold mb-4">セキュリティイベントログ</h2>
 
-      {/* フィルター */}
       <div className="flex flex-wrap gap-3 mb-4">
-        {/* イベント種別フィルター */}
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <select
@@ -137,7 +129,6 @@ export function SecurityEventList({
           </select>
         </div>
 
-        {/* IPアドレス検索 */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -149,7 +140,6 @@ export function SecurityEventList({
           />
         </div>
 
-        {/* 日付範囲 */}
         <div className="flex items-center gap-2">
           <input
             type="date"
@@ -166,7 +156,6 @@ export function SecurityEventList({
           />
         </div>
 
-        {/* フィルターボタン */}
         <button
           onClick={() => applyFilters()}
           disabled={isPending}
@@ -184,7 +173,6 @@ export function SecurityEventList({
         </button>
       </div>
 
-      {/* イベントテーブル */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * コンテンツ作成・編集ページのE2Eテスト
@@ -52,14 +53,12 @@ test.describe('盆栽 CRUD', () => {
     }
 
     // 盆栽詳細ページへ
-    await bonsaiLinks.first().click()
-    await expect(page).toHaveURL(/\/bonsai\/(?!new)/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, bonsaiLinks.first(), /\/bonsai\/(?!new)/, { timeout: 10000 })
 
     // 編集リンクを探す
     const editLink = page.locator('a[href*="/edit"]').first()
     if (await editLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editLink.click()
-      await expect(page).toHaveURL(/\/bonsai\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLink, /\/bonsai\/.*\/edit/, { timeout: 10000 })
     }
   })
 })
@@ -115,13 +114,11 @@ test.describe('イベント CRUD', () => {
       return
     }
 
-    await eventLinks.first().click()
-    await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
 
     const editLink = page.locator('a[href*="/edit"]').first()
     if (await editLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editLink.click()
-      await expect(page).toHaveURL(/\/events\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLink, /\/events\/.*\/edit/, { timeout: 10000 })
     }
   })
 })
@@ -177,13 +174,11 @@ test.describe('盆栽園 CRUD', () => {
       return
     }
 
-    await shopLinks.first().click()
-    await expect(page).toHaveURL(/\/shops\/(?!new)/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, shopLinks.first(), /\/shops\/(?!new)/, { timeout: 10000 })
 
     const editLink = page.locator('a[href*="/edit"]').first()
     if (await editLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editLink.click()
-      await expect(page).toHaveURL(/\/shops\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLink, /\/shops\/.*\/edit/, { timeout: 10000 })
     }
   })
 })
@@ -202,8 +197,7 @@ test.describe('下書き編集', () => {
     // 下書きの編集リンクを辿る
     const editLink = page.locator('a[href*="/drafts/"][href*="/edit"]').first()
     if (await editLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editLink.click()
-      await expect(page).toHaveURL(/\/drafts\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLink, /\/drafts\/.*\/edit/, { timeout: 10000 })
 
       // 編集フォームが表示される
       const form = page.locator('form, textarea, [data-testid="draft-editor"]').first()
@@ -228,8 +222,7 @@ test.describe('予約投稿編集', () => {
 
     const editLink = page.locator('a[href*="/posts/scheduled/"][href*="/edit"]').first()
     if (await editLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editLink.click()
-      await expect(page).toHaveURL(/\/posts\/scheduled\/.*\/edit/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, editLink, /\/posts\/scheduled\/.*\/edit/, { timeout: 10000 })
     }
   })
 })

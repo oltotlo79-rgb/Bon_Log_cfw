@@ -3,11 +3,6 @@
  *
  * shadcn/ui ベースの汎用 Input。`brush-input` で和風のシャドウ、
  * `focus-visible:ring-primary` でフォーカスリング、`aria-invalid` でエラー表示を切替える。
- *
- * @example
- * <Input type="email" placeholder="メールアドレス" />
- * <Input disabled placeholder="編集不可" />
- * <Input aria-invalid="true" placeholder="エラー" />
  */
 
 import * as React from "react"

@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file お知らせリストコンポーネント
- * @description お知らせの一覧表示・作成フォーム・有効/無効切替・削除を行うClient Component。
- */
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -116,7 +112,6 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
 
   return (
     <div className="space-y-4">
-      {/* 作成ボタン */}
       <button
         onClick={() => setShowForm(!showForm)}
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -125,7 +120,6 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
         新規作成
       </button>
 
-      {/* 作成フォーム */}
       {showForm && (
         <div className="bg-card rounded-lg border p-4 space-y-4">
           <h3 className="font-semibold">お知らせを作成</h3>
@@ -209,7 +203,6 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
         </div>
       )}
 
-      {/* お知らせ一覧 */}
       <div className="bg-card rounded-lg border">
         {announcements.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">

@@ -49,8 +49,14 @@ describe('Comment Actions', async () => {
     mockAuth.mockResolvedValue({
       user: { id: mockUser.id },
     })
-    // isSuspended check用
-    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    // requireActiveNonGuestUser の自ユーザー状態 + 投稿著者の閲覧可否判定の双方で参照される
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    // コメント対象投稿は閲覧可能（本人の非表示でない投稿）を既定とする
+    mockPrisma.post.findUnique.mockResolvedValue({
+      id: mockPost.id,
+      isHidden: false,
+      userId: mockUser.id,
+    })
   })
 
   describe('createComment', async () => {
@@ -121,6 +127,12 @@ describe('Comment Actions', async () => {
 
     it('返信コメントを作成できる', async () => {
       mockPrisma.comment.count.mockResolvedValue(0)
+      // 親コメントは同一投稿に属し有効（返信先バリデーションを通過させる）
+      mockPrisma.comment.findUnique.mockResolvedValue({
+        postId: 'post-id',
+        isHidden: false,
+        deletedAt: null,
+      })
       mockPrisma.comment.create.mockResolvedValue({
         ...mockComment,
         id: 'reply-comment-id',
@@ -258,6 +270,77 @@ describe('Comment Actions', async () => {
       const result = await deleteComment('comment-id')
 
       expect(result).toEqual({ success: true })
+    })
+  })
+
+  describe('updateComment', async () => {
+    it('認証なしの場合はエラーを返す', async () => {
+      mockAuth.mockResolvedValue(null)
+
+      const { updateComment } = await import('@/lib/actions/comment')
+      const result = await updateComment('comment-id', '新しい本文')
+
+      expect('error' in result && result.error).toBe('認証が必要です')
+    })
+
+    it('存在しない/削除済みコメントはエラーを返す', async () => {
+      mockPrisma.comment.findUnique.mockResolvedValue(null)
+
+      const { updateComment } = await import('@/lib/actions/comment')
+      const result = await updateComment('non-existent-id', '本文')
+
+      expect('error' in result && result.error).toBe('コメントが見つかりません')
+    })
+
+    it('他人のコメントは編集できない（削除と異なり投稿主でも不可）', async () => {
+      mockPrisma.comment.findUnique.mockResolvedValue({
+        userId: 'other-user-id',
+        postId: 'post-id',
+        deletedAt: null,
+        _count: { media: 0 },
+      })
+
+      const { updateComment } = await import('@/lib/actions/comment')
+      const result = await updateComment('comment-id', '本文')
+
+      expect('error' in result && result.error).toBe('削除権限がありません')
+      expect(mockPrisma.comment.update).not.toHaveBeenCalled()
+    })
+
+    it('本文が空でメディアも無い場合はエラーを返す', async () => {
+      mockPrisma.comment.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        postId: 'post-id',
+        deletedAt: null,
+        _count: { media: 0 },
+      })
+
+      const { updateComment } = await import('@/lib/actions/comment')
+      const result = await updateComment('comment-id', '   ')
+
+      expect('error' in result && result.error).toBe('コメント内容またはメディアを入力してください')
+      expect(mockPrisma.comment.update).not.toHaveBeenCalled()
+    })
+
+    it('自分のコメントを編集でき、editedAt が付与される', async () => {
+      mockPrisma.comment.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        postId: 'post-id',
+        deletedAt: null,
+        _count: { media: 0 },
+      })
+      mockPrisma.comment.update.mockResolvedValue({})
+
+      const { updateComment } = await import('@/lib/actions/comment')
+      const result = await updateComment('comment-id', '編集後の本文')
+
+      expect(result.success).toBe(true)
+      expect(mockPrisma.comment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'comment-id' },
+          data: expect.objectContaining({ content: '編集後の本文', editedAt: expect.any(Date) }),
+        }),
+      )
     })
   })
 

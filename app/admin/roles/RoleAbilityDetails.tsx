@@ -1,10 +1,3 @@
-/**
- * @file 各ロールのできること／できないことを詳細表示する Server Component
- * @description `/admin/roles` ページで `lib/admin-permissions.ts` の
- *              PERMISSION_MAP を元に動的に権限カードを生成する。
- *              ロール定義を変えれば自動的にこの表示も追従する。
- */
-
 import {
   ACTION_META,
   CATEGORY_LABELS,
@@ -189,7 +182,6 @@ export function RoleAbilityDetails() {
         })}
       </div>
 
-      {/* 階層・自己保全ルールの説明 */}
       <aside
         className="rounded-md border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/10 p-4 text-sm"
         aria-labelledby="role-hierarchy-note"

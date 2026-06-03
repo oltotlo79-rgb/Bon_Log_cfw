@@ -6,48 +6,21 @@
 
 'use client'
 
-/**
- * Next.js Linkコンポーネント
- * 通知クリック時の遷移先リンク
- */
 import { memo } from 'react'
 import Link from 'next/link'
-
-/**
- * Next.js Imageコンポーネント
- * ユーザーアバターの表示
- */
 import Image from 'next/image'
-
-/**
- * date-fns 相対時間フォーマット
- * 「3分前」「2時間前」などの表示に使用
- */
 import { formatDistanceToNow } from 'date-fns'
-
-/**
- * date-fns 日本語ロケール
- */
 import { ja } from 'date-fns/locale'
-
-/**
- * 既読処理用Server Action
- */
 import { markAsRead } from '@/lib/actions/notification'
-import { ROUTE_SETTINGS_FOLLOW_REQUESTS } from '@/lib/constants/routes'
+import {
+  ROUTE_SETTINGS_FOLLOW_REQUESTS,
+  ROUTE_MESSAGES,
+  ROUTE_NOTIFICATIONS,
+  ROUTE_SETTINGS_SUBSCRIPTION,
+} from '@/lib/constants/routes'
+import { buildUserPath, buildPostPath } from '@/lib/constants/path-builders'
 import { AVATAR_SIZE_MD } from '@/lib/constants/limits'
 
-/**
- * 通知の型
- *
- * @property id - 通知ID
- * @property type - 通知種別（like, comment, follow等）
- * @property isRead - 既読フラグ
- * @property createdAt - 作成日時
- * @property actor - 通知を発生させたユーザー
- * @property post - 関連する投稿（オプション）
- * @property comment - 関連するコメント（オプション）
- */
 export type Notification = {
   id: string
   type: string
@@ -68,18 +41,10 @@ export type Notification = {
   } | null
 }
 
-/**
- * NotificationItemコンポーネントのprops型
- */
 type NotificationItemProps = {
   notification: Notification
 }
 
-/**
- * ハートアイコン（いいね通知用）
- *
- * @param className - 追加のCSSクラス
- */
 function HeartIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -88,11 +53,6 @@ function HeartIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * メッセージアイコン（コメント通知用）
- *
- * @param className - 追加のCSSクラス
- */
 function MessageCircleIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -101,11 +61,6 @@ function MessageCircleIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * ユーザー追加アイコン（フォロー通知用）
- *
- * @param className - 追加のCSSクラス
- */
 function UserPlusIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -117,11 +72,6 @@ function UserPlusIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * リピートアイコン（リポスト・引用通知用）
- *
- * @param className - 追加のCSSクラス
- */
 function RepeatIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -131,11 +81,6 @@ function RepeatIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 返信アイコン（返信通知用）
- *
- * @param className - 追加のCSSクラス
- */
 function ReplyIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -145,20 +90,41 @@ function ReplyIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 通知種別に応じたアイコンを取得
- *
- * ## カラーコード
- * - いいね: 赤
- * - コメント: 青
- * - フォロー: 緑
- * - フォローリクエスト: 黄色
- * - 引用/リポスト: 紫
- * - 返信: オレンジ
- *
- * @param type - 通知種別
- * @returns アイコンコンポーネント
- */
+function AtSignIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
+    </svg>
+  )
+}
+
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  )
+}
+
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  )
+}
+
+function CrownIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" />
+    </svg>
+  )
+}
+
 function getNotificationIcon(type: string) {
   switch (type) {
     case 'like':
@@ -176,18 +142,19 @@ function getNotificationIcon(type: string) {
       return <RepeatIcon className="w-5 h-5 text-muted-foreground" />
     case 'reply':
       return <ReplyIcon className="w-5 h-5 text-muted-foreground" />
+    case 'mention':
+      return <AtSignIcon className="w-5 h-5 text-muted-foreground" />
+    case 'message':
+      return <MailIcon className="w-5 h-5 text-muted-foreground" />
+    case 'subscription_expiring':
+      return <CrownIcon className="w-5 h-5 text-muted-foreground" />
+    case 'system':
+      return <BellIcon className="w-5 h-5 text-muted-foreground" />
     default:
       return <MessageCircleIcon className="w-5 h-5 text-muted-foreground" />
   }
 }
 
-/**
- * 通知種別に応じたメッセージを生成
- *
- * @param type - 通知種別
- * @param actorName - 通知発生者の名前
- * @returns メッセージのJSX
- */
 function getNotificationMessage(type: string, actorName: string) {
   switch (type) {
     case 'like':
@@ -208,85 +175,55 @@ function getNotificationMessage(type: string, actorName: string) {
       return <><strong>{actorName}</strong>さんがあなたの投稿をリポストしました</>
     case 'reply':
       return <><strong>{actorName}</strong>さんがあなたのコメントに返信しました</>
+    case 'mention':
+      return <><strong>{actorName}</strong>さんがあなたをメンションしました</>
+    case 'message':
+      return <><strong>{actorName}</strong>さんからメッセージが届きました</>
+    // system / subscription_expiring は actor=受信者本人のため actorName を使わない
+    case 'subscription_expiring':
+      return <>プレミアム会員の有効期限が近づいています</>
+    case 'system':
+      return <>運営からのお知らせがあります</>
     default:
       return <><strong>{actorName}</strong>さんからの通知</>
   }
 }
 
-/**
- * 通知のリンク先を決定
- *
- * ## リンク先ロジック
- * - フォロー通知: ユーザーページ
- * - コメント関連: 投稿ページ#コメントID
- * - 投稿関連: 投稿ページ
- * - その他: ユーザーページ
- *
- * @param notification - 通知オブジェクト
- * @returns リンク先URL
- */
 function getNotificationLink(notification: Notification) {
   const { type, post, comment, actor } = notification
 
-  /**
-   * フォロー関連通知はユーザーページへ
-   */
   if (type === 'follow' || type === 'follow_request_approved') {
-    return `/users/${actor.id}`
+    return buildUserPath(actor.id)
   }
 
-  /**
-   * フォローリクエスト通知はフォローリクエスト管理ページへ
-   */
   if (type === 'follow_request') {
     return ROUTE_SETTINGS_FOLLOW_REQUESTS
   }
 
-  /**
-   * 投稿がある場合
-   */
+  // 会話 ID は通知に保持していないためメッセージ一覧で着地させる
+  if (type === 'message') {
+    return ROUTE_MESSAGES
+  }
+
+  if (type === 'subscription_expiring') {
+    return ROUTE_SETTINGS_SUBSCRIPTION
+  }
+
+  // actor=本人のためプロフィール遷移は不適切。通知一覧に留める
+  if (type === 'system') {
+    return ROUTE_NOTIFICATIONS
+  }
+
   if (post) {
-    /**
-     * コメントがある場合はコメント位置へアンカーリンク
-     */
     if (comment) {
       return `/posts/${post.id}#comment-${comment.id}`
     }
-    return `/posts/${post.id}`
+    return buildPostPath(post.id)
   }
 
-  /**
-   * デフォルトはユーザーページ
-   */
-  return `/users/${actor.id}`
+  return buildUserPath(actor.id)
 }
 
-/**
- * 通知アイテムコンポーネント
- *
- * ## 機能
- * - アバター画像とアイコンの表示
- * - 通知メッセージと投稿プレビュー
- * - 相対時間の表示
- * - 未読インジケーター
- * - クリック時の既読処理
- *
- * @param notification - 通知データ
- *
- * @example
- * ```tsx
- * <NotificationItem
- *   notification={{
- *     id: 'notif1',
- *     type: 'like',
- *     isRead: false,
- *     createdAt: new Date(),
- *     actor: { id: 'user1', nickname: 'ユーザー1', avatarUrl: null },
- *     post: { id: 'post1', content: '投稿内容...' },
- *   }}
- * />
- * ```
- */
 /**
  * Why memo: 通知一覧で大量にレンダーされ得るため、
  * 親リストの再レンダリング時の不要な再描画を防ぐ。
@@ -315,7 +252,6 @@ function NotificationItemInner({ notification }: NotificationItemProps) {
         !notification.isRead ? 'bg-primary/5' : ''
       }`}
     >
-      {/* アイコン */}
       <div className="flex-shrink-0 w-10 h-10 relative">
         {notification.actor.avatarUrl ? (
           <Image
@@ -338,7 +274,6 @@ function NotificationItemInner({ notification }: NotificationItemProps) {
         </div>
       </div>
 
-      {/* コンテンツ */}
       <div className="flex-1 min-w-0">
         <p className="text-sm">
           {getNotificationMessage(notification.type, notification.actor.nickname)}
@@ -351,7 +286,6 @@ function NotificationItemInner({ notification }: NotificationItemProps) {
         <p className="text-xs text-muted-foreground mt-1">{timeAgo}</p>
       </div>
 
-      {/* 未読インジケーター */}
       {!notification.isRead && (
         <div className="flex-shrink-0">
           <div className="w-2 h-2 rounded-full bg-primary" />

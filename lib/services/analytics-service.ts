@@ -11,10 +11,12 @@ import 'server-only'
 
 import { prisma } from '@/lib/db'
 import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
+import logger from '@/lib/logger'
 
 import {
   DEFAULT_ANALYTICS_DAYS,
   ANALYTICS_POSTS_LIMIT,
+  ANALYTICS_MAX_SCAN_ROWS,
   TOP_POSTS_LIMIT,
   GENRE_PERFORMANCE_LIMIT,
   CONTENT_PREVIEW_LENGTH,
@@ -27,6 +29,20 @@ import { getStartOfNDaysAgo, getEndOfDay } from '@/lib/utils'
 /** Date を YYYY-MM-DD 形式に正規化。toISOString は必ず 'T' を含むので split[0] は string で確定する。 */
 function isoDateKey(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+/**
+ * スキャン安全上限への到達を可視化する（サイレント切り捨て防止）。
+ * 投稿系は 1 日上限により現実には到達しないが、いいね集計など件数が読めないクエリで
+ * 上限に達した場合は集計が標本値になる旨を warn で残す。
+ */
+function warnIfScanCapped(fn: string, userId: string, rowCount: number): void {
+  if (rowCount >= ANALYTICS_MAX_SCAN_ROWS) {
+    logger.warn(`${fn}: scan cap reached; aggregation is sampled`, {
+      userId,
+      cap: ANALYTICS_MAX_SCAN_ROWS,
+    })
+  }
 }
 
 export async function fetchPostAnalytics(userId: string, days = DEFAULT_ANALYTICS_DAYS) {
@@ -42,7 +58,9 @@ export async function fetchPostAnalytics(userId: string, days = DEFAULT_ANALYTIC
       _count: { select: { likes: true, comments: { where: { deletedAt: null } } } },
     },
     orderBy: { createdAt: 'desc' },
+    take: ANALYTICS_MAX_SCAN_ROWS,
   })
+  warnIfScanCapped('fetchPostAnalytics', userId, posts.length)
 
   type PostWithCount = typeof posts[number]
   const totalLikes = posts.reduce((sum: number, p: PostWithCount) => sum + p._count.likes, 0)
@@ -85,7 +103,10 @@ export async function fetchLikeAnalytics(userId: string, days = DEFAULT_ANALYTIC
       createdAt: { gte: startDate },
     },
     select: { createdAt: true },
+    orderBy: { createdAt: 'desc' },
+    take: ANALYTICS_MAX_SCAN_ROWS,
   })
+  warnIfScanCapped('fetchLikeAnalytics', userId, likes.length)
 
   const hourlyData = Array(24).fill(0)
   const weekdayData = Array(7).fill(0)
@@ -159,7 +180,10 @@ export async function fetchKeywordAnalytics(userId: string, days = DEFAULT_ANALY
       content: { not: null },
     },
     select: { content: true },
+    orderBy: { createdAt: 'desc' },
+    take: ANALYTICS_MAX_SCAN_ROWS,
   })
+  warnIfScanCapped('fetchKeywordAnalytics', userId, posts.length)
 
   const wordCount: Record<string, number> = {}
   const stopWords = new Set([
@@ -208,7 +232,9 @@ export async function fetchEngagementTrend(userId: string, days = DEFAULT_ANALYT
       _count: { select: { likes: true, comments: { where: { deletedAt: null } } } },
     },
     orderBy: { createdAt: 'asc' },
+    take: ANALYTICS_MAX_SCAN_ROWS,
   })
+  warnIfScanCapped('fetchEngagementTrend', userId, posts.length)
 
   const dailyStats: Record<string, { posts: number; likes: number; comments: number }> = {}
 
@@ -259,7 +285,10 @@ export async function fetchGenrePerformance(userId: string, days = DEFAULT_ANALY
         },
       },
     },
+    orderBy: { post: { createdAt: 'desc' } },
+    take: ANALYTICS_MAX_SCAN_ROWS,
   })
+  warnIfScanCapped('fetchGenrePerformance', userId, postGenres.length)
 
   const genreMap: Record<string, {
     name: string
@@ -269,13 +298,13 @@ export async function fetchGenrePerformance(userId: string, days = DEFAULT_ANALY
   }> = {}
 
   for (const pg of postGenres) {
-    const gId = pg.genre.id
-    if (!genreMap[gId]) {
-      genreMap[gId] = { name: pg.genre.name, postCount: 0, totalLikes: 0, totalComments: 0 }
+    const genreId = pg.genre.id
+    if (!genreMap[genreId]) {
+      genreMap[genreId] = { name: pg.genre.name, postCount: 0, totalLikes: 0, totalComments: 0 }
     }
-    genreMap[gId].postCount++
-    genreMap[gId].totalLikes += pg.post._count.likes
-    genreMap[gId].totalComments += pg.post._count.comments
+    genreMap[genreId].postCount++
+    genreMap[genreId].totalLikes += pg.post._count.likes
+    genreMap[genreId].totalComments += pg.post._count.comments
   }
 
   const genres = Object.values(genreMap)
@@ -308,8 +337,12 @@ export async function fetchFollowerGrowth(userId: string, days = DEFAULT_ANALYTI
       createdAt: { gte: startDate },
     },
     select: { createdAt: true },
-    orderBy: { createdAt: 'asc' },
+    // 件数が読めないクエリのためスキャン上限でガード。上限到達時は集計が標本値になる
+    // (currentFollowers は count() で正確、日次内訳のみ最新側を優先して標本化)。
+    orderBy: { createdAt: 'desc' },
+    take: ANALYTICS_MAX_SCAN_ROWS,
   })
+  warnIfScanCapped('fetchFollowerGrowth', userId, follows.length)
 
   const dailyNewFollowers: Record<string, number> = {}
   for (let i = 0; i < days; i++) {

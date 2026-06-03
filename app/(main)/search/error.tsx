@@ -1,20 +1,7 @@
-/**
- * @fileoverview 検索ページのエラーバウンダリ
- *
- * このファイルはNext.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /searchページで発生したエラーをキャッチして表示します。
- *
- * @route /search
- * @requires 'use client' - エラーバウンダリはクライアントコンポーネントである必要がある
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 検索ページのエラーコンポーネント
- */
 export default function SearchError({
   error,
   reset,

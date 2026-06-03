@@ -45,6 +45,17 @@ export function normalizeCursorPagination(input: {
 }
 
 /**
+ * 単独の limit を安全な範囲 [1, max] に clamp する。
+ * cursor を伴わない `take` 直渡しの read action で、巨大 limit による DB 過負荷を防ぐ。
+ */
+export function clampLimit(limit: number | undefined, max: number = MAX_PAGE_LIMIT): number {
+  if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
+    return Math.min(DEFAULT_PAGE_LIMIT, max)
+  }
+  return Math.min(Math.floor(limit), max)
+}
+
+/**
  * Prisma 用 take / cursor / skip を組み立てる。limit は必ず MAX_PAGE_LIMIT で clamp する。
  * `normalizeCursorPagination` を通していない呼び出しでも安全に動作する二重防御。
  */

@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db'
 import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
 import { createNotification } from '@/lib/services/notification-core'
 import { requireAuth, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { normalizeCursorPagination } from '@/lib/actions/pagination'
 import { actionZodError } from '@/lib/actions/schemas/common'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -19,6 +20,7 @@ import {
   MAX_MESSAGE_LENGTH,
   DAILY_MESSAGE_LIMIT,
   MESSAGES_PAGE_LIMIT,
+  MAX_NOTIFICATION_ID_LENGTH,
 } from '@/lib/constants/limits'
 import {
   ERR_MESSAGE_BLOCKED,
@@ -31,7 +33,10 @@ import {
   ERR_CONVERSATION_ID_REQUIRED,
   ERR_MESSAGE_CONTENT_REQUIRED,
   ERR_MESSAGE_TOO_LONG,
+  ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
+
+const messageIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
 import { getStartOfToday } from '@/lib/utils'
 import { sanitizeMessageContent } from '@/lib/sanitize'
 import { ROUTE_MESSAGES } from '@/lib/constants/routes'
@@ -156,12 +161,14 @@ export async function getMessages(conversationId: string, cursor?: string, limit
     })
     if (!participant) return actionError(ERR_CONVERSATION_ACCESS_DENIED)
 
+    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
     const messages = await prisma.message.findMany({
       where: { conversationId },
       include: { sender: USER_MINIMAL_RELATION },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
     })
 
     await prisma.conversationParticipant.update({
@@ -171,7 +178,7 @@ export async function getMessages(conversationId: string, cursor?: string, limit
 
     return actionSuccess({
       messages: messages.reverse(),
-      nextCursor: messages.length === limit ? messages[0]?.id : undefined,
+      nextCursor: messages.length === safeLimit ? messages[0]?.id : undefined,
       currentUserId: userId,
     })
   } catch (error) {
@@ -188,17 +195,20 @@ export async function deleteMessage(messageId: string) {
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  const parsed = messageIdSchema.safeParse(messageId)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 
   const message = await prisma.message.findUnique({
-    where: { id: messageId },
+    where: { id: parsed.data },
     select: { id: true, senderId: true, conversationId: true },
   })
   if (!message) return actionError(ERR_MESSAGE_NOT_FOUND)
   if (message.senderId !== userId) return actionError(ERR_MESSAGE_DELETE_DENIED)
 
-  await prisma.message.delete({ where: { id: messageId } })
+  await prisma.message.delete({ where: { id: parsed.data } })
 
   revalidatePath(buildMessageConversationPath(message.conversationId))
   revalidatePath(ROUTE_MESSAGES)

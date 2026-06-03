@@ -1,10 +1,3 @@
-/**
- * @file お問い合わせ管理ページ
- * @description お問い合わせ一覧を表示し、検索・フィルタリング・ステータス管理を
- *              提供する管理者専用ページ。ユーザーからの問い合わせに対応するための機能。
- * @route /admin/contact
- */
-
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getContactInquiries, getContactStats } from '@/lib/actions/contact'
@@ -87,7 +80,6 @@ export default async function AdminContactPage({
 
   return (
     <div className="space-y-6">
-      {/* ページヘッダー */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">お問い合わせ管理</h1>
         <Link href="/admin" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
@@ -95,7 +87,6 @@ export default async function AdminContactPage({
         </Link>
       </div>
 
-      {/* ステータス別統計カード */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">未対応</p>
@@ -115,7 +106,6 @@ export default async function AdminContactPage({
         </div>
       </div>
 
-      {/* 検索・フィルターフォーム（送信時 cursor/trail は自動的に消える = 先頭ページに戻る） */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
           <select
@@ -145,7 +135,6 @@ export default async function AdminContactPage({
         </form>
       </div>
 
-      {/* お問い合わせ一覧テーブル */}
       <div className="bg-card rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -204,7 +193,6 @@ export default async function AdminContactPage({
         </div>
       </div>
 
-      {/* カーソルベースページネーション（他の管理画面と共通の UI/挙動） */}
       <CursorPagination
         cursor={cursor}
         trail={trail}

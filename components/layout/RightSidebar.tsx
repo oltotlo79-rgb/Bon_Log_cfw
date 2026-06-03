@@ -34,7 +34,6 @@ export async function RightSidebar() {
 
   return (
     <aside className="sticky top-0 h-screen w-[360px] border-l border-border/30 bg-gradient-to-b from-card via-card to-muted/20 hidden xl:flex flex-col p-5 overflow-y-auto">
-      {/* おすすめユーザー */}
       <div className="card-washi bg-card p-4 mb-6 transition-all duration-300">
 
         <h3 className="font-medium mb-4 text-[13px] flex items-center gap-2.5 tracking-wide">
@@ -92,7 +91,6 @@ export async function RightSidebar() {
         </Link>
       </div>
 
-      {/* トレンドジャンル */}
       <div className="card-washi bg-card p-4 mb-6 transition-all duration-300">
 
         <h3 className="font-medium mb-4 text-[13px] flex items-center gap-2.5 tracking-wide">
@@ -133,17 +131,14 @@ export async function RightSidebar() {
         )}
       </div>
 
-      {/* 季節バナー */}
       <div className="mb-6">
         <SeasonalBanner />
       </div>
 
-      {/* 広告 */}
       <div className="mt-4">
         <SidebarAdUnit />
       </div>
 
-      {/* フッター */}
       <div className="mt-auto pt-6 text-xs text-muted-foreground/70">
         <div className="brush-divider opacity-50 mb-4" />
 

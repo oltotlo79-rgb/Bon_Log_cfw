@@ -198,18 +198,21 @@ export function useMediaUpload({ maxImages, maxVideos, onError }: UseMediaUpload
     const selectedFiles = Array.from(e.target.files || [])
     if (selectedFiles.length === 0) return
 
+    // mediaFiles state はループ内で同期更新されないため、複数ファイルを一度に選ぶと
+    // state 直読みの枚数チェックがすり抜けて上限を超える。アップロード成功ごとに
+    // 加算するローカルカウンタで判定する。
+    let imageCount = mediaFiles.filter(m => m.type === 'image').length
+    let videoCount = mediaFiles.filter(m => m.type === 'video').length
+
     for (const file of selectedFiles) {
       const isVideo = isVideoFile(file)
 
-      const currentImageCount = mediaFiles.filter(m => m.type === 'image').length
-      const currentVideoCount = mediaFiles.filter(m => m.type === 'video').length
-
-      if (!isVideo && currentImageCount >= maxImages) {
+      if (!isVideo && imageCount >= maxImages) {
         onError(`画像は${maxImages}枚まで添付できます`)
         break
       }
 
-      if (isVideo && currentVideoCount >= maxVideos) {
+      if (isVideo && videoCount >= maxVideos) {
         onError(`動画は${maxVideos}本まで添付できます`)
         break
       }
@@ -242,6 +245,7 @@ export function useMediaUpload({ maxImages, maxVideos, onError }: UseMediaUpload
             onError(('error' in result ? result.error : null) ?? MSG_ERROR_FALLBACK)
           } else if (result.url) {
             setMediaFiles(prev => [...prev, { url: result.url!, type: 'video' }])
+            videoCount++
           }
         } else {
           const fileToUpload = await compressImage(file, onError)
@@ -253,6 +257,7 @@ export function useMediaUpload({ maxImages, maxVideos, onError }: UseMediaUpload
             onError(('error' in result ? result.error : null) ?? MSG_ERROR_FALLBACK)
           } else if (result.url) {
             setMediaFiles(prev => [...prev, { url: result.url!, type: result.type || 'image' }])
+            imageCount++
           }
         }
       } catch {

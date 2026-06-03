@@ -6,7 +6,8 @@ import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { getPrefecturesByRegion, isRegionName } from '@/lib/prefectures'
-import { UPCOMING_EVENTS_LIMIT, MAX_EVENT_TITLE_LENGTH, MAX_EVENTS_LIMIT } from '@/lib/constants/limits'
+import { UPCOMING_EVENTS_LIMIT, MAX_EVENT_TITLE_LENGTH, MAX_EVENTS_LIMIT, MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/limits'
+import { clampLimit } from '@/lib/actions/pagination'
 import {
   ERR_EVENT_NOT_FOUND,
   ERR_PERMISSION_DENIED,
@@ -18,7 +19,10 @@ import {
   ERR_EVENT_TITLE_REQUIRED,
   ERR_EVENT_START_DATE_REQUIRED,
   ERR_EVENT_PREFECTURE_REQUIRED,
+  ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
+
+const eventIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
 import { sanitizeText, sanitizeUrl } from '@/lib/sanitize'
 import logger from '@/lib/logger'
 import { requireActiveNonGuestUser, actionSuccess, actionError, type ActionResult, enforceUserRateLimit } from '@/lib/actions/utils'
@@ -168,7 +172,7 @@ export async function getUpcomingEvents(limit = UPCOMING_EVENTS_LIMIT, region?: 
         },
       },
       orderBy: { startDate: 'asc' },
-      take: limit,
+      take: clampLimit(limit, MAX_EVENTS_LIMIT),
     })
 
     return { events }
@@ -341,11 +345,14 @@ export async function deleteEvent(eventId: string) {
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  const parsed = eventIdSchema.safeParse(eventId)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
   const rl = await enforceUserRateLimit(userId, 'delete_event')
   if (rl) return actionError(rl.error)
 
   const event = await prisma.event.findUnique({
-    where: { id: eventId },
+    where: { id: parsed.data },
     select: { createdBy: true },
   })
 
@@ -358,7 +365,7 @@ export async function deleteEvent(eventId: string) {
   }
 
   await prisma.event.delete({
-    where: { id: eventId },
+    where: { id: parsed.data },
   })
 
   revalidatePath(ROUTE_EVENTS)

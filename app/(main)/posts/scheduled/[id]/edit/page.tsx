@@ -1,7 +1,4 @@
 /**
- * @file 予約投稿編集ページ
- * @description 既存の予約投稿を編集するためのフォームページ（プレミアム会員限定）
- *
  * このファイルは[id]動的ルートパラメータを使用して、
  * 特定の予約投稿を編集するためのページです。
  * プレミアム会員のみがアクセス可能で、ステータスが「pending」の投稿のみ編集できます。
@@ -51,12 +48,10 @@ import Link from 'next/link'
 // 戻るボタンに使用
 import { ArrowLeft } from 'lucide-react'
 
-/**
- * ページメタデータ
- * SEOおよびブラウザタブのタイトル設定
- */
 export const metadata = {
   title: '予約投稿を編集 | BONLOG',
+  // 編集ページは所有者専用のため検索エンジンに公開しない
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -144,9 +139,7 @@ export default async function EditScheduledPostPage({
 
   return (
     <div className="max-w-2xl mx-auto py-4 px-4">
-      {/* ヘッダー部分 - 戻るリンクとタイトル */}
       <div className="flex items-center gap-4 mb-4">
-        {/* 予約投稿一覧に戻るリンク */}
         <Link href="/posts/scheduled" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Link>

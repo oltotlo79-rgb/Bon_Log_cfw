@@ -1,7 +1,4 @@
 /**
- * @file メール確認ページ
- * @description 確認メールのリンク（?token=xxx）を開いたときにトークンを検証し、完了またはエラーを表示する
- *
  * 機能概要:
  * - token クエリで verifyEmailToken を実行
  * - 成功時: メッセージ表示＋ログインページへリダイレクト
@@ -43,7 +40,7 @@ export default async function VerifyEmailPage({
 
   return (
     <div className="p-6 sm:p-8 space-y-6">
-      <h1 className="font-serif text-3xl font-bold text-center text-sumi mb-10 tracking-widest">
+      <h1 className="font-serif text-3xl font-bold text-center text-sumi dark:text-washi mb-10 tracking-widest">
         メールの確認に失敗しました
       </h1>
 

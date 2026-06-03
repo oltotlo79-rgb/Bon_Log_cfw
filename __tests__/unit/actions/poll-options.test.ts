@@ -62,7 +62,7 @@ vi.mock('@/lib/cache', () => ({
   revalidatePopularTagsCache: vi.fn(),
 }))
 
-vi.mock('@/lib/actions/mention', () => ({
+vi.mock('@/lib/services/mention', () => ({
   notifyMentionedUsers: vi.fn().mockResolvedValue(undefined),
 }))
 

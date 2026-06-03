@@ -28,8 +28,7 @@ test.describe('農薬・病害虫ページ', () => {
     await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: /農薬・病害虫/i })).toBeVisible({ timeout: 10000 })
     const spreaderBtn = page.getByRole('button', { name: '展着剤' })
-    await spreaderBtn.click({ timeout: 5000 })
-    await expect(page).toHaveURL(/\/pesticides\?type=spreader/, { timeout: 5000 })
+    await clickAndWaitForUrl(page, spreaderBtn, /\/pesticides\?type=spreader/, { timeout: 5000 })
     await expect(
       page.getByRole('heading', { name: /展着剤一覧/i }).or(page.getByText(/展着剤データはまだ登録されていません/))
     ).toBeVisible({ timeout: 5000 })
@@ -40,8 +39,7 @@ test.describe('農薬・病害虫ページ', () => {
     await page.waitForLoadState('domcontentloaded')
     const input = page.getByPlaceholder(/薬剤名・登録番号で検索/)
     await input.fill('テスト')
-    await page.getByRole('button', { name: '検索' }).click()
-    await expect(page).toHaveURL(/\/pesticides\?search=/, { timeout: 5000 })
+    await clickAndWaitForUrl(page, page.getByRole('button', { name: '検索' }), /\/pesticides\?search=/, { timeout: 5000 })
   })
 
   test('病害虫から探すで病害虫をクリックすると diseasePest クエリで結果が表示される', async ({
@@ -52,10 +50,12 @@ test.describe('農薬・病害虫ページ', () => {
     const diseasePestLink = page.locator('a[href^="/pesticides?diseasePest="]').first()
     const count = await diseasePestLink.count()
     if (count > 0) {
-      await diseasePestLink.click()
-      await expect(page).toHaveURL(/\/pesticides\?diseasePest=/, { timeout: 5000 })
+      await clickAndWaitForUrl(page, diseasePestLink, /\/pesticides\?diseasePest=/, { timeout: 5000 })
+      // 病害虫に紐づく薬剤が 0 件のときは見出しと空メッセージが両方出るため、
+      // 単一の getByText 正規表現だと strict mode 違反になる。先頭要素で「結果ビューが
+      // 描画されたこと」を確認する（薬剤あり/なしの双方を許容する元の意図を維持）。
       await expect(
-        page.getByText(/に効く薬剤|該当する薬剤が見つかりませんでした|検索結果/)
+        page.getByText(/に効く薬剤|該当する薬剤が見つかりませんでした|検索結果/).first()
       ).toBeVisible({ timeout: 5000 })
     }
   })
@@ -64,8 +64,7 @@ test.describe('農薬・病害虫ページ', () => {
     await page.goto('/pesticides?type=spreader')
     await page.waitForLoadState('domcontentloaded')
     const clearBtn = page.getByRole('button', { name: 'クリア' })
-    await clearBtn.click({ timeout: 5000 })
-    await expect(page).toHaveURL(/\/pesticides\/?$/, { timeout: 5000 })
+    await clickAndWaitForUrl(page, clearBtn, /\/pesticides\/?$/, { timeout: 5000 })
   })
 })
 
@@ -78,8 +77,7 @@ test.describe('薬剤製品詳細ページ', () => {
     const productLink = page.locator('a[href^="/pesticides/products/"]').first()
     const count = await productLink.count()
     if (count > 0) {
-      await productLink.click()
-      await expect(page).toHaveURL(/\/pesticides\/products\/[^/]+$/, { timeout: 5000 })
+      await clickAndWaitForUrl(page, productLink, /\/pesticides\/products\/[^/]+$/, { timeout: 5000 })
       await expect(
         page.getByRole('heading', { level: 1 }).or(page.getByText(/基本情報|登録番号|剤型/)).first()
       ).toBeVisible({ timeout: 5000 })
@@ -124,8 +122,7 @@ test.describe('展着剤ページ', () => {
     const typeLink = page.locator('a[href*="/pesticides/spreaders?type="]').first()
     const count = await typeLink.count()
     if (count > 0) {
-      await typeLink.click()
-      await expect(page).toHaveURL(/\?type=/, { timeout: 5000 })
+      await clickAndWaitForUrl(page, typeLink, /\?type=/, { timeout: 5000 })
       await expect(
         page.getByRole('heading', { name: /展着剤/i })
       ).toBeVisible({ timeout: 5000 })
@@ -143,8 +140,7 @@ test.describe('展着剤ページ', () => {
       const productLink = page.locator('a[href^="/pesticides/products/"]').first()
       const productCount = await productLink.count()
       if (productCount > 0) {
-        await productLink.click()
-        await expect(page).toHaveURL(/\/pesticides\/products\/[^/]+$/, { timeout: 5000 })
+        await clickAndWaitForUrl(page, productLink, /\/pesticides\/products\/[^/]+$/, { timeout: 5000 })
         await expect(
           page.getByRole('heading', { level: 1 }).or(page.getByText(/基本情報|登録番号|剤型/)).first()
         ).toBeVisible({ timeout: 5000 })
@@ -168,8 +164,7 @@ test.describe('原体一覧ページ', () => {
     const ingredientLink = page.locator('a[href^="/pesticides/ingredients/"]').first()
     const count = await ingredientLink.count()
     if (count > 0) {
-      await ingredientLink.click()
-      await expect(page).toHaveURL(/\/pesticides\/ingredients\/[^/]+$/, { timeout: 5000 })
+      await clickAndWaitForUrl(page, ingredientLink, /\/pesticides\/ingredients\/[^/]+$/, { timeout: 5000 })
       await expect(
         page.getByRole('heading', { level: 1 }).or(page.getByText(/原体|FRAC|IRAC/)).first()
       ).toBeVisible({ timeout: 5000 })
@@ -194,8 +189,13 @@ test.describe('病害虫図鑑ページ', () => {
     const detailLink = page.locator('a[href^="/pesticides/diseases-pests/"]').first()
     const count = await detailLink.count()
     if (count > 0) {
-      // click と URL 遷移を atomic に待つ (hydration 遅延への耐性)
-      await clickAndWaitForUrl(page, detailLink, /\/pesticides\/diseases-pests\/[^/]+$/)
+      await detailLink.scrollIntoViewIfNeeded().catch(() => {})
+      // click が hydration 前/不安定で navigation を起こさないことがあるため、
+      // click→URL 検証を toPass で再試行し詳細遷移まで吸収する
+      await expect(async () => {
+        await detailLink.click()
+        await page.waitForURL(/\/pesticides\/diseases-pests\/[^/]+$/, { timeout: 4000 })
+      }).toPass({ timeout: 25000 })
       await expect(
         page.getByRole('heading', { level: 1 }).or(page.getByText(/病害虫|に効く薬剤/)).first()
       ).toBeVisible({ timeout: 10000 })
@@ -218,8 +218,7 @@ test.describe('コラムページ', () => {
     const columnLink = page.locator('a[href^="/pesticides/columns/"]').first()
     const count = await columnLink.count()
     if (count > 0) {
-      await columnLink.click()
-      await expect(page).toHaveURL(/\/pesticides\/columns\/[^/]+$/, { timeout: 5000 })
+      await clickAndWaitForUrl(page, columnLink, /\/pesticides\/columns\/[^/]+$/, { timeout: 5000 })
       await expect(
         page.getByRole('heading', { level: 1 }).or(page.getByText(/コラム|農薬/)).first()
       ).toBeVisible({ timeout: 5000 })

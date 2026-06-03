@@ -689,8 +689,11 @@ describe('WarningsList', () => {
 
   it('opens issue warning dialog', () => {
     render(<WarningsList {...baseProps} />)
+    // Dialog content (search input) is absent until the trigger is clicked
+    expect(screen.queryByPlaceholderText('ニックネームまたはメールで検索...')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '警告を発行' }))
-    // The dialog should be rendered via IssueWarningDialog
+    // IssueWarningDialog now renders with isOpen=true
+    expect(screen.getByPlaceholderText('ニックネームまたはメールで検索...')).toBeInTheDocument()
   })
 
   it('formats dates correctly including null', () => {
@@ -1469,6 +1472,14 @@ describe('PesticideTable', () => {
     render(<PesticideTable {...baseProps} />)
     const typeSelect = screen.getByDisplayValue('全ての種別')
     fireEvent.change(typeSelect, { target: { value: 'insecticide' } })
+
+    // Controlled select reflects the new selection
+    expect((typeSelect as HTMLSelectElement).value).toBe('insecticide')
+
+    // Applying the filter pushes the chosen type into the URL
+    mockPush.mockClear()
+    fireEvent.click(screen.getByText('検索'))
+    expect(mockPush).toHaveBeenCalledWith('/admin/pesticide-data?pesticideType=insecticide')
   })
 
   it('resets filters', () => {
@@ -1578,13 +1589,34 @@ describe('SecurityEventList', () => {
 
   it('applies IP address filter', () => {
     render(<SecurityEventList {...baseProps} />)
-    fireEvent.change(screen.getByPlaceholderText('IPアドレスで検索'), { target: { value: '1.2.3' } })
+    const ipInput = screen.getByPlaceholderText('IPアドレスで検索') as HTMLInputElement
+    fireEvent.change(ipInput, { target: { value: '1.2.3' } })
+
+    // Controlled input reflects the typed value
+    expect(ipInput.value).toBe('1.2.3')
+
+    // Applying the filter pushes the IP into the URL
+    mockPush.mockClear()
+    fireEvent.click(screen.getByText('検索'))
+    expect(mockPush).toHaveBeenCalledWith('/admin/security?ipAddress=1.2.3')
   })
 
   it('applies date range filter', () => {
-    render(<SecurityEventList {...baseProps} />)
-    const _dateInputs = screen.getAllByDisplayValue('')
-    // There are multiple empty inputs; date inputs are type="date"
+    const { container } = render(<SecurityEventList {...baseProps} />)
+    const dateInputs = container.querySelectorAll('input[type="date"]')
+    expect(dateInputs.length).toBe(2)
+
+    fireEvent.change(dateInputs[0], { target: { value: '2025-01-01' } })
+    fireEvent.change(dateInputs[1], { target: { value: '2025-01-31' } })
+
+    // Controlled date inputs reflect the selected range
+    expect((dateInputs[0] as HTMLInputElement).value).toBe('2025-01-01')
+    expect((dateInputs[1] as HTMLInputElement).value).toBe('2025-01-31')
+
+    // Applying the filter pushes both bounds into the URL
+    mockPush.mockClear()
+    fireEvent.click(screen.getByText('検索'))
+    expect(mockPush).toHaveBeenCalledWith('/admin/security?dateFrom=2025-01-01&dateTo=2025-01-31')
   })
 
   it('resets filters', () => {

@@ -11,12 +11,13 @@
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
-import { requireActiveNonGuestUser, requireAuth, actionError, actionSuccess, invalidateUserRelationsCache, enforceUserRateLimit } from '@/lib/actions/utils'
-import { recordNewFollower } from './analytics'
+import { requireActiveNonGuestUser, requireAuth, actionError, actionSuccess, invalidateUserRelationsCache, enforceUserRateLimit, getClientIp } from '@/lib/actions/utils'
+import { recordNewFollowerService } from '@/lib/services/analytics-recording'
 import { createNotification } from '@/lib/services/notification-core'
-import { checkUserRateLimit } from '@/lib/rate-limit'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
 import {
   ERR_SELF_ACTION,
@@ -26,11 +27,31 @@ import {
   ERR_INVALID_INPUT,
   ERR_USER_ID_REQUIRED,
 } from '@/lib/constants/errors'
-import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import { DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT } from '@/lib/constants/limits'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { buildUserPath } from '@/lib/constants/path-builders'
+import { canViewAuthorContent, visibleUserWhere } from '@/lib/services/post-visibility'
+import { checkInteractionEligibility } from '@/lib/services/user-eligibility'
 
 const userIdSchema = z.string().min(1, ERR_USER_ID_REQUIRED)
+
+const followListInputSchema = z.object({
+  userId: z.string().min(1, ERR_USER_ID_REQUIRED),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().positive().max(MAX_PAGE_LIMIT).optional(),
+})
+
+const EMPTY_LIST_RESULT = { users: [] as never[], nextCursor: undefined } as const
+
+async function enforceFollowListRateLimit(userId: string | undefined): Promise<boolean> {
+  if (userId) {
+    const rl = await enforceUserRateLimit(userId, 'read')
+    return rl === null
+  }
+  const ip = await getClientIp()
+  const rl = await rateLimit(`follow_list:${ip}`, RATE_LIMITS.read)
+  return rl.success
+}
 
 /**
  * フォローをトグル（フォロー/フォロー解除）
@@ -83,16 +104,15 @@ export async function toggleFollow(userId: string) {
         return { kind: 'ok', following: false }
       }
 
-      const targetUser = await tx.user.findUnique({
-        where: { id: targetUserId },
-        select: { isPublic: true },
-      })
-
-      if (!targetUser) {
+      // target の存在・停止・ゲスト・双方向 block を一括検証する。
+      // direct follow は block の有無を相手に推測させないため、block も not_found と同じ
+      // ERR_USER_NOT_FOUND に丸めて秘匿する（follow request / DM では block 専用エラーを返す方針）。
+      const eligibility = await checkInteractionEligibility(currentUserId, targetUserId, tx)
+      if (!eligibility.ok) {
         return { kind: 'error', error: ERR_USER_NOT_FOUND }
       }
 
-      if (!targetUser.isPublic) {
+      if (!eligibility.target.isPublic) {
         return { kind: 'error', error: ERR_PRIVATE_ACCOUNT_FOLLOW }
       }
 
@@ -119,7 +139,7 @@ export async function toggleFollow(userId: string) {
         type: 'follow',
       })
 
-      void recordNewFollower(targetUserId).catch((err) => logger.error('recordNewFollower failed:', err))
+      void recordNewFollowerService(targetUserId).catch((err) => logger.error('recordNewFollower failed:', err))
     }
 
     await invalidateUserRelationsCache(currentUserId)
@@ -142,8 +162,8 @@ export async function getFollowStatus(targetUserId: string) {
   if ('error' in authResult) return { following: false }
   const userId = authResult.userId
 
-  const rateLimitResult = await checkUserRateLimit(userId, 'read')
-  if (!rateLimitResult.success) {
+  const rl = await enforceUserRateLimit(userId, 'read')
+  if (rl) {
     return { following: false }
   }
 
@@ -167,43 +187,50 @@ export async function getFollowStatus(targetUserId: string) {
  * @returns フォロワー一覧と次のカーソル
  */
 export async function getFollowers(userId: string, cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
+  const parsed = followListInputSchema.safeParse({ userId, cursor, limit })
+  if (!parsed.success) return EMPTY_LIST_RESULT
+  const { userId: safeUserId, cursor: safeCursor, limit: safeLimit = DEFAULT_PAGE_LIMIT } = parsed.data
+
   const session = await auth()
-  if (session?.user?.id) {
-    const rateLimitResult = await checkUserRateLimit(session.user.id, 'read')
-    if (!rateLimitResult.success) {
-      return { users: [], nextCursor: undefined }
+  const viewerId = session?.user?.id
+  const allowed = await enforceFollowListRateLimit(viewerId)
+  if (!allowed) return EMPTY_LIST_RESULT
+
+  // 本人以外は対象プロフィールが閲覧可能な場合のみフォロワーを返す（/users/[id]/* と同条件）。
+  if (viewerId !== safeUserId) {
+    const target = await prisma.user.findUnique({
+      where: { id: safeUserId },
+      select: { isPublic: true, isSuspended: true },
+    })
+    if (!target || !(await canViewAuthorContent(viewerId, safeUserId, target))) {
+      return EMPTY_LIST_RESULT
     }
   }
 
   const followers = await prisma.follow.findMany({
     where: {
-      followingId: userId,
-      follower: { email: { not: GUEST_EMAIL } },  // ゲストは一覧に表示しない
+      followingId: safeUserId,
+      follower: { ...visibleUserWhere(viewerId), email: { not: GUEST_EMAIL } },
     },
     include: {
       follower: {
-        select: {
-          id: true,
-          nickname: true,
-          avatarUrl: true,
-          bio: true,
-        },
+        select: USER_MINIMAL_WITH_BIO_SELECT,
       },
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && {
+    orderBy: [{ createdAt: 'desc' }, { followerId: 'desc' }],
+    take: safeLimit,
+    ...(safeCursor && {
       cursor: {
         followerId_followingId: {
-          followerId: cursor,
-          followingId: userId,
+          followerId: safeCursor,
+          followingId: safeUserId,
         },
       },
       skip: 1,
     }),
   })
 
-  const hasMore = followers.length === limit
+  const hasMore = followers.length === safeLimit
 
   return {
     users: followers.map((f: typeof followers[number]) => f.follower),
@@ -219,43 +246,50 @@ export async function getFollowers(userId: string, cursor?: string, limit = DEFA
  * @returns フォロー中一覧と次のカーソル
  */
 export async function getFollowing(userId: string, cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
+  const parsed = followListInputSchema.safeParse({ userId, cursor, limit })
+  if (!parsed.success) return EMPTY_LIST_RESULT
+  const { userId: safeUserId, cursor: safeCursor, limit: safeLimit = DEFAULT_PAGE_LIMIT } = parsed.data
+
   const session = await auth()
-  if (session?.user?.id) {
-    const rateLimitResult = await checkUserRateLimit(session.user.id, 'read')
-    if (!rateLimitResult.success) {
-      return { users: [], nextCursor: undefined }
+  const viewerId = session?.user?.id
+  const allowed = await enforceFollowListRateLimit(viewerId)
+  if (!allowed) return EMPTY_LIST_RESULT
+
+  // 本人以外は対象プロフィールが閲覧可能な場合のみフォロー中一覧を返す（/users/[id]/* と同条件）。
+  if (viewerId !== safeUserId) {
+    const target = await prisma.user.findUnique({
+      where: { id: safeUserId },
+      select: { isPublic: true, isSuspended: true },
+    })
+    if (!target || !(await canViewAuthorContent(viewerId, safeUserId, target))) {
+      return EMPTY_LIST_RESULT
     }
   }
 
   const following = await prisma.follow.findMany({
     where: {
-      followerId: userId,
-      following: { email: { not: GUEST_EMAIL } },  // ゲストは一覧に表示しない
+      followerId: safeUserId,
+      following: { ...visibleUserWhere(viewerId), email: { not: GUEST_EMAIL } },
     },
     include: {
       following: {
-        select: {
-          id: true,
-          nickname: true,
-          avatarUrl: true,
-          bio: true,
-        },
+        select: USER_MINIMAL_WITH_BIO_SELECT,
       },
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && {
+    orderBy: [{ createdAt: 'desc' }, { followingId: 'desc' }],
+    take: safeLimit,
+    ...(safeCursor && {
       cursor: {
         followerId_followingId: {
-          followerId: userId,
-          followingId: cursor,
+          followerId: safeUserId,
+          followingId: safeCursor,
         },
       },
       skip: 1,
     }),
   })
 
-  const hasMore = following.length === limit
+  const hasMore = following.length === safeLimit
 
   return {
     users: following.map((f: typeof following[number]) => f.following),

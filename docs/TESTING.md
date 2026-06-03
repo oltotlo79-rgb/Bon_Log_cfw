@@ -6,22 +6,28 @@
 
 | フレームワーク | バージョン | 用途 | 環境 |
 |--------------|-----------|------|------|
-| Vitest | 4.0.18 | ユニット・コンポーネントテスト | jsdom / node |
-| Playwright | 1.57.0 | E2Eテスト | 8プロジェクト構成 |
+| Vitest | ^4.0.18 | ユニット・コンポーネントテスト | jsdom |
+| Playwright | ^1.57.0 | E2Eテスト | 8プロジェクト構成 |
 | カバレッジプロバイダー | istanbul（`@vitest/coverage-istanbul`） | コードカバレッジ計測 | - |
 
-> **プロバイダー切り替えの経緯**: 旧 `v8` プロバイダーは、コンポーネントテストで `vi.mock('@/lib/actions/*', ...)` が多用される本プロジェクトにおいて、モック対象ファイルの実装側カバレッジを 0 として集計してしまう既知の問題があった。`istanbul` はインスツルメンテーション方式が異なり、`vi.mock()` が呼ばれても実装の別テスト経由のカバレッジが正しく集計される。
+> **プロバイダー切り替えの経緯**: 旧 `v8` プロバイダーは、コンポーネントテストで `vi.mock('@/lib/actions/*', ...)` が多用される本プロジェクトにおいて、モック対象ファイルの実装側カバレッジを 0 として集計してしまう既知の問題があった。`istanbul` はインスツルメンテーション方式が異なり、`vi.mock()` が呼ばれても実装の別テスト経由のカバレッジが正しく集計される。`@vitest/coverage-v8` も依存に残っているが、`vitest.config.ts` の `coverage.provider` は `istanbul` に固定されている。
 
-Vitest は `vitest.config.ts` で `testTimeout: 15000`（15秒）、`teardownTimeout: 5000`（5秒）を設定している。
+Vitest は `vitest.config.ts` で次を設定している:
 
-## テスト統計（2026-05-14時点）
+- `environment: 'jsdom'`、`globals: true`、`setupFiles: ['./vitest.setup.tsx']`
+- `testTimeout: 15000`（15秒）、`teardownTimeout: 5000`（5秒）
+- `pool: 'forks'` + `maxWorkers: '50%'`（push/ビルドと並走時の flaky を避けるため CPU の半分に制限）
+
+> **`--configLoader runner` について**: `package.json` の test スクリプトは `vitest run --configLoader runner` を使う。Windows sandbox 等で設定ファイル解決が落ちるのを避けるための指定であり、`npm test` 経由なら自動で付与される。`npx vitest run` を直接叩く場合（CI もこちら）はこのフラグは不要。
+
+## テスト統計（2026-05-30時点）
 
 | 項目 | 数値 |
 |------|------|
-| テストファイル数（Vitest） | 805（`.test.ts` 327 + `.test.tsx` 478） |
-| テストケース数（Vitest） | 全 PASS（カバレッジ閾値クリア） |
+| テストファイル数（Vitest） | 825（`.test.ts` 343 + `.test.tsx` 482） |
 | カバレッジ閾値 | Branches 80% / Functions 85% / Lines 85% / Statements 85% |
-| TypeScript strict | `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化） |
+| カバレッジ実測（参考） | Statements ~96.7% / Branches ~90.9% / Functions ~97.4% / Lines ~98.0%（閾値を大きく上回る） |
+| TypeScript strict | `strict: true` + `noUncheckedIndexedAccess: true` + `noImplicitOverride: true` |
 | 主要内訳 | components / lib / app / coverage-boost / prisma / hooks / types / 他 |
 | E2E specファイル数 | 60 |
 | E2E Playwrightプロジェクト数 | 8（setup, chromium, firefox, webkit, Mobile Chrome, Mobile Safari, chromium-noauth, teardown） |
@@ -56,9 +62,10 @@ Vitest は `vitest.config.ts` で `testTimeout: 15000`（15秒）、`teardownTim
 
 ## 型安全性ロードマップ
 
-`tsconfig.json` の `noUncheckedIndexedAccess` は **`true` に切り替え済み**（2026-05-13）。
+`tsconfig.json` の `noUncheckedIndexedAccess` および `noImplicitOverride` は **`true` に切り替え済み**。
 配列インデックス・`Map.get` の戻り値はすべて `T | undefined` として絞り込みが必須となり、
 `?? defaultValue` / 型ガード / discriminated union で各所に防御を入れた状態でビルドが通る。
+class 継承時には `override` キーワードが必須。
 ESLint も同時に厳格化（`eslint.config.mjs` を参照）。
 
 なお、本番コード（`lib/`, `app/`, `components/`）には **`: any` / `as any` の出現がゼロ**。`as unknown as` は `lib/db.ts`（global Prisma singleton）と `lib/stripe.ts`（Stripe SDK 遅延初期化 Proxy）の **2 箇所のみ**で、いずれもコメントで意図を明記している。本番ファイルの **非 null アサーション (`!.`) は全廃**（discriminated union / Map ガード / `?? []` 等で安全化済み。テストや prisma/seed 等のスクリプトを除く）。`as <Type>` の汎用キャストも極小（`lib/` 全体で 22 件以下、いずれも Object.keys / 列挙体エイリアスや一意フィールド付きキャッシュエントリ等の正当用途）。テストファイル限定で `eslint.config.mjs` が `@typescript-eslint/no-explicit-any` を `off` にしているため、モック定義での `any` 使用は許容される。
@@ -78,7 +85,7 @@ npx playwright install
 ### ユニットテスト・コンポーネントテスト（Vitest）
 
 ```bash
-# 全テストを実行
+# 全テストを実行（= vitest run --configLoader runner）
 npm test
 
 # ウォッチモードで実行（ファイル変更時に自動再実行）
@@ -87,8 +94,11 @@ npm run test:watch
 # カバレッジレポート付きで実行
 npm run test:coverage
 
-# CI環境用（カバレッジ付き、非インタラクティブ）
+# CI相当（カバレッジ付き、非インタラクティブ。中身は test:coverage と同一）
 npm run test:ci
+
+# 特定ファイルのみ実行
+npx vitest run --configLoader runner __tests__/lib/actions/post.test.ts
 ```
 
 ### E2Eテスト（Playwright）
@@ -131,7 +141,7 @@ npm run test:all
 
 ```
 project/
-├── __tests__/                    # Vitestテスト（805ファイル）
+├── __tests__/                    # Vitestテスト（825ファイル）
 │   ├── utils/
 │   │   └── test-utils.tsx        # テストユーティリティ、モック（30+モックデータ + Prismaクライアントモック）
 │   ├── helpers/
@@ -164,9 +174,11 @@ project/
 │   └── proxy/                    # proxy.tsテスト
 ├── e2e/                          # Playwright E2Eテスト（60 specファイル）
 │   ├── auth.setup.ts             # 認証セットアップ（storageState 保存）
-│   ├── global-teardown.ts        # 全E2E終了後のクリーンアップ
-│   ├── teardown.ts               # E2E後クリーンアップ（追加teardown）
+│   ├── global-teardown.ts        # 全E2E終了後のクリーンアップ（globalTeardown）
+│   ├── teardown.ts               # teardown プロジェクト（chromium等の後に実行）
 │   ├── locators.ts               # 共通ロケータ・ヘルパー
+│   ├── helpers/
+│   │   └── navigation.ts         # clickAndWaitForUrl（クリック→遷移を atomic に待機）
 │   └── 60 specファイル:
 │       accessibility, admin*, analytics*, auth, block-mute,
 │       bonsai*, bookmarks*, comment-*, contact-form, content-*,
@@ -203,6 +215,11 @@ vi.mock('@/lib/db', () => ({
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({
   auth: () => mockAuth(),
+}))
+
+// レート制限モック（対象 Action が enforceUserRateLimit を通る場合のみ必要）
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }),
 }))
 
 describe('Post Actions', () => {
@@ -276,18 +293,30 @@ test.describe('ログイン機能', () => {
     await expect(page.getByRole('heading', { name: /ログイン/i })).toBeVisible()
     await expect(page.getByLabel(/メールアドレス/i)).toBeVisible()
   })
-
-  test('ログインできる', async ({ page }) => {
-    await page.goto('/login')
-
-    await page.getByLabel(/メールアドレス/i).fill('test@example.com')
-    await page.getByLabel(/パスワード/i).fill('password123')
-    await page.getByRole('button', { name: /ログイン/i }).click()
-
-    await expect(page).toHaveURL('/feed')
-  })
 })
 ```
+
+#### クリック → ナビゲーションは atomic に待つ（必須パターン）
+
+Next.js Link / `router.push` の遷移は hydration / startTransition の遅延を含むため、
+`click()` を先に発火させてから `expect(page).toHaveURL(...)` で polling すると CI で flaky になる。
+新規 E2E では `e2e/helpers/navigation.ts` の `clickAndWaitForUrl` を使う
+（内部で `Promise.all([page.waitForURL(url), locator.click()])` を実行し、遷移開始〜完了を確実に補足する）。
+
+```typescript
+// ❌ NG（非 atomic。CI で flake する）
+await link.click()
+await expect(page).toHaveURL(/\/feed/, { timeout: 10000 })
+
+// ✅ OK（atomic に待機）
+import { clickAndWaitForUrl } from './helpers/navigation'
+
+await clickAndWaitForUrl(page, link, /\/feed/)
+```
+
+ナビゲーション前に hydration 完了が必要な場合は `goto` 後に
+`await page.waitForLoadState('networkidle').catch(() => {})` を併用する
+（`'load'` だけだと client side fetch 完了前に進む可能性がある）。
 
 ## モックデータ
 
@@ -340,22 +369,25 @@ test.describe('ログイン機能', () => {
 
 ## CI/CD統合
 
-`.github/workflows/ci.yml` で定義（6ジョブ構成）:
+`.github/workflows/ci.yml` は `main` / `master` への push・PR で起動し、5 ジョブ構成（lighthouse は別ワークフロー `lighthouse.yml`）:
 
-| ジョブ | 内容 | 実行タイミング |
-|--------|------|--------------|
-| lint | ESLint + TypeScript型チェック（`npx tsc --noEmit -p tsconfig.check.json`） | 常時 |
-| security | `npm audit --audit-level=high`（continue-on-error）+ CodeQL静的解析 | 常時 |
-| test | ユニットテスト（`npx vitest run --coverage`）、閾値未満で失敗 | 常時 |
-| build | Next.js本番ビルド確認 | 常時 |
-| e2e | Playwright E2Eテスト | mainブランチのみ |
-| lighthouse | Lighthouse CI パフォーマンス監査（別ワークフロー lighthouse.yml） | push + PR |
+| ジョブ | 内容 | 備考 |
+|--------|------|------|
+| lint | ESLint（`npm run lint`）+ TypeScript型チェック（`npx tsc --noEmit -p tsconfig.check.json`） | - |
+| security | `npm audit --json --omit=dev` を ALLOWLIST 突合（未知 high/critical で fail）+ CodeQL静的解析 | - |
+| test | ユニットテスト（`npx vitest run --coverage`）。閾値未満で fail。coverage を artifact 化 | - |
+| build | Next.js本番ビルド確認（`npm run build`） | - |
+| e2e | Playwright E2E（`--project=chromium --project=chromium-noauth`） | `needs: [lint, test, build]`。postgres service + standalone server を起動 |
+| lighthouse（別ワークフロー） | Lighthouse CI パフォーマンス監査 | push + PR |
+
+> 注: `npm audit --audit-level=high` ではなく `--json --omit=dev` を `jq` で検査する方式に変わっている（既知 GHSA のみ許容し、未知の high/critical は確実に fail させるため）。
 
 ```yaml
-# セキュリティスキャン例
+# セキュリティスキャン例（npm audit を jq で ALLOWLIST 突合 + CodeQL）
 - name: Run npm audit
-  run: npm audit --audit-level=high
-  continue-on-error: true
+  run: |
+    npm audit --json --omit=dev > audit.json
+    # 未知の high/critical advisory があれば exit 1（詳細は ci.yml 参照）
 - name: Initialize CodeQL
   uses: github/codeql-action/init@v3
   with:
@@ -363,8 +395,8 @@ test.describe('ログイン機能', () => {
 - name: Perform CodeQL Analysis
   uses: github/codeql-action/analyze@v3
 
-# ユニットテスト実行例
-- name: Run unit tests
+# ユニットテスト実行例（閾値ゲートは vitest 自身が enforce）
+- name: Run unit tests (coverage gate enforced)
   run: npx vitest run --coverage
   env:
     NODE_OPTIONS: "--max-old-space-size=4096"

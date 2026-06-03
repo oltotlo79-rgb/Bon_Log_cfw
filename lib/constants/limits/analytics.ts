@@ -8,6 +8,14 @@
 export const DEFAULT_ANALYTICS_DAYS = 30
 
 /**
+ * 分析クエリ 1 回あたりの行スキャン安全上限。
+ * 投稿は 1 日あたり上限があるため投稿系クエリでは現実にこの値へ到達しないが、
+ * 理論上の無制限 findMany を防ぐ防御的シーリング。到達時は logger.warn で可視化し
+ * （サイレント切り捨てを避ける）、いいね集計など件数が読めないクエリの上振れを抑える。
+ */
+export const ANALYTICS_MAX_SCAN_ROWS = 10000
+
+/**
  * 投稿 / プロフィール閲覧 beacon の dedupe TTL (秒)。
  * 同一閲覧者が短時間で再表示しても 1 view しか計上しないための間隔。
  */

@@ -13,7 +13,9 @@
 
 import { z } from 'zod'
 import {
+  MAX_ADMIN_ID_LENGTH,
   MAX_ADMIN_REASON_LENGTH,
+  MAX_CMS_SLUG_LENGTH,
   MAX_CMS_TITLE_LENGTH,
   MAX_CMS_CONTENT_LENGTH,
   MAX_CMS_CATEGORY_LENGTH,
@@ -32,9 +34,9 @@ import {
 
 /**
  * 管理者操作で受け取る ID 文字列 (cuid 等)。空文字を弾く。
- * 内部生成された ID なので長すぎる値は早期に拒否する保護的上限を 200 で置く。
+ * 内部生成された ID なので長すぎる値は早期に拒否する保護的上限を `MAX_ADMIN_ID_LENGTH` で置く。
  */
-export const adminIdSchema = z.string().min(1).max(200)
+export const adminIdSchema = z.string().min(1).max(MAX_ADMIN_ID_LENGTH)
 
 /**
  * 管理者がコンテンツ削除・ユーザー停止などに残す自由記述の理由文字列。
@@ -52,7 +54,7 @@ export const adminWarningReasonSchema = z.string().min(1).max(MAX_WARNING_REASON
 /**
  * 任意の関連レポート ID。空文字も許可（呼び出し側で `|| null` 変換するため）。
  */
-export const adminOptionalIdSchema = z.string().max(200).optional()
+export const adminOptionalIdSchema = z.string().max(MAX_ADMIN_ID_LENGTH).optional()
 
 /**
  * CMS スラッグ。`CMS_SLUG_PATTERN` (小文字英数・ハイフン・アンダースコア) に従う。
@@ -61,7 +63,7 @@ export const adminOptionalIdSchema = z.string().max(200).optional()
 export const cmsSlugSchema = z
   .string()
   .min(1)
-  .max(100)
+  .max(MAX_CMS_SLUG_LENGTH)
   .regex(CMS_SLUG_PATTERN)
 
 export const cmsTitleSchema = z.string().min(1).max(MAX_CMS_TITLE_LENGTH)

@@ -1,4 +1,3 @@
-// パーティクル(花びら・葉)の型定義
 export interface Ripple {
     x: number;
     y: number;
@@ -304,7 +303,7 @@ export function drawRipple(ctx: CanvasRenderingContext2D, r: Ripple) {
     ctx.globalCompositeOperation = isDark ? "screen" : "source-over";
 
     for (let i = 0; i < numRings; i++) {
-        // ★全てのリングが同時に発生し、内側のリングほど速度が遅い
+        // 全てのリングが同時に発生し、内側のリングほど速度が遅い
         // これにより時間が経つほど自然に間隔が広がる（実際の水面と同じ）
         // i=0: 最外リング（speed × 1.0）, i=1: (speed × 0.82), i=2: (speed × 0.65)
         const speedFactor = 1.0 - i * 0.18;

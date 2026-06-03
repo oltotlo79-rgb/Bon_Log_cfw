@@ -25,11 +25,11 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const dp = await getDiseasePestBySlug(slug)
-  if (!dp) return { title: '病害虫が見つかりません - BON-LOG' }
+  if (!dp) return { title: '病害虫が見つかりません' }
   const description = dp.description?.slice(0, META_DESCRIPTION_PREVIEW_LENGTH)
     || `${dp.name}の症状・発生時期・対策薬剤など、病害虫対策の詳細情報`
   return {
-    title: `${dp.name} - 病害虫・益虫図鑑 - BON-LOG`,
+    title: `${dp.name} - 病害虫・益虫図鑑`,
     description,
     alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES_DISEASES_PESTS}/${slug}`) },
   }
@@ -66,7 +66,6 @@ export default async function DiseasePestDetailPage({ params }: Props) {
         <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden /> 病害虫・益虫図鑑
       </Link>
 
-      {/* ヘッダー */}
       <div className="flex gap-4">
         {dp.imageUrl ? (
           <DiseasePestImageLightbox
@@ -95,7 +94,6 @@ export default async function DiseasePestDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* 概要 */}
       {dp.description && (
         <section className="rounded-lg border border-border/40 p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -110,7 +108,6 @@ export default async function DiseasePestDetailPage({ params }: Props) {
 
       <PesticideDisclaimer />
 
-      {/* 効く薬剤 */}
       {dp.effects.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -123,7 +120,6 @@ export default async function DiseasePestDetailPage({ params }: Props) {
             <span className="text-sm text-muted-foreground">({dp.effects.length}件)</span>
           </div>
 
-          {/* 効果評価の凡例 */}
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground px-1">
             <span className="font-medium text-foreground">効果評価:</span>
             <span className="inline-flex items-center gap-1"><span className="inline-flex items-center justify-center w-5 h-5 rounded border text-xs font-bold bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700">◎</span> 優秀</span>

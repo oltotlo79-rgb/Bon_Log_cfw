@@ -7,7 +7,8 @@ import { ShopForm } from '@/components/shop/ShopForm'
 import { ROUTE_LOGIN, ROUTE_SHOPS } from '@/lib/constants/routes'
 
 export const metadata = {
-  title: '盆栽園を登録 - BON-LOG',
+  title: '盆栽園を登録',
+  robots: { index: false, follow: false },
 }
 
 export default async function NewShopPage() {

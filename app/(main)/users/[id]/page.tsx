@@ -1,117 +1,57 @@
-/**
- * @fileoverview ユーザープロフィールページ
- *
- * このファイルは特定のユーザーのプロフィール情報と最近の投稿を表示するページコンポーネントです。
- *
- * 主な機能:
- * - ユーザーの基本情報（ニックネーム、自己紹介、アバター等）の表示
- * - フォロー数、フォロワー数、投稿数のカウント表示
- * - フォロー/ブロック/ミュート状態の管理
- * - 最近の投稿一覧の表示（最大10件）
- * - いいね/ブックマーク状態の表示
- * - SEO用のメタデータ生成（OGP対応）
- * - プロフィール閲覧のアナリティクス記録
- *
- * @route /users/[id]
- * @param {string} id - 表示対象ユーザーのID
- */
-
-// Next.jsのナビゲーションユーティリティ（404ページへのリダイレクト用）
 import { notFound } from 'next/navigation'
-
-// React cache: リクエスト単位でのメモ化（generateMetadata と Page で同じクエリを共有）
 import { cache, Suspense } from 'react'
-
-// Next.jsのメタデータ型定義（SEO設定用）
 import { Metadata } from 'next'
 
-// NextAuth.jsの認証ヘルパー（現在のセッション取得用）
 import { auth } from '@/lib/auth'
-
-// Prismaデータベースクライアント（ユーザー情報取得用）
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
-
-// プレミアム会員判定ユーティリティ
 import { isPremiumUser } from '@/lib/premium'
-
 import { ViewBeacon } from '@/components/analytics/ViewBeacon'
-
-// フォローリクエスト状態取得用のServer Action
 import { getFollowRequestStatus } from '@/lib/actions/follow-request'
-
-// SEO用のJSON-LD構造化データコンポーネント
 import { PersonJsonLd } from '@/components/seo/JsonLd'
-// パンくずリストUIコンポーネント
 import { Breadcrumb } from '@/components/common/Breadcrumb'
-
-// ユーザープロフィールヘッダーコンポーネント（アバター、フォローボタン等）
 import { ProfileHeader } from '@/components/user/ProfileHeader'
-
-// プロフィールタブコンポーネント（投稿・コメント切り替え用）
 import { ProfileTabs } from '@/components/user/ProfileTabs'
-// 制限値定数
 import { PROFILE_RECENT_POSTS_LIMIT, DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
-// ルート定数
-import { BASE_URL } from '@/lib/constants/routes'
+import { ROUTE_HOME } from '@/lib/constants/routes'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
+import { buildUserPath } from '@/lib/constants/path-builders'
+import { visiblePostWhere, redactNonVisibleNestedPosts } from '@/lib/services/post-visibility'
 
-/**
- * ページコンポーネントのProps型定義
- * Next.js 15以降ではparamsがPromiseとして渡される
- */
 type Props = {
   params: Promise<{ id: string }>
 }
 
-/**
- * メタデータ用ユーザー情報のキャッシュ取得。
- * React cache() によりリクエスト単位でメモ化され、
- * generateMetadata と Page で同一ユーザーへの DB クエリが1回に集約される。
- */
+// generateMetadata と Page で同一ユーザーの DB クエリを1回に集約する
 const getUserForMetadata = cache(async (id: string) => {
   return prisma.user.findUnique({
     where: { id },
-    select: { nickname: true, bio: true, avatarUrl: true },
+    select: { nickname: true, bio: true, avatarUrl: true, isPublic: true, isSuspended: true },
   })
 })
 
-/**
- * ページのメタデータを動的に生成する関数
- *
- * SEOとソーシャルシェアのためのメタデータを生成します。
- * - ページタイトル: 「{ユーザー名}さんのプロフィール」
- * - OGP（Open Graph Protocol）設定
- * - Twitterカード設定
- *
- * @param {Props} props - ページのプロパティ（ユーザーID含む）
- * @returns {Promise<Metadata>} Next.jsのMetadataオブジェクト
- */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // パラメータからユーザーIDを取得
   const { id } = await params
 
-  // データベースからユーザーの基本情報を取得（キャッシュ済み、Pageコンポーネントと共有）
   const user = await getUserForMetadata(id)
 
-  // ユーザーが存在しない場合のフォールバック
   if (!user) {
     return { title: 'ユーザーが見つかりません' }
   }
 
-  // メタデータ用の値を準備
   const title = `${user.nickname}さんのプロフィール`
   const description = user.bio || `${user.nickname}さんのBON-LOGプロフィールページ`
   const ogImage = user.avatarUrl || '/api/og'
 
-  // OGP・Twitterカードを含むメタデータオブジェクトを返す
   return {
-    title,
+    title: pageTitle(title),
     description,
     openGraph: {
       type: 'profile',
       title,
       description,
-      url: `${BASE_URL}/users/${id}`,
+      url: pageCanonical(buildUserPath(id)),
       images: [
         {
           url: ogImage,
@@ -127,30 +67,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       images: [ogImage],
     },
-    // 正規URLを指定（重複コンテンツ対策）
     alternates: {
-      canonical: `${BASE_URL}/users/${id}`,
+      canonical: pageCanonical(buildUserPath(id)),
     },
+    // 過去公開 → 非公開 / 停止に変更した URL がインデックスに残るのを防ぐ。
+    // 公開アカウントはルートレイアウト側の robots 設定を継承する。
+    ...((user.isPublic === false || user.isSuspended) && {
+      robots: { index: false, follow: false },
+    }),
   }
 }
 
-/**
- * ユーザープロフィールページのメインコンポーネント
- *
- * Server Componentとして動作し、以下の処理を行います:
- * 1. ユーザー情報の取得とフォロー/ブロック状態の確認
- * 2. ブロック関係のチェックと適切なUI表示
- * 3. 最近の投稿取得といいね/ブックマーク状態の反映
- * 4. プロフィール閲覧のアナリティクス記録
- *
- * @param {Props} props - ページのプロパティ
- * @returns {Promise<JSX.Element>} レンダリングするJSX要素
- */
 export default async function UserProfilePage({ params }: Props) {
-  // URLパラメータからユーザーIDを取得
   const { id } = await params
 
-  // 現在のセッションとユーザー情報を並列取得
   const [session, user] = await Promise.all([
     auth(),
     prisma.user.findUnique({
@@ -166,6 +96,7 @@ export default async function UserProfilePage({ params }: Props) {
       bonsaiStartMonth: true,
       birthDate: true,
       isPublic: true,
+      isSuspended: true,
       createdAt: true,
       _count: {
         select: {
@@ -178,12 +109,16 @@ export default async function UserProfilePage({ params }: Props) {
   }),
   ])
 
-  // ユーザーが存在しない場合は404ページを表示
   if (!user) {
     notFound()
   }
 
-  // コンポーネントに渡すためにカウント情報を整形
+  // 停止ユーザーのプロフィールは本人以外には表示しない。
+  // metadata の noindex は検索向けに過ぎないため、実描画側でも遮断する。
+  if (user.isSuspended && session?.user?.id !== user.id) {
+    notFound()
+  }
+
   const userWithCounts = {
     ...user,
     postsCount: user._count.posts,
@@ -191,27 +126,18 @@ export default async function UserProfilePage({ params }: Props) {
     followingCount: user._count.following,
   }
 
-  // プロフィールの所有者かどうかを判定
   const isOwner = session?.user?.id === user.id
 
-  // プロフィール閲覧計測は render 中の write 副作用を避けて client beacon に移譲する。
-  // ブロック / 非公開判定は Route Handler 側でも再確認するため、ここでは
-  // ブロック / 制限解除後に beacon を描画する。
+  let isFollowing = false
+  let isBlocked = false
+  let isMuted = false
+  let isBlockedByUser = false
+  let hasFollowRequest = false
 
-  // フォロー/ブロック/ミュート/フォローリクエスト状態の初期値を設定
-  let isFollowing = false      // フォロー中か
-  let isBlocked = false        // ブロック中か
-  let isMuted = false          // ミュート中か
-  let isBlockedByUser = false  // 相手からブロックされているか
-  let hasFollowRequest = false // フォローリクエスト送信済みか
-
-  // プレミアム会員状態と関係性チェックを並列取得
   const premiumPromise = isPremiumUser(id)
 
-  // ログイン中かつ他ユーザーのプロフィールを閲覧している場合、関係性を確認
   const relationPromise = (session?.user?.id && !isOwner)
     ? Promise.all([
-      // フォロー関係をチェック
       prisma.follow.findUnique({
         where: {
           followerId_followingId: {
@@ -220,7 +146,6 @@ export default async function UserProfilePage({ params }: Props) {
           },
         },
       }),
-      // ブロック関係をチェック（自分が相手をブロックしているか）
       prisma.block.findUnique({
         where: {
           blockerId_blockedId: {
@@ -229,7 +154,6 @@ export default async function UserProfilePage({ params }: Props) {
           },
         },
       }),
-      // ミュート関係をチェック
       prisma.mute.findUnique({
         where: {
           muterId_mutedId: {
@@ -238,7 +162,6 @@ export default async function UserProfilePage({ params }: Props) {
           },
         },
       }),
-      // 相手からブロックされているかチェック
       prisma.block.findUnique({
         where: {
           blockerId_blockedId: {
@@ -247,7 +170,6 @@ export default async function UserProfilePage({ params }: Props) {
           },
         },
       }),
-      // 非公開アカウントへのフォローリクエスト状態をチェック
       getFollowRequestStatus(id),
     ])
     : null
@@ -256,7 +178,6 @@ export default async function UserProfilePage({ params }: Props) {
 
   if (relationResult) {
     const [follow, block, mute, blockedBy, followRequestStatus] = relationResult
-    // クエリ結果をboolean値に変換
     isFollowing = !!follow
     isBlocked = !!block
     isMuted = !!mute
@@ -264,11 +185,8 @@ export default async function UserProfilePage({ params }: Props) {
     hasFollowRequest = followRequestStatus.hasRequest && followRequestStatus.status === 'pending'
   }
 
-  // 非公開アカウントの場合、本人またはフォロワー以外には制限されたプロフィールを表示
   const isPrivateAndRestricted = !user.isPublic && !isOwner && !isFollowing
 
-  // ブロック関係にある場合はプロフィールを表示しない
-  // セキュリティとプライバシー保護のため、相互にアクセスを制限
   if (isBlocked || isBlockedByUser) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -284,7 +202,7 @@ export default async function UserProfilePage({ params }: Props) {
     )
   }
 
-  // 非公開アカウントでアクセス制限がある場合、投稿を取得せず制限表示
+  // 非公開アカウントは本人・フォロワー以外には投稿を出さず制限表示に切り替える
   if (isPrivateAndRestricted) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
@@ -316,31 +234,27 @@ export default async function UserProfilePage({ params }: Props) {
 
   const currentUserId = session?.user?.id
 
-  // beacon は ブロック / 非公開制限を通過した分岐でのみ描画する。
-  // ここに到達した時点で「公開プロフィール / フォロー済みの非公開」が閲覧可能。
-  // Route Handler 側で isSuspended / isPublic を再確認するため、二重に守る。
+  // ブロック / 非公開制限を通過した分岐でのみ beacon を描画する。
+  // 計測の write 副作用は render から切り離し client beacon に移譲する。
   const shouldRecordView = !isOwner && !!currentUserId && user.isPublic
 
   return (
     <>
       {shouldRecordView && <ViewBeacon type="profile" targetUserId={id} />}
-      {/* パンくずリスト（UI + JSON-LD） */}
       <Breadcrumb
         items={[
-          { name: 'ホーム', href: '/feed' },
+          { name: 'ホーム', href: ROUTE_HOME },
           { name: `${user.nickname}さんのプロフィール` },
         ]}
       />
-      {/* SEO用のJSON-LD構造化データ（Person） */}
       <PersonJsonLd
         name={user.nickname}
-        url={`${BASE_URL}/users/${user.id}`}
+        url={pageCanonical(buildUserPath(user.id))}
         image={user.avatarUrl || undefined}
         description={user.bio || undefined}
         location={user.location || undefined}
       />
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* プロフィールヘッダー（アバター、カバー画像、フォローボタン等） */}
       <ProfileHeader
         user={userWithCounts}
         isOwner={isOwner}
@@ -351,7 +265,6 @@ export default async function UserProfilePage({ params }: Props) {
         hasFollowRequest={hasFollowRequest}
       />
 
-      {/* 投稿・コメントタブ（ストリーミング） */}
       <Suspense fallback={<ProfileTabsSkeleton />}>
         <ProfileTabsSection userId={id} currentUserId={currentUserId} />
       </Suspense>
@@ -360,9 +273,6 @@ export default async function UserProfilePage({ params }: Props) {
   )
 }
 
-/**
- * プロフィールタブのスケルトン表示
- */
 function ProfileTabsSkeleton() {
   return (
     <div className="bg-card rounded-lg border p-4 space-y-4">
@@ -384,9 +294,21 @@ function ProfileTabsSkeleton() {
   )
 }
 
-/**
- * 投稿・コメントデータを非同期で取得してProfileTabsに渡すServer Component
- */
+// 通常投稿・固定投稿で共有する投稿カードの include 形状
+const PROFILE_POST_INCLUDE = {
+  user: { select: USER_MINIMAL_SELECT },
+  media: { orderBy: { sortOrder: 'asc' } },
+  genres: { include: { genre: true } },
+  _count: { select: { likes: true, comments: { where: { deletedAt: null } } } },
+  quotePost: { include: { user: { select: USER_MINIMAL_SELECT } } },
+  repostPost: {
+    include: {
+      user: { select: USER_MINIMAL_SELECT },
+      media: { orderBy: { sortOrder: 'asc' } },
+    },
+  },
+} satisfies Prisma.PostInclude
+
 async function ProfileTabsSection({
   userId,
   currentUserId,
@@ -394,48 +316,16 @@ async function ProfileTabsSection({
   userId: string
   currentUserId?: string
 }) {
-  // 最近の投稿とコメントを並列取得
-  const [posts, comments] = await Promise.all([
+  const [rawPosts, comments, profileOwner] = await Promise.all([
     prisma.post.findMany({
-      where: { userId },
-      include: {
-        user: {
-          select: USER_MINIMAL_SELECT,
-        },
-        media: {
-          orderBy: { sortOrder: 'asc' },
-        },
-        genres: {
-          include: {
-            genre: true,
-          },
-        },
-        _count: {
-          select: { likes: true, comments: { where: { deletedAt: null } } },
-        },
-        quotePost: {
-          include: {
-            user: {
-              select: USER_MINIMAL_SELECT,
-            },
-          },
-        },
-        repostPost: {
-          include: {
-            user: {
-              select: USER_MINIMAL_SELECT,
-            },
-            media: {
-              orderBy: { sortOrder: 'asc' },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+      where: { userId, isHidden: false },
+      include: PROFILE_POST_INCLUDE,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: PROFILE_RECENT_POSTS_LIMIT,
     }),
     prisma.comment.findMany({
-      where: { userId, deletedAt: null, isHidden: false },
+      // コメント先投稿が viewer から不可視（非表示/非公開/停止著者）なら、本文プレビューごと出さない
+      where: { userId, deletedAt: null, isHidden: false, post: visiblePostWhere(currentUserId) },
       include: {
         post: { select: { id: true, content: true } },
         media: { orderBy: { sortOrder: 'asc' } },
@@ -443,28 +333,44 @@ async function ProfileTabsSection({
       orderBy: { createdAt: 'desc' },
       take: DEFAULT_PAGE_LIMIT,
     }),
+    prisma.user.findUnique({ where: { id: userId }, select: { pinnedPostId: true } }),
   ])
 
-  // いいね/ブックマーク状態を取得
+  // 引用元・リポスト元の可視性を viewer ごとに再適用する
+  const posts = await redactNonVisibleNestedPosts(currentUserId, rawPosts)
+
+  const pinnedPostId = profileOwner?.pinnedPostId ?? null
+  // 固定投稿が最近の投稿に無ければ単発取得する（本人の・非表示でないもののみ）
+  const pinnedInRecent = pinnedPostId ? posts.find((p: { id: string }) => p.id === pinnedPostId) : undefined
+  const pinnedPostRaw = pinnedInRecent
+    ?? (pinnedPostId
+      ? await prisma.post.findFirst({
+          where: { id: pinnedPostId, userId, isHidden: false },
+          include: PROFILE_POST_INCLUDE,
+        })
+      : null)
+  const pinnedPost = pinnedInRecent
+    ? pinnedInRecent
+    : pinnedPostRaw
+      ? (await redactNonVisibleNestedPosts(currentUserId, [pinnedPostRaw]))[0] ?? null
+      : null
+
   let likedPostIds: Set<string> = new Set()
   let bookmarkedPostIds: Set<string> = new Set()
 
-  if (currentUserId && posts.length > 0) {
-    const postIds = posts.map((p: { id: string }) => p.id)
+  const statusPostIds = [
+    ...posts.map((p: { id: string }) => p.id),
+    ...(pinnedPost && !pinnedInRecent ? [pinnedPost.id] : []),
+  ]
+
+  if (currentUserId && statusPostIds.length > 0) {
     const [userLikes, userBookmarks] = await Promise.all([
       prisma.like.findMany({
-        where: {
-          userId: currentUserId,
-          postId: { in: postIds },
-          commentId: null,
-        },
+        where: { userId: currentUserId, postId: { in: statusPostIds }, commentId: null },
         select: { postId: true },
       }),
       prisma.bookmark.findMany({
-        where: {
-          userId: currentUserId,
-          postId: { in: postIds },
-        },
+        where: { userId: currentUserId, postId: { in: statusPostIds } },
         select: { postId: true },
       }),
     ])
@@ -472,14 +378,22 @@ async function ProfileTabsSection({
     bookmarkedPostIds = new Set(userBookmarks.map((b: { postId: string }) => b.postId))
   }
 
-  const formattedPosts = posts.map((post: typeof posts[number]) => ({
+  const formatPost = (post: typeof posts[number]) => ({
     ...post,
     likeCount: post._count.likes,
     commentCount: post._count.comments,
     genres: post.genres.map((pg: { genre: typeof post.genres[number]['genre'] }) => pg.genre),
     isLiked: likedPostIds.has(post.id),
     isBookmarked: bookmarkedPostIds.has(post.id),
-  }))
+  })
+
+  // 固定投稿を先頭に出し、通常リストからは重複除去する
+  const regularFormatted = posts
+    .filter((post: { id: string }) => post.id !== pinnedPostId)
+    .map(formatPost)
+  const formattedPosts = pinnedPost
+    ? [{ ...formatPost(pinnedPost), isPinned: true }, ...regularFormatted]
+    : regularFormatted
 
   return (
     <ProfileTabs

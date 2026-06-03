@@ -1,22 +1,7 @@
-/**
- * @file 施肥ガイドページ専用エラーコンポーネント
- * @description 施肥ガイドのデータ取得時にエラーが発生した場合に表示されるUI
- *
- * このファイルはNext.js App Routerの規約に基づくエラーバウンダリです。
- * /fertilizersページでサーバーエラーやネットワークエラーが発生した際に自動的に表示されます。
- *
- * 'use client'ディレクティブが必須です。
- * これはerror.tsxがクライアントサイドでエラーをキャッチする必要があるためです。
- *
- * @see https://nextjs.org/docs/app/building-your-application/routing/error-handling
- */
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 施肥ガイドエラーコンポーネント
- */
 export default function FertilizersError({
   error,
   reset,

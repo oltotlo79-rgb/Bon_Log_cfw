@@ -255,6 +255,51 @@ describe('NotificationItem', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/users/user-1')
   })
 
+  it('メンション通知を表示し投稿へリンクする', () => {
+    const notification = {
+      ...baseNotification,
+      type: 'mention',
+      post: { id: 'post-9', content: '本文' },
+    }
+    render(<NotificationItem notification={notification} />)
+
+    expect(screen.getByText(/さんがあなたをメンションしました/)).toBeInTheDocument()
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/posts/post-9')
+  })
+
+  it('メッセージ通知を表示しメッセージ一覧へリンクする', () => {
+    const notification = {
+      ...baseNotification,
+      type: 'message',
+    }
+    render(<NotificationItem notification={notification} />)
+
+    expect(screen.getByText(/さんからメッセージが届きました/)).toBeInTheDocument()
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/messages')
+  })
+
+  it('プレミアム期限通知は actorName を使わずサブスク管理へリンクする', () => {
+    const notification = {
+      ...baseNotification,
+      type: 'subscription_expiring',
+    }
+    render(<NotificationItem notification={notification} />)
+
+    expect(screen.getByText('プレミアム会員の有効期限が近づいています')).toBeInTheDocument()
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/settings/subscription')
+  })
+
+  it('運営からのお知らせ通知は通知一覧へリンクする', () => {
+    const notification = {
+      ...baseNotification,
+      type: 'system',
+    }
+    render(<NotificationItem notification={notification} />)
+
+    expect(screen.getByText('運営からのお知らせがあります')).toBeInTheDocument()
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/notifications')
+  })
+
   it('相対時間を表示する', () => {
     const notification = {
       ...baseNotification,

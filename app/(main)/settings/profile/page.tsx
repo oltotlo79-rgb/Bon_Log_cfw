@@ -11,7 +11,6 @@
  * - 盆栽開始時期の設定（盆栽歴の自動計算用）
  * - 認証チェックによるアクセス制御
  *
- * @route /settings/profile
  * @requires 認証必須 - 未ログインユーザーはログインページへリダイレクト
  */
 
@@ -39,11 +38,11 @@ import { prisma } from '@/lib/db'
 import { ProfileEditForm } from '@/components/user/ProfileEditForm'
 
 /**
- * 静的メタデータの定義
  * ページタイトルの設定
  */
 export const metadata = {
-  title: 'プロフィール編集 - BON-LOG',
+  title: 'プロフィール編集',
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -110,16 +109,13 @@ export default async function ProfileEditPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-card rounded-lg border">
-        {/* ヘッダーセクション */}
         <div className="px-4 py-3 border-b">
-          {/* 設定トップページへの戻りリンク */}
           <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
             &larr; 設定に戻る
           </Link>
           <h1 className="font-bold text-lg mt-1">プロフィール編集</h1>
         </div>
 
-        {/* プロフィール編集フォーム */}
         <div className="p-4">
           <ProfileEditForm user={userData} />
         </div>

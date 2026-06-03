@@ -130,6 +130,9 @@ describe('Notification Preferences Actions', async () => {
         quote: false,
         follow_request: true,
         follow_request_approved: false,
+        mention: true,
+        message: false,
+        repost: true,
       }
       const result = await updateNotificationPreferences(allPrefs)
 
@@ -158,6 +161,23 @@ describe('Notification Preferences Actions', async () => {
 
       const { updateNotificationPreferences } = await import('@/lib/actions/notification-preferences')
       await expect(updateNotificationPreferences({ like: true })).rejects.toThrow('DB connection failed')
+    })
+
+    it('mention / message / repost も個別に切り替えできる', async () => {
+      mockPrisma.user.update.mockResolvedValueOnce({})
+
+      const { updateNotificationPreferences } = await import('@/lib/actions/notification-preferences')
+      const result = await updateNotificationPreferences({
+        mention: false,
+        message: false,
+        repost: false,
+      })
+
+      expect(result.success).toBe(true)
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+        data: { notificationPreferences: { mention: false, message: false, repost: false } },
+      })
     })
 
     it('数値型の値は拒否される（Zod）', async () => {
@@ -225,6 +245,9 @@ describe('Notification Preferences Actions', async () => {
         quote: true,
         follow_request: false,
         follow_request_approved: true,
+        mention: false,
+        message: true,
+        repost: false,
       }
       mockPrisma.user.findUnique
         .mockResolvedValueOnce({ isSuspended: false })

@@ -300,62 +300,6 @@ describe('analytics.ts - カバレッジ向上テスト', async () => {
     })
   })
 
-  describe('recordProfileView', async () => {
-    it('エラー時もログを出力して actionError を返す（スローしない）', async () => {
-      const { recordProfileView } = await import('@/lib/actions/analytics')
-
-      const error = new Error('DB error')
-      mockPrisma.userAnalytics.upsert.mockRejectedValue(error)
-
-      const result = await recordProfileView('u1')
-      expect(result).toMatchObject({ success: false })
-
-      expect(mockLogger.error).toHaveBeenCalledWith('Record profile view error:', error)
-    })
-  })
-
-  describe('recordPostView', async () => {
-    it('エラー時もログを出力して actionError を返す（スローしない）', async () => {
-      const { recordPostView } = await import('@/lib/actions/analytics')
-
-      const error = new Error('DB error')
-      mockPrisma.userAnalytics.upsert.mockRejectedValue(error)
-
-      const result = await recordPostView('u1')
-      expect(result).toMatchObject({ success: false })
-
-      expect(mockLogger.error).toHaveBeenCalledWith('Record post view error:', error)
-    })
-  })
-
-  describe('recordLikeReceived', async () => {
-    it('エラー時もログを出力して actionError を返す（スローしない）', async () => {
-      const { recordLikeReceived } = await import('@/lib/actions/analytics')
-
-      const error = new Error('DB error')
-      mockPrisma.userAnalytics.upsert.mockRejectedValue(error)
-
-      const result = await recordLikeReceived('u1')
-      expect(result).toMatchObject({ success: false })
-
-      expect(mockLogger.error).toHaveBeenCalledWith('Record like received error:', error)
-    })
-  })
-
-  describe('recordNewFollower', async () => {
-    it('エラー時もログを出力して actionError を返す（スローしない）', async () => {
-      const { recordNewFollower } = await import('@/lib/actions/analytics')
-
-      const error = new Error('DB error')
-      mockPrisma.userAnalytics.upsert.mockRejectedValue(error)
-
-      const result = await recordNewFollower('u1')
-      expect(result).toMatchObject({ success: false })
-
-      expect(mockLogger.error).toHaveBeenCalledWith('Record new follower error:', error)
-    })
-  })
-
   describe('getDetailedAnalytics', async () => {
     it('エラー時にエラーメッセージを返す', async () => {
       const { getDetailedAnalytics } = await import('@/lib/actions/analytics')

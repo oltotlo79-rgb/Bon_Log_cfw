@@ -16,7 +16,7 @@ export const POST_LIST_INCLUDE = {
   },
   genres: POST_GENRE_RELATION,
   _count: {
-    select: { likes: true, comments: { where: { deletedAt: null } } },
+    select: { likes: true, comments: { where: { deletedAt: null } }, repostedBy: true },
   },
 } as const
 
@@ -71,19 +71,22 @@ export function buildPostPollInclude(currentUserId?: string) {
  */
 export function formatPostForClient<T extends {
   id: string
-  _count: { likes: number; comments: number }
+  _count: { likes: number; comments: number; repostedBy?: number }
   genres: { genre: { id: string; name: string; category: string } }[]
 }>(
   post: T,
   likedSet: Set<string>,
   bookmarkedSet: Set<string>,
+  repostedSet: Set<string> = new Set(),
 ) {
   return {
     ...post,
     likeCount: post._count.likes,
     commentCount: post._count.comments,
+    repostCount: post._count.repostedBy ?? 0,
     genres: post.genres.map((pg) => pg.genre),
     isLiked: likedSet.has(post.id),
     isBookmarked: bookmarkedSet.has(post.id),
+    isReposted: repostedSet.has(post.id),
   }
 }

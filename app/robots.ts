@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
     '/settings/',
     '/settings/*',
     '/feed',
+    '/explore',
     '/bookmarks',
     '/notifications',
     '/messages/',
@@ -36,11 +37,16 @@ export default function robots(): MetadataRoute.Robots {
     '/drafts/*',
   ]
 
+  // OG 画像エンドポイント。/api/* は Disallow するが、SNS カードのサムネイル取得で
+  // crawler (Twitterbot/facebookexternalhit 等) が到達できる必要があるため明示 Allow する。
+  // Allow はパスが長く Disallow:/api/ より具体的なため、主要 crawler では優先される。
+  const allowPaths = ['/', '/api/og']
+
   return {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        allow: allowPaths,
         disallow: [
           ...protectedPaths,
           '/*.json$',
@@ -53,7 +59,7 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: 'Googlebot',
-        allow: '/',
+        allow: allowPaths,
         disallow: protectedPaths.filter((p) => !p.endsWith('*')),
       },
     ],

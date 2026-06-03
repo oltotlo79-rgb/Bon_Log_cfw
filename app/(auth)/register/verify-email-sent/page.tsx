@@ -1,7 +1,4 @@
 /**
- * @file メール確認送信完了ページ
- * @description 新規登録後、確認メールを送った旨を表示するページ
- *
  * 機能概要:
  * - 確認メールを送信したことを伝えるメッセージ表示
  * - ログインページへのリンク（メール確認後にログインするため）
@@ -23,7 +20,6 @@ import { ROUTE_LOGIN } from '@/lib/constants/routes'
 export default function VerifyEmailSentPage() {
   return (
     <div className="p-6 sm:p-8 space-y-6">
-      {/* ウェルカム盆栽イラスト */}
       <Image
         src="/images/generated/auth/welcome-bonsai.webp"
         alt=""
@@ -32,7 +28,7 @@ export default function VerifyEmailSentPage() {
         className="mx-auto opacity-80"
       />
 
-      <h2 className="font-serif text-3xl font-bold text-center text-sumi mb-10 tracking-widest">
+      <h2 className="font-serif text-3xl font-bold text-center text-sumi dark:text-washi mb-10 tracking-widest">
         確認メールを送りました
       </h2>
 

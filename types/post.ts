@@ -50,16 +50,24 @@ export type Post = {
   id: string
   content: string | null
   createdAt: string | Date
+  /** 投稿後に編集された日時。null/undefined は未編集。 */
+  editedAt?: string | Date | null
   user: PostUser
   media: PostMedia[]
   genres: PostGenre[]
   likeCount: number
   commentCount: number
+  /** この投稿がリポストされた回数。 */
+  repostCount?: number
   quotePost?: QuotePost | null
   repostPost?: (QuotePost & { media: PostMedia[] }) | null
   isLiked?: boolean
   isBookmarked?: boolean
+  /** 閲覧者がこの投稿をリポスト済みか。 */
+  isReposted?: boolean
   poll?: PostPoll | null
+  /** プロフィール固定投稿として表示中か（オーナーのプロフィール文脈でのみ true）。 */
+  isPinned?: boolean
 }
 
 export type MentionUser = {

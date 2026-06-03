@@ -23,15 +23,18 @@ test.describe('盆栽園マップページ', () => {
     await page.goto('/shops')
 
     const searchInput = page.getByPlaceholder(/検索|盆栽園名/i)
-    // 入力欄が表示されたうえで、検索ボタンが押下可能になるまで待つ（React hydration 完了の代理）
     await expect(searchInput).toBeVisible({ timeout: 10000 })
     const searchButton = page.getByRole('button', { name: /^検索$/ })
     await expect(searchButton).toBeEnabled({ timeout: 10000 })
 
-    await searchInput.fill('盆栽')
-    // click と URL 遷移を atomic に待機する (router.push を startTransition で行うため
-    // polling 開始がナビゲーション後にずれると `toHaveURL` が timeout する flake が出ていた)
-    await clickAndWaitForUrl(page, searchButton, /search=/)
+    // 検索ボタンは disabled={isPending} のため static HTML でも enabled で、hydration 完了を
+    // 待てない。hydration 前に click すると onClick (router.push) が発火せず URL が変わらない
+    // flake が出る。fill→click→URL 検証を toPass で再試行し、handler アタッチまで吸収する。
+    await expect(async () => {
+      await searchInput.fill('盆栽')
+      await searchButton.click()
+      await expect(page).toHaveURL(/search=/, { timeout: 3000 })
+    }).toPass({ timeout: 20000 })
   })
 
   test('地図が表示される', async ({ page }) => {
@@ -56,8 +59,7 @@ test.describe('盆栽園マップページ', () => {
 
     const createLink = page.getByRole('link', { name: /盆栽園を登録|新規登録/i })
     if (await createLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await createLink.click()
-      await expect(page).toHaveURL(/\/shops\/new/)
+      await clickAndWaitForUrl(page, createLink, /\/shops\/new/)
     }
   })
 

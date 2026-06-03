@@ -19,7 +19,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
   attachHashtagsToPost: vi.fn().mockResolvedValue(undefined),
   detachHashtagsFromPost: vi.fn().mockResolvedValue(undefined),
 }))
-vi.mock('@/lib/actions/mention', () => ({ notifyMentionedUsers: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/services/mention', () => ({ notifyMentionedUsers: vi.fn().mockResolvedValue(undefined) }))
 
 const mockAuthFn = vi.fn()
 

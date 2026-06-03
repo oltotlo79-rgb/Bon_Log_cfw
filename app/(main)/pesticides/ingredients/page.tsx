@@ -8,7 +8,7 @@ import { ROUTE_PESTICIDES_INGREDIENTS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '原体一覧 - 農薬・病害虫 - BON-LOG',
+  title: '原体一覧 - 農薬・病害虫',
   alternates: { canonical: pageCanonical(ROUTE_PESTICIDES_INGREDIENTS) },
 }
 

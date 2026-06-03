@@ -1,19 +1,7 @@
-/**
- * @file ブックマークページ専用エラーコンポーネント
- * @description ブックマークページでエラーが発生した場合に表示されるUI
- *
- * このファイルはNext.js App Routerの規約に基づくエラーバウンダリです。
- * /bookmarksページでサーバーエラーやネットワークエラーが発生した際に自動的に表示されます。
- *
- * @see https://nextjs.org/docs/app/building-your-application/routing/error-handling
- */
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * ブックマークエラーコンポーネント
- */
 export default function BookmarksError({
   error,
   reset,

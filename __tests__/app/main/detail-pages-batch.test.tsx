@@ -496,7 +496,7 @@ describe('ConversationPage', async () => {
     const { generateMetadata } = await import('@/app/(main)/messages/[conversationId]/page')
     if (generateMetadata) {
       const result = await generateMetadata({ params: Promise.resolve({ conversationId: 'invalid' }) })
-      expect(result.title).toBe('メッセージ - BON-LOG')
+      expect(result.title).toBe('メッセージ')
     }
   })
 

@@ -10,8 +10,19 @@ export const DEFAULT_PAGE_LIMIT = 20
 /** 管理画面ログのページ取得件数 */
 export const ADMIN_LOGS_PAGE_LIMIT = 50
 
+/** ユーザー向けセキュリティ活動（ログイン履歴）の表示件数 */
+export const SECURITY_ACTIVITY_LIMIT = 20
+
 /** おすすめユーザーの取得件数 */
 export const RECOMMENDED_USERS_LIMIT = 5
+
+/** 空フィードのオンボーディングで表示するおすすめユーザー件数 */
+export const ONBOARDING_RECOMMENDED_USERS_LIMIT = 5
+
+/** Explore ページの各セクション表示件数 */
+export const EXPLORE_RECOMMENDED_USERS_LIMIT = 10
+export const EXPLORE_TRENDING_GENRES_LIMIT = 10
+export const EXPLORE_TRENDING_HASHTAGS_LIMIT = 10
 
 /** トレンドジャンルの取得件数 */
 export const TRENDING_GENRES_LIMIT = 5
@@ -127,6 +138,12 @@ export const POPULAR_TAGS_LIMIT = 10
 /** ハッシュタグ取得のデフォルト件数（トレンド・サジェスト用） */
 export const DEFAULT_HASHTAG_LIMIT = 10
 
+/** ハッシュタグ取得件数の上限（巨大 limit 直渡しによる DB 過負荷を防ぐ） */
+export const MAX_HASHTAG_LIMIT = 50
+
+/** ハッシュタグ・サジェスト検索クエリの最大長（過大入力を防ぐ） */
+export const MAX_HASHTAG_QUERY_LENGTH = 50
+
 /** グローバル検索のカテゴリ別取得件数 */
 export const GLOBAL_SEARCH_PER_CATEGORY_LIMIT = 5
 
@@ -204,6 +221,12 @@ export const MAX_DICTIONARY_TERMS_LIMIT = 500
 
 /** 盆栽タイムラインの取得件数 */
 export const BONSAI_TIMELINE_LIMIT = 50
+
+/** 盆栽詳細ページの初期表示成長記録件数（古い記録は getBonsaiRecords で追加ロード） */
+export const BONSAI_DETAIL_RECORDS_LIMIT = 50
+
+/** メンション候補検索クエリの最大文字数 */
+export const MAX_MENTION_SEARCH_QUERY_LENGTH = 50
 
 /** ページネーションlimitパラメータの最大値 */
 export const MAX_PAGE_LIMIT = 100

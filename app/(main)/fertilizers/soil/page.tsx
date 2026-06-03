@@ -6,7 +6,7 @@ import { ROUTE_FERTILIZERS_SOIL } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '用土と施肥の関係 - 施肥ガイド - BON-LOG',
+  title: '用土と施肥の関係 - 施肥ガイド',
   description: '盆栽の用土の種類と保肥力（CEC）が施肥に与える影響を解説します。',
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS_SOIL) },
 }
@@ -136,7 +136,6 @@ const SOIL_RECIPES: SoilRecipe[] = [
 export default function SoilFertilizerPage() {
   return (
     <div className="space-y-8">
-      {/* ヘッダー */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold break-words">用土と施肥の関係</h1>
@@ -152,7 +151,6 @@ export default function SoilFertilizerPage() {
         </Link>
       </div>
 
-      {/* CEC解説 */}
       <section className="rounded-lg border bg-card p-5 space-y-3">
         <h2 className="font-semibold text-lg">CEC（陽イオン交換容量）とは</h2>
         <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
@@ -167,7 +165,6 @@ export default function SoilFertilizerPage() {
         </div>
       </section>
 
-      {/* 用土カード */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">主な盆栽用土の特性</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -200,7 +197,6 @@ export default function SoilFertilizerPage() {
         </div>
       </section>
 
-      {/* 混合用土レシピ */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">樹種別の推奨用土配合</h2>
         <p className="text-sm text-muted-foreground -mt-2">

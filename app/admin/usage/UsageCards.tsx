@@ -1,14 +1,7 @@
-/**
- * @file サービス使用量カードコンポーネント
- * @description 各クラウドサービスの使用状況をカード形式で表示するクライアントコンポーネント。
- *              API経由でリアルタイムの使用量を取得し、プログレスバーで視覚化する。
- */
-
 'use client'
 
 // ReactのuseStateとuseEffectフック（状態管理と副作用用）
 import { useState, useEffect } from 'react'
-// サービス使用量の型定義
 import type { ServiceUsage } from '@/lib/services/usage'
 import { USAGE_DANGER_THRESHOLD, USAGE_WARNING_THRESHOLD } from '@/lib/constants/limits'
 
@@ -218,14 +211,12 @@ function UsageCard({ service }: { service: ServiceUsage }) {
         </a>
       </div>
 
-      {/* エラーメッセージ */}
       {service.error && (
         <div className="mb-3 p-2 bg-muted/50 rounded text-sm text-destructive">
           {service.error}
         </div>
       )}
 
-      {/* ヘルプテキスト（未設定時） */}
       {service.status === 'unconfigured' && service.helpText && (
         <div className="mb-3">
           <p className="text-sm text-muted-foreground mb-2">{service.helpText}</p>
@@ -243,7 +234,6 @@ function UsageCard({ service }: { service: ServiceUsage }) {
         </div>
       )}
 
-      {/* 使用量表示 */}
       {service.usage && service.usage.length > 0 && (
         <div className="space-y-3">
           {service.usage.map((item, index) => {
@@ -281,7 +271,6 @@ function UsageCard({ service }: { service: ServiceUsage }) {
         </div>
       )}
 
-      {/* Vercel特別表示：API未取得項目の案内 */}
       {service.name === 'Vercel' && service.status === 'ok' && (
         <div className="mt-3 p-2 bg-muted/50 border border-border rounded text-xs">
           <p className="text-muted-foreground mb-1">
@@ -299,7 +288,6 @@ function UsageCard({ service }: { service: ServiceUsage }) {
         </div>
       )}
 
-      {/* ヘルプテキスト（正常時・Vercel以外） */}
       {service.status === 'ok' && service.helpText && service.name !== 'Vercel' && (
         <p className="text-xs text-muted-foreground mt-3">{service.helpText}</p>
       )}
@@ -404,7 +392,6 @@ export function UsageCards() {
         ))}
       </div>
 
-      {/* 環境変数設定ガイド */}
       {services.some(s => s.status === 'unconfigured') && (
         <div className="bg-muted/50 rounded-lg border p-4 mt-6">
           <h3 className="font-semibold mb-2">環境変数の設定</h3>

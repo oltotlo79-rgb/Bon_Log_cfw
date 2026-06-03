@@ -1,20 +1,7 @@
-/**
- * @fileoverview 会話詳細ページのエラーバウンダリ
- *
- * Next.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /messages/[conversationId] で発生したエラーをキャッチして表示します。
- *
- * @route /messages/[conversationId]
- * @requires 'use client'
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 会話詳細ページのエラーコンポーネント
- */
 export default function ConversationError({
   error,
   reset,

@@ -1,20 +1,7 @@
-/**
- * @fileoverview ユーザープロフィールページのエラーバウンダリ
- *
- * このファイルはNext.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /users/[id]ページおよびその子ルートで発生したエラーをキャッチして表示します。
- *
- * @route /users/[id] (およびその子ルート)
- * @requires 'use client' - エラーバウンダリはクライアントコンポーネントである必要がある
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * ユーザーページのエラーコンポーネント
- */
 export default function UserError({
   error,
   reset,

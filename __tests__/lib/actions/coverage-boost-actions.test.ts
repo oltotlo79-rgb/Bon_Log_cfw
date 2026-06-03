@@ -70,7 +70,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
 }))
 
 // Mention mock
-vi.mock('@/lib/actions/mention', () => ({
+vi.mock('@/lib/services/mention', () => ({
   notifyMentionedUsers: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -92,8 +92,8 @@ vi.mock('@/lib/storage', () => ({
 }))
 
 // Analytics mock (for follow.ts dependency)
-vi.mock('@/lib/actions/analytics', () => ({
-  recordNewFollower: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordNewFollowerService: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Notification mock (for comment.ts dependency)
@@ -197,7 +197,9 @@ describe('Coverage Boost - Action Files', async () => {
     mockHeadersGet.mockReturnValue('127.0.0.1')
     mockIsAdmin.mockResolvedValue(true)
     // Default: user not suspended
-    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    // コメント対象投稿は閲覧可能（本人の非表示でない投稿）を既定とする
+    mockPrisma.post.findUnique.mockResolvedValue({ id: 'post-123', userId: mockUser.id, isHidden: false })
   })
 
   // ============================================================

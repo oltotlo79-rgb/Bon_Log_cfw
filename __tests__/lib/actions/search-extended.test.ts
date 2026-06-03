@@ -349,24 +349,18 @@ describe('Search Actions - Extended', async () => {
       expect(result.posts[0].isBookmarked).toBe(false)
     })
 
-    it('除外ユーザーがいる場合にnotIn条件が含まれる', async () => {
+    it('除外ユーザーがいる場合にnotIn条件が含まれる (Hashtag JOIN クエリ)', async () => {
       mockGetExcludedUserIds.mockResolvedValue(['excluded-1'])
       mockPrisma.post.findMany.mockResolvedValue([])
 
       const { searchByTag } = await import('@/lib/actions/search')
       await searchByTag('盆栽')
 
-      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            AND: expect.arrayContaining([
-              expect.objectContaining({
-                userId: { notIn: ['excluded-1'] },
-              }),
-            ]),
-          }),
-        })
-      )
+      const callArg = mockPrisma.post.findMany.mock.calls[0][0]
+      expect(callArg.where).toEqual(expect.objectContaining({
+        hashtags: { some: { hashtag: { name: '盆栽' } } },
+        userId: { notIn: ['excluded-1'] },
+      }))
     })
   })
 

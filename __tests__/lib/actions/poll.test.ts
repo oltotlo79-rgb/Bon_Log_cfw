@@ -3,6 +3,7 @@
 import { vi } from 'vitest'
 vi.unmock('@/lib/actions/poll')
 import { revalidatePath as _revalidatePath } from 'next/cache'
+import { Prisma } from '@prisma/client'
 
 import { createMockPrismaClient, mockUser } from '../../utils/test-utils'
 
@@ -102,6 +103,21 @@ describe('Poll Actions', () => {
         userId: mockUser.id,
         optionId: 'opt-1',
       })
+      const { votePoll } = await getModule()
+      const result = await votePoll('poll-1', 'opt-1')
+      expect(result).toMatchObject({ error: '既に投票済みです' })
+    })
+
+    it('並行投票で unique 制約(P2002)に当たった場合も「投票済み」を返す', async () => {
+      mockAuth.mockResolvedValueOnce({ user: { id: mockUser.id } })
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPoll)
+      mockPrisma.pollVote.findUnique.mockResolvedValueOnce(null)
+      const uniqueErr = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.x',
+      })
+      mockPrisma.pollVote.create.mockRejectedValueOnce(uniqueErr)
+
       const { votePoll } = await getModule()
       const result = await votePoll('poll-1', 'opt-1')
       expect(result).toMatchObject({ error: '既に投票済みです' })

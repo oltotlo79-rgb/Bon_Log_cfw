@@ -1,22 +1,5 @@
 /**
- * @file パンくずリストUIコンポーネント
- * @description ナビゲーションのパンくずリストを表示するコンポーネント
- *
- * アクセシビリティ対応:
- * - nav要素にaria-label="パンくずリスト"を設定
- * - 現在のページにaria-current="page"を設定
- * - セマンティックなol/li構造を使用
- *
- * @usage
- * ```tsx
- * <Breadcrumb
- *   items={[
- *     { name: 'ホーム', href: '/' },
- *     { name: '盆栽園マップ', href: '/shops' },
- *     { name: '〇〇盆栽園' },  // 最後の項目はhrefなし（現在のページ）
- *   ]}
- * />
- * ```
+ * @module components/common/Breadcrumb
  */
 
 import Link from 'next/link'
@@ -24,58 +7,37 @@ import { ChevronRight, Home } from 'lucide-react'
 import { getAppUrl } from '@/lib/env'
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd'
 
-/**
- * パンくずアイテムの型定義
- */
 export interface BreadcrumbItem {
-  /** 表示名 */
   name: string
-  /** リンク先URL（最後の項目は省略可能） */
   href?: string
 }
 
-/**
- * Breadcrumbコンポーネントのプロパティ
- */
 interface BreadcrumbProps {
-  /** パンくずアイテムの配列（階層順） */
   items: BreadcrumbItem[]
-  /** JSON-LDも出力するかどうか（デフォルト: true） */
   includeJsonLd?: boolean
 }
 
-/**
- * パンくずリストUIコンポーネント
- *
- * ナビゲーション階層を視覚的に表示し、ユーザーが現在の位置を
- * 把握できるようにします。SEO用のJSON-LD構造化データも同時に出力します。
- *
- * @param props - コンポーネントのプロパティ
- * @returns パンくずリストのJSX要素
- */
 export function Breadcrumb({ items, includeJsonLd = true }: BreadcrumbProps) {
-  // 項目がない場合は何も表示しない
   if (items.length === 0) return null
 
-  // JSON-LD用のベースURL
   const baseUrl = getAppUrl()
 
-  // JSON-LD用のアイテム配列を生成（URLが必要）
+  // Schema.org BreadcrumbList は末尾要素の `item` を省略してよい。SSR 時に
+  // `window.location.pathname` を参照すると空文字になり baseUrl が item URL として
+  // 誤って出力されるため、href が無い項目は url を undefined として渡し JSON-LD で省く。
   const jsonLdItems = items.map((item) => ({
     name: item.name,
     url: item.href
       ? item.href.startsWith('http')
         ? item.href
         : `${baseUrl}${item.href}`
-      : `${baseUrl}${typeof window !== 'undefined' ? window.location.pathname : ''}`,
+      : undefined,
   }))
 
   return (
     <>
-      {/* JSON-LD構造化データ（SEO用） */}
       {includeJsonLd && <BreadcrumbJsonLd items={jsonLdItems} />}
 
-      {/* パンくずリストUI */}
       <nav aria-label="パンくずリスト" className="mb-4">
         <ol className="flex items-center flex-wrap gap-1 text-sm text-muted-foreground">
           {items.map((item, index) => {
@@ -84,14 +46,11 @@ export function Breadcrumb({ items, includeJsonLd = true }: BreadcrumbProps) {
 
             return (
               <li key={index} className="flex items-center gap-1">
-                {/* 区切り文字（最初の項目以外） */}
                 {!isFirst && (
                   <ChevronRight className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                 )}
 
-                {/* パンくずアイテム */}
                 {isLast || !item.href ? (
-                  // 最後の項目またはリンクなしの場合はspan
                   <span
                     className="text-foreground font-medium truncate max-w-[200px]"
                     aria-current="page"
@@ -100,13 +59,11 @@ export function Breadcrumb({ items, includeJsonLd = true }: BreadcrumbProps) {
                     {item.name}
                   </span>
                 ) : (
-                  // リンクありの場合はLink
                   <Link
                     href={item.href}
                     className="hover:text-foreground hover:underline transition-colors flex items-center gap-1 truncate max-w-[200px]"
                     title={item.name}
                   >
-                    {/* 最初の項目にホームアイコンを表示 */}
                     {isFirst && item.name === 'ホーム' && (
                       <Home className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                     )}

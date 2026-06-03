@@ -123,6 +123,51 @@ describe('Rate Limit Module', () => {
     })
   })
 
+  describe('DISABLE_RATE_LIMIT バイパス (E2E loopback 限定)', () => {
+    const options = { windowMs: 60000, maxRequests: 10 }
+    const ORIGINAL_FLAG = process.env.DISABLE_RATE_LIMIT
+    const ORIGINAL_URL = process.env.NEXT_PUBLIC_APP_URL
+
+    afterEach(() => {
+      process.env.DISABLE_RATE_LIMIT = ORIGINAL_FLAG
+      process.env.NEXT_PUBLIC_APP_URL = ORIGINAL_URL
+    })
+
+    it('フラグ on + loopback URL なら Redis を呼ばず許可する', async () => {
+      process.env.DISABLE_RATE_LIMIT = 'true'
+      process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
+
+      const result = await rateLimit('test-key', options)
+
+      expect(result.success).toBe(true)
+      expect(result.remaining).toBe(10)
+      expect(mockRedis.incr).not.toHaveBeenCalled()
+    })
+
+    it('フラグ on でも非 loopback (実本番ドメイン) ならバイパスせず Redis を引く', async () => {
+      process.env.DISABLE_RATE_LIMIT = 'true'
+      process.env.NEXT_PUBLIC_APP_URL = 'https://www.bon-log.com'
+      mockRedis.incr.mockResolvedValue(1)
+      mockRedis.expire.mockResolvedValue(undefined)
+
+      const result = await rateLimit('test-key', options)
+
+      expect(result.success).toBe(true)
+      expect(mockRedis.incr).toHaveBeenCalledWith('ratelimit:test-key')
+    })
+
+    it('フラグ未設定ならバイパスしない', async () => {
+      process.env.DISABLE_RATE_LIMIT = undefined
+      process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
+      mockRedis.incr.mockResolvedValue(1)
+      mockRedis.expire.mockResolvedValue(undefined)
+
+      await rateLimit('test-key', options)
+
+      expect(mockRedis.incr).toHaveBeenCalled()
+    })
+  })
+
   describe('getClientIp', () => {
     function createMockRequest(headers: Record<string, string>): Request {
       return {

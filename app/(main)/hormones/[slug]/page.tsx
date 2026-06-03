@@ -23,10 +23,30 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const hormone = await getHormoneBySlug(slug)
-  if (!hormone) return { title: 'ホルモンが見つかりません - BON-LOG' }
+  if (!hormone) return { title: 'ホルモンが見つかりません' }
+  const title = `${hormone.name}${hormone.nameEn ? `（${hormone.nameEn}）` : ''} - 植物ホルモン`
+  const description = (
+    hormone.description ?? `植物ホルモン「${hormone.name}」の働き・季節変動・相互作用を解説します。`
+  ).slice(0, COLUMN_OG_DESCRIPTION_LENGTH)
+  const canonical = pageCanonical(`${ROUTE_HORMONES}/${slug}`)
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(hormone.name)}`
   return {
-    title: `${hormone.name}${hormone.nameEn ? `（${hormone.nameEn}）` : ''} - 植物ホルモン - BON-LOG`,
-    alternates: { canonical: pageCanonical(`${ROUTE_HORMONES}/${slug}`) },
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: hormone.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   }
 }
 
@@ -122,42 +142,36 @@ export default async function HormoneDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* 説明 */}
       {hormone.description && (
         <InfoSection icon={Beaker} title="概要">
           <p className="whitespace-pre-wrap">{hormone.description}</p>
         </InfoSection>
       )}
 
-      {/* 盆栽での役割 */}
       {hormone.bonsaiRole && (
         <InfoSection icon={TreeDeciduous} title="盆栽での役割">
           <p className="whitespace-pre-wrap">{hormone.bonsaiRole}</p>
         </InfoSection>
       )}
 
-      {/* 生成部位 */}
       {hormone.productionSite && (
         <InfoSection icon={MapPin} title="生成部位">
           <p className="whitespace-pre-wrap">{hormone.productionSite}</p>
         </InfoSection>
       )}
 
-      {/* 活性化方法 */}
       {hormone.activationMethod && (
         <InfoSection icon={Zap} title="活性化・調節方法">
           <p className="whitespace-pre-wrap">{hormone.activationMethod}</p>
         </InfoSection>
       )}
 
-      {/* 実践的なヒント */}
       {hormone.practicalTips && (
         <InfoSection icon={Lightbulb} title="実践的なヒント">
           <p className="whitespace-pre-wrap">{hormone.practicalTips}</p>
         </InfoSection>
       )}
 
-      {/* 効果一覧 */}
       {hormone.effects.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">効果</h2>
@@ -165,7 +179,6 @@ export default async function HormoneDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 月別活性チャート */}
       {hormone.seasonalLevels.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">月別活性レベル</h2>
@@ -175,7 +188,6 @@ export default async function HormoneDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 相互作用 */}
       {allInteractions.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -202,7 +214,6 @@ export default async function HormoneDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* 関連する盆栽技法 */}
       {techniques.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">

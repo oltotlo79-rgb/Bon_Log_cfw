@@ -1,32 +1,20 @@
 'use client'
 
 /**
- * @file DeletedCommentPlaceholder.tsx
- * @description 削除・ブロック中コメントのプレースホルダーコンポーネント
+ * @module components/comment/DeletedCommentPlaceholder
  */
 
 import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface DeletedCommentPlaceholderProps {
-  /** プレースホルダーに表示するメッセージ */
   message: string
-  /** 返信件数（0またはundefinedの場合は表示しない） */
   replyCount?: number
-  /** 返信を表示中かどうか */
   showReplies: boolean
-  /** 返信読み込み中かどうか */
   loadingReplies: boolean
-  /** 返信トグルハンドラ */
   onToggleReplies: () => void
 }
 
-/**
- * 削除・ブロック中コメントのプレースホルダーコンポーネント
- *
- * 削除されたコメントやブロック中ユーザーのコメントに表示します。
- * 返信がある場合は展開ボタンも表示します。
- */
 export function DeletedCommentPlaceholder({
   message,
   replyCount,

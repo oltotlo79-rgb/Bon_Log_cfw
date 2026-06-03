@@ -1,10 +1,3 @@
-/**
- * @file バックアップ管理ページ
- * @description Supabase経由のバックアップ管理情報、データベース統計、データエクスポート機能を提供する管理者専用ページ。
- *              実際のバックアップ操作はSupabaseダッシュボードで行う設計。
- * @route /admin/backups
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import {
@@ -26,10 +19,8 @@ import {
 } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { isAdmin } from '@/lib/actions/admin'
+import { getSupabaseDashboardUrl } from '@/lib/env'
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: 'バックアップ管理 - BON-LOG 管理',
 }
@@ -50,6 +41,8 @@ export default async function BackupsPage() {
   if (!isAdminUser) {
     redirect(ROUTE_LOGIN)
   }
+
+  const supabaseDashboardUrl = getSupabaseDashboardUrl()
 
   // データベース統計を並列取得
   const [
@@ -98,7 +91,6 @@ export default async function BackupsPage() {
 
   return (
     <div className="space-y-6">
-      {/* ページタイトル */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <HardDrive className="w-7 h-7" />
@@ -109,7 +101,6 @@ export default async function BackupsPage() {
         </p>
       </div>
 
-      {/* Supabase情報カード */}
       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
@@ -121,20 +112,21 @@ export default async function BackupsPage() {
               データベースのバックアップはSupabaseダッシュボードで管理されています。
               自動バックアップは毎日実行され、Proプランでは最大7日間のPoint-in-Time Recoveryが利用可能です。
             </p>
-            <a
-              href="#"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline mt-3"
-            >
-              Supabaseダッシュボードを開く
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            {supabaseDashboardUrl && (
+              <a
+                href={supabaseDashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline mt-3"
+              >
+                Supabaseダッシュボードを開く
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         </div>
       </div>
 
-      {/* データベース統計 */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Database className="w-5 h-5" />
@@ -153,7 +145,6 @@ export default async function BackupsPage() {
         </div>
       </div>
 
-      {/* データエクスポート */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Download className="w-5 h-5" />
@@ -237,7 +228,6 @@ export default async function BackupsPage() {
         </div>
       </div>
 
-      {/* 最終バックアップ情報 */}
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-lg font-semibold mb-4">バックアップ状況</h2>
         <div className="space-y-3">

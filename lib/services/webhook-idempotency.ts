@@ -48,3 +48,24 @@ export async function ensureWebhookEventOnce(
     throw error
   }
 }
+
+/**
+ * 冪等性レコードを取り消す。
+ *
+ * Why: `ensureWebhookEventOnce` は並行重複処理を防ぐため処理前に INSERT するが、
+ * ハンドラが一過性エラーで失敗した場合にレコードを残すと、プロバイダのリトライが
+ * 「処理済み」として弾かれて永久に未処理になる（例: 課金済みなのに権限付与されない）。
+ * 失敗時に本関数でロックを解放することで、リトライが再処理できるようにする。
+ */
+export async function deleteWebhookEvent(provider: string, eventId: string): Promise<void> {
+  try {
+    await prisma.webhookEvent.deleteMany({ where: { provider, eventId } })
+  } catch (error) {
+    // 解放失敗はロギングのみ（呼び出し元のエラー応答を妨げない）
+    logger.error('Failed to release webhook idempotency lock', {
+      provider,
+      eventId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}

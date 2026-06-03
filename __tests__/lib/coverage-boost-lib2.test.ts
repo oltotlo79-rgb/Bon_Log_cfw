@@ -172,7 +172,8 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
           { userId: mockUser.id, lastReadAt: null, user: mockUser },
           { userId: 'other-id', lastReadAt: null, user: { id: 'other-id', nickname: 'Other', avatarUrl: null } },
         ],
-        messages: [{ ...mockMessage, createdAt: new Date() }],
+        // 最後のメッセージは相手からの送信（自分の送信は未読扱いしないため）
+        messages: [{ ...mockMessage, createdAt: new Date(), senderId: 'other-id' }],
       }]
       mockPrisma.conversation.findMany.mockResolvedValueOnce(convs)
 
@@ -193,6 +194,25 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
           { userId: 'other-id', lastReadAt: null, user: { id: 'other-id', nickname: 'Other', avatarUrl: null } },
         ],
         messages: [{ ...mockMessage, createdAt: msgTime }],
+      }]
+      mockPrisma.conversation.findMany.mockResolvedValueOnce(convs)
+
+      const { getConversations } = await import('@/lib/actions/message')
+      const result = unwrap(await getConversations())
+
+      expect(result.conversations[0].hasUnread).toBe(false)
+    })
+
+    it('自分が最後に送信した会話は未読扱いしない（hasUnread=false）', async () => {
+      const convs = [{
+        id: 'conv-self',
+        updatedAt: new Date(),
+        participants: [
+          { userId: mockUser.id, lastReadAt: null, user: mockUser },
+          { userId: 'other-id', lastReadAt: null, user: { id: 'other-id', nickname: 'Other', avatarUrl: null } },
+        ],
+        // 最後のメッセージは自分の送信（未読扱いしない）
+        messages: [{ ...mockMessage, createdAt: new Date(), senderId: mockUser.id }],
       }]
       mockPrisma.conversation.findMany.mockResolvedValueOnce(convs)
 

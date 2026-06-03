@@ -1,9 +1,3 @@
-/**
- * @file 管理者用ユーザー管理ページのローディング画面
- * @description ユーザー一覧の読み込み中に表示されるローディング画面。
- *              Next.jsのSuspense機能と連携して自動的に表示される。
- */
-
 // 共通ローディングスクリーンコンポーネント
 import { LoadingScreen } from '@/components/common/LoadingScreen'
 

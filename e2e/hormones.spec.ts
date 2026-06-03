@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 植物ホルモンガイドページのE2Eテスト
@@ -40,10 +41,7 @@ test.describe('植物ホルモン機能', () => {
       await expect(
         page.getByRole('heading', { name: /植物ホルモン/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /ホルモン相互作用/i }).click()
-      await expect(page).toHaveURL(/\/hormones\/interactions/, {
-        timeout: 10000,
-      })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /ホルモン相互作用/i }), /\/hormones\/interactions/, { timeout: 10000 })
     })
 
     test('コラムリンクをクリックするとコラムページへ遷移する', async ({
@@ -54,10 +52,7 @@ test.describe('植物ホルモン機能', () => {
       await expect(
         page.getByRole('heading', { name: /植物ホルモン/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /コラム・読みもの/i }).click()
-      await expect(page).toHaveURL(/\/hormones\/columns/, {
-        timeout: 10000,
-      })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /コラム・読みもの/i }), /\/hormones\/columns/, { timeout: 10000 })
     })
   })
 
@@ -172,10 +167,7 @@ test.describe('植物ホルモン機能', () => {
         .getByRole('link', { name: /オーキシン.*サイトカイニン|休眠.*覚醒|ストレス応答/i })
         .first()
       await expect(firstColumn).toBeVisible({ timeout: 10000 })
-      await firstColumn.click()
-      await expect(page).toHaveURL(/\/hormones\/columns\//, {
-        timeout: 10000,
-      })
+      await clickAndWaitForUrl(page, firstColumn, /\/hormones\/columns\//, { timeout: 10000 })
     })
 
     test('コラム詳細ページにコンテンツが表示される', async ({ page }) => {
@@ -215,8 +207,7 @@ test.describe('植物ホルモン機能', () => {
       await expect(
         page.getByRole('heading', { name: /植物ホルモン/i })
       ).toBeVisible({ timeout: 10000 })
-      await page.getByRole('link', { name: /技法とホルモン/i }).click()
-      await expect(page).toHaveURL(/\/hormones\/techniques/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /技法とホルモン/i }), /\/hormones\/techniques/, { timeout: 10000 })
     })
   })
 

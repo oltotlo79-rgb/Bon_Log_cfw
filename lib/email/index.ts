@@ -14,6 +14,7 @@
 import { getAppUrl, getEmailConfig, getResendApiKey } from '@/lib/env'
 import logger from '@/lib/logger'
 import { ONE_DAY_MS } from '@/lib/constants/limits'
+import { ROUTE_SETTINGS_SUBSCRIPTION } from '@/lib/constants/routes'
 import { Resend } from 'resend'
 import { buildPasswordResetEmail } from './templates/password-reset'
 import { buildVerificationEmail } from './templates/verification'
@@ -162,7 +163,7 @@ export async function sendSubscriptionExpiringEmail(
     month: 'long',
     day: 'numeric',
   })
-  const settingsUrl = `${getAppUrl()}/settings/subscription`
+  const settingsUrl = `${getAppUrl()}${ROUTE_SETTINGS_SUBSCRIPTION}`
 
   const { html, text } = buildSubscriptionExpiringEmail({
     nickname,
@@ -183,7 +184,7 @@ export async function sendSubscriptionExpiredEmail(
   email: string,
   nickname: string,
 ): Promise<EmailResult> {
-  const settingsUrl = `${getAppUrl()}/settings/subscription`
+  const settingsUrl = `${getAppUrl()}${ROUTE_SETTINGS_SUBSCRIPTION}`
   const { html, text } = buildSubscriptionExpiredEmail({ nickname, settingsUrl })
   return sendEmail({
     to: email,

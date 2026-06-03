@@ -8,7 +8,8 @@ import { NotificationList } from '@/components/notification/NotificationList'
 import { PostDetailAdUnit } from '@/components/ads'
 
 export const metadata = {
-  title: '通知 - BON-LOG',
+  title: '通知',
+  robots: { index: false, follow: false },
 }
 
 export default async function NotificationsPage() {

@@ -1,21 +1,7 @@
-/**
- * @file 予約投稿一覧・編集ページのエラーバウンダリ
- * @description 予約投稿ページでエラーが発生した際に表示されるエラー画面
- *
- * Next.js App Routerのerror.tsx規約に基づき、
- * /posts/scheduled およびその子ルートで発生したエラーをキャッチして表示します。
- *
- * @route /posts/scheduled (およびその子ルート)
- * @requires 'use client'
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 予約投稿ページのエラーコンポーネント
- */
 export default function ScheduledPostsError({
   error,
   reset,

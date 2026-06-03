@@ -4,23 +4,6 @@
  * shadcn/ui ベースの Dialog (Radix UI Dialog primitive)。
  * 背景クリック / Esc キーで閉じる「カジュアル系モーダル」。確認操作専用には
  * `components/ui/alert-dialog.tsx` を使う。
- *
- * @example
- * <Dialog>
- *   <DialogTrigger asChild>
- *     <Button>プロフィール編集</Button>
- *   </DialogTrigger>
- *   <DialogContent>
- *     <DialogHeader>
- *       <DialogTitle>プロフィール編集</DialogTitle>
- *       <DialogDescription>プロフィール情報を編集できます。</DialogDescription>
- *     </DialogHeader>
- *     <form>...</form>
- *     <DialogFooter>
- *       <Button type="submit">保存</Button>
- *     </DialogFooter>
- *   </DialogContent>
- * </Dialog>
  */
 
 "use client"

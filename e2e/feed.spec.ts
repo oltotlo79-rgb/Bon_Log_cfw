@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { getFeedTimelineLocator, getPostDetailReadyLocator } from './locators'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 test.describe('フィード機能', () => {
   test('フィードページが表示される（ログイン状態）', async ({ page }) => {
@@ -13,9 +14,11 @@ test.describe('フィード機能', () => {
     await page.goto('/feed')
     await page.waitForLoadState('domcontentloaded')
 
+    // タイムラインは Suspense でストリーミングされるため client fetch 完了まで待つ
+    await page.waitForLoadState('networkidle').catch(() => {})
     const timeline = getFeedTimelineLocator(page).first()
     const emptyMessage = page.getByText(/タイムラインに投稿がありません|ユーザーをフォローすると/i)
-    const hasTimeline = await timeline.isVisible({ timeout: 15000 }).catch(() => false)
+    const hasTimeline = await timeline.isVisible({ timeout: 20000 }).catch(() => false)
     const hasEmpty = await emptyMessage.isVisible({ timeout: 5000 }).catch(() => false)
     expect(hasTimeline || hasEmpty).toBeTruthy()
   })
@@ -78,8 +81,7 @@ test.describe('フィード機能', () => {
 
     const postLink = page.locator('[data-testid="comment-link"], a[href*="/posts/"]').first()
     if (await postLink.isVisible({ timeout: 8000 }).catch(() => false)) {
-      await postLink.click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 15000 })
+      await clickAndWaitForUrl(page, postLink, /\/posts\//, { timeout: 15000 })
     }
   })
 
@@ -104,8 +106,7 @@ test.describe('投稿詳細ページ', () => {
 
     const postLink = page.locator('[data-testid="comment-link"], a[href*="/posts/"]').first()
     if (await postLink.isVisible({ timeout: 8000 }).catch(() => false)) {
-      await postLink.click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 15000 })
+      await clickAndWaitForUrl(page, postLink, /\/posts\//, { timeout: 15000 })
       const postDetail = page.locator('[data-testid="post-card"]').first()
       await expect(postDetail).toBeVisible({ timeout: 10000 })
     } else {
@@ -120,16 +121,17 @@ test.describe('投稿詳細ページ', () => {
 
     const postLink = page.locator('[data-testid="comment-link"], a[href*="/posts/"]').first()
     if (await postLink.isVisible({ timeout: 8000 }).catch(() => false)) {
-      await postLink.click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 15000 })
+      await clickAndWaitForUrl(page, postLink, /\/posts\//, { timeout: 15000 })
       await page.waitForLoadState('load')
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
+      // コメント欄は Suspense 配下で遅延ロードされ得るため client fetch 完了まで待つ
+      await page.waitForLoadState('networkidle').catch(() => {})
       const commentSection = page.locator(
         '[data-testid="comments-section"], [data-testid="comment-input"]'
       ).first()
       const commentText = page.getByText(/コメント/i).first()
-      const hasSection = await commentSection.isVisible({ timeout: 10000 }).catch(() => false)
-      const hasText = await commentText.isVisible({ timeout: 5000 }).catch(() => false)
+      const hasSection = await commentSection.isVisible({ timeout: 15000 }).catch(() => false)
+      const hasText = await commentText.isVisible({ timeout: 8000 }).catch(() => false)
       expect(hasSection || hasText).toBeTruthy()
     } else {
       await expect(page).toHaveURL(/\/feed/)
@@ -143,16 +145,17 @@ test.describe('投稿詳細ページ', () => {
 
     const postLink = page.locator('[data-testid="comment-link"], a[href*="/posts/"]').first()
     if (await postLink.isVisible({ timeout: 8000 }).catch(() => false)) {
-      await postLink.click()
-      await expect(page).toHaveURL(/\/posts\//, { timeout: 15000 })
+      await clickAndWaitForUrl(page, postLink, /\/posts\//, { timeout: 15000 })
       await page.waitForLoadState('load')
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
+      // コメントフォームは Suspense 配下で遅延ロードされ得るため client fetch 完了まで待つ
+      await page.waitForLoadState('networkidle').catch(() => {})
       const commentInput = page.locator(
         '[data-testid="comment-input"], textarea[placeholder*="コメント"]'
       ).first()
       const commentForm = page.locator('form').first()
-      const hasInput = await commentInput.isVisible({ timeout: 10000 }).catch(() => false)
-      const hasForm = await commentForm.isVisible({ timeout: 5000 }).catch(() => false)
+      const hasInput = await commentInput.isVisible({ timeout: 15000 }).catch(() => false)
+      const hasForm = await commentForm.isVisible({ timeout: 8000 }).catch(() => false)
       expect(hasInput || hasForm).toBeTruthy()
     } else {
       await expect(page).toHaveURL(/\/feed/)

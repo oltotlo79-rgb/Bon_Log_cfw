@@ -6,7 +6,7 @@ import { ROUTE_FERTILIZERS_WATERING } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '水やりと施肥の関係 - 施肥ガイド - BON-LOG',
+  title: '水やりと施肥の関係 - 施肥ガイド',
   description: '盆栽の灌水と施肥の適切な組み合わせ方を解説します。',
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS_WATERING) },
 }
@@ -56,7 +56,6 @@ const SECTIONS: Section[] = [
 export default function WateringFertilizerPage() {
   return (
     <div className="space-y-8">
-      {/* ヘッダー */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold break-words">水やりと施肥の関係</h1>
@@ -72,7 +71,6 @@ export default function WateringFertilizerPage() {
         </Link>
       </div>
 
-      {/* セクション */}
       {SECTIONS.map((section) => (
         <section key={section.title} className="space-y-3">
           <h2 className="text-lg font-semibold">{section.title}</h2>

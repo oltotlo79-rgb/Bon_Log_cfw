@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * @file コホートテーブルコンポーネント
- * @description リテンション率を色の濃淡で表現するヒートマップテーブル。
- *              期間（月次/週次）の切り替え機能付き。
- */
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
@@ -87,7 +82,6 @@ export function CohortTable({
 
   return (
     <div className="space-y-4">
-      {/* 期間セレクター */}
       <div className="flex items-center gap-3">
         <span className="text-sm text-muted-foreground">期間:</span>
         <div className="flex rounded-lg border overflow-hidden">
@@ -115,7 +109,6 @@ export function CohortTable({
         {isPending && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
       </div>
 
-      {/* コホートテーブル */}
       <div className="bg-card rounded-lg border overflow-x-auto">
         {tableData.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
@@ -160,7 +153,6 @@ export function CohortTable({
                   ))}
                 </tr>
               ))}
-              {/* 平均行 */}
               <tr className="border-t-2 font-semibold">
                 <td className="px-3 py-2 sticky left-0 bg-card z-10">平均</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">-</td>
@@ -178,7 +170,6 @@ export function CohortTable({
         )}
       </div>
 
-      {/* 凡例 */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>リテンション率:</span>
         <div className="flex items-center gap-1">

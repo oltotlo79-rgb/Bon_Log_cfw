@@ -4,8 +4,11 @@
  * @module lib/constants/limits/media
  */
 
-/** 画像の最大サイズ（4MB） */
-export const MAX_IMAGE_SIZE = 4 * 1024 * 1024
+/** 画像の最大サイズ（MB）。UI 表示文言もこの値から生成する。 */
+export const MAX_IMAGE_SIZE_MB = 4
+
+/** 画像の最大サイズ（バイト） */
+export const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024
 
 /** 動画の最大サイズ（256MB） */
 export const MAX_VIDEO_SIZE = 256 * 1024 * 1024
@@ -66,6 +69,10 @@ export const HEADER_COMPRESSION_MAX_SIZE_MB = 1
 
 /** ヘッダー最大解像度（px） */
 export const HEADER_MAX_DIMENSION = 1500
+
+/** ヘッダー画像の推奨表示サイズ（px）。UI の推奨サイズ文言の単一ソース。 */
+export const HEADER_RECOMMENDED_WIDTH = 1500
+export const HEADER_RECOMMENDED_HEIGHT = 500
 
 /** プロフィール画像に許可されるMIMEタイプ */
 export const ALLOWED_PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const

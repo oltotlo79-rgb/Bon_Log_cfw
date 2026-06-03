@@ -9,10 +9,12 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
-import { requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { requireActiveNonGuestUser, requireAuth, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { normalizeCursorPagination } from '@/lib/actions/pagination'
 import logger from '@/lib/logger'
-import { DEFAULT_PAGE_LIMIT, MAX_BONSAI_RECORD_IMAGES, MAX_BONSAI_DESCRIPTION_LENGTH } from '@/lib/constants/limits'
+import { MAX_BONSAI_RECORD_IMAGES, MAX_BONSAI_DESCRIPTION_LENGTH } from '@/lib/constants/limits'
 import { buildBonsaiPath } from '@/lib/constants/path-builders'
 import {
   ERR_BONSAI_NOT_FOUND,
@@ -166,13 +168,21 @@ export async function deleteBonsaiRecord(recordId: string) {
   try {
     const existing = await prisma.bonsaiRecord.findFirst({
       where: { id: recordId },
-      select: { id: true, bonsaiId: true, bonsai: { select: { userId: true } } },
+      select: {
+        id: true,
+        bonsaiId: true,
+        bonsai: { select: { userId: true } },
+        images: { select: { url: true } },
+      },
     })
     if (!existing || existing.bonsai.userId !== userId) {
       return actionError(ERR_BONSAI_RECORD_NOT_FOUND)
     }
 
     await prisma.bonsaiRecord.delete({ where: { id: recordId } })
+
+    // DB カスケード後にストレージ実体も回収（オーファン防止、best-effort）
+    await deleteMediaFiles(existing.images.map((i) => i.url))
 
     revalidatePath(buildBonsaiPath(existing.bonsaiId))
     return actionSuccess()
@@ -183,17 +193,23 @@ export async function deleteBonsaiRecord(recordId: string) {
 }
 
 /**
- * 全ユーザーの盆栽成長記録を最新順で取得する（盆栽ギャラリー用）。
+ * 自分の盆栽の成長記録を最新順で取得する（マイ盆栽タイムライン）。
+ * 盆栽は所有者専用リソースのため、対象を本人所有分に限定する。
  * カーソルベースページネーション。
  */
 export async function getBonsaiTimeline(options: { cursor?: string; limit?: number } = {}) {
-  const { cursor, limit = DEFAULT_PAGE_LIMIT } = options
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination(options)
+
+  const authResult = await requireAuth()
+  if ('error' in authResult) return actionSuccess({ records: [], nextCursor: undefined })
+  const userId = authResult.userId
 
   try {
     const records = await prisma.bonsaiRecord.findMany({
-      take: limit,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
-      orderBy: { recordAt: 'desc' },
+      where: { bonsai: { userId } },
+      take: safeLimit,
+      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
+      orderBy: [{ recordAt: 'desc' }, { id: 'desc' }],
       include: {
         bonsai: {
           include: {
@@ -204,7 +220,7 @@ export async function getBonsaiTimeline(options: { cursor?: string; limit?: numb
       },
     })
 
-    const nextCursor = records.length === limit ? records[records.length - 1]?.id : undefined
+    const nextCursor = records.length === safeLimit ? records[records.length - 1]?.id : undefined
     return actionSuccess({ records, nextCursor })
   } catch (error) {
     logger.error('Get bonsai timeline error:', error)
@@ -213,26 +229,42 @@ export async function getBonsaiTimeline(options: { cursor?: string; limit?: numb
 }
 
 /**
- * 特定盆栽の成長記録を最新順で取得する。カーソルベースページネーション。
+ * 特定盆栽の成長記録を最新順で取得する。マイ盆栽は所有者専用のため、
+ * 本人が所有する盆栽のみ記録を返し、それ以外は空で返す。
+ * カーソルベースページネーション。
  */
 export async function getBonsaiRecords(
   bonsaiId: string,
   options: { cursor?: string; limit?: number } = {}
 ) {
-  const { cursor, limit = DEFAULT_PAGE_LIMIT } = options
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination(options)
+
+  if (!idSchema.safeParse(bonsaiId).success) return actionSuccess({ records: [], nextCursor: undefined })
+
+  const authResult = await requireAuth()
+  if ('error' in authResult) return actionSuccess({ records: [], nextCursor: undefined })
+  const userId = authResult.userId
 
   try {
+    const bonsai = await prisma.bonsai.findUnique({
+      where: { id: bonsaiId },
+      select: { userId: true },
+    })
+    if (!bonsai || bonsai.userId !== userId) {
+      return actionSuccess({ records: [], nextCursor: undefined })
+    }
+
     const records = await prisma.bonsaiRecord.findMany({
       where: { bonsaiId },
-      take: limit,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
-      orderBy: { recordAt: 'desc' },
+      take: safeLimit,
+      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
+      orderBy: [{ recordAt: 'desc' }, { id: 'desc' }],
       include: {
         images: { orderBy: { sortOrder: 'asc' } },
       },
     })
 
-    const nextCursor = records.length === limit ? records[records.length - 1]?.id : undefined
+    const nextCursor = records.length === safeLimit ? records[records.length - 1]?.id : undefined
     return actionSuccess({ records, nextCursor })
   } catch (error) {
     logger.error('Get bonsai records error:', error)

@@ -14,12 +14,14 @@ export async function seedE2EData(prisma: PrismaClient): Promise<void> {
   const e2eTestPassword = await bcrypt.hash('TestPassword123!', BCRYPT_SALT_ROUNDS)
   const e2eUser = await prisma.user.upsert({
     where: { email: 'e2e-test@example.com' },
-    update: { emailVerified: new Date() },
+    // 既存ユーザー扱いにしオンボーディング誘導を抑止する (未設定だと /feed が /onboarding へ恒久リダイレクト)
+    update: { emailVerified: new Date(), onboardedAt: new Date() },
     create: {
       email: 'e2e-test@example.com',
       password: e2eTestPassword,
       nickname: 'E2Eテストユーザー',
       emailVerified: new Date(),
+      onboardedAt: new Date(),
     },
   })
   console.log('Seeded E2E test user')
@@ -27,12 +29,13 @@ export async function seedE2EData(prisma: PrismaClient): Promise<void> {
   const e2eTestPassword2 = await bcrypt.hash('TestPassword123!', BCRYPT_SALT_ROUNDS)
   const e2eUser2 = await prisma.user.upsert({
     where: { email: 'e2e-test2@example.com' },
-    update: { emailVerified: new Date() },
+    update: { emailVerified: new Date(), onboardedAt: new Date() },
     create: {
       email: 'e2e-test2@example.com',
       password: e2eTestPassword2,
       nickname: 'E2Eテストユーザー2',
       emailVerified: new Date(),
+      onboardedAt: new Date(),
     },
   })
   console.log('Seeded E2E test user 2')

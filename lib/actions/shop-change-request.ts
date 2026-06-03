@@ -20,7 +20,8 @@ import {
   ERR_REQUEST_NOT_FOUND,
   ERR_REQUEST_ALREADY_PROCESSED,
 } from '@/lib/constants/errors'
-import { DEFAULT_PAGE_LIMIT, MAX_SHOP_CHANGE_REASON_LENGTH } from '@/lib/constants/limits'
+import { MAX_SHOP_CHANGE_REASON_LENGTH } from '@/lib/constants/limits'
+import { normalizeCursorPagination } from '@/lib/actions/pagination'
 import { SHOP_CHANGE_REQUEST_STATUS } from '@/lib/constants/status'
 import { ROUTE_SHOPS, ROUTE_ADMIN_SHOP_REQUESTS } from '@/lib/constants/routes'
 import { buildShopPath } from '@/lib/constants/path-builders'
@@ -30,7 +31,7 @@ import {
   shopChangeRequestInputSchema,
   parseShopChangeRequestedChanges,
   hasMeaningfulChanges,
-} from '@/lib/services/shop-change-helpers'
+} from '@/lib/shop/change-request'
 
 const createShopChangeRequestSchema = z.object({
   // 入力 ID は cuid を期待するが、長さだけ守らせて DB ルックアップ前に弾く。
@@ -111,7 +112,8 @@ export async function getShopChangeRequests(options?: {
   cursor?: string
   limit?: number
 }) {
-  const { status = SHOP_CHANGE_REQUEST_STATUS.PENDING, cursor, limit = DEFAULT_PAGE_LIMIT } = options || {}
+  const { status = SHOP_CHANGE_REQUEST_STATUS.PENDING } = options || {}
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination(options ?? {})
 
   const admin = await requireAdmin('shops:view')
   if ('error' in admin) return actionError(admin.error)
@@ -136,15 +138,15 @@ export async function getShopChangeRequests(options?: {
         select: USER_MINIMAL_SELECT,
       },
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && {
-      cursor: { id: cursor },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: safeLimit,
+    ...(safeCursor && {
+      cursor: { id: safeCursor },
       skip: 1,
     }),
   })
 
-  const hasMore = requests.length === limit
+  const hasMore = requests.length === safeLimit
 
   return {
     requests,

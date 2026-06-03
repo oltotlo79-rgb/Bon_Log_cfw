@@ -1,9 +1,3 @@
-/**
- * @file ユーザー詳細アクションコンポーネント
- * @description ユーザー詳細ページで使用される管理操作パネル。
- *              アカウント停止、復帰、削除などの操作を提供する。
- */
-
 'use client'
 
 // ReactのuseStateフック（状態管理用）
@@ -15,9 +9,6 @@ import { suspendUser, activateUser, deleteUserByAdmin } from '@/lib/actions/admi
 import { ROUTE_ADMIN_USERS } from '@/lib/constants/routes'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
-/**
- * UserDetailActionsコンポーネントのProps型定義
- */
 type UserDetailActionsProps = {
   userId: string
   isSuspended: boolean
@@ -116,7 +107,6 @@ export function UserDetailActions({ userId, isSuspended, nickname }: UserDetailA
         </div>
       )}
 
-      {/* 停止/復帰 */}
       {isSuspended ? (
         <button
           onClick={handleActivate}
@@ -146,7 +136,6 @@ export function UserDetailActions({ userId, isSuspended, nickname }: UserDetailA
 
       <hr className="border-muted" />
 
-      {/* 削除 */}
       {!showDeleteConfirm ? (
         <button
           onClick={() => setShowDeleteConfirm(true)}

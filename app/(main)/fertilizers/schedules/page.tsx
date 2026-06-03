@@ -10,7 +10,7 @@ import { ROUTE_FERTILIZERS_SCHEDULES } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '樹種別施肥スケジュール - 施肥ガイド - BON-LOG',
+  title: '樹種別施肥スケジュール - 施肥ガイド',
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS_SCHEDULES) },
 }
 

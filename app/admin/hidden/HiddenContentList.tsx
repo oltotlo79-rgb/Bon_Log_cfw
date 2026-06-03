@@ -1,9 +1,3 @@
-/**
- * @file 非表示コンテンツ一覧コンポーネント
- * @description 非表示コンテンツのフィルタリング、再表示、削除機能を提供する
- *              クライアントコンポーネント。
- */
-
 'use client'
 
 // ReactのuseStateフック（状態管理用）
@@ -20,9 +14,6 @@ import {
 } from '@/lib/constants/report'
 import { useToast } from '@/hooks/use-toast'
 
-/**
- * 非表示コンテンツアイテムの型定義
- */
 interface HiddenItem {
   type: ContentType
   id: string
@@ -83,7 +74,6 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
 
   return (
     <div className="space-y-4">
-      {/* フィルター */}
       <div className="flex gap-2 flex-wrap">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
@@ -108,13 +98,11 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
         })}
       </div>
 
-      {/* リスト */}
       <div className="space-y-4">
         {filteredItems.map((item: HiddenItem) => (
           <div key={`${item.type}-${item.id}`} className="bg-card border rounded-lg p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                {/* タイプバッジ */}
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${CONTENT_TYPE_COLORS[item.type]}`}>
                     {CONTENT_TYPE_LABELS[item.type]}
@@ -124,12 +112,10 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
                   </span>
                 </div>
 
-                {/* コンテンツ */}
                 <p className="text-sm mb-2 line-clamp-3">
                   {item.content || '(内容なし)'}
                 </p>
 
-                {/* メタ情報 */}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>作成者: {item.createdBy.nickname}</span>
                   <span>|</span>
@@ -142,7 +128,6 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
                 </div>
               </div>
 
-              {/* アクションボタン */}
               <div className="flex gap-2 shrink-0">
                 <Button
                   variant="outline"

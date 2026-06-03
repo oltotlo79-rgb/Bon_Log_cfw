@@ -3,16 +3,26 @@
  * Stripe Checkout / カスタマーポータル / 状態取得 / 支払い履歴 / 即時解約。
  *
  * @module lib/actions/subscription
+ *
+ * Returns custom shape instead of ActionResult because Stripe redirect 系
+ * (`createCheckoutSession`, `createCustomerPortalSession`) は呼び出し側が
+ * `result.url` で window.location 遷移するため `{ url }` の plain object が直接的、
+ * 状態取得系 (`getSubscriptionStatus`, `getPaymentHistory`, `getMembershipInfo`) は
+ * 未ログイン / フリーユーザー時にデフォルト値を返したい read-heavy パスのため、
+ * `ActionResult` でラップせずプレーン値を返す方針を取る。
+ * `cancelSubscriptionImmediately` は副作用ありの mutation のため `ActionResult` を返す。
  */
 
 'use server'
 
 import { z } from 'zod'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireAuth, requireNotGuest, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
 import { ERR_USER_NOT_FOUND, ERR_ALREADY_PREMIUM, ERR_PRICE_NOT_FOUND, ERR_SUBSCRIPTION_NOT_FOUND, ERR_SUBSCRIPTION_CANCEL_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { getAppUrl } from '@/lib/env'
 import { stripe, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_YEARLY } from '@/lib/stripe'
+import { ROUTE_SETTINGS_SUBSCRIPTION } from '@/lib/constants/routes'
 import logger from '@/lib/logger'
 
 /**
@@ -79,8 +89,8 @@ export async function createCheckoutSession(priceType: 'monthly' | 'yearly' = 'm
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${getAppUrl()}/settings/subscription?success=true`,
-    cancel_url: `${getAppUrl()}/settings/subscription?canceled=true`,
+    success_url: `${getAppUrl()}${ROUTE_SETTINGS_SUBSCRIPTION}?success=true`,
+    cancel_url: `${getAppUrl()}${ROUTE_SETTINGS_SUBSCRIPTION}?canceled=true`,
     metadata: { userId },
   })
 
@@ -108,7 +118,7 @@ export async function createCustomerPortalSession() {
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${getAppUrl()}/settings/subscription`,
+    return_url: `${getAppUrl()}${ROUTE_SETTINGS_SUBSCRIPTION}`,
   })
 
   return { url: portalSession.url }
@@ -215,6 +225,7 @@ export async function cancelSubscriptionImmediately() {
         premiumExpiresAt: null,
       },
     })
+    revalidatePath(ROUTE_SETTINGS_SUBSCRIPTION)
     return actionSuccess()
   } catch (error) {
     logger.error('Failed to cancel subscription:', error)

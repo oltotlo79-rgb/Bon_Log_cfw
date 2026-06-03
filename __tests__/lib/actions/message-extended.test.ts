@@ -94,6 +94,7 @@ describe('getOrCreateConversation', async () => {
 
   it('returns existing conversation', async () => {
     const { getOrCreateConversation } = await import('@/lib/actions/message')
+    ;(mockPrisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'u2', isPublic: true, isSuspended: false, email: 'u2@example.com' })
     ;(mockPrisma.block.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     ;(mockPrisma.conversation.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'conv1' })
 
@@ -103,6 +104,7 @@ describe('getOrCreateConversation', async () => {
 
   it('creates new conversation', async () => {
     const { getOrCreateConversation } = await import('@/lib/actions/message')
+    ;(mockPrisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'u2', isPublic: true, isSuspended: false, email: 'u2@example.com' })
     ;(mockPrisma.block.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     ;(mockPrisma.conversation.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     ;(mockPrisma.conversation.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'conv2' })

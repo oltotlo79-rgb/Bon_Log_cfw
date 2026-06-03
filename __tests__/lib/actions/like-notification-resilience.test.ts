@@ -28,8 +28,8 @@ vi.mock('@/lib/rate-limit', () => ({
   checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
 }))
 
-vi.mock('@/lib/actions/analytics', () => ({
-  recordLikeReceived: vi.fn().mockRejectedValue(new Error('Analytics service down')),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordLikeReceivedService: vi.fn().mockRejectedValue(new Error('Analytics service down')),
 }))
 
 const mockCreateNotification = vi.fn()
@@ -55,7 +55,9 @@ describe('Like Notification Resilience Tests', () => {
     vi.clearAllMocks()
     vi.resetModules()
     mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
-    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isGuest: false, email: 'test@example.com' })
+    // isPublic は投稿著者の閲覧可否判定で参照される（自ユーザーの停止チェックとも共用）
+    mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false, isGuest: false, email: 'test@example.com' })
+    mockPrisma.post.findUnique.mockResolvedValue({ userId: 'other-user-id', isHidden: false })
     mockCheckUserRateLimit.mockResolvedValue({ success: true })
   })
 

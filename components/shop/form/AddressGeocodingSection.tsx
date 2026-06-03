@@ -132,7 +132,6 @@ export function AddressGeocodingSection({
         </button>
       </div>
 
-      {/* 住所候補リスト */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="border rounded-lg bg-card shadow-lg overflow-hidden">
           <p className="px-3 py-2 text-xs text-muted-foreground bg-muted border-b">
@@ -166,12 +165,10 @@ export function AddressGeocodingSection({
         </div>
       )}
 
-      {/* エラー表示 */}
       {error && (
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      {/* 位置情報取得成功 */}
       {latitude !== null && longitude !== null && (
         <p className="text-xs text-foreground flex items-center gap-1">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

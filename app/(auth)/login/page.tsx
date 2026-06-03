@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
@@ -22,7 +23,20 @@ export default async function LoginPage() {
   return (
     <div className="p-6 sm:p-8">
       <h1 className="font-serif text-3xl font-bold text-center text-card-foreground mb-10 tracking-widest">ログイン</h1>
-      <LoginForm />
+      {/* LoginForm は useSearchParams (callbackUrl 取得) を使うため Suspense 境界が必須 */}
+      <Suspense fallback={<LoginFormFallback />}>
+        <LoginForm />
+      </Suspense>
+    </div>
+  )
+}
+
+function LoginFormFallback() {
+  return (
+    <div className="space-y-4 animate-pulse" aria-hidden="true">
+      <div className="h-10 bg-muted rounded" />
+      <div className="h-10 bg-muted rounded" />
+      <div className="h-10 bg-muted rounded" />
     </div>
   )
 }

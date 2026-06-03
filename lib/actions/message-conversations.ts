@@ -26,8 +26,10 @@ import {
   ERR_CONVERSATION_FETCH_FAILED,
   ERR_MESSAGE_READ_FAILED,
   ERR_USER_ID_REQUIRED,
+  ERR_USER_NOT_FOUND,
 } from '@/lib/constants/errors'
 import { ROUTE_MESSAGES } from '@/lib/constants/routes'
+import { checkInteractionEligibility } from '@/lib/services/user-eligibility'
 import logger from '@/lib/logger'
 
 const targetUserIdSchema = z.string().min(1, ERR_USER_ID_REQUIRED)
@@ -55,15 +57,11 @@ export async function getOrCreateConversation(
   if (rl) return actionError(rl.error)
 
   try {
-    const blocked = await prisma.block.findFirst({
-      where: {
-        OR: [
-          { blockerId: currentUserId, blockedId: userId },
-          { blockerId: userId, blockedId: currentUserId },
-        ],
-      },
-    })
-    if (blocked) return actionError(ERR_MESSAGE_BLOCKED)
+    // target の存在・停止・ゲスト・双方向 block を一括検証してから会話を作成する
+    const eligibility = await checkInteractionEligibility(currentUserId, userId)
+    if (!eligibility.ok) {
+      return actionError(eligibility.reason === 'blocked' ? ERR_MESSAGE_BLOCKED : ERR_USER_NOT_FOUND)
+    }
 
     const existingConversation = await prisma.conversation.findFirst({
       where: {
@@ -129,7 +127,8 @@ export async function getConversations(): Promise<
       )
       const lastMessage = conv.messages[0]
       let unreadCount = 0
-      if (lastMessage) {
+      // 自分が最後に送信した会話は未読扱いしない（getUnreadMessageCount のバッジと整合させる）。
+      if (lastMessage && lastMessage.senderId !== userId) {
         unreadCount =
           !currentUserParticipant?.lastReadAt || lastMessage.createdAt > currentUserParticipant.lastReadAt
             ? 1

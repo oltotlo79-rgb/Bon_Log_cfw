@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { ROUTE_REGISTER } from '@/lib/constants/routes'
 
 type GuestRestrictionOverlayProps = {
-  /** ゲストの場合はオーバーレイを表示 */
   isGuest: boolean
   children: React.ReactNode
   /** 表示するコンテンツ名（例: 盆栽マップ、イベント、病害虫） */
@@ -22,14 +21,12 @@ export function GuestRestrictionOverlay({
 
   return (
     <div className="relative min-h-[60vh]">
-      {/* 背面: ぼかし＋モザイク風で中身を見せない（薄め） */}
       <div
         className="pointer-events-none select-none blur-md opacity-40"
         aria-hidden
       >
         {children}
       </div>
-      {/* 前面: メッセージ（上寄せでスクロールせず見えるように） */}
       <div className="absolute inset-0 flex flex-col items-center justify-start gap-4 bg-background/50 backdrop-blur-sm p-6 pt-12 rounded-lg">
         <p className="text-center text-lg font-medium text-muted-foreground max-w-md">
           {contentName}は新規登録後にご利用いただけます。

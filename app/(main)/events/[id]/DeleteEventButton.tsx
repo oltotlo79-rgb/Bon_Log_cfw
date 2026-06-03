@@ -1,10 +1,3 @@
-/**
- * @file イベント削除ボタンコンポーネント
- * @description イベントを削除するための確認付きボタンコンポーネント。
- * 削除前に確認ダイアログを表示し、誤削除を防ぐ。
- * 削除完了後はイベント一覧ページにリダイレクトする。
- */
-
 'use client'
 
 // Reactの状態管理・トランジション管理フック
@@ -15,9 +8,6 @@ import { useRouter } from 'next/navigation'
 import { deleteEvent } from '@/lib/actions/event'
 import { ROUTE_EVENTS } from '@/lib/constants/routes'
 
-/**
- * コンポーネントのProps型定義
- */
 interface DeleteEventButtonProps {
   eventId: string  // 削除対象のイベントID
 }
@@ -82,9 +72,7 @@ export function DeleteEventButton({ eventId }: DeleteEventButtonProps) {
   if (showConfirm) {
     return (
       <div className="flex items-center gap-2">
-        {/* 確認メッセージ */}
         <span className="text-sm text-muted-foreground">削除しますか？</span>
-        {/* 削除実行ボタン */}
         <button
           onClick={handleDelete}
           disabled={isPending}
@@ -92,7 +80,6 @@ export function DeleteEventButton({ eventId }: DeleteEventButtonProps) {
         >
           {isPending ? '削除中...' : '削除'}
         </button>
-        {/* キャンセルボタン */}
         <button
           onClick={() => setShowConfirm(false)}
           className="px-3 py-1 text-sm border rounded hover:bg-muted"

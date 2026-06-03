@@ -16,17 +16,22 @@ import {
 import { clientLogger } from '@/lib/client-logger'
 
 /**
- * Base64url文字列をUint8Arrayに変換（Push API用）
+ * Base64url文字列を Push API の applicationServerKey に渡せる ArrayBuffer に変換する。
+ *
+ * Why ArrayBuffer (not Uint8Array): 一部 TS lib バージョンで Uint8Array が
+ * BufferSource に直接代入できず call site に `as` cast が必要だった。
+ * 戻り値型を ArrayBuffer に寄せることで境界の cast を helper 内に閉じ込める。
  */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToBuffer(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const rawData = atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
+  const buffer = new ArrayBuffer(rawData.length)
+  const view = new Uint8Array(buffer)
   for (let i = 0; i < rawData.length; i++) {
-    outputArray[i] = rawData.charCodeAt(i)
+    view[i] = rawData.charCodeAt(i)
   }
-  return outputArray
+  return buffer
 }
 
 /**
@@ -114,7 +119,7 @@ export function PushNotificationToggle() {
         // Push API購読
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+          applicationServerKey: urlBase64ToBuffer(publicKey),
         })
 
         const p256dh = subscription.getKey('p256dh')

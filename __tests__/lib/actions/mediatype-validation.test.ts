@@ -58,7 +58,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
   extractHashtags: vi.fn().mockReturnValue([]),
 }))
 
-vi.mock('@/lib/actions/mention', () => ({
+vi.mock('@/lib/services/mention', () => ({
   notifyMentionedUsers: vi.fn().mockResolvedValue(undefined),
 }))
 

@@ -53,10 +53,9 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "filesystem",
-    "postgres",
     "github",
-    "memory"
+    "memory",
+    "supabase"
   ],
   "skipDangerousModePermissionPrompt": true
 }

@@ -1,9 +1,3 @@
-/**
- * @file 管理者用イベント管理ページのローディング画面
- * @description イベント一覧のデータ取得中に表示されるローディング画面。
- *              Next.jsのApp Routerのloading.tsxファイルとして機能。
- */
-
 // 共通のローディング画面コンポーネント
 import { LoadingScreen } from '@/components/common/LoadingScreen'
 

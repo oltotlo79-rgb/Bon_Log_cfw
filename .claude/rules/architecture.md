@@ -83,8 +83,9 @@ export async function myAction(input: MyInput): Promise<ActionResult<MyResult>> 
 ## 共有コンポーネント
 
 ### Prisma include/select
-- **3 箇所以上で同じ形になる** `include` / `select` は `lib/actions/shared-includes.ts` に集約
-- 例: `USER_MINIMAL_SELECT`, `USER_MINIMAL_RELATION`, `GENRE_MINIMAL_SELECT`
+- **3 箇所以上で同じ形になる** `include` / `select` は `lib/prisma/shared-includes.ts` に集約
+- 例: `USER_MINIMAL_SELECT`, `USER_MINIMAL_RELATION`, `USER_MINIMAL_WITH_BIO_SELECT`, `GENRE_MINIMAL_SELECT`
+- 純粋な Prisma 形状定数のため `lib/services/` / `lib/actions/` 双方から安全に import 可能（依存方向中立）
 - 1〜2 箇所でしか使わないものは各ファイル内で定義してよい
 
 ### Hooks
@@ -138,4 +139,19 @@ export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当
 
 ## 既存の逸脱ケース（暫定）
 
-- `lib/actions/hashtag.ts` の `attachHashtagsToPost` / `detachHashtagsFromPost` は Server Action 経由ではなく内部 helper として使われているが、`'use server'` ファイルに同居している。将来的に `lib/services/hashtag-sync.ts` への移設を検討
+### admin write action のレート制限免除
+
+CLAUDE.md ルール3 は「全 Action で認証 → Zod → レート制限」を要求するが、
+`lib/actions/admin/*` の write 系 action（role 変更・ユーザー停止/削除・投稿削除等）は
+`enforceUserRateLimit` を**実施しない**（`moderation.ts` のみ例外的に保持）。
+
+**根拠（意図的な免除）:**
+- 全 admin action は `requireAdmin(action)` で保護され、`requireAdmin` は JWT を信頼せず
+  **毎回 DB を引き直す fresh check**（`utils.ts`）。権限剥奪・停止は既存セッションに即時反映される。
+- admin は信頼済みオペレータであり、レート制限の主目的（未認証/一般ユーザーによる濫用・
+  credential stuffing・quota 枯渇）が当てはまらない。
+- `hasPermission(role, action)` による粒度管理と監査ログ（`adminLog`）で操作は追跡される。
+
+**ルール:** admin 一般 action はレート制限を省略してよい。ただし
+**公開・準公開の入力を扱う admin action（例: 公開フォーム由来のモデレーション）には
+レート制限を付ける**（`moderation.ts` がその例）。一般ユーザー向け Action は従来どおり 3 点セット必須。

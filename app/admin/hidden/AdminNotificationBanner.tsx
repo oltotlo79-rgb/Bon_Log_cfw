@@ -1,9 +1,3 @@
-/**
- * @file 管理者通知バナーコンポーネント
- * @description 未読の管理者通知を表示し、一括既読機能を提供する
- *              クライアントコンポーネント。
- */
-
 'use client'
 
 // ReactのuseStateフック（状態管理用）
@@ -14,9 +8,6 @@ import { Button } from '@/components/ui/button'
 import { markAllAdminNotificationsAsRead } from '@/lib/actions/admin/hidden'
 import { ADMIN_NOTIFICATION_COLLAPSE_THRESHOLD } from '@/lib/constants/limits'
 
-/**
- * 管理者通知の型定義
- */
 interface AdminNotification {
   id: string
   type: string

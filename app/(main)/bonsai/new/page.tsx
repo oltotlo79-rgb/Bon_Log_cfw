@@ -1,11 +1,3 @@
-/**
- * @file 盆栽新規登録ページコンポーネント
- * @description 新しい盆栽を登録するためのフォームページ
- *              - 認証済みユーザーのみアクセス可能
- *              - Server Componentとして実装
- *              - 盆栽の基本情報（名前、樹種、説明、入手日等）を入力
- */
-
 // NextAuth.js の認証関数 - 現在のセッション情報を取得
 import { auth } from '@/lib/auth'
 
@@ -26,15 +18,14 @@ import { BonsaiForm } from '@/components/bonsai/BonsaiForm'
  * ブラウザのタブに表示されるタイトルと説明文を設定
  */
 export const metadata = {
-  title: '盆栽を登録 - BON-LOG',
+  title: '盆栽を登録',
+  robots: { index: false, follow: false },
   description: '新しい盆栽を登録',
 }
 
 /**
  * 戻る矢印アイコンコンポーネント
  *
- * @description
- * マイ盆栽一覧ページへ戻るリンクに使用するSVGアイコン
  *
  * @param className - 追加のCSSクラス
  * @returns SVGアイコンのJSX
@@ -51,10 +42,6 @@ function ArrowLeftIcon({ className }: { className?: string }) {
 /**
  * 盆栽新規登録ページのメインコンポーネント
  *
- * @description
- * - 認証チェックを行い、未ログインユーザーはログインページへリダイレクト
- * - 盆栽登録フォームを表示
- * - 登録完了後は盆栽詳細ページへ遷移（BonsaiFormコンポーネントで処理）
  *
  * @returns 盆栽新規登録ページのJSX
  */
@@ -70,7 +57,6 @@ export default async function NewBonsaiPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-card rounded-lg border">
-        {/* ヘッダー - 戻るリンク */}
         <div className="px-4 py-3 border-b">
           <Link href={ROUTE_BONSAI} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeftIcon className="w-4 h-4" />
@@ -78,12 +64,9 @@ export default async function NewBonsaiPage() {
           </Link>
         </div>
 
-        {/* フォームエリア */}
         <div className="p-4">
-          {/* ページタイトル */}
           <h1 className="text-xl font-bold mb-6">盆栽を登録</h1>
 
-          {/* 盆栽登録フォーム - propsなしで新規登録モード */}
           <BonsaiForm />
         </div>
       </div>

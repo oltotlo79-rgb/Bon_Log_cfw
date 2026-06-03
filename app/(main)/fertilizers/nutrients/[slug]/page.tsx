@@ -16,9 +16,9 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const nutrient = await getNutrientBySlug(slug)
-  if (!nutrient) return { title: '栄養素が見つかりません - BON-LOG' }
+  if (!nutrient) return { title: '栄養素が見つかりません' }
   return {
-    title: `${nutrient.name}（${nutrient.symbol}） - 栄養素 - BON-LOG`,
+    title: `${nutrient.name}（${nutrient.symbol}） - 栄養素`,
     alternates: { canonical: pageCanonical(`${ROUTE_FERTILIZERS_NUTRIENTS}/${slug}`) },
   }
 }
@@ -90,7 +90,6 @@ export default async function NutrientDetailPage({ params }: Props) {
         <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden /> 栄養素一覧
       </Link>
 
-      {/* ヘッダー */}
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
           <span className="text-3xl font-bold text-primary">{nutrient.symbol}</span>
@@ -106,7 +105,6 @@ export default async function NutrientDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* セクション一覧 */}
       {nutrient.description && (
         <InfoSection icon={BookOpen} title="概要">
           {nutrient.description}
@@ -139,7 +137,6 @@ export default async function NutrientDetailPage({ params }: Props) {
         </InfoSection>
       )}
 
-      {/* 関連栄養素 */}
       {relatedNutrients.length > 0 && (
         <section className="space-y-3 pt-2">
           <h2 className="text-sm font-semibold text-muted-foreground">同じカテゴリの栄養素</h2>

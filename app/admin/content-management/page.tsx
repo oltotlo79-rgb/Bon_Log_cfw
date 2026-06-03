@@ -1,9 +1,3 @@
-/**
- * @file CMS管理ページ
- * @description CMSページの一覧表示・作成・公開/非公開切替・削除を行う管理者ページ。
- * @route /admin/content-management
- */
-
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getCmsPages } from '@/lib/actions/admin/cms'
@@ -44,7 +38,6 @@ export default async function ContentManagementPage({ searchParams }: PageProps)
         <h1 className="text-2xl font-bold">コンテンツ管理</h1>
       </div>
 
-      {/* CMS ページリスト（Client Component） */}
       <CmsPageList
         pages={JSON.parse(JSON.stringify(pages))}
         total={total}

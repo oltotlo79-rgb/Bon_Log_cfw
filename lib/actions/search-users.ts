@@ -13,6 +13,7 @@
 'use server'
 
 import { prisma } from '@/lib/db'
+import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { auth } from '@/lib/auth'
 import logger from '@/lib/logger'
 import { fulltextSearchUsers, getSearchMode } from '@/lib/search/fulltext'
@@ -23,7 +24,9 @@ import type { ActionResult } from '@/types/action-result'
 import { DEFAULT_PAGE_LIMIT, MAX_SEARCH_QUERY_LENGTH } from '@/lib/constants/limits'
 import { ERR_SEARCH_QUERY_TOO_LONG, ERR_SEARCH_RATE_LIMIT, ERR_OPERATION_FAILED } from '@/lib/constants/errors'
 import { preserveOrder } from '@/lib/utils/preserve-order'
+import { normalizeCursorPagination } from './pagination'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
+import { visibleUserWhere } from '@/lib/services/post-visibility'
 
 export type SearchUserResult = {
   id: string
@@ -62,6 +65,9 @@ export async function searchUsers(
     const session = await auth()
     const currentUserId = session?.user?.id
 
+    // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
     // ミュートは検索結果から除外しない（フォロー状態は維持される）
     const excludedUserIds = currentUserId
       ? await getExcludedUserIds(currentUserId, { blocked: true, blockedBy: true })
@@ -73,10 +79,7 @@ export async function searchUsers(
     const searchMode = getSearchMode()
 
     const userSelect = {
-      id: true,
-      nickname: true,
-      avatarUrl: true,
-      bio: true,
+      ...USER_MINIMAL_WITH_BIO_SELECT,
       _count: { select: { followers: true, following: true } },
     } as const
 
@@ -84,16 +87,17 @@ export async function searchUsers(
       const userIds = await fulltextSearchUsers(query, {
         excludedUserIds: excludedUserIdsWithGuest,
         currentUserId,
-        cursor,
-        limit,
+        cursor: safeCursor,
+        limit: safeLimit,
       })
 
       if (userIds.length === 0) {
         return actionSuccess({ users: [], nextCursor: undefined })
       }
 
+      // fulltext で得た ID にも公開条件を防御的に再適用する（非公開/停止ユーザーの露出を防ぐ）
       const fetchedUsers = await prisma.user.findMany({
-        where: { id: { in: userIds } },
+        where: { id: { in: userIds }, ...visibleUserWhere(currentUserId) },
         select: userSelect,
       })
 
@@ -108,12 +112,13 @@ export async function searchUsers(
           followersCount: user._count.followers,
           followingCount: user._count.following,
         })),
-        nextCursor: users.length === limit ? users[users.length - 1]?.id : undefined,
+        nextCursor: users.length === safeLimit ? users[users.length - 1]?.id : undefined,
       })
     }
 
     const users = await prisma.user.findMany({
       where: {
+        ...visibleUserWhere(currentUserId),
         AND: [
           query
             ? {
@@ -128,8 +133,9 @@ export async function searchUsers(
         ],
       },
       select: userSelect,
-      take: limit,
-      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
     })
 
     return actionSuccess({
@@ -141,7 +147,7 @@ export async function searchUsers(
         followersCount: user._count.followers,
         followingCount: user._count.following,
       })),
-      nextCursor: users.length === limit ? users[users.length - 1]?.id : undefined,
+      nextCursor: users.length === safeLimit ? users[users.length - 1]?.id : undefined,
     })
   } catch (error) {
     logger.error('searchUsers failed', { error: error instanceof Error ? error.message : String(error) })

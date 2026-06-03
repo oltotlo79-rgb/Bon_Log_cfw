@@ -7,7 +7,9 @@
 'use server'
 
 import { prisma } from '@/lib/db'
+import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { getExcludedUserIds } from './filter-helper'
+import { normalizeCursorPagination, clampLimit } from './pagination'
 import { getPostInteractionSets, getUserRelationSets, getGuestUserId, actionSuccess, actionError } from '@/lib/actions/utils'
 import {
   POST_LIST_INCLUDE,
@@ -17,6 +19,7 @@ import {
   formatPostForClient,
 } from '@/lib/actions/post-include'
 import { getCachedTrendingGenres } from '@/lib/cache'
+import { visiblePostWhere, redactNonVisibleNestedPosts } from '@/lib/services/post-visibility'
 
 import {
   DEFAULT_PAGE_LIMIT,
@@ -25,9 +28,7 @@ import {
   MAX_RELATION_FETCH,
 } from '@/lib/constants/limits'
 import { GUEST_EMAIL, GUEST_TIMELINE_LIMIT } from '@/lib/constants/guest'
-import { requireAuth } from '@/lib/actions/utils'
-import { checkUserRateLimit } from '@/lib/rate-limit'
-import { ERR_RATE_LIMIT_OPERATION } from '@/lib/constants/errors'
+import { requireAuth, enforceUserRateLimit } from '@/lib/actions/utils'
 import type { ActionResult } from '@/types/action-result'
 import type { Post } from '@/types/post'
 
@@ -38,44 +39,8 @@ type TimelineData = {
 }
 
 /**
- * タイムライン（フィード）を取得
- *
- * ## 機能概要
- * フォロー中のユーザーと自分自身の投稿を
- * 新しい順で取得します。
- *
- * ## 表示対象
- * - フォロー中のユーザーの投稿
- * - 自分自身の投稿
- *
- * ## 除外対象
- * - ブロックしているユーザーの投稿
- * - ミュートしているユーザーの投稿
- *
- * ## 取得内容
- * - 投稿情報（ID、内容、作成日時など）
- * - 投稿者情報（ID、ニックネーム、アバター）
- * - メディア（画像・動画）
- * - ジャンル
- * - 引用投稿・リポストの情報
- * - いいね数・コメント数
- * - 現在のユーザーのいいね/ブックマーク状態
- *
- * ## ページネーション
- * カーソルベースのページネーションを採用
- *
- * @param cursor - ページネーション用カーソル
- * @param limit - 取得件数（デフォルト: 20）
- * @returns タイムライン投稿一覧と次のカーソル
- *
- * @example
- * ```typescript
- * // フィードページ
- * const { posts, nextCursor } = await getTimeline()
- *
- * // 無限スクロールで追加読み込み
- * const more = await getTimeline(nextCursor)
- * ```
+ * フォロー中ユーザー + 自分の投稿をカーソルベースで取得する。
+ * ブロック/ミュート/非表示/停止著者は除外。ゲストは公開投稿の直近 N 件のみ。
  */
 export async function getTimeline(
   cursor?: string,
@@ -88,23 +53,25 @@ export async function getTimeline(
   const guestUserId = await getGuestUserId()
   const isGuest = currentUserId === guestUserId
 
-  const rl = await checkUserRateLimit(currentUserId, 'get_timeline')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(currentUserId, 'get_timeline')
+  if (rl) return actionError(rl.error)
 
-  // ゲストは全ユーザーの直近 N 件のみ表示（続きは新規登録を促す）
+  // ゲストは全ユーザーの直近 N 件のみ表示（続きは新規登録を促す）。
+  // 公開面のため非公開/停止著者・非表示投稿は除外する。
   if (isGuest) {
     const guestLimit = GUEST_TIMELINE_LIMIT
-    const posts = await prisma.post.findMany({
-      where: { isHidden: false },
+    const rawPosts = await prisma.post.findMany({
+      where: visiblePostWhere(),
       include: {
         ...POST_LIST_INCLUDE,
         quotePost: { include: POST_QUOTE_INCLUDE },
         repostPost: { include: POST_REPOST_INCLUDE },
         poll: { include: buildPostPollInclude() },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: guestLimit,
     })
+    const posts = await redactNonVisibleNestedPosts(currentUserId, rawPosts)
     const { likedSet: likedPostIds, bookmarkedSet: bookmarkedPostIds } = await getPostInteractionSets(
       currentUserId,
       posts.map((p) => p.id),
@@ -128,13 +95,17 @@ export async function getTimeline(
   const followingIds = [...relationSets.followingUserIds]
   followingIds.push(currentUserId)
 
-  const posts = await prisma.post.findMany({
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
+  const rawPosts = await prisma.post.findMany({
     where: {
       isHidden: false,
       userId: {
         in: followingIds,
         notIn: excludeIds.length > 0 ? excludeIds : undefined,
       },
+      // フォロー後に停止された著者の投稿は除外する。ただし自分の投稿は停止中でも表示する。
+      OR: [{ userId: currentUserId }, { user: { isSuspended: false } }],
       ...(hiddenPostIds.length > 0 ? { id: { notIn: hiddenPostIds } } : {}),
     },
     include: {
@@ -143,13 +114,19 @@ export async function getTimeline(
       repostPost: { include: POST_REPOST_INCLUDE },
       poll: { include: buildPostPollInclude() },
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && {
-      cursor: { id: cursor },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: safeLimit,
+    ...(safeCursor && {
+      cursor: { id: safeCursor },
       skip: 1,
     }),
   })
+
+  // nextCursor は redact 前の生取得結果（ページ境界）から決める。
+  // 不可視ネストの除外で行が減ってもページングは生 id で前進させる。
+  const nextCursor = rawPosts.length === safeLimit ? rawPosts[rawPosts.length - 1]?.id : undefined
+
+  const posts = await redactNonVisibleNestedPosts(currentUserId, rawPosts)
 
   const { likedSet: likedPostIds, bookmarkedSet: bookmarkedPostIds } = await getPostInteractionSets(
     currentUserId,
@@ -160,7 +137,7 @@ export async function getTimeline(
 
   return actionSuccess({
     posts: formattedPosts,
-    nextCursor: posts.length === limit ? posts[posts.length - 1]?.id : undefined,
+    nextCursor,
     isGuest: false,
   })
 }
@@ -168,7 +145,7 @@ export async function getTimeline(
 /**
  * おすすめユーザーを取得する。
  *
- * フォロワー数降順で並べ、自分・既フォロー・双方向ブロック・非公開・ゲストを除外する。
+ * フォロワー数降順で並べ、自分・既フォロー・双方向ブロック・非公開・停止・ゲストを除外する。
  *
  * @param limit 取得件数（デフォルト: {@link RECOMMENDED_USERS_LIMIT}）
  */
@@ -178,8 +155,8 @@ export async function getRecommendedUsers(limit = RECOMMENDED_USERS_LIMIT) {
 
   const currentUserId = authResult.userId
 
-  const rl = await checkUserRateLimit(currentUserId, 'get_recommended')
-  if (!rl.success) return { users: [] }
+  const rl = await enforceUserRateLimit(currentUserId, 'get_recommended')
+  if (rl) return { users: [] }
 
   const [following, blockedIds] = await Promise.all([
     prisma.follow.findMany({
@@ -202,13 +179,11 @@ export async function getRecommendedUsers(limit = RECOMMENDED_USERS_LIMIT) {
     where: {
       id: { notIn: excludeIds },
       isPublic: true,
+      isSuspended: false, // 停止ユーザーは検索/RSS と同様におすすめからも除外する
       email: { not: GUEST_EMAIL }, // ゲストは表示しない（二重ガード）
     },
     select: {
-      id: true,
-      nickname: true,
-      avatarUrl: true,
-      bio: true,
+      ...USER_MINIMAL_WITH_BIO_SELECT,
       _count: {
         select: { followers: true },
       },
@@ -216,7 +191,7 @@ export async function getRecommendedUsers(limit = RECOMMENDED_USERS_LIMIT) {
     orderBy: {
       followers: { _count: 'desc' },
     },
-    take: limit,
+    take: clampLimit(limit),
   })
 
   return {
@@ -228,40 +203,8 @@ export async function getRecommendedUsers(limit = RECOMMENDED_USERS_LIMIT) {
 }
 
 /**
- * トレンドジャンルを取得
- *
- * ## 機能概要
- * 現在人気のあるジャンルを取得します。
- *
- * ## キャッシュ
- * getCachedTrendingGenres() を使用してキャッシュされた結果を返す
- *
- * キャッシュを使用する理由：
- * - トレンド計算は複雑なクエリが必要
- * - 頻繁に変わるものではない
- * - 同じ結果を全ユーザーに表示できる
- *
- * ## キャッシュの更新
- * lib/cache.ts の getCachedTrendingGenres() で設定された
- * 有効期限（revalidate）に従って自動更新
- *
- * @param limit - 取得件数（デフォルト: 5）
- * @returns トレンドジャンル一覧
- *
- * @example
- * ```typescript
- * // サイドバーの「トレンド」セクション
- * const trendingGenres = await getTrendingGenres(5)
- *
- * return (
- *   <div>
- *     <h3>トレンド</h3>
- *     {trendingGenres.map(genre => (
- *       <GenreTag key={genre.id} genre={genre} />
- *     ))}
- *   </div>
- * )
- * ```
+ * トレンドジャンルを取得する。全ユーザー共通の結果のため
+ * {@link getCachedTrendingGenres} でキャッシュ済みの値を返す。
  */
 export async function getTrendingGenres(limit = TRENDING_GENRES_LIMIT) {
   return getCachedTrendingGenres(limit)

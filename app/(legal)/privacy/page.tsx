@@ -1,7 +1,4 @@
 /**
- * @file app/(legal)/privacy/page.tsx
- * @description BON-LOGプライバシーポリシーページ
- *
  * このページはBON-LOGサービスにおける個人情報の取り扱いに関する
  * プライバシーポリシーを表示します。
  *
@@ -23,11 +20,10 @@ import { ROUTE_PRIVACY } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 /**
- * ページメタデータの定義
  * SEO最適化のためのtitleとdescriptionを設定
  */
 export const metadata: Metadata = {
-  title: 'プライバシーポリシー - BON-LOG',
+  title: 'プライバシーポリシー',
   description: 'BON-LOG（ボンログ）のプライバシーポリシーです。',
   alternates: { canonical: pageCanonical(ROUTE_PRIVACY) },
 }
@@ -50,17 +46,14 @@ export default function PrivacyPage() {
       {/* 最終更新日の表示（法的文書として重要） */}
       <p className="text-muted-foreground">最終更新日: 2026年1月1日</p>
 
-      {/* 前文: ポリシーの概要 */}
       <p>
         BON-LOG運営（以下「当方」）は、盆栽愛好家向けSNSサービス「BON-LOG」（以下「本サービス」）における、
         ユーザーの個人情報の取扱いについて、以下のとおりプライバシーポリシー（以下「本ポリシー」）を定めます。
       </p>
 
-      {/* 第1条: 収集する情報の種類と方法 */}
       <h2>第1条（収集する情報）</h2>
       <p>当方は、本サービスの提供にあたり、以下の情報を収集します。</p>
 
-      {/* 1.1 ユーザーが直接入力する情報 */}
       <h3>1.1 ユーザーから直接提供される情報</h3>
       <ul>
         <li><strong>アカウント情報</strong>: メールアドレス、パスワード、ニックネーム</li>
@@ -69,7 +62,6 @@ export default function PrivacyPage() {
         <li><strong>支払い情報</strong>: 有料会員の場合、クレジットカード情報（決済代行会社経由で処理）</li>
       </ul>
 
-      {/* 1.2 システムが自動収集する情報 */}
       <h3>1.2 自動的に収集される情報</h3>
       <ul>
         <li><strong>アクセス情報</strong>: IPアドレス、ブラウザの種類、アクセス日時</li>
@@ -78,7 +70,6 @@ export default function PrivacyPage() {
         <li><strong>位置情報</strong>: 盆栽園マップ機能使用時に、ユーザーの許可を得た場合のみ</li>
       </ul>
 
-      {/* 1.3 Cookie技術について */}
       <h3>1.3 Cookie および類似技術</h3>
       <p>当方は、以下の目的でCookieおよび類似技術を使用します。</p>
       <ul>
@@ -89,7 +80,6 @@ export default function PrivacyPage() {
         <li>広告配信の最適化（第三者広告サービスの利用を含む）</li>
       </ul>
 
-      {/* 1.4 広告配信について */}
       <h3>1.4 広告配信について</h3>
       <p>当サービスでは、運営費用を賄うために第三者の広告配信サービスを利用しています。</p>
       <ul>
@@ -99,7 +89,6 @@ export default function PrivacyPage() {
       </ul>
       <p>Googleのプライバシーポリシーについては、<a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Google プライバシーポリシー</a>をご確認ください。</p>
 
-      {/* 第2条: 収集した情報の利用目的 */}
       <h2>第2条（情報の利用目的）</h2>
       <p>当方は、収集した情報を以下の目的で利用します。</p>
       <ol>
@@ -115,7 +104,6 @@ export default function PrivacyPage() {
         <li>統計データの作成（個人を特定できない形式）</li>
       </ol>
 
-      {/* 第3条: 有料会員の決済情報に関する特別規定 */}
       <h2>第3条（有料会員の決済情報）</h2>
       <ol>
         <li>有料会員の決済処理は、信頼性の高い第三者決済代行会社（Stripe等）を通じて行われます。</li>
@@ -130,7 +118,6 @@ export default function PrivacyPage() {
         <li>決済代行会社のプライバシーポリシーについては、各社のウェブサイトをご確認ください。</li>
       </ol>
 
-      {/* 第4条: 第三者への情報提供に関する規定 */}
       <h2>第4条（情報の共有・第三者提供）</h2>
       <p>当方は、以下の場合を除き、ユーザーの個人情報を第三者に提供しません。</p>
       <ol>
@@ -163,7 +150,6 @@ export default function PrivacyPage() {
         <li>アカウント削除後も、法令で定められた期間、または紛争解決に必要な期間は、一部の情報を保持する場合があります。</li>
       </ol>
 
-      {/* 第6条: ユーザーの個人情報に関する権利 */}
       <h2>第6条（ユーザーの権利）</h2>
       <p>ユーザーは、自己の個人情報について、以下の権利を有します。</p>
       <ol>
@@ -175,7 +161,6 @@ export default function PrivacyPage() {
       </ol>
       <p>これらの権利を行使する場合は、設定画面またはお問い合わせフォームからご連絡ください。</p>
 
-      {/* 第7条: サービス上で公開される情報 */}
       <h2>第7条（公開情報）</h2>
       <p>以下の情報は、本サービス上で他のユーザーに公開されます。</p>
       <ul>
@@ -190,7 +175,6 @@ export default function PrivacyPage() {
       </ul>
       <p>プライバシー設定により、一部の情報の公開範囲を制限できます。</p>
 
-      {/* 第8条: 年齢制限に関する規定 */}
       <h2>第8条（子どもの個人情報）</h2>
       <p>
         本サービスは、13歳未満の方を対象としていません。
@@ -198,7 +182,6 @@ export default function PrivacyPage() {
         13歳未満の方が個人情報を提供したことが判明した場合、当該情報を速やかに削除します。
       </p>
 
-      {/* 第9条: データの国際転送について */}
       <h2>第9条（国際的なデータ転送）</h2>
       <p>
         本サービスのデータは、日本国内のサーバーに保存されます。
@@ -206,7 +189,6 @@ export default function PrivacyPage() {
         その場合、当該国のデータ保護法制に従い、適切な保護措置を講じます。
       </p>
 
-      {/* 第10条: 分析ツールの使用について */}
       <h2>第10条（分析ツール）</h2>
       <p>当方は、サービスの改善のために以下の分析ツールを使用する場合があります。</p>
       <ul>
@@ -215,7 +197,6 @@ export default function PrivacyPage() {
       </ul>
       <p>これらのツールはCookieを使用してデータを収集しますが、個人を特定する情報は含まれません。</p>
 
-      {/* 第11条: ポリシー変更の手続き */}
       <h2>第11条（プライバシーポリシーの変更）</h2>
       <ol>
         <li>当方は、必要に応じて、本ポリシーを変更することがあります。</li>
@@ -223,7 +204,6 @@ export default function PrivacyPage() {
         <li>変更後のプライバシーポリシーは、本ページに掲載した時点から効力を生じるものとします。</li>
       </ol>
 
-      {/* 第12条: お問い合わせ先 */}
       <h2>第12条（お問い合わせ）</h2>
       <p>本ポリシーに関するお問い合わせは、以下の方法でご連絡ください。</p>
       <ul>
@@ -231,7 +211,6 @@ export default function PrivacyPage() {
         <li>ヘルプページ</li>
       </ul>
 
-      {/* プライバシー保護のポイントまとめ */}
       <div className="mt-12 p-4 bg-muted rounded-lg">
         <h3 className="text-lg font-semibold mb-2">個人情報の取り扱いに関する要約</h3>
         <ul className="text-sm space-y-1">

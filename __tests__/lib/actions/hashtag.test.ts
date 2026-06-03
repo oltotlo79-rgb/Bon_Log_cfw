@@ -4,6 +4,7 @@ import { createMockPrismaClient, mockPost } from '../../utils/test-utils'
 
 // Prismaモック
 const mockPrisma = createMockPrismaClient()
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
 vi.mock('@/lib/db', () => ({
   prisma: mockPrisma,
 }))
@@ -168,16 +169,20 @@ describe('Hashtag Actions', async () => {
         },
       ]
       mockPrisma.post.findMany.mockResolvedValueOnce(mockPosts)
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce({ count: 42 })
 
       const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
       const result = await getPostsByHashtag('盆栽')
 
       expect(result.posts).toHaveLength(1)
-      expect(result.hashtag.name).toBe('盆栽')
+      expect(result.hashtag?.name).toBe('盆栽')
+      // count は Hashtag テーブルの実数を返すこと（posts.length ではない）
+      expect(result.hashtag?.count).toBe(42)
     })
 
     it('指定した件数で取得できる', async () => {
       mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce(null)
 
       const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
       await getPostsByHashtag('盆栽', { limit: 10 })
@@ -185,6 +190,50 @@ describe('Hashtag Actions', async () => {
       expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 10 })
       )
+    })
+
+    it('過大な limit は MAX_PAGE_LIMIT に clamp し、著者の閲覧可否フィルタを適用する', async () => {
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce(null)
+
+      const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+      await getPostsByHashtag('盆栽', { limit: 1_000_000 })
+
+      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100,
+          where: expect.objectContaining({
+            isHidden: false,
+            // 未ログイン視点では公開かつ非停止の著者のみ
+            user: expect.objectContaining({ isSuspended: false }),
+          }),
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })
+      )
+    })
+
+    it('Hashtag テーブルに該当行がない場合 count=0 を返す', async () => {
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce(null)
+
+      const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+      const result = await getPostsByHashtag('未登録タグ')
+
+      expect(result.hashtag?.count).toBe(0)
+    })
+
+    it('Hashtag は name の lowercase で検索される（大小文字無視）', async () => {
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce({ count: 7 })
+
+      const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+      const result = await getPostsByHashtag('Bonsai')
+
+      expect(mockPrisma.hashtag.findUnique).toHaveBeenCalledWith({
+        where: { name: 'bonsai' },
+        select: { count: true },
+      })
+      expect(result.hashtag?.count).toBe(7)
     })
   })
 

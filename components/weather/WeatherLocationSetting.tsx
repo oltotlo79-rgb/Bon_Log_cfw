@@ -276,7 +276,6 @@ export function WeatherLocationSetting() {
         位置情報を登録すると、天気に基づく盆栽管理アドバイスがタイムラインに表示されます
       </p>
 
-      {/* Geolocation API ボタン */}
       <button
         onClick={handleGeolocation}
         disabled={isGeolocating || isSaving}
@@ -292,14 +291,12 @@ export function WeatherLocationSetting() {
         </span>
       </button>
 
-      {/* 区切り線 */}
       <div className="flex items-center gap-3">
         <div className="flex-1 border-t" />
         <span className="text-xs text-muted-foreground">または</span>
         <div className="flex-1 border-t" />
       </div>
 
-      {/* 手動入力: 都道府県 + 市区町村 */}
       <div className="space-y-3">
         <div>
           <label htmlFor="weather-prefecture" className="text-xs font-medium text-muted-foreground">

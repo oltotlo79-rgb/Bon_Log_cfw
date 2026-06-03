@@ -10,11 +10,10 @@ test.describe('引用投稿・リポスト', () => {
     await page.goto('/feed')
     await page.waitForLoadState('load')
 
+    // seed が e2e ユーザー自身の投稿を作成し feed は自分の投稿も含むため、投稿カードは必ず存在する。
+    // E2E はレート制限を無効化済み (DISABLE_RATE_LIMIT) のため get_timeline 枯渇で空になることもない。
     const postCard = page.locator('[data-testid="post-card"], article').first()
-    if (!(await postCard.isVisible({ timeout: 8000 }).catch(() => false))) {
-      test.skip(true, 'フィードに投稿が表示されていないためスキップ')
-      return
-    }
+    await expect(postCard).toBeVisible({ timeout: 15000 })
     // PostCardActions内のRepeatIconを含むボタン、またはコメントリンク等のアクションボタン
     const actionButtons = postCard.locator('button').count()
     const commentLink = postCard.locator('[data-testid="comment-link"]').first()
@@ -27,12 +26,9 @@ test.describe('引用投稿・リポスト', () => {
     await page.goto('/feed')
     await page.waitForLoadState('load')
 
-    // 投稿カードをクリックして詳細へ
+    // 投稿カードのコメントリンク (PostCardActions の a[href=/posts/{id}]) は必ず存在する
     const postLink = page.locator('[data-testid="post-card"] a[href*="/posts/"], article a[href*="/posts/"]').first()
-    if (!(await postLink.isVisible({ timeout: 8000 }).catch(() => false))) {
-      test.skip(true, 'フィードに投稿リンクが表示されていないためスキップ')
-      return
-    }
+    await expect(postLink).toBeVisible({ timeout: 15000 })
     await postLink.click()
     await page.waitForURL(/\/posts\//, { timeout: 10000 })
     await page.waitForLoadState('load')

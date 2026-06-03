@@ -1,10 +1,3 @@
-/**
- * @file お問い合わせ詳細アクションコンポーネント
- * @description お問い合わせ詳細ページで使用される操作パネル。
- *              ステータス変更、管理者メモの編集、削除機能を提供する
- *              クライアントコンポーネント。
- */
-
 'use client'
 
 // Reactのフック（状態管理用）
@@ -16,9 +9,6 @@ import { updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { useToast } from '@/hooks/use-toast'
 import { ROUTE_ADMIN_CONTACT } from '@/lib/constants/routes'
 
-/**
- * コンポーネントのProps型定義
- */
 interface ContactDetailActionsProps {
   /** お問い合わせID */
   inquiryId: string
@@ -102,7 +92,6 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
     <div className="bg-card rounded-lg border p-6 space-y-4">
       <h2 className="text-lg font-semibold">対応操作</h2>
 
-      {/* ステータス選択フィールド */}
       <div className="space-y-2">
         <label className="text-sm font-medium">ステータス</label>
         <select
@@ -122,7 +111,6 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
         </select>
       </div>
 
-      {/* 管理者メモフィールド */}
       <div className="space-y-2">
         <label className="text-sm font-medium">管理者メモ</label>
         <textarea
@@ -134,16 +122,13 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
         />
       </div>
 
-      {/* 操作結果メッセージ（成功時は緑、エラー時は赤） */}
       {message && (
         <p className={`text-sm ${message === '更新しました' ? 'text-green-600' : 'text-destructive'}`}>
           {message}
         </p>
       )}
 
-      {/* アクションボタン */}
       <div className="flex gap-3">
-        {/* 更新ボタン */}
         <button
           onClick={handleUpdate}
           disabled={isSubmitting}
@@ -151,7 +136,6 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
         >
           {isSubmitting ? '更新中...' : '更新する'}
         </button>
-        {/* 削除ボタン（危険な操作なので赤色で表示） */}
         <button
           onClick={handleDelete}
           disabled={isSubmitting}

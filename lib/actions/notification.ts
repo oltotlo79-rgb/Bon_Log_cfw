@@ -15,6 +15,7 @@ import { DEFAULT_PAGE_LIMIT, MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/
 import { ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_NOTIFICATIONS } from '@/lib/constants/routes'
 import { requireAuth, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { normalizeCursorPagination } from './pagination'
 import logger from '@/lib/logger'
 
 const notificationIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
@@ -38,6 +39,9 @@ export async function getNotifications(cursor?: string, limit = DEFAULT_PAGE_LIM
   if ('error' in authResult) return { notifications: [], nextCursor: undefined }
   const userId = authResult.userId
 
+  // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
   const mutedUserIds = await getMutedUserIds(userId)
 
   const notifications = await prisma.notification.findMany({
@@ -53,13 +57,13 @@ export async function getNotifications(cursor?: string, limit = DEFAULT_PAGE_LIM
       comment: { select: { id: true, content: true } },
     },
     orderBy: { createdAt: 'desc' },
-    take: limit,
-    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    take: safeLimit,
+    ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
   })
 
   return {
     notifications,
-    nextCursor: notifications.length === limit ? notifications[notifications.length - 1]?.id : undefined,
+    nextCursor: notifications.length === safeLimit ? notifications[notifications.length - 1]?.id : undefined,
   }
 }
 

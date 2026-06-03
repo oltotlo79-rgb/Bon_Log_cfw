@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * @file CMSページリストコンポーネント
- * @description CMSページの一覧・カテゴリフィルタ・作成・公開切替・削除を行うClient Component。
- */
 
 import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -122,7 +118,6 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
 
   return (
     <div className="space-y-4">
-      {/* カテゴリフィルタ + 作成ボタン */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
@@ -153,7 +148,6 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
         </button>
       </div>
 
-      {/* 作成フォーム */}
       {showForm && (
         <div className="bg-card rounded-lg border p-4 space-y-4">
           <h3 className="font-semibold">ページを作成</h3>
@@ -226,7 +220,6 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
         </div>
       )}
 
-      {/* ページ一覧 */}
       <div className="bg-card rounded-lg border">
         {pages.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">

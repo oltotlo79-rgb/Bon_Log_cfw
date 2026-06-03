@@ -32,6 +32,7 @@ import {
   ERR_COMMENT_CONTENT_REQUIRED,
   ERR_COMMENT_CREATE_FAILED,
   ERR_COMMENT_DELETE_FAILED,
+  ERR_COMMENT_UPDATE_FAILED,
   ERR_COMMENT_NOT_FOUND,
   ERR_PERMISSION_DENIED,
   ERR_INVALID_INPUT,
@@ -43,6 +44,7 @@ import {
   ERR_COMMENT_CONTENT_TOO_LONG,
   ERR_DAILY_COMMENT_LIMIT,
   ERR_DAILY_UPLOAD_LIMIT,
+  ERR_POST_NOT_FOUND,
 } from '@/lib/constants/errors'
 import { buildPostPath } from '@/lib/constants/path-builders'
 import {
@@ -54,6 +56,7 @@ import { validateImageFile, generateSafeFileName } from '@/lib/file-validation'
 import { buildCursorPagination, normalizeCursorPagination } from '@/lib/actions/pagination'
 import { notifyCommentParticipants } from '@/lib/services/comment-notifications'
 import { mediaUrlListSchema, mediaTypeListSchema } from '@/lib/actions/schemas/common'
+import { assertCanViewPost } from '@/lib/services/post-visibility'
 
 const commentIdSchema = z.string().min(1)
 
@@ -96,6 +99,22 @@ export async function createComment(formData: FormData) {
 
   if (content && content.length > MAX_COMMENT_LENGTH) {
     return actionError(ERR_COMMENT_CONTENT_TOO_LONG(MAX_COMMENT_LENGTH))
+  }
+
+  // 対象リソース認可: 見えない投稿（非表示/非公開/停止著者）にはコメントできない
+  if (!(await assertCanViewPost(userId, postId))) {
+    return actionError(ERR_POST_NOT_FOUND)
+  }
+
+  // 返信時は parent コメントが同一投稿に属し有効（非表示/削除でない）であることを確認する
+  if (parentId) {
+    const parent = await prisma.comment.findUnique({
+      where: { id: parentId },
+      select: { postId: true, isHidden: true, deletedAt: true },
+    })
+    if (!parent || parent.postId !== postId || parent.isHidden || parent.deletedAt) {
+      return actionError(ERR_COMMENT_NOT_FOUND)
+    }
   }
 
   try {
@@ -213,6 +232,76 @@ export async function deleteComment(commentId: string) {
 }
 
 /**
+ * コメント本文を編集する（投稿者本人のみ）。メディアは変更しない。
+ * @param commentId - 編集対象のコメントID
+ * @param content - 新しい本文
+ * @returns 成功時は { success, data: { content, editedAt } }、失敗時は { error }
+ */
+export async function updateComment(commentId: string, content: string) {
+  // 1. 認証 (非ゲスト)
+  const authResult = await requireActiveNonGuestUser()
+  if ('error' in authResult) return actionError(authResult.error)
+  const userId = authResult.userId
+
+  // 2. Zod 形状検証
+  if (!commentIdSchema.safeParse(commentId).success) return actionError(ERR_INVALID_INPUT)
+  if (typeof content !== 'string') return actionError(ERR_INVALID_INPUT)
+
+  // 3. レート制限 (Zod 通過後)
+  const rl = await enforceUserRateLimit(userId, 'update_comment')
+  if (rl) return actionError(rl.error)
+
+  const sanitized = sanitizePostContent(content)
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        userId: true,
+        postId: true,
+        deletedAt: true,
+        _count: { select: { media: true } },
+      },
+    })
+
+    if (!comment || comment.deletedAt) {
+      return actionError(ERR_COMMENT_NOT_FOUND)
+    }
+
+    // 編集は投稿者本人のみ（他人の発言は編集不可。削除と異なり投稿主でも編集はできない）
+    if (comment.userId !== userId) {
+      return actionError(ERR_PERMISSION_DENIED)
+    }
+
+    // 本文が空の場合、メディアが無ければ不可
+    if (sanitized.length === 0 && comment._count.media === 0) {
+      return actionError(ERR_COMMENT_CONTENT_REQUIRED)
+    }
+
+    if (sanitized.length > MAX_COMMENT_LENGTH) {
+      return actionError(ERR_COMMENT_CONTENT_TOO_LONG(MAX_COMMENT_LENGTH))
+    }
+
+    const editedAt = new Date()
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { content: sanitized, editedAt },
+    })
+
+    revalidatePath(buildPostPath(comment.postId))
+
+    return actionSuccess({ content: sanitized, editedAt })
+  } catch (error) {
+    logger.error('Update comment failed', {
+      userId,
+      commentId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return actionError(ERR_COMMENT_UPDATE_FAILED)
+  }
+}
+
+/**
  * @param postId - 投稿ID
  * @param cursor - ページネーション用カーソル
  * @param limit - 取得件数
@@ -225,6 +314,10 @@ export async function getComments(postId: string, cursor?: string, limit = DEFAU
   const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
 
   try {
+    if (!(await assertCanViewPost(currentUserId, postId))) {
+      return { comments: [], nextCursor: undefined }
+    }
+
     const blockedUserIds: string[] = currentUserId
       ? await getBlockedUserIds(currentUserId)
       : []
@@ -299,6 +392,15 @@ export async function getReplies(commentId: string, cursor?: string, limit = REP
   const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
 
   try {
+    // 親コメントの所属投稿が閲覧可能な場合のみ返信を返す（client 申告ではなく実 postId で判定）
+    const parent = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { postId: true, isHidden: true, deletedAt: true },
+    })
+    if (!parent || parent.isHidden || parent.deletedAt || !(await assertCanViewPost(currentUserId, parent.postId))) {
+      return { replies: [], nextCursor: undefined }
+    }
+
     const blockedUserIds: string[] = currentUserId
       ? await getBlockedUserIds(currentUserId)
       : []
@@ -365,7 +467,12 @@ export async function getReplies(commentId: string, cursor?: string, limit = REP
  * @returns コメント数
  */
 export async function getCommentCount(postId: string) {
+  const session = await auth()
   try {
+    if (!(await assertCanViewPost(session?.user?.id, postId))) {
+      return { count: 0 }
+    }
+
     const count = await prisma.comment.count({
       where: { postId, isHidden: false, deletedAt: null },
     })

@@ -39,7 +39,6 @@ export function MediaUploadSection({
 }: MediaUploadSectionProps) {
   return (
     <>
-      {/* メディアプレビュー */}
       {mediaFiles.length > 0 && (
         <div className={`grid gap-2 mt-3 ${mediaFiles.length === 1 ? '' : 'grid-cols-2'}`}>
           {mediaFiles.map((media, index) => (
@@ -61,7 +60,6 @@ export function MediaUploadSection({
         </div>
       )}
 
-      {/* ファイル選択入力 */}
       <input
         ref={fileInputRef}
         type="file"
@@ -71,7 +69,6 @@ export function MediaUploadSection({
         className="hidden"
       />
 
-      {/* メディア追加ボタン */}
       <Button
         type="button"
         variant="ghost"
@@ -82,7 +79,6 @@ export function MediaUploadSection({
         <ImageIcon className="w-5 h-5" />
       </Button>
 
-      {/* アップロード進捗 */}
       {uploading && (
         <div className="flex items-center gap-2">
           <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">

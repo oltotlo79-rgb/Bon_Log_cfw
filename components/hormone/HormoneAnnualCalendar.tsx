@@ -24,7 +24,6 @@ export function HormoneAnnualCalendar({ hormones, onMonthClick }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* デスクトップ: テーブル */}
       <div className="hidden sm:block overflow-x-auto">
         <table className="w-full border-collapse text-xs">
           <thead>
@@ -68,7 +67,6 @@ export function HormoneAnnualCalendar({ hormones, onMonthClick }: Props) {
         </table>
       </div>
 
-      {/* モバイル: カード形式 */}
       <div className="sm:hidden space-y-4">
         {hormones.map((hormone) => {
           const levelMap = new Map(hormone.seasonalLevels.map((s) => [s.month, s]))
@@ -101,7 +99,6 @@ export function HormoneAnnualCalendar({ hormones, onMonthClick }: Props) {
         })}
       </div>
 
-      {/* 凡例 */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground pt-2 border-t">
         <span className="font-medium">凡例:</span>
         {Object.entries(HORMONE_LEVEL_CONFIG).map(([key, config]) => (

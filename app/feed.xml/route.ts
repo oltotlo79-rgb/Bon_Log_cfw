@@ -10,22 +10,16 @@
 import { prisma } from '@/lib/db'
 import { RSS_FEED_LIMIT, RSS_TITLE_MAX_LENGTH, RSS_CACHE_MAX_AGE_SECONDS } from '@/lib/constants/limits'
 import { BASE_URL } from '@/lib/constants/routes'
+import { buildPostPath } from '@/lib/constants/path-builders'
+import { visiblePostWhere } from '@/lib/services/post-visibility'
 
-/**
- * GET /feed.xml
- *
- * RSS 2.0フィードを生成して返す
- */
 export async function GET() {
   const baseUrl = BASE_URL
 
-  // 最新の公開投稿を取得（公開ユーザーの投稿のみ）
+  // 外部配信のため未ログイン相当の公開条件（非表示/非公開/停止を除外）を sitemap と揃える。
   const posts = await prisma.post.findMany({
     where: {
-      user: {
-        isPublic: true,
-      },
-      // リポストは除外（オリジナルコンテンツのみ）
+      ...visiblePostWhere(),
       repostPostId: null,
     },
     include: {
@@ -40,7 +34,7 @@ export async function GET() {
         orderBy: { sortOrder: 'asc' },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: RSS_FEED_LIMIT,
   })
 
@@ -53,7 +47,7 @@ export async function GET() {
           : post.content
         : '投稿'
       const description = post.content || ''
-      const link = `${baseUrl}/posts/${post.id}`
+      const link = `${baseUrl}${buildPostPath(post.id)}`
       const pubDate = new Date(post.createdAt).toUTCString()
       const author = post.user.nickname
 

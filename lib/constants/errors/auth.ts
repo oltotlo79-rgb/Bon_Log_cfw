@@ -20,6 +20,7 @@ export const ERR_ACCOUNT_SUSPENDED = 'アカウントが停止されています
 
 /** 認証・登録関連エラー */
 export const ERR_EMAIL_ALREADY_REGISTERED = 'このメールアドレスは既に登録されています'
+export const ERR_EMAIL_ALREADY_IN_USE = 'このメールアドレスは既に使用されています'
 export const ERR_NICKNAME_RESERVED = 'このユーザー名は利用できません。別のユーザー名をご利用ください。'
 export const ERR_EMAIL_BLACKLISTED = 'このメールアドレスは利用できません'
 export const ERR_DEVICE_BLACKLISTED = 'このデバイスからの登録は許可されていません'

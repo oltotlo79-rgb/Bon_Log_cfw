@@ -19,18 +19,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getPesticideBySlug(slug)
   if (product) {
     return {
-      title: `${product.name} - 展着剤 - BON-LOG`,
+      title: `${product.name} - 展着剤`,
       alternates: { canonical },
     }
   }
   const typeItem = await getSpreaderTypeBySlug(slug)
   if (typeItem) {
     return {
-      title: `${typeItem.name}の展着剤 - BON-LOG`,
+      title: `${typeItem.name}の展着剤`,
       alternates: { canonical },
     }
   }
-  return { title: '展着剤が見つかりません - BON-LOG' }
+  return { title: '展着剤が見つかりません' }
 }
 
 export async function generateStaticParams() {

@@ -1,10 +1,3 @@
-/**
- * @file セキュリティダッシュボードページ
- * @description セキュリティイベントの統計情報、疑わしいIPアドレス、イベント種別分布、
- *              フィルタリング可能なイベントログを表示する管理者専用ページ。
- * @route /admin/security
- */
-
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
@@ -21,9 +14,6 @@ import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { toJsonObject } from '@/lib/utils/json'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: 'セキュリティダッシュボード - BON-LOG 管理',
 }
@@ -33,9 +23,6 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic'
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     eventType?: string
@@ -101,7 +88,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
 
   return (
     <div className="space-y-6">
-      {/* ページタイトル */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Shield className="w-7 h-7" />
@@ -112,9 +98,7 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
         </p>
       </div>
 
-      {/* サマリーカード */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* ログイン失敗（24時間） */}
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg">
@@ -127,7 +111,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
           </p>
         </div>
 
-        {/* ログイン失敗（7日間） */}
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg">
@@ -140,7 +123,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
           </p>
         </div>
 
-        {/* パスワード変更（24時間） */}
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg">
@@ -153,7 +135,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
           </p>
         </div>
 
-        {/* 2FA切替（24時間） */}
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg">
@@ -167,9 +148,7 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
         </div>
       </div>
 
-      {/* 疑わしいIPアドレスとイベント種別の2カラム */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 疑わしいIPアドレス */}
         <div className="bg-card rounded-lg border p-6">
           <h2 className="text-lg font-semibold mb-4">疑わしいIPアドレス</h2>
           {dashboard.topFailedIps.length === 0 ? (
@@ -206,7 +185,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
           )}
         </div>
 
-        {/* イベント種別（バーチャート） */}
         <div className="bg-card rounded-lg border p-6">
           <h2 className="text-lg font-semibold mb-4">イベント種別（過去7日）</h2>
           {dashboard.eventsByType.length === 0 ? (

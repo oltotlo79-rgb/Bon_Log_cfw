@@ -198,7 +198,7 @@ describe('deleteDraft', async () => {
 
   it('deletes own draft', async () => {
     const { deleteDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({ id: 'd1', userId: 'u1' })
+    dp.findFirst.mockResolvedValue({ id: 'd1', userId: 'u1', media: [] })
     dp.delete.mockResolvedValue({})
 
     const result = await deleteDraft('d1')

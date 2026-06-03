@@ -1,14 +1,9 @@
 'use client'
 
 /**
- * @file AdProvider.tsx
- * @description 広告プロバイダー切り替えコンポーネント
- *
- * 環境変数 NEXT_PUBLIC_AD_PROVIDER で広告配信元を切り替える。
- * - "adsense" → Google AdSense
- * - "ninja"（デフォルト）→ 忍者AdMax
- *
- * AdSense審査通過後は環境変数を "adsense" に変えるだけで切り替え完了。
+ * @module components/ads/AdProvider
+ * 環境変数 NEXT_PUBLIC_AD_PROVIDER で広告配信元を切り替える
+ * ("adsense" → Google AdSense / それ以外 → 忍者AdMax)。
  */
 
 import { useSyncExternalStore } from 'react'
@@ -57,10 +52,6 @@ export function AdProvider() {
   return null
 }
 
-/**
- * フィード内広告ユニット
- * プロバイダーに応じてAdSenseまたは忍者AdMaxのフィード内広告を表示
- */
 export function InFeedAdUnit({ className = '' }: { className?: string }) {
   const allowed = useTrackingAllowed()
   const isPremium = usePremium()
@@ -82,10 +73,6 @@ export function InFeedAdUnit({ className = '' }: { className?: string }) {
   )
 }
 
-/**
- * サイドバー広告ユニット
- * プロバイダーに応じてAdSenseまたは忍者AdMaxのサイドバー広告を表示
- */
 export function SidebarAdUnit({ className = '' }: { className?: string }) {
   const allowed = useTrackingAllowed()
   const isPremium = usePremium()
@@ -108,9 +95,6 @@ export function SidebarAdUnit({ className = '' }: { className?: string }) {
 }
 
 /**
- * 投稿詳細広告ユニット
- * プロバイダーに応じてAdSenseまたは忍者AdMaxの広告を表示
- *
  * ページ末尾で使われるため、固定幅の NinjaAd (300x250) が左寄りにならないよう
  * flex で水平中央に揃える。AdSense 側 (responsive 100%) は影響なし。
  */

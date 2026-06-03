@@ -38,8 +38,8 @@ vi.mock('@/lib/rate-limit', () => ({
 }))
 
 // analyticsモック
-vi.mock('@/lib/actions/analytics', () => ({
-  recordNewFollower: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/services/analytics-recording', () => ({
+  recordNewFollowerService: vi.fn().mockResolvedValue(undefined),
 }))
 
 describe('Follow Request Actions', async () => {
@@ -52,6 +52,9 @@ describe('Follow Request Actions', async () => {
       user: { id: mockUser.id },
     })
     mockCheckUserRateLimit.mockResolvedValue({ success: true })
+    // checkInteractionEligibility の双方向 block 判定は findFirst を使う。
+    // clearAllMocks は実装を消さないため、テスト間で block を持ち越さないよう既定で no-block にする。
+    mockPrisma.block.findFirst.mockResolvedValue(null)
   })
 
   describe('sendFollowRequest', async () => {
@@ -97,9 +100,11 @@ describe('Follow Request Actions', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: targetUserId,
         isPublic: false,
+        isSuspended: false,
         nickname: 'Target User',
       })
-      mockPrisma.block.findUnique.mockResolvedValue({ id: 'block-id' })
+      // 双方向 block を checkInteractionEligibility が findFirst で検出する
+      mockPrisma.block.findFirst.mockResolvedValue({ blockerId: 'someone' })
 
       const { sendFollowRequest } = await import('@/lib/actions/follow-request')
       const result = await sendFollowRequest(targetUserId)
@@ -270,7 +275,7 @@ describe('Follow Request Actions', async () => {
       })
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         const tx = {
-          follow: { create: vi.fn().mockResolvedValue({}) },
+          follow: { upsert: vi.fn().mockResolvedValue({}) },
           followRequest: { delete: vi.fn().mockResolvedValue({}) },
           notification: { create: vi.fn().mockResolvedValue({}) },
         }
@@ -717,9 +722,10 @@ describe('Follow Request Actions', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: targetUserId,
         isPublic: false,
+        isSuspended: false,
         nickname: 'テスト',
       })
-      mockPrisma.block.findUnique.mockResolvedValue({
+      mockPrisma.block.findFirst.mockResolvedValue({
         blockerId: targetUserId,
         blockedId: mockUser.id,
       })

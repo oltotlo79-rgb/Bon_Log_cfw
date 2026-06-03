@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db'
 import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { revalidatePath } from 'next/cache'
+import { revalidateShopRatingsCache } from '@/lib/cache'
 import { DEFAULT_PAGE_LIMIT, MAX_RELATION_FETCH } from '@/lib/constants/limits'
 import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
@@ -224,6 +225,8 @@ export async function deleteReviewByAdmin(reviewId: string, reason: string) {
       }),
     ])
 
+    // review 削除は店舗一覧の集計平均（getCachedShopRatings）に影響するため無効化する
+    revalidateShopRatingsCache()
     revalidatePath(ROUTE_ADMIN_REVIEWS)
     return actionSuccess()
   } catch (error) {

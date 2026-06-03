@@ -706,15 +706,15 @@ describe('Search Actions - Coverage Boost 2', async () => {
       expect(result.nextCursor).toBe('bonsai-19')
     })
 
-    it('trgmモードでuserIdが渡される', async () => {
+    it('trgmモードでは認証ユーザーの userId が渡される（引数 userId は無視）', async () => {
       mockGetSearchMode.mockReturnValue('trgm')
       mockFulltextSearchBonsais.mockResolvedValue([])
 
       const { searchBonsais } = await import('@/lib/actions/search')
-      await searchBonsais('テスト', undefined, 20, 'user-1')
+      await (searchBonsais as unknown as (q: string, c: undefined, l: number, u: string) => Promise<unknown>)('テスト', undefined, 20, 'user-1')
 
       expect(mockFulltextSearchBonsais).toHaveBeenCalledWith('テスト', expect.objectContaining({
-        userId: 'user-1',
+        userId: mockUser.id,
       }))
     })
   })
@@ -996,22 +996,18 @@ describe('Search Actions - Coverage Boost 2', async () => {
   // ============================================================
 
   describe('searchByTag - no excluded users', async () => {
-    it('除外ユーザーが空の場合は空オブジェクト条件になる', async () => {
+    it('除外ユーザーが空の場合は userId フィルタが付かない (Hashtag JOIN クエリ)', async () => {
       mockGetExcludedUserIds.mockResolvedValue([])
       mockPrisma.post.findMany.mockResolvedValue([])
 
       const { searchByTag } = await import('@/lib/actions/search')
       await searchByTag('盆栽')
 
-      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            AND: expect.arrayContaining([
-              {},
-            ]),
-          }),
-        })
-      )
+      const callArg = mockPrisma.post.findMany.mock.calls[0][0]
+      expect(callArg.where).toEqual(expect.objectContaining({
+        hashtags: { some: { hashtag: { name: '盆栽' } } },
+      }))
+      expect(callArg.where.userId).toBeUndefined()
     })
   })
 })

@@ -119,6 +119,18 @@ export const MAX_PREMIUM_GRANT_DAYS = 365
 export const MAX_ADMIN_REASON_LENGTH = 1000
 
 /**
+ * 管理者操作で受け取る ID 文字列 (cuid 等) の最大長。
+ * Why: 内部生成 ID は通常 25 文字 (cuid) だが、保護的上限として 200 文字で早期拒否する。
+ */
+export const MAX_ADMIN_ID_LENGTH = 200
+
+/**
+ * CMS スラッグの最大長。
+ * URL セグメントの保護的上限。
+ */
+export const MAX_CMS_SLUG_LENGTH = 100
+
+/**
  * CMS ページのタイトル / コンテンツの最大文字数。
  * Markdown 含む長文を許容しつつ、極端な肥大化を防ぐ。
  */

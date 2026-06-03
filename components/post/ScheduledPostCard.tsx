@@ -21,6 +21,7 @@ import { deleteScheduledPost } from '@/lib/actions/scheduled-post'
 import { Calendar, Clock, Edit, Trash2, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react'
 import { SCHEDULED_POST_STATUS } from '@/lib/constants/status'
 import { SCHEDULED_POST_MEDIA_PREVIEW_COUNT } from '@/lib/constants/limits'
+import { buildPostPath } from '@/lib/constants/path-builders'
 
 type ScheduledPostStatus = 'pending' | 'published' | 'failed' | 'cancelled'
 
@@ -184,7 +185,7 @@ export function ScheduledPostCard({ post }: ScheduledPostCardProps) {
 
         {post.status === SCHEDULED_POST_STATUS.PUBLISHED && post.publishedPostId && (
           <div className="pt-3 border-t">
-            <Link href={`/posts/${post.publishedPostId}`}>
+            <Link href={buildPostPath(post.publishedPostId)}>
               <Button variant="link" size="sm" className="p-0 h-auto inline-flex items-center gap-1">
                 公開された投稿を見る <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
               </Button>

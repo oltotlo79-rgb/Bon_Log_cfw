@@ -1,7 +1,4 @@
 /**
- * @file タイムラインページ専用ローディングコンポーネント
- * @description タイムラインページのデータ取得中に表示されるスケルトンUI
- *
  * このファイルはNext.js App Routerの規約に基づくローディングUIです。
  * /feedページへのナビゲーション時やデータ取得中に自動的に表示されます。
  * 投稿フォームとタイムラインの両方のスケルトンを表示して、
@@ -34,9 +31,7 @@ export default function FeedLoading() {
           実際の投稿フォームと同じレイアウトを模したプレースホルダー */}
       <div className="bg-card rounded-lg border p-4">
         <div className="animate-pulse space-y-3">
-          {/* テキストエリアのプレースホルダー */}
           <div className="h-24 bg-muted rounded-lg" />
-          {/* ボタン類のプレースホルダー（メディア追加、ジャンル選択、投稿ボタン） */}
           <div className="flex justify-between">
             <div className="flex gap-2">
               <div className="h-8 w-20 bg-muted rounded" />
@@ -50,9 +45,7 @@ export default function FeedLoading() {
       {/* タイムラインスケルトン
           投稿一覧のプレースホルダー */}
       <div>
-        {/* セクションタイトルのプレースホルダー */}
         <div className="h-6 w-32 bg-muted rounded mb-4 animate-pulse" />
-        {/* TimelineSkeletonコンポーネントで複数の投稿カードスケルトンを表示 */}
         <TimelineSkeleton />
       </div>
     </div>

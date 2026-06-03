@@ -51,7 +51,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
   detachHashtagsFromPost: vi.fn().mockResolvedValue(undefined),
   extractHashtags: vi.fn().mockReturnValue([]),
 }))
-vi.mock('@/lib/actions/mention', () => ({ notifyMentionedUsers: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/services/mention', () => ({ notifyMentionedUsers: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/services/authorization', () => ({ canUserEditShop: vi.fn() }))
 vi.mock('@/lib/logger', () => ({
   __esModule: true,
@@ -283,7 +283,7 @@ describe('getPost edge cases', () => {
 })
 
 describe('createQuotePost edge cases', () => {
-  it('original post deleted still creates quote without notification', async () => {
+  it('original post deleted returns not found (visibility guard)', async () => {
     mockPrisma.post.count.mockResolvedValue(0)
     mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'quote-post' })
     mockPrisma.post.findUnique.mockResolvedValue(null)
@@ -291,7 +291,8 @@ describe('createQuotePost edge cases', () => {
     const formData = new FormData()
     formData.append('content', '引用コメントテスト')
     const result = await createQuotePost(formData, 'deleted-post-id')
-    expect(result.success).toBe(true)
+    expect('error' in result && result.error).toBe('投稿が見つかりません')
+    expect(mockPrisma.post.create).not.toHaveBeenCalled()
     expect(mockPrisma.notification.create).not.toHaveBeenCalled()
   })
 })

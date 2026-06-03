@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * イベント管理のE2Eテスト
@@ -135,8 +136,7 @@ test.describe('イベント管理', () => {
         return
       }
 
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
     })
 
     test('イベント詳細にタイトルが表示される', async ({ page }) => {
@@ -150,8 +150,7 @@ test.describe('イベント管理', () => {
         return
       }
 
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
 
       const title = page.locator('h1, h2, [data-testid="event-title"]').first()
       await expect(title).toBeVisible({ timeout: 10000 })
@@ -168,8 +167,7 @@ test.describe('イベント管理', () => {
         return
       }
 
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
       await page.waitForLoadState('load')
 
       // イベント詳細コンテンツが表示されたことを確認
@@ -188,8 +186,7 @@ test.describe('イベント管理', () => {
         return
       }
 
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
 
       const locationInfo = page.getByText(/都|道|府|県|市|区|町|村/i).first()
       if (await locationInfo.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -208,8 +205,7 @@ test.describe('イベント管理', () => {
         return
       }
 
-      await eventLinks.first().click()
-      await expect(page).toHaveURL(/\/events\/(?!new)/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, eventLinks.first(), /\/events\/(?!new)/, { timeout: 10000 })
 
       // 編集リンクまたはメニューボタン
       const editLink = page.locator('a[href*="/edit"]').first()
@@ -237,8 +233,7 @@ test.describe('イベント管理', () => {
         name: /イベント登録|イベントを登録|新規登録|イベントを追加/i,
       })
       if (await createLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await createLink.click()
-        await expect(page).toHaveURL(/\/events\/new/, { timeout: 10000 })
+        await clickAndWaitForUrl(page, createLink, /\/events\/new/, { timeout: 10000 })
       }
     })
 

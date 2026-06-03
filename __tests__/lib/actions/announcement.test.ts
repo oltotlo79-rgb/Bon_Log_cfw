@@ -60,8 +60,7 @@ describe('getActiveAnnouncements', () => {
     expect(result).toEqual([])
   })
 
-  it('Error 以外で reject された場合も String(error) で記録され空配列を返す（catch分岐の両側）', async () => {
-    // `error instanceof Error ? error.message : String(error)` の falsy 側ブランチを踏む
+  it('Error 以外（非 Error 値）で reject された場合も空配列を返す', async () => {
     mockPrisma.announcement.findMany.mockRejectedValueOnce('boom-string')
 
     const { getActiveAnnouncements } = await import('@/lib/actions/announcement')

@@ -1,10 +1,3 @@
-/**
- * @file お問い合わせ詳細ページ
- * @description 個別のお問い合わせの詳細情報を表示し、
- *              ステータス変更やメモ編集などの管理操作を提供するページ。
- * @route /admin/contact/[id]
- */
-
 // Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
@@ -14,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { getContactInquiry } from '@/lib/actions/contact'
 // アクションパネルコンポーネント（クライアントコンポーネント）
 import { ContactDetailActions } from './ContactDetailActions'
+import { ROUTE_ADMIN_CONTACT } from '@/lib/constants/routes'
 
 /**
  * ステータスの日本語ラベル定義
@@ -50,7 +44,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {
@@ -90,37 +83,28 @@ export default async function ContactDetailPage({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* ページヘッダー */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">お問い合わせ詳細</h1>
-        {/* 一覧ページへの戻るリンク */}
-        <Link href="/admin/contact" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
+        <Link href={ROUTE_ADMIN_CONTACT} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
           <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden /> 一覧に戻る
         </Link>
       </div>
 
-      {/* 基本情報カード */}
       <div className="bg-card rounded-lg border p-6 space-y-4">
-        {/* ステータスとカテゴリーバッジ */}
         <div className="flex items-center gap-3">
-          {/* ステータスバッジ（色分けで視覚的に状態を表現） */}
           <span className={`rounded-full px-3 py-1 text-sm ${STATUS_COLORS[inquiry.status] || ''}`}>
             {STATUS_LABELS[inquiry.status] || inquiry.status}
           </span>
-          {/* カテゴリーバッジ */}
           <span className="rounded-full bg-muted px-3 py-1 text-sm">
             {CATEGORY_LABELS[inquiry.category] || inquiry.category}
           </span>
         </div>
 
-        {/* 詳細情報グリッド（2カラムレイアウト） */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 問い合わせ者の名前 */}
           <div>
             <p className="text-sm text-muted-foreground">名前</p>
             <p className="font-medium">{inquiry.name}</p>
           </div>
-          {/* 問い合わせ者のメールアドレス（mailto:リンク付き） */}
           <div>
             <p className="text-sm text-muted-foreground">メールアドレス</p>
             <p className="font-medium">
@@ -129,12 +113,10 @@ export default async function ContactDetailPage({
               </a>
             </p>
           </div>
-          {/* お問い合わせ受信日時 */}
           <div>
             <p className="text-sm text-muted-foreground">受信日時</p>
             <p className="font-medium">{new Date(inquiry.createdAt).toLocaleString('ja-JP')}</p>
           </div>
-          {/* 対応日時（対応済みの場合のみ表示） */}
           {inquiry.respondedAt && (
             <div>
               <p className="text-sm text-muted-foreground">対応日時</p>
@@ -143,7 +125,6 @@ export default async function ContactDetailPage({
           )}
         </div>
 
-        {/* お問い合わせ件名 */}
         <div>
           <p className="text-sm text-muted-foreground">件名</p>
           <p className="font-medium text-lg">{inquiry.subject}</p>
@@ -157,11 +138,9 @@ export default async function ContactDetailPage({
           </div>
         </div>
 
-        {/* 管理者メモ（入力済みの場合のみ表示） */}
         {inquiry.adminNote && (
           <div>
             <p className="text-sm text-muted-foreground mb-1">管理者メモ</p>
-            {/* 青い背景で管理者専用の情報であることを強調 */}
             <div className="bg-blue-50 dark:bg-blue-950 rounded-md p-4 whitespace-pre-wrap text-sm">
               {inquiry.adminNote}
             </div>
@@ -169,7 +148,6 @@ export default async function ContactDetailPage({
         )}
       </div>
 
-      {/* アクションパネル（ステータス変更・削除） */}
       <ContactDetailActions
         inquiryId={inquiry.id}
         currentStatus={inquiry.status}

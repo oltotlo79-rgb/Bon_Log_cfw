@@ -1,11 +1,7 @@
 'use client'
 
 /**
- * @file components/contact/ContactForm.tsx
- * @description お問い合わせフォームコンポーネント
- *
- * ユーザーからのお問い合わせを受け付けるフォームです。
- * 入力値のバリデーションとフィードバックを提供します。
+ * @module components/contact/ContactForm
  */
 
 import { useState } from 'react'
@@ -27,9 +23,6 @@ import {
   MSG_ERROR_FALLBACK,
 } from '@/lib/constants/messages'
 
-/**
- * お問い合わせカテゴリ
- */
 const CONTACT_CATEGORIES = [
   { value: 'general', label: '一般的なお問い合わせ' },
   { value: 'account', label: 'アカウントについて' },
@@ -39,9 +32,6 @@ const CONTACT_CATEGORIES = [
   { value: 'other', label: 'その他' },
 ]
 
-/**
- * お問い合わせフォームコンポーネント
- */
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -55,14 +45,10 @@ export function ContactForm() {
     message: '',
   })
 
-  /**
-   * フォーム送信ハンドラ
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // バリデーション
     if (!formData.name.trim()) {
       setError('お名前を入力してください')
       return
@@ -109,9 +95,6 @@ export function ContactForm() {
     }
   }
 
-  /**
-   * 入力変更ハンドラ
-   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -120,9 +103,6 @@ export function ContactForm() {
     setError(null)
   }
 
-  /**
-   * カテゴリ変更ハンドラ
-   */
   const handleCategoryChange = (value: string) => {
     setFormData(prev => ({ ...prev, category: value }))
     setError(null)
@@ -177,10 +157,8 @@ export function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* エラー表示 */}
       <FormError message={error} />
 
-      {/* お名前 */}
       <div className="space-y-2">
         <Label htmlFor="name">
           お名前 <span className="text-destructive">*</span>
@@ -197,7 +175,6 @@ export function ContactForm() {
         />
       </div>
 
-      {/* メールアドレス */}
       <div className="space-y-2">
         <Label htmlFor="email">
           メールアドレス <span className="text-destructive">*</span>
@@ -217,7 +194,6 @@ export function ContactForm() {
         </p>
       </div>
 
-      {/* カテゴリ */}
       <div className="space-y-2">
         <Label htmlFor="category">
           カテゴリ <span className="text-destructive">*</span>
@@ -239,7 +215,6 @@ export function ContactForm() {
         </select>
       </div>
 
-      {/* 件名 */}
       <div className="space-y-2">
         <Label htmlFor="subject">
           件名 <span className="text-destructive">*</span>
@@ -256,7 +231,6 @@ export function ContactForm() {
         />
       </div>
 
-      {/* お問い合わせ内容 */}
       <div className="space-y-2">
         <Label htmlFor="message">
           お問い合わせ内容 <span className="text-destructive">*</span>
@@ -276,7 +250,6 @@ export function ContactForm() {
         </p>
       </div>
 
-      {/* 送信ボタン */}
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (
           <>

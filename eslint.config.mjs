@@ -38,6 +38,22 @@ const eslintConfig = defineConfig([
       ],
       "sort-imports": ["warn", { ignoreCase: true, ignoreDeclarationSort: true, ignoreMemberSort: true }],
       "no-console": ["error", { allow: ["warn", "error"] }],
+      // CLAUDE.md ルール8「any 禁止」を CI で機械強制する（テストファイルは下のブロックで緩和）
+      "@typescript-eslint/no-explicit-any": "error",
+      // Supabase Data API (supabase-js / PostgREST / GraphQL) は非使用方針。
+      // DB アクセスは Prisma 経由のみ。詳細は .claude/rules/prisma-database.md
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@supabase/supabase-js", "@supabase/auth-helpers-*", "@supabase/ssr"],
+              message:
+                "Supabase Data API (supabase-js / PostgREST / GraphQL) は使用禁止。DB アクセスは Prisma 経由のみ。詳細は .claude/rules/prisma-database.md",
+            },
+          ],
+        },
+      ],
     },
   },
   // ロガーファイルではconsole使用を許可（ロガー自体の実装に必要なため）

@@ -1,11 +1,3 @@
-/**
- * @file ブックマークページコンポーネント
- * @description ユーザーがブックマークした投稿一覧を表示するページ
- *              - 認証済みユーザーのみアクセス可能
- *              - Server Componentとして実装し、初期データをサーバーサイドで取得
- *              - カーソルベースのページネーションをサポート
- */
-
 // NextAuth.js の認証関数 - 現在のセッション情報を取得
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
@@ -23,16 +15,13 @@ import { ROUTE_LOGIN } from '@/lib/constants/routes'
  * ブラウザのタブに表示されるタイトルを設定
  */
 export const metadata = {
-  title: 'ブックマーク - BON-LOG',
+  title: 'ブックマーク',
+  robots: { index: false, follow: false },
 }
 
 /**
  * ブックマークページのメインコンポーネント
  *
- * @description
- * - proxyにより認証済みユーザーのみアクセス可能
- * - ブックマーク済み投稿の初期データをサーバーサイドで取得
- * - BookmarkPostListコンポーネントで追加読み込みをサポート
  *
  * @returns ブックマークページのJSX
  */
@@ -51,11 +40,8 @@ export default async function BookmarksPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-card rounded-lg border overflow-hidden">
-        {/* ページヘッダー */}
         <h1 className="px-4 py-3 font-bold border-b">ブックマーク</h1>
 
-        {/* ブックマーク投稿リスト */}
-        {/* 初期データとカーソル、現在のユーザーIDを渡す */}
         <BookmarkPostList
           initialPosts={result.posts || []}
           initialNextCursor={result.nextCursor}

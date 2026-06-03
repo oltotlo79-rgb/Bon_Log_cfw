@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ハッシュタグナビゲーション E2E テスト
@@ -28,11 +29,9 @@ test.describe('ハッシュタグナビゲーション', () => {
     const hashtagText = page.locator('a').filter({ hasText: /^#\S+/ }).first()
 
     if (await hashtagLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await hashtagLink.click()
-      await expect(page).toHaveURL(/\/search/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, hashtagLink, /\/search/, { timeout: 10000 })
     } else if (await hashtagText.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await hashtagText.click()
-      await expect(page).toHaveURL(/\/search/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, hashtagText, /\/search/, { timeout: 10000 })
     }
   })
 

@@ -1,7 +1,4 @@
 /**
- * @file 投稿詳細ページ専用ローディングコンポーネント
- * @description 投稿詳細ページのデータ取得中に表示されるスケルトンUI
- *
  * このファイルはNext.js App Routerの規約に基づくローディングUIです。
  * /posts/[id]ページへのナビゲーション時やデータ取得中に自動的に表示されます。
  *
@@ -31,38 +28,29 @@
 export default function PostLoading() {
   return (
     <div className="max-w-2xl mx-auto">
-      {/* 投稿カードのスケルトン */}
       <div className="bg-card rounded-lg border overflow-hidden animate-pulse">
-        {/* 戻るリンクのプレースホルダー */}
         <div className="px-4 py-3 border-b">
           <div className="h-4 bg-muted rounded w-36" />
         </div>
 
-        {/* 投稿本体のスケルトン */}
         <div className="p-4">
           <div className="flex gap-3">
-            {/* アバター画像のプレースホルダー（円形） */}
             <div className="w-10 h-10 rounded-full bg-muted flex-shrink-0" />
 
-            {/* コンテンツエリアのプレースホルダー */}
             <div className="flex-1 space-y-3">
-              {/* ユーザー名と投稿日時 */}
               <div className="flex items-center gap-2">
                 <div className="h-4 bg-muted rounded w-24" />
                 <div className="h-3 bg-muted rounded w-16" />
               </div>
 
-              {/* 投稿本文 */}
               <div className="space-y-2">
                 <div className="h-4 bg-muted rounded w-full" />
                 <div className="h-4 bg-muted rounded w-full" />
                 <div className="h-4 bg-muted rounded w-3/4" />
               </div>
 
-              {/* メディアプレースホルダー（画像/動画） */}
               <div className="aspect-video bg-muted rounded-lg" />
 
-              {/* アクションボタン（いいね、コメント、ブックマーク等） */}
               <div className="flex items-center gap-6 pt-2">
                 <div className="h-5 bg-muted rounded w-12" />
                 <div className="h-5 bg-muted rounded w-12" />
@@ -73,7 +61,6 @@ export default function PostLoading() {
           </div>
         </div>
 
-        {/* シェアボタンセクションのスケルトン */}
         <div className="border-t px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 bg-muted rounded-full" />
@@ -83,14 +70,11 @@ export default function PostLoading() {
           </div>
         </div>
 
-        {/* 広告エリアのスケルトン */}
         <div className="border-t p-4 flex justify-center">
           <div className="h-24 bg-muted rounded w-full max-w-md" />
         </div>
 
-        {/* コメントセクションのスケルトン */}
         <div className="border-t p-4 space-y-4">
-          {/* コメント投稿フォーム */}
           <div className="flex gap-3">
             <div className="w-8 h-8 rounded-full bg-muted flex-shrink-0" />
             <div className="flex-1">
@@ -98,10 +82,8 @@ export default function PostLoading() {
             </div>
           </div>
 
-          {/* コメント数表示 */}
           <div className="h-5 bg-muted rounded w-20" />
 
-          {/* コメント一覧のスケルトン */}
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex gap-3">
@@ -113,7 +95,6 @@ export default function PostLoading() {
                   </div>
                   <div className="h-4 bg-muted rounded w-full" />
                   <div className="h-4 bg-muted rounded w-2/3" />
-                  {/* 返信ボタン等 */}
                   <div className="flex gap-4 pt-1">
                     <div className="h-4 bg-muted rounded w-10" />
                     <div className="h-4 bg-muted rounded w-10" />

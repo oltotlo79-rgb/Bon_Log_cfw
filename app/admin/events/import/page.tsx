@@ -23,7 +23,6 @@ export default async function AdminEventImportPage() {
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">外部イベントインポート</h1>
@@ -58,7 +57,6 @@ export default async function AdminEventImportPage() {
         </div>
       </div>
 
-      {/* インポートUI（クライアントコンポーネント） */}
       <EventImportClient />
     </div>
   )

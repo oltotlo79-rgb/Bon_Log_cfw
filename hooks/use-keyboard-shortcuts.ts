@@ -227,13 +227,9 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
   }, [handleKeyDown])
 
   return {
-    /** ヘルプモーダルの表示状態 */
     showHelp,
-    /** ヘルプモーダルの表示状態を設定 */
     setShowHelp,
-    /** 「g」キーが押されているか */
     gKeyPressed,
-    /** 利用可能なショートカット一覧 */
     shortcuts: KEYBOARD_SHORTCUTS,
   }
 }

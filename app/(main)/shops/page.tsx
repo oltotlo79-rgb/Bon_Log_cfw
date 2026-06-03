@@ -1,10 +1,3 @@
-/**
- * @file 盆栽園マップページ
- * @description 盆栽園の一覧表示とマップ表示を提供するメインページ。
- * 検索、ジャンルフィルタリング、ソート機能を備え、
- * ユーザーは盆栽園を地図上で確認したり、新規登録することができる。
- */
-
 // Next.jsのLinkコンポーネント: クライアントサイドナビゲーションを実現
 import Link from 'next/link'
 import Image from 'next/image'
@@ -17,16 +10,18 @@ import { ShopList } from '@/components/shop/ShopList'
 import { ShopSearchForm } from './ShopSearchForm'
 // 地図表示用ラッパーコンポーネント（Leafletを使用）
 import { MapWrapper } from '@/components/shop/MapWrapper'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
+import { ROUTE_SHOPS } from '@/lib/constants/routes'
 
 export const revalidate = 300 // REVALIDATE_LIST_PAGE 相当（Next.js は revalidate に静的リテラルを要求）
 
 export const metadata = {
-  title: '盆栽園マップ - BON-LOG',
+  title: pageTitle('盆栽園マップ'),
   description: '全国の盆栽園を地図で検索。地域・ジャンル・評価でフィルタリングし、営業時間や口コミを確認できます。',
+  alternates: { canonical: pageCanonical(ROUTE_SHOPS) },
 }
 
 /**
- * ページコンポーネントのProps型定義
  * URLのクエリパラメータを受け取る
  */
 interface ShopsPageProps {
@@ -76,7 +71,6 @@ export default async function ShopsPage({ searchParams }: ShopsPageProps) {
           <Image src="/images/generated/ui/map-header.webp" alt="" fill sizes="100vw" className="object-cover opacity-80 hidden md:block dark:hidden" />
           <Image src="/images/generated/ui/map-header-dark.webp" alt="" fill sizes="100vw" className="object-cover opacity-80 hidden dark:block" />
         </div>
-        {/* ヘッダー: ページタイトルと新規登録ボタン */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">盆栽園マップ</h1>
           <Link
@@ -97,7 +91,6 @@ export default async function ShopsPage({ searchParams }: ShopsPageProps) {
           initialSort={params.sort}
         />
 
-        {/* 地図と盆栽園一覧（ストリーミング） */}
         <Suspense fallback={<ShopContentSkeleton />}>
           <ShopContentSection
             search={params.search}

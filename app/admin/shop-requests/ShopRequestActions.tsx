@@ -1,26 +1,13 @@
-/**
- * @file 盆栽園変更リクエストアクションコンポーネント
- * @description 盆栽園変更リクエストカードで使用されるアクションボタン群。
- *              承認・却下の操作とダイアログを提供する。
- */
-
 'use client'
 
-// ReactのuseStateフック（状態管理用）
 import { useState } from 'react'
-// Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
-// Next.jsのLinkコンポーネント（盆栽園確認リンク用）
 import Link from 'next/link'
-// 変更リクエスト承認・却下用のServer Action
 import { approveShopChangeRequest, rejectShopChangeRequest } from '@/lib/actions/shop'
-// 型定義
-import type { ShopChangeRequestData } from '@/lib/services/shop-change-helpers'
+import type { ShopChangeRequestData } from '@/lib/shop/change-request'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { buildShopPath } from '@/lib/constants/path-builders'
 
-/**
- * ShopRequestActionsコンポーネントのProps型定義
- */
 interface ShopRequestActionsProps {
   requestId: string
   shopId: string
@@ -102,7 +89,7 @@ export function ShopRequestActions({
     <>
       <div className="flex items-center gap-3">
         <Link
-          href={`/shops/${shopId}`}
+          href={buildShopPath(shopId)}
           target="_blank"
           className="px-3 py-2 text-sm border rounded-lg hover:bg-muted"
         >
@@ -124,7 +111,6 @@ export function ShopRequestActions({
         </button>
       </div>
 
-      {/* 承認ダイアログ */}
       {showApproveDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
@@ -134,7 +120,6 @@ export function ShopRequestActions({
               「{shopName}」の以下の変更を適用します。
             </p>
 
-            {/* 変更内容の確認 */}
             <div className="bg-muted/50 rounded-lg p-4 mb-4 space-y-2">
               {Object.entries(changes)
                 .filter(([, value]) => value)
@@ -189,7 +174,6 @@ export function ShopRequestActions({
         </div>
       )}
 
-      {/* 却下ダイアログ */}
       {showRejectDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full p-6">

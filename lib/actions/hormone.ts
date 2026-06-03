@@ -3,12 +3,16 @@
  *
  * 植物ホルモン関連の読み取り専用 query を提供する。RSC からの直接 await 用途で
  * `'use server'` ではなく `server-only` モジュールとし、公開 RPC 面を持たない。
+ *
+ * 認証なしで参照可能（公開 SEO ページ）。sitemap に列挙され未ログイン/crawler が入口にするため、
+ * requireAuth を付けると soft 404 / 空表示になる。入力は Zod、件数は上限定数で保護する。
  */
 import 'server-only'
 
+import { cache } from 'react'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { requireAuth } from '@/lib/actions/utils'
+import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import { HormoneCategory } from '@prisma/client'
 import {
   MAX_HORMONE_LIST_LIMIT,
@@ -27,9 +31,7 @@ const categoryStringSchema = z.string().min(1).max(MAX_SLUG_LENGTH)
 // ── ホルモン一覧 ────────────────────────────────────────────────
 
 export async function getHormones(params?: { category?: HormoneCategory }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { hormones: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { hormones: [] }
   let category: HormoneCategory | undefined
   if (params?.category !== undefined) {
     const parsed = hormoneCategorySchema.safeParse(params.category)
@@ -51,15 +53,11 @@ export async function getHormones(params?: { category?: HormoneCategory }) {
 
 // ── ホルモン詳細 ────────────────────────────────────────────────
 
-export async function getHormoneBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
-  const parsed = slugSchema.safeParse(slug)
-  if (!parsed.success) return null
-
-  return prisma.hormoneType.findUnique({
-    where: { slug: parsed.data },
+// generateMetadata と本体での二重取得を React cache() でリクエスト内 1 回に集約する。
+// unstable_cache は standalone 出力（CI は .next/cache を同梱しない）で不安定なため使わない。
+const getHormoneBySlugCached = cache((slug: string) =>
+  prisma.hormoneType.findUnique({
+    where: { slug },
     include: {
       effects: { orderBy: { sortOrder: 'asc' } },
       seasonalLevels: { orderBy: { month: 'asc' } },
@@ -72,15 +70,21 @@ export async function getHormoneBySlug(slug: string) {
         orderBy: { sortOrder: 'asc' },
       },
     },
-  })
+  }),
+)
+
+export async function getHormoneBySlug(slug: string) {
+  if (shouldSkipBuildTimeDbAccess()) return null
+  const parsed = slugSchema.safeParse(slug)
+  if (!parsed.success) return null
+
+  return getHormoneBySlugCached(parsed.data)
 }
 
 // ── ホルモン相互作用一覧 ─────────────────────────────────────────
 
 export async function getHormoneInteractions() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { interactions: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { interactions: [] }
   const interactions = await prisma.hormoneInteraction.findMany({
     include: {
       hormoneA: { select: { id: true, name: true, nameEn: true, slug: true, category: true } },
@@ -96,9 +100,7 @@ export async function getHormoneInteractions() {
 // ── 特定ホルモンの相互作用 ────────────────────────────────────────
 
 export async function getHormoneInteractionsBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { interactions: [] }
-
+  if (shouldSkipBuildTimeDbAccess()) return { interactions: [] }
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return { interactions: [] }
 
@@ -130,9 +132,7 @@ export async function getHormoneInteractionsBySlug(slug: string) {
 // ── コラム一覧 ───────────────────────────────────────────────────
 
 export async function getHormoneColumns(params?: { category?: string }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { columns: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
   let category: string | undefined
   if (params?.category !== undefined) {
     const parsed = categoryStringSchema.safeParse(params.category)
@@ -155,9 +155,7 @@ export async function getHormoneColumns(params?: { category?: string }) {
 // ── コラム詳細 ───────────────────────────────────────────────────
 
 export async function getHormoneColumnBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return null
-
+  if (shouldSkipBuildTimeDbAccess()) return null
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return null
 
@@ -167,9 +165,7 @@ export async function getHormoneColumnBySlug(slug: string) {
 // ── ホルモン技法マッピング一覧 ─────────────────────────────────────
 
 export async function getHormoneTechniques(params?: { techniqueSlug?: string }) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { techniques: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { techniques: [] }
   let techniqueSlug: string | undefined
   if (params?.techniqueSlug !== undefined) {
     const parsed = slugSchema.safeParse(params.techniqueSlug)
@@ -192,9 +188,7 @@ export async function getHormoneTechniques(params?: { techniqueSlug?: string }) 
 // ── 特定ホルモンの技法マッピング ──────────────────────────────────
 
 export async function getHormoneTechniquesBySlug(slug: string) {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { techniques: [] }
-
+  if (shouldSkipBuildTimeDbAccess()) return { techniques: [] }
   const parsed = slugSchema.safeParse(slug)
   if (!parsed.success) return { techniques: [] }
 
@@ -216,9 +210,7 @@ export async function getHormoneTechniquesBySlug(slug: string) {
 // ── 月別活性データ付きホルモン一覧（カレンダー用） ───────────────────
 
 export async function getHormonesWithSeasonalLevels() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { hormones: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { hormones: [] }
   const hormones = await prisma.hormoneType.findMany({
     where: { category: 'major' },
     include: {
@@ -234,9 +226,7 @@ export async function getHormonesWithSeasonalLevels() {
 // ── シミュレーター用データ一括取得 ────────────────────────────────
 
 export async function getSimulatorData() {
-  const authResult = await requireAuth()
-  if ('error' in authResult) return { hormones: [], techniques: [], seasonalLevels: [], error: authResult.error }
-
+  if (shouldSkipBuildTimeDbAccess()) return { hormones: [], techniques: [], seasonalLevels: [] }
   const [hormones, techniques, seasonalLevels] = await Promise.all([
     prisma.hormoneType.findMany({
       where: { category: 'major' },

@@ -1,7 +1,4 @@
 /**
- * @file 予約投稿作成ページ
- * @description 新規予約投稿を作成するためのフォームページ（プレミアム会員限定）
- *
  * このファイルは新しい予約投稿を作成するためのページです。
  * プレミアム会員のみがアクセス可能で、投稿内容と公開日時を設定できます。
  *
@@ -45,12 +42,10 @@ import Link from 'next/link'
 // 戻るボタンに使用
 import { ArrowLeft } from 'lucide-react'
 
-/**
- * ページメタデータ
- * SEOおよびブラウザタブのタイトル設定
- */
 export const metadata = {
   title: '予約投稿を作成 | BONLOG',
+  // 予約投稿作成は所有者専用 (プレミアム会員) のため検索エンジンに公開しない
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -88,9 +83,7 @@ export default async function NewScheduledPostPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-4 px-4">
-      {/* ヘッダー部分 - 戻るリンクとタイトル */}
       <div className="flex items-center gap-4 mb-4">
-        {/* 予約投稿一覧に戻るリンク */}
         <Link href="/posts/scheduled" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Link>

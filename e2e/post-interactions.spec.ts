@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 投稿インタラクションのE2Eテスト
@@ -117,8 +118,7 @@ test.describe('投稿詳細ページ', () => {
       // 投稿カード内のリンクをクリック
       const postLink = postCard.locator('a[href*="/posts/"]').first()
       if (await postLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await postLink.click()
-        await expect(page).toHaveURL(/\/posts\//, { timeout: 10000 })
+        await clickAndWaitForUrl(page, postLink, /\/posts\//, { timeout: 10000 })
       }
     }
   })

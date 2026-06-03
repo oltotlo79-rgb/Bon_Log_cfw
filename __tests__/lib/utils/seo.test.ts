@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { pageCanonical } from '@/lib/utils/seo'
-import { BASE_URL } from '@/lib/constants/routes'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
+import { BASE_URL, SITE_NAME } from '@/lib/constants/routes'
 
 describe('pageCanonical', () => {
   it("'/' は BASE_URL をそのまま返す（末尾 / は付与しない）", () => {
@@ -31,5 +31,16 @@ describe('pageCanonical', () => {
   it('返り値は常に絶対 URL（http(s):// で始まる）', () => {
     expect(pageCanonical('/about')).toMatch(/^https?:\/\//)
     expect(pageCanonical('/')).toMatch(/^https?:\/\//)
+  })
+})
+
+describe('pageTitle', () => {
+  it('ページ固有タイトルにサイト名をサフィックスとして付与する', () => {
+    expect(pageTitle('山田さんの投稿')).toBe(`山田さんの投稿 | ${SITE_NAME}`)
+  })
+
+  it('SITE_NAME 定数を使う（ハードコードしない）', () => {
+    expect(pageTitle('x')).toContain(SITE_NAME)
+    expect(pageTitle('x').endsWith(SITE_NAME)).toBe(true)
   })
 })

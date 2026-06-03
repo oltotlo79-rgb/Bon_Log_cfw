@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ROUTE_SEARCH } from '@/lib/constants/routes'
 
 function ChevronDownIcon({ className }: { className?: string }) {
   return (
@@ -46,7 +47,7 @@ export function AdvancedSearchFilters({
     else params.delete('minLikes')
     if (mediaType) params.set('mediaType', mediaType)
     else params.delete('mediaType')
-    router.push(`/search?${params.toString()}`)
+    router.push(`${ROUTE_SEARCH}?${params.toString()}`)
   }
 
   function resetFilters() {
@@ -59,7 +60,7 @@ export function AdvancedSearchFilters({
     params.delete('dateTo')
     params.delete('minLikes')
     params.delete('mediaType')
-    router.push(`/search?${params.toString()}`)
+    router.push(`${ROUTE_SEARCH}?${params.toString()}`)
   }
 
   const hasFilters = dateFrom || dateTo || minLikes || mediaType

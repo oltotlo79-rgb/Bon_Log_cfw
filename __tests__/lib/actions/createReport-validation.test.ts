@@ -14,11 +14,19 @@ const mockPostFindUnique = vi.fn()
 const mockReportFindFirst = vi.fn()
 const mockReportCreate = vi.fn().mockResolvedValue({})
 const mockReportCount = vi.fn().mockResolvedValue(0)
+const mockReportUpdateMany = vi.fn().mockResolvedValue({ count: 0 })
 const mockUserFindUnique = vi.fn().mockResolvedValue({ isSuspended: false, email: 'a@a.com' })
+const mockShopReviewFindUnique = vi.fn()
+const mockShopReviewUpdate = vi.fn().mockResolvedValue({})
+const mockAdminNotificationCreate = vi.fn().mockResolvedValue({})
+const mockRevalidateShopRatingsCache = vi.fn()
 
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 vi.mock('@/lib/rate-limit', () => ({
   checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
+}))
+vi.mock('@/lib/cache', () => ({
+  revalidateShopRatingsCache: () => mockRevalidateShopRatingsCache(),
 }))
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -28,13 +36,16 @@ vi.mock('@/lib/db', () => ({
       findFirst: (...args: unknown[]) => mockReportFindFirst(...args),
       create: (...args: unknown[]) => mockReportCreate(...args),
       count: (...args: unknown[]) => mockReportCount(...args),
-      updateMany: vi.fn(),
+      updateMany: (...args: unknown[]) => mockReportUpdateMany(...args),
     },
-    adminNotification: { create: vi.fn() },
+    adminNotification: { create: (...args: unknown[]) => mockAdminNotificationCreate(...args) },
     comment: { findUnique: vi.fn(), update: vi.fn() },
     event: { findUnique: vi.fn(), update: vi.fn() },
     bonsaiShop: { findUnique: vi.fn(), update: vi.fn() },
-    shopReview: { findUnique: vi.fn(), update: vi.fn() },
+    shopReview: {
+      findUnique: (...args: unknown[]) => mockShopReviewFindUnique(...args),
+      update: (...args: unknown[]) => mockShopReviewUpdate(...args),
+    },
   },
 }))
 
@@ -125,5 +136,44 @@ describe('createReport — auth → validation → rate-limit 順序', () => {
     expect(result.success).toBe(false)
     expect(mockPostFindUnique).not.toHaveBeenCalled()
     expect(mockReportCreate).not.toHaveBeenCalled()
+  })
+
+  it('review が AUTO_HIDE_THRESHOLD 到達で自動非表示になり店舗評価キャッシュを無効化する', async () => {
+    const { AUTO_HIDE_THRESHOLD } = await import('@/lib/constants/report')
+    mockShopReviewFindUnique.mockResolvedValue({ userId: 'review-owner' })
+    mockReportFindFirst.mockResolvedValue(null)
+    mockReportCount.mockResolvedValue(AUTO_HIDE_THRESHOLD)
+
+    const { createReport } = await import('@/lib/actions/report-user')
+    const result = await createReport({
+      targetType: 'review',
+      targetId: 'review-1',
+      reason: 'spam',
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockShopReviewUpdate).toHaveBeenCalledWith({
+      where: { id: 'review-1' },
+      data: expect.objectContaining({ isHidden: true }),
+    })
+    expect(mockRevalidateShopRatingsCache).toHaveBeenCalled()
+  })
+
+  it('閾値未満の review は自動非表示にならずキャッシュ無効化もされない', async () => {
+    const { AUTO_HIDE_THRESHOLD } = await import('@/lib/constants/report')
+    mockShopReviewFindUnique.mockResolvedValue({ userId: 'review-owner' })
+    mockReportFindFirst.mockResolvedValue(null)
+    mockReportCount.mockResolvedValue(AUTO_HIDE_THRESHOLD - 1)
+
+    const { createReport } = await import('@/lib/actions/report-user')
+    const result = await createReport({
+      targetType: 'review',
+      targetId: 'review-1',
+      reason: 'spam',
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockShopReviewUpdate).not.toHaveBeenCalled()
+    expect(mockRevalidateShopRatingsCache).not.toHaveBeenCalled()
   })
 })

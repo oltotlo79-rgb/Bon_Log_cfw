@@ -2,24 +2,32 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { BADGES_CONVERSATIONS_LIMIT } from '@/lib/constants/limits'
+import { checkUserRateLimit } from '@/lib/rate-limit'
+import { BADGES_CONVERSATIONS_LIMIT, BADGES_MUTED_USERS_LIMIT } from '@/lib/constants/limits'
 
 export const dynamic = 'force-dynamic'
+
+const EMPTY_BADGES = { notifications: 0, messages: 0 } as const
 
 export async function GET() {
   try {
     const session = await auth()
 
     if (!session?.user?.id) {
-      return NextResponse.json({ notifications: 0, messages: 0 })
+      return NextResponse.json(EMPTY_BADGES)
     }
 
     const userId = session.user.id
 
-    // ミュートしているユーザーのIDを取得
+    const rl = await checkUserRateLimit(userId, 'read')
+    if (!rl.success) {
+      return NextResponse.json(EMPTY_BADGES)
+    }
+
     const mutedUsers = await prisma.mute.findMany({
       where: { muterId: userId },
       select: { mutedId: true },
+      take: BADGES_MUTED_USERS_LIMIT,
     })
     const mutedUserIds = mutedUsers.map((m: typeof mutedUsers[number]) => m.mutedId)
 

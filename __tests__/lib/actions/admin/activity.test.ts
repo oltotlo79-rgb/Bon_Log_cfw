@@ -104,6 +104,24 @@ describe('getUserActivity', () => {
     expect(result.user).toEqual({ id: 'target-user', nickname: 'Target' })
   })
 
+  it('巨大な limit は MAX_PAGE_LIMIT にクランプして各クエリに渡す（L-1）', async () => {
+    setupAdmin()
+    const { MAX_PAGE_LIMIT } = await import('@/lib/constants/limits')
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'target-user', nickname: 'Target' })
+    mockPrisma.post.findMany.mockResolvedValue([])
+    mockPrisma.comment.findMany.mockResolvedValue([])
+    mockPrisma.like.findMany.mockResolvedValue([])
+    mockPrisma.follow.findMany.mockResolvedValue([])
+    ;(mockPrisma as any).userDevice.findMany.mockResolvedValue([])
+
+    const { getUserActivity } = await import('@/lib/actions/admin/activity')
+    await getUserActivity('target-user', { limit: 1_000_000 })
+
+    expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: MAX_PAGE_LIMIT }),
+    )
+  })
+
   it('投稿アクティビティを正しく変換する', async () => {
     setupAdmin()
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'target-user', nickname: 'Target' })

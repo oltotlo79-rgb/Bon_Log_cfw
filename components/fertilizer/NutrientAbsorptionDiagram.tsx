@@ -106,7 +106,6 @@ export function NutrientAbsorptionDiagram() {
 
   return (
     <div className="space-y-4">
-      {/* 凡例 */}
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
@@ -118,7 +117,6 @@ export function NutrientAbsorptionDiagram() {
         </div>
       </div>
 
-      {/* 栄養素選択ボタン */}
       <div className="flex flex-wrap gap-2">
         {NUTRIENTS.map((n) => (
           <button
@@ -141,7 +139,6 @@ export function NutrientAbsorptionDiagram() {
         ))}
       </div>
 
-      {/* SVG図解 */}
       <div className="rounded-lg border bg-card overflow-hidden">
         <svg
           viewBox="0 0 400 600"
@@ -149,7 +146,6 @@ export function NutrientAbsorptionDiagram() {
           role="img"
           aria-label="栄養素の吸収経路図"
         >
-          {/* 背景グラデーション */}
           <defs>
             <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#e0f2fe" />
@@ -166,10 +162,8 @@ export function NutrientAbsorptionDiagram() {
             </linearGradient>
           </defs>
 
-          {/* 空 */}
           <rect x="0" y="0" width="400" height="420" fill="url(#skyGrad)" />
 
-          {/* 土壌層 */}
           <rect x="0" y="420" width="400" height="180" fill="url(#soilGrad)" />
           <text
             x="200"
@@ -182,7 +176,6 @@ export function NutrientAbsorptionDiagram() {
             土壌溶液（イオン態栄養素）
           </text>
 
-          {/* 葉のエリア */}
           <ellipse cx="200" cy="100" rx="130" ry="80" fill="#4ade80" opacity="0.3" />
           <ellipse cx="200" cy="100" rx="100" ry="60" fill="#22c55e" opacity="0.35" />
           <text
@@ -195,13 +188,11 @@ export function NutrientAbsorptionDiagram() {
           >
             葉（光合成・蒸散）
           </text>
-          {/* 蒸散矢印 */}
           <path d="M160 30 L160 15" stroke="#38bdf8" strokeWidth="1.5" markerEnd="url(#arrowBlue)" opacity="0.6" />
           <path d="M200 25 L200 10" stroke="#38bdf8" strokeWidth="1.5" markerEnd="url(#arrowBlue)" opacity="0.6" />
           <path d="M240 30 L240 15" stroke="#38bdf8" strokeWidth="1.5" markerEnd="url(#arrowBlue)" opacity="0.6" />
           <text x="200" y="10" textAnchor="middle" fill="#0284c7" fontSize="8">蒸散</text>
 
-          {/* 幹 */}
           <rect x="185" y="160" width="30" height="200" rx="4" fill="url(#trunkGrad)" />
           <text
             x="172"
@@ -214,7 +205,6 @@ export function NutrientAbsorptionDiagram() {
             道管（木部）↑
           </text>
 
-          {/* 道管の上向き矢印 */}
           <defs>
             <marker id="arrowUp" markerWidth="6" markerHeight="6" refX="3" refY="6" orient="auto">
               <path d="M0,6 L3,0 L6,6" fill="#0284c7" />
@@ -226,7 +216,6 @@ export function NutrientAbsorptionDiagram() {
           <line x1="195" y1="350" x2="195" y2="180" stroke="#0284c7" strokeWidth="2" strokeDasharray="4,3" markerEnd="url(#arrowUp)" />
           <line x1="205" y1="350" x2="205" y2="180" stroke="#0284c7" strokeWidth="2" strokeDasharray="4,3" markerEnd="url(#arrowUp)" />
 
-          {/* 根のエリア */}
           <text
             x="200"
             y="385"
@@ -237,22 +226,18 @@ export function NutrientAbsorptionDiagram() {
           >
             根毛（吸収帯）
           </text>
-          {/* 根の描画 */}
           <path d="M200 360 Q180 400 140 440" stroke="#78716c" strokeWidth="3" fill="none" />
           <path d="M200 360 Q200 410 200 450" stroke="#78716c" strokeWidth="3" fill="none" />
           <path d="M200 360 Q220 400 260 440" stroke="#78716c" strokeWidth="3" fill="none" />
-          {/* 細根 */}
           <path d="M160 425 Q145 435 130 445" stroke="#78716c" strokeWidth="1.5" fill="none" />
           <path d="M170 435 Q160 445 145 460" stroke="#78716c" strokeWidth="1.5" fill="none" />
           <path d="M240 425 Q255 435 270 445" stroke="#78716c" strokeWidth="1.5" fill="none" />
           <path d="M230 435 Q240 445 255 460" stroke="#78716c" strokeWidth="1.5" fill="none" />
-          {/* 根毛 */}
           <path d="M148 438 L135 435" stroke="#a8a29e" strokeWidth="1" fill="none" />
           <path d="M155 445 L142 448" stroke="#a8a29e" strokeWidth="1" fill="none" />
           <path d="M252 438 L265 435" stroke="#a8a29e" strokeWidth="1" fill="none" />
           <path d="M245 445 L258 448" stroke="#a8a29e" strokeWidth="1" fill="none" />
 
-          {/* 土壌中のイオン */}
           {NUTRIENTS.map((n) => {
             const isSelected = selected === n.symbol
             const isOther = selected !== null && selected !== n.symbol
@@ -294,10 +279,8 @@ export function NutrientAbsorptionDiagram() {
             )
           })}
 
-          {/* 選択された栄養素の吸収パス表示 */}
           {selectedNutrient && (
             <g>
-              {/* 土壌→根 吸収線 */}
               <path
                 d={`M${selectedNutrient.soilX} 464 Q${selectedNutrient.soilX} 430 200 400`}
                 stroke={selectedNutrient.color}
@@ -314,7 +297,6 @@ export function NutrientAbsorptionDiagram() {
                   repeatCount="indefinite"
                 />
               </path>
-              {/* 根→葉 上昇線 */}
               <line
                 x1="200"
                 y1="380"
@@ -333,14 +315,12 @@ export function NutrientAbsorptionDiagram() {
                   repeatCount="indefinite"
                 />
               </line>
-              {/* 葉での利用ポイント */}
               <circle cx="200" cy="110" r="8" fill={selectedNutrient.color} opacity="0.5">
                 <animate attributeName="r" values="6;10;6" dur="2s" repeatCount="indefinite" />
               </circle>
             </g>
           )}
 
-          {/* タップ/クリックのヒント */}
           {!selected && (
             <text
               x="200"
@@ -355,7 +335,6 @@ export function NutrientAbsorptionDiagram() {
         </svg>
       </div>
 
-      {/* 詳細パネル */}
       {selectedNutrient && (
         <div
           className={`rounded-lg border p-4 space-y-3 ${

@@ -43,7 +43,6 @@ export function AnalyticsDashboard({
 }: AnalyticsDashboardProps) {
   return (
     <div className="space-y-6">
-      {/* 統計サマリー - 前月比付き */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           title="投稿数"
@@ -70,7 +69,6 @@ export function AnalyticsDashboard({
         />
       </div>
 
-      {/* 2段目: フォロワー + ベスト投稿時間 */}
       <div className="grid md:grid-cols-2 gap-6">
         {followerGrowth && (
           <Card>
@@ -110,7 +108,6 @@ export function AnalyticsDashboard({
         )}
       </div>
 
-      {/* エンゲージメント推移チャート */}
       {engagementTrend && (
         <Card>
           <CardHeader className="pb-2">
@@ -122,7 +119,6 @@ export function AnalyticsDashboard({
         </Card>
       )}
 
-      {/* トップ投稿 + ジャンル別パフォーマンス */}
       <div className="grid md:grid-cols-2 gap-6">
         {postAnalytics && postAnalytics.topPosts.length > 0 && (
           <Card>
@@ -147,7 +143,6 @@ export function AnalyticsDashboard({
         )}
       </div>
 
-      {/* 時間帯別ヒートマップ */}
       {likeAnalytics && (
         <Card>
           <CardHeader className="pb-2">
@@ -162,7 +157,6 @@ export function AnalyticsDashboard({
         </Card>
       )}
 
-      {/* キーワードクラウド + 引用投稿一覧 */}
       <div className="grid md:grid-cols-2 gap-6">
         {keywordAnalytics && (
           <Card>

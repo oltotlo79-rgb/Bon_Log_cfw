@@ -24,6 +24,12 @@ describe('Bookmark Actions', async () => {
     mockAuth.mockResolvedValue({
       user: { id: mockUser.id },
     })
+    // 対象投稿は閲覧可能（本人の非表示でない投稿）を既定とする
+    mockPrisma.post.findUnique.mockResolvedValue({
+      id: mockPost.id,
+      isHidden: false,
+      userId: mockUser.id,
+    })
   })
 
   describe('toggleBookmark', async () => {
@@ -170,6 +176,36 @@ describe('Bookmark Actions', async () => {
           cursor: { id: 'bookmark-1' },
           skip: 1,
           take: 10,
+        }),
+      )
+    })
+
+    it('巨大な limit は MAX_PAGE_LIMIT にクランプする（DoS 対策）', async () => {
+      const { MAX_PAGE_LIMIT } = await import('@/lib/constants/limits')
+      mockPrisma.bookmark.findMany.mockResolvedValue([])
+      mockPrisma.like.findMany.mockResolvedValue([])
+
+      const { getBookmarkedPosts } = await import('@/lib/actions/bookmark')
+      await getBookmarkedPosts(undefined, 1_000_000)
+
+      expect(mockPrisma.bookmark.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: MAX_PAGE_LIMIT }),
+      )
+    })
+
+    it('対象投稿の可視性で絞り込む（M-3: 非表示/非公開/停止著者を除外）', async () => {
+      mockPrisma.bookmark.findMany.mockResolvedValue([])
+      mockPrisma.like.findMany.mockResolvedValue([])
+
+      const { getBookmarkedPosts } = await import('@/lib/actions/bookmark')
+      await getBookmarkedPosts()
+
+      expect(mockPrisma.bookmark.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: mockUser.id,
+            post: { isHidden: false, user: { isSuspended: false, OR: [{ isPublic: true }, { id: mockUser.id }, { followers: { some: { followerId: mockUser.id } } }] } },
+          },
         }),
       )
     })

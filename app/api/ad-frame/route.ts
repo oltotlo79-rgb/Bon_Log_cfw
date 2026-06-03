@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { API_ERR_TOO_MANY_REQUESTS } from '@/lib/constants/errors'
 
 /**
  * 忍者AdMax 広告用 iframe コンテンツを返す API。
@@ -75,6 +77,13 @@ const AD_FRAME_CSP_DIRECTIVES = [
 const AD_ID_PATTERN = /^[a-f0-9]{32}$/
 
 export async function GET(request: NextRequest) {
+  // IP rate limit: 公開エンドポイント。広告 iframe は 1 ページ表示につき
+  // 数回しか叩かれないため 60/min/IP で十分。fail-open で広告枠の運用継続性を優先。
+  const rl = await checkRateLimit(request, 'api')
+  if (!rl.success) {
+    return new NextResponse(API_ERR_TOO_MANY_REQUESTS, { status: 429 })
+  }
+
   const adId = request.nextUrl.searchParams.get('id')
 
   if (!adId || !AD_ID_PATTERN.test(adId)) {

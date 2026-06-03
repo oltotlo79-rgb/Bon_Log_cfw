@@ -4,9 +4,6 @@ import { useState } from 'react'
 import { Plus, X, Loader2 } from 'lucide-react'
 import { createSegment } from '@/lib/actions/admin/segments'
 
-/**
- * セグメントルールの型定義
- */
 export type SegmentRule = {
   field: 'createdAt' | 'postCount' | 'isPremium' | 'isSuspended' | 'location' | 'followerCount'
   operator: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'contains' | 'is'
@@ -163,7 +160,6 @@ export function SegmentCreateForm({ onCreated }: SegmentCreateFormProps) {
         </div>
       )}
 
-      {/* セグメント名 */}
       <div>
         <label className="block text-sm font-medium mb-1">セグメント名</label>
         <input
@@ -176,7 +172,6 @@ export function SegmentCreateForm({ onCreated }: SegmentCreateFormProps) {
         />
       </div>
 
-      {/* 説明 */}
       <div>
         <label className="block text-sm font-medium mb-1">説明</label>
         <textarea
@@ -188,7 +183,6 @@ export function SegmentCreateForm({ onCreated }: SegmentCreateFormProps) {
         />
       </div>
 
-      {/* ロジック切り替え */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium">条件の結合:</span>
         <div className="flex rounded-lg border overflow-hidden">
@@ -217,7 +211,6 @@ export function SegmentCreateForm({ onCreated }: SegmentCreateFormProps) {
         </div>
       </div>
 
-      {/* ルールビルダー */}
       <div className="space-y-3">
         <label className="block text-sm font-medium">条件</label>
         {rules.map((rule, index) => {
@@ -294,7 +287,6 @@ export function SegmentCreateForm({ onCreated }: SegmentCreateFormProps) {
         </button>
       </div>
 
-      {/* 送信 */}
       <div className="flex justify-end pt-2">
         <button
           type="submit"

@@ -18,9 +18,9 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const col = await getColumnBySlug(slug)
-  if (!col) return { title: 'コラムが見つかりません - BON-LOG' }
+  if (!col) return { title: 'コラムが見つかりません' }
   return {
-    title: `${col.title} - コラム - BON-LOG`,
+    title: `${col.title} - コラム`,
     alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES_COLUMNS}/${slug}`) },
   }
 }

@@ -1,9 +1,3 @@
-/**
- * @file 管理者用非表示コンテンツ管理ページ
- * @description 通報により自動非表示になったコンテンツ一覧を表示し、
- *              再表示または完全削除の管理を行う管理者ページ。
- */
-
 // 非表示コンテンツ一覧・管理者通知取得のServer Action
 import { getHiddenContent, getAdminNotifications } from '@/lib/actions/admin/hidden'
 // 非表示コンテンツ一覧コンポーネント
@@ -12,7 +6,6 @@ import { HiddenContentList } from './HiddenContentList'
 import { AdminNotificationBanner } from './AdminNotificationBanner'
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {
@@ -58,7 +51,6 @@ export default async function HiddenContentPage() {
         </p>
       </div>
 
-      {/* 未読通知バナー */}
       {unreadCount > 0 && (
         <AdminNotificationBanner
           notifications={unreadNotifications}
@@ -66,7 +58,6 @@ export default async function HiddenContentPage() {
         />
       )}
 
-      {/* 統計 */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {(['post', 'comment', 'event', 'shop', 'review'] as const).map((type) => {
           const count = items.filter((item: typeof items[number]) => item.type === type).length
@@ -86,7 +77,6 @@ export default async function HiddenContentPage() {
         })}
       </div>
 
-      {/* コンテンツ一覧 */}
       {items.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           非表示コンテンツはありません

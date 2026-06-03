@@ -20,14 +20,14 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     const typeItem = await getSpreaderTypeBySlug(params.type)
     if (typeItem) {
       return {
-        title: `${typeItem.name}の展着剤 - 農薬・病害虫 - BON-LOG`,
+        title: `${typeItem.name}の展着剤 - 農薬・病害虫`,
         description: '展着剤の種類（一般展着剤・固着剤・浸透性展着剤など）と選び方を確認できます。',
         alternates: { canonical },
       }
     }
   }
   return {
-    title: '展着剤一覧 - 農薬・病害虫 - BON-LOG',
+    title: '展着剤一覧 - 農薬・病害虫',
     description: '展着剤の種類（一般展着剤・固着剤・浸透性展着剤など）と選び方を確認できます。',
     alternates: { canonical },
   }

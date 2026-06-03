@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 管理者拡張ページのE2Eテスト
@@ -129,8 +130,7 @@ test.describe('管理者拡張ページ', () => {
     // 詳細リンクを探す
     const detailLinks = page.locator('a[href^="/admin/contact/"]')
     if ((await detailLinks.count()) > 0) {
-      await detailLinks.first().click()
-      await expect(page).toHaveURL(/\/admin\/contact\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, detailLinks.first(), /\/admin\/contact\//, { timeout: 10000 })
 
       // 詳細コンテンツが表示される
       const content = page.getByText(/お問い合わせ|詳細|件名|内容/i).first()
@@ -151,8 +151,7 @@ test.describe('管理者拡張ページ', () => {
     // ユーザー詳細リンクを探す
     const userLinks = page.locator('a[href^="/admin/users/"]')
     if ((await userLinks.count()) > 0) {
-      await userLinks.first().click()
-      await expect(page).toHaveURL(/\/admin\/users\//, { timeout: 10000 })
+      await clickAndWaitForUrl(page, userLinks.first(), /\/admin\/users\//, { timeout: 10000 })
 
       // ユーザー詳細が表示される
       const content = page.getByText(/ユーザー詳細|アカウント|メールアドレス/i).first()

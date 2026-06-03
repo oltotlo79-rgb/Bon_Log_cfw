@@ -176,6 +176,33 @@ describe('Feed Actions', async () => {
       )
     })
 
+    it('巨大な limit は MAX_PAGE_LIMIT にクランプする（DoS 対策）', async () => {
+      const { MAX_PAGE_LIMIT } = await import('@/lib/constants/limits')
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.like.findMany.mockResolvedValueOnce([])
+      mockPrisma.bookmark.findMany.mockResolvedValueOnce([])
+
+      const { getTimeline } = await import('@/lib/actions/feed')
+      await getTimeline(undefined, 1_000_000)
+
+      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: MAX_PAGE_LIMIT }),
+      )
+    })
+
+    it('不正な文字を含むカーソルは無視して新規取得扱いにする', async () => {
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.like.findMany.mockResolvedValueOnce([])
+      mockPrisma.bookmark.findMany.mockResolvedValueOnce([])
+
+      const { getTimeline } = await import('@/lib/actions/feed')
+      await getTimeline('bad cursor!!', 10)
+
+      const call = mockPrisma.post.findMany.mock.calls.at(-1)?.[0]
+      expect(call).toMatchObject({ take: 10 })
+      expect(call).not.toHaveProperty('cursor')
+    })
+
     it('次のカーソルを返す', async () => {
       const mockPosts = Array(20).fill(null).map((_, i) => ({
         id: `post-${i}`,
@@ -268,6 +295,9 @@ describe('Feed Actions', async () => {
                 'blocked-user',
               ]),
             },
+            // 非公開・停止ユーザーはおすすめから除外する
+            isPublic: true,
+            isSuspended: false,
           }),
         })
       )

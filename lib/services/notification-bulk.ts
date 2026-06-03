@@ -8,6 +8,8 @@ import 'server-only'
 import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
 import { sendPushNotification } from '@/lib/web-push'
+import { ROUTE_NOTIFICATIONS } from '@/lib/constants/routes'
+import { buildPostPath } from '@/lib/constants/path-builders'
 import {
   SYSTEM_NOTIFICATION_TYPES,
   type NotificationType,
@@ -143,7 +145,7 @@ export async function createNotificationsBulk(
 
   // プッシュ通知をバックグラウンド送信。1件失敗が他に伝播しないよう Promise.allSettled で隔離。
   if (!skipPushNotification) {
-    const url = postId ? `/posts/${postId}` : '/notifications'
+    const url = postId ? buildPostPath(postId) : ROUTE_NOTIFICATIONS
     const body = pushBody ?? '新しい通知が届きました'
     void Promise.allSettled(
       candidateIds.map((recipientId) =>
@@ -226,7 +228,7 @@ export async function createSystemNotificationsBulk(params: {
   })
 
   if (!skipPushNotification) {
-    const url = postId ? `/posts/${postId}` : '/notifications'
+    const url = postId ? buildPostPath(postId) : ROUTE_NOTIFICATIONS
     const body = pushBody ?? '新しい通知が届きました'
     void Promise.allSettled(
       candidateIds.map((recipientId) =>

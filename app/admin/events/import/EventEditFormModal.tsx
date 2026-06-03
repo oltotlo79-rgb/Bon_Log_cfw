@@ -81,7 +81,6 @@ function EventEditForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* タイトル */}
       <div>
         <label className="block text-sm font-medium mb-1">タイトル *</label>
         <input
@@ -93,7 +92,6 @@ function EventEditForm({
         />
       </div>
 
-      {/* 日付 */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">開始日 *</label>
@@ -116,7 +114,6 @@ function EventEditForm({
         </div>
       </div>
 
-      {/* 場所 */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">都道府県</label>
@@ -144,7 +141,6 @@ function EventEditForm({
         </div>
       </div>
 
-      {/* 会場 */}
       <div>
         <label className="block text-sm font-medium mb-1">会場</label>
         <input
@@ -155,7 +151,6 @@ function EventEditForm({
         />
       </div>
 
-      {/* 主催者 */}
       <div>
         <label className="block text-sm font-medium mb-1">主催者</label>
         <input
@@ -166,7 +161,6 @@ function EventEditForm({
         />
       </div>
 
-      {/* 入場料・即売 */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">入場料</label>
@@ -191,7 +185,6 @@ function EventEditForm({
         </div>
       </div>
 
-      {/* 説明 */}
       <div>
         <label className="block text-sm font-medium mb-1">説明</label>
         <textarea
@@ -202,7 +195,6 @@ function EventEditForm({
         />
       </div>
 
-      {/* 外部URL */}
       <div>
         <label className="block text-sm font-medium mb-1">外部URL</label>
         <input
@@ -213,7 +205,6 @@ function EventEditForm({
         />
       </div>
 
-      {/* ボタン */}
       <DialogFooter>
         <button
           type="button"

@@ -4,7 +4,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import {
-  ROUTE_HOME,
   ROUTE_FEED,
   ROUTE_LOGIN,
   ROUTE_REGISTER,
@@ -17,7 +16,15 @@ export function PublicSiteHeader() {
   return (
     <header className="border-b bg-card">
       <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href={ROUTE_HOME} className="flex items-center gap-2">
+        {/*
+          ロゴリンクは意図的に `next/link` ではなく素の `<a>` を使う。
+          Why: proxy.ts は `/` をログイン状態に応じて `/feed` にリダイレクトする。
+          Next.js の Router Cache がログイン中の `/` → `/feed` redirect を保持していると、
+          ログアウト後でも cached payload が再生され `/feed` に飛ばされる事象が発生する。
+          public ページは logged-in/out 両対応のためこの問題が起きやすく、full-page nav で回避する。
+        */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/" className="flex items-center gap-2">
           <Image
             src="/logo.png"
             alt="BON-LOG"
@@ -26,7 +33,7 @@ export function PublicSiteHeader() {
             className="h-8 w-auto dark:invert"
             unoptimized
           />
-        </Link>
+        </a>
         <div className="flex items-center gap-4">
           {isLoggedIn ? (
             <Link

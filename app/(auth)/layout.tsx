@@ -1,6 +1,6 @@
 import Image from 'next/image'
-import Link from 'next/link'
 import { ArrowLeft as ArrowLeftIcon } from 'lucide-react'
+import { ROUTE_HOME_FROM_AUTH } from '@/lib/constants/routes'
 
 export default function AuthLayout({
   children,
@@ -9,14 +9,25 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden washi-texture text-foreground selection:bg-black selection:text-white bg-background">
-      {/* トップに戻るボタン */}
-      <Link
-        href="/"
+      {/*
+        トップへ戻るボタン: ログアウト直後（未ログイン）に踏まれる。
+        proxy.ts は `/` をログイン状態に応じて `/feed` へ 307 する。この認証依存リダイレクトを
+        ブラウザ / CDN / bfcache が保持していると、ログアウト後でも Cookie を再評価せず
+        `/feed` → `/onboarding` と誤遷移する。`<a>` 化で Router Cache を、proxy 側の no-store で
+        HTTP cache を塞いだが、CDN / bfcache 経路で再発し得た。
+        そこで「ログイン中には決して訪問され得ない」クエリ付き URL (`/?from=auth`) へ遷移させ、
+        キャッシュ済みリダイレクトが構造的に存在し得ない状態を作る。着地後は landing 側の
+        HomeUrlCleaner が `?from=auth` を履歴から除去し URL を `/` に戻す。
+        next/link ではなく素の `<a>` なのは、full-page navigation で proxy に最新 Cookie を
+        評価させるため。
+      */}
+      <a
+        href={ROUTE_HOME_FROM_AUTH}
         className="fixed top-6 left-6 z-50 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-background/80 backdrop-blur-md px-4 py-2 rounded-full border shadow-sm group"
       >
         <ArrowLeftIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
         トップへ戻る
-      </Link>
+      </a>
 
       {/* 墨飛沫背景。viewport / theme で 1 枚しか表示されないため preload は使わず
           loading="eager" + fetchPriority="high" で帯域競合を避ける。 */}
@@ -64,16 +75,13 @@ export default function AuthLayout({
         アシンメトリーを強調するため、コンテナ全体をわずかに傾ける (-rotate-1)
       */}
       <div className="w-full max-w-md relative z-10 animate-fade-in transform -rotate-1">
-        {/* 装飾: かすれた筆の区切り線 */}
         <div className="flex items-center justify-center mb-10 opacity-60">
           <div className="w-24 brush-divider" />
           <div className="mx-4 font-black text-2xl tracking-widest text-foreground/50 select-none">・</div>
           <div className="w-24 brush-divider" />
         </div>
 
-        {/* ロゴ（ライト時は黒、ダーク時は白で表示） */}
         <div className="text-center mb-12">
-          {/* テキストロゴに変更し、特大・筆文字で表現 */}
           <h1 className="text-6xl md:text-7xl font-black tracking-widest text-foreground drop-shadow-sm select-none">
             BON<span className="opacity-80 ml-2">-</span>LOG
           </h1>
@@ -82,18 +90,23 @@ export default function AuthLayout({
           </p>
         </div>
 
-        {/* 
-          メインカード（ライト時は白、ダーク時は暗い背景でテーマに追従）
+        {/*
+          メインカード（ライト時は白、ダーク時は透明でテーマに追従）
           四角いボーダーではなく、墨枠 (card-washi) で囲む。
           背面のコンテナの傾き (-rotate-1) とは逆方向に少し戻す (rotate-1) ことでバランスを取る。
+
+          Why dark で overlay / blur を入れない:
+            背面の墨絵 (auth-bonsai-gate-dark.webp) を景観として見せる要件のため、
+            コンテナ側で背景を覆う overlay も blur も持たない。
+            フォーム入力欄は `auth-glass [data-slot="input"]` 側で 0.3 opacity の
+            半透明背景を別途持ち、入力部分だけ局所的に読みやすくする。
         */}
-        <div className="relative card-washi bg-white/30 dark:bg-black/30 backdrop-blur-md p-2 shadow-washi-lg transform rotate-1 auth-glass">
+        <div className="relative card-washi bg-white/30 dark:bg-transparent backdrop-blur-md dark:backdrop-blur-none p-2 shadow-washi-lg transform rotate-1 auth-glass">
           <main id="main-content" tabIndex={-1} className="relative z-10 text-card-foreground p-6 md:p-8">
             {children}
           </main>
         </div>
 
-        {/* 下部の装飾 */}
         <div className="flex items-center justify-center mt-12 opacity-40">
           <div className="w-32 brush-divider" />
         </div>

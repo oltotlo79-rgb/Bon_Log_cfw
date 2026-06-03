@@ -30,43 +30,21 @@ type MentionUser = {
   isFollowing: boolean
 }
 
-/**
- * MentionTextareaコンポーネントのprops型
- */
 type MentionTextareaProps = {
-  /** 現在の値 */
   value: string
-  /** 値変更時のコールバック */
   onChange: (value: string) => void
-  /** プレースホルダー */
   placeholder?: string
-  /** 最大文字数 */
   maxLength?: number
-  /** 表示行数 */
   rows?: number
-  /** 追加のCSSクラス */
   className?: string
-  /** 無効状態 */
   disabled?: boolean
-  /** 自動フォーカス */
   autoFocus?: boolean
-  /** アクセシビリティラベル */
   'aria-label'?: string
 }
 
 const DEBOUNCE_DELAY = DEBOUNCE_DELAY_MS
-
-/**
- * 最大表示候補数
- */
 const MAX_SUGGESTIONS = MAX_MENTION_SUGGESTIONS
 
-/**
- * メンション機能付きテキストエリアコンポーネント
- *
- * @入力を検出してユーザー候補をドロップダウン表示し、
- * 選択時に <@userId> 形式でテキストに挿入します。
- */
 export function MentionTextarea({
   value,
   onChange,
@@ -78,29 +56,13 @@ export function MentionTextarea({
   autoFocus = false,
   'aria-label': ariaLabel,
 }: MentionTextareaProps) {
-
-  /** メンション候補リスト */
   const [suggestions, setSuggestions] = useState<MentionUser[]>([])
-
-  /** 候補ドロップダウンの表示状態 */
   const [showSuggestions, setShowSuggestions] = useState(false)
-
-  /** 選択中の候補インデックス */
   const [selectedIndex, setSelectedIndex] = useState(0)
-
-  /** @の開始位置 */
   const [triggerPosition, setTriggerPosition] = useState<number | null>(null)
-
-  /** ローディング状態 */
   const [isLoading, setIsLoading] = useState(false)
-
-  /** テキストエリアへの参照 */
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  /** ドロップダウンへの参照 */
   const dropdownRef = useRef<HTMLDivElement>(null)
-
-  /** デバウンスタイマー */
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 空クエリ時はフォロー中ユーザーを優先表示する (mention.ts の searchMentionUsers 側で実装)。
@@ -130,26 +92,21 @@ export function MentionTextarea({
     }, DEBOUNCE_DELAY)
   }, [searchUsers])
 
-  /**
-   * テキスト変更時の処理
-   */
   function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     const newValue = e.target.value
     const cursorPosition = e.target.selectionStart
 
     onChange(newValue)
 
-    // @の検出
     const textBeforeCursor = newValue.slice(0, cursorPosition)
     const lastAtIndex = textBeforeCursor.lastIndexOf('@')
 
     if (lastAtIndex !== -1) {
-      // @の前が空白、改行、または文頭かチェック
+      // @ の直前が空白・改行・文頭のときだけメンション開始とみなす（メール等の誤検出回避）
       const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' '
       const isValidTrigger = charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0
 
       if (isValidTrigger) {
-        // @以降のテキストを取得（スペースや改行がない場合のみ）
         const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1)
         const hasSpaceOrNewline = /[\s\n]/.test(textAfterAt)
 
@@ -161,15 +118,11 @@ export function MentionTextarea({
       }
     }
 
-    // メンション入力中でない場合は候補を非表示
     setTriggerPosition(null)
     setSuggestions([])
     setShowSuggestions(false)
   }
 
-  /**
-   * メンション候補を選択
-   */
   function selectUser(user: MentionUser) {
     if (triggerPosition === null) return
 
@@ -183,7 +136,7 @@ export function MentionTextarea({
 
     onChange(newText)
 
-    // カーソル位置を設定
+    // DOM 反映後にキャレットを挿入後位置へ移すため次フレームで設定する
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.selectionStart = newCursor
@@ -192,16 +145,12 @@ export function MentionTextarea({
       }
     }, 0)
 
-    // 状態をリセット
     setTriggerPosition(null)
     setSuggestions([])
     setShowSuggestions(false)
     setSelectedIndex(0)
   }
 
-  /**
-   * キーボード操作の処理
-   */
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (!showSuggestions || suggestions.length === 0) return
 
@@ -239,9 +188,6 @@ export function MentionTextarea({
     }
   }
 
-  /**
-   * 外部クリックでドロップダウンを閉じる
-   */
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (!(e.target instanceof Node)) return
@@ -259,9 +205,6 @@ export function MentionTextarea({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  /**
-   * クリーンアップ
-   */
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -286,7 +229,6 @@ export function MentionTextarea({
         aria-label={ariaLabel}
       />
 
-      {/* メンション候補ドロップダウン */}
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
@@ -311,7 +253,6 @@ export function MentionTextarea({
                         : 'hover:bg-muted/50'
                     )}
                   >
-                    {/* アバター */}
                     <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex-shrink-0">
                       {user.avatarUrl ? (
                         <Image
@@ -329,7 +270,6 @@ export function MentionTextarea({
                       )}
                     </div>
 
-                    {/* ユーザー情報 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">
@@ -348,7 +288,6 @@ export function MentionTextarea({
             </ul>
           )}
 
-          {/* ヒント */}
           <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-muted/30">
             <span className="mr-3">↑↓ 選択</span>
             <span className="mr-3">Enter 確定</span>

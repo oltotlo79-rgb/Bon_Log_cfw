@@ -1,23 +1,11 @@
-/**
- * @file 管理者用レビュー管理ページ
- * @description 盆栽園レビュー一覧の表示、検索、フィルタリング機能を提供する管理者ページ。
- *              レビューの削除や通報状況の確認が可能。
- */
-
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
-// Next.jsの画像最適化コンポーネント
 import Image from 'next/image'
-// Next.jsのリダイレクト関数
 import { redirect } from 'next/navigation'
-// 認証失敗時のリダイレクト先
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
-// 管理者用レビュー一覧取得のServer Action
 import { getAdminReviews } from '@/lib/actions/admin/content'
-// レビュー操作用ドロップダウンメニューコンポーネント
 import { ReviewActionsDropdown } from './ReviewActionsDropdown'
-// ページネーション定数
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import { buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
@@ -44,7 +32,6 @@ function StarIcon({ className, filled }: { className?: string; filled?: boolean 
 }
 
 /**
- * ページメタデータの定義
  * ブラウザのタイトルバーに表示される
  */
 export const metadata = {
@@ -52,7 +39,6 @@ export const metadata = {
 }
 
 /**
- * ページコンポーネントのProps型定義
  * URLのクエリパラメータを受け取る
  */
 interface PageProps {
@@ -106,7 +92,6 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
         <span className="text-sm text-muted-foreground">全 {total} 件</span>
       </div>
 
-      {/* フィルター */}
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
@@ -142,7 +127,6 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* レビューテーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">
@@ -161,7 +145,7 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
               <tr key={review.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3">
                   <Link
-                    href={`/users/${review.user.id}`}
+                    href={buildUserPath(review.user.id)}
                     className="flex items-center gap-2 hover:underline"
                   >
                     {review.user.avatarUrl ? (
@@ -180,7 +164,7 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
                 </td>
                 <td className="px-4 py-3">
                   <Link
-                    href={`/shops/${review.shop.id}`}
+                    href={buildShopPath(review.shop.id)}
                     className="text-sm hover:underline"
                   >
                     {review.shop.name}

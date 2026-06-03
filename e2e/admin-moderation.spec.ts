@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 管理者モデレーション関連ページのE2Eテスト
@@ -75,10 +76,9 @@ test.describe('管理者操作ログページ', () => {
     // フィルタリングを実行
     await filterSelect.selectOption('delete_post')
     const filterBtn = page.getByRole('button', { name: /フィルター/i })
-    await filterBtn.click()
 
     // URLにクエリパラメータが含まれる
-    await page.waitForURL(/\/admin\/logs/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, filterBtn, /\/admin\/logs/, { timeout: 10000 })
     await expect(page).toHaveURL(/\/admin\/logs/, { timeout: 5000 })
   })
 

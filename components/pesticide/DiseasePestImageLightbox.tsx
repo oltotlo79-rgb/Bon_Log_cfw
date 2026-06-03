@@ -4,6 +4,8 @@ import Image from 'next/image'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -50,9 +52,11 @@ export function DiseasePestImageLightbox({
         className="max-w-[min(90vw,640px)] p-2 sm:p-4 bg-black/95 border-border/50"
         showCloseButton={true}
       >
+        <DialogTitle className="sr-only">{alt}の拡大画像</DialogTitle>
+        <DialogDescription className="sr-only">
+          Esc キーまたは閉じるボタンで戻れます。
+        </DialogDescription>
         <div className="relative flex items-center justify-center w-full" style={{ maxHeight: '85vh' }}>
-          {/* 拡大画像: next/image の intrinsic レイアウトを使用し、max-h で85vhに制限する。
-              width/height はアスペクト比のヒント。sizes は DialogContent の max-width 640px に合わせる。 */}
           <Image
             src={imageUrl}
             alt={alt}

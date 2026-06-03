@@ -17,6 +17,11 @@ vi.mock('@/lib/auth', () => ({
 // revalidatePathモック
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
+const mockDeleteMediaFiles = vi.fn()
+vi.mock('@/lib/services/media-cleanup', () => ({
+  deleteMediaFiles: (...args: unknown[]) => mockDeleteMediaFiles(...args),
+}))
+
 // ロガーモック
 vi.mock('@/lib/logger', () => ({
   __esModule: true,
@@ -74,18 +79,19 @@ describe('Bonsai Actions', async () => {
       expect(data.bonsais[0].name).toBe(mockBonsai.name)
     })
 
-    it('他ユーザーの盆栽一覧を取得できる', async () => {
+    it('引数 userId を信用せず認証済み本人の盆栽のみ取得する', async () => {
       const mockBonsais = [{ ...mockBonsai, records: [], _count: { records: 3 } }]
       mockPrisma.bonsai.findMany.mockResolvedValueOnce(mockBonsais)
 
       const { getBonsais } = await import('@/lib/actions/bonsai')
-      const result = await getBonsais('other-user-id')
+      // 旧シグネチャの他者ID引数を渡しても無視され、auth ユーザーで絞られる
+      const result = await (getBonsais as unknown as (u: string) => ReturnType<typeof getBonsais>)('other-user-id')
 
       const data = unwrapOk<{ bonsais: typeof mockBonsais }>(result)
       expect(data.bonsais).toBeDefined()
       expect(mockPrisma.bonsai.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: 'other-user-id' },
+          where: { userId: mockUser.id },
         })
       )
     })
@@ -136,6 +142,30 @@ describe('Bonsai Actions', async () => {
       const result = await getBonsai('nonexistent-id')
 
       expect(result).toMatchObject({ error: '盆栽が見つかりません' })
+    })
+
+    it('非所有者には存在を秘匿してエラーを返す', async () => {
+      mockPrisma.bonsai.findUnique.mockResolvedValueOnce({
+        ...mockBonsai,
+        userId: 'other-owner-id',
+        user: { id: 'other-owner-id', nickname: 'Other', avatarUrl: null },
+        records: [],
+        _count: { records: 0 },
+      })
+
+      const { getBonsai } = await import('@/lib/actions/bonsai')
+      const result = await getBonsai(mockBonsai.id)
+
+      expect(result).toMatchObject({ error: '盆栽が見つかりません' })
+    })
+
+    it('未認証の場合はエラーを返す', async () => {
+      mockAuth.mockResolvedValueOnce(null)
+
+      const { getBonsai } = await import('@/lib/actions/bonsai')
+      const result = await getBonsai(mockBonsai.id)
+
+      expect(result).toMatchObject({ success: false })
     })
 
     it('取得に失敗した場合、エラーを返す', async () => {
@@ -232,14 +262,25 @@ describe('Bonsai Actions', async () => {
   // ============================================================
 
   describe('deleteBonsai', async () => {
-    it('盆栽を削除できる', async () => {
-      mockPrisma.bonsai.findFirst.mockResolvedValueOnce(mockBonsai)
+    it('盆栽を削除でき、配下レコードのメディア実体も回収する', async () => {
+      mockPrisma.bonsai.findFirst.mockResolvedValueOnce({
+        ...mockBonsai,
+        records: [
+          { images: [{ url: 'https://cdn/rec1-a.webp' }] },
+          { images: [{ url: 'https://cdn/rec2-a.webp' }, { url: 'https://cdn/rec2-b.webp' }] },
+        ],
+      })
       mockPrisma.bonsai.delete.mockResolvedValueOnce(mockBonsai)
 
       const { deleteBonsai } = await import('@/lib/actions/bonsai')
       const result = await deleteBonsai(mockBonsai.id)
 
       expect(result).toEqual({ success: true })
+      expect(mockDeleteMediaFiles).toHaveBeenCalledWith([
+        'https://cdn/rec1-a.webp',
+        'https://cdn/rec2-a.webp',
+        'https://cdn/rec2-b.webp',
+      ])
     })
 
     it('未認証の場合、エラーを返す', async () => {
@@ -372,6 +413,7 @@ describe('Bonsai Actions', async () => {
         ...mockBonsaiRecord,
         bonsai: { userId: mockUser.id },
         bonsaiId: mockBonsai.id,
+        images: [],
       })
       mockPrisma.bonsaiRecord.delete.mockResolvedValueOnce(mockBonsaiRecord)
 
@@ -441,6 +483,11 @@ describe('Bonsai Actions', async () => {
   // ============================================================
 
   describe('getBonsaiRecords', async () => {
+    beforeEach(() => {
+      // 所有者一致を既定とする（マイ盆栽の所有者チェックを通過させる）
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: mockUser.id })
+    })
+
     it('特定盆栽の成長記録一覧を取得できる', async () => {
       const mockRecords = [{ ...mockBonsaiRecord, images: [] }]
       mockPrisma.bonsaiRecord.findMany.mockResolvedValueOnce(mockRecords)
@@ -541,11 +588,16 @@ describe('Bonsai Actions', async () => {
   // ============================================================
 
   describe('getBonsais - additional', async () => {
-    it('無効なuserIdの場合、エラーを返す', async () => {
-      const { getBonsais } = await import('@/lib/actions/bonsai')
-      const result = await getBonsais('')
+    it('引数で他者IDを渡しても本人の盆栽のみ返す', async () => {
+      mockPrisma.bonsai.findMany.mockResolvedValueOnce([])
 
-      expect(result).toMatchObject({ error: '無効な盆栽IDです' })
+      const { getBonsais } = await import('@/lib/actions/bonsai')
+      const result = await (getBonsais as unknown as (u: string) => ReturnType<typeof getBonsais>)('other-user-id')
+
+      expect(result).toMatchObject({ success: true })
+      expect(mockPrisma.bonsai.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: mockUser.id } }),
+      )
     })
   })
 

@@ -1,10 +1,3 @@
-/**
- * @file 管理者用ユーザーセグメント管理ページ
- * @description ユーザーセグメントの一覧表示、作成、削除、評価を行う管理者ページ。
- *              条件ベースでユーザーをグルーピングし、対象ユーザー数を確認できる。
- * @route /admin/segments
- */
-
 import { Suspense } from 'react'
 import { getSegments } from '@/lib/actions/admin/segments'
 import { SegmentBuilder } from './SegmentBuilder'
@@ -12,9 +5,6 @@ import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: 'ユーザーセグメント - BON-LOG 管理',
 }
@@ -24,9 +14,6 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic'
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     cursor?: string

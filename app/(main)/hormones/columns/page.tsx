@@ -7,7 +7,7 @@ import { ROUTE_HORMONE_COLUMNS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: 'コラム - 植物ホルモン - BON-LOG',
+  title: 'コラム - 植物ホルモン',
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_COLUMNS) },
 }
 

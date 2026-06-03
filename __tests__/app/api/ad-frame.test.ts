@@ -1,4 +1,13 @@
 // @vitest-environment node
+import { vi } from 'vitest'
+
+vi.mock('@/lib/rate-limit', () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 60, resetTime: Date.now() + 60_000 }),
+  rateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 60, resetTime: Date.now() + 60_000 }),
+  getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
+  RATE_LIMITS: { api: { windowMs: 60_000, maxRequests: 60 } },
+}))
+
 import { GET } from '@/app/api/ad-frame/route'
 import { NextRequest } from 'next/server'
 

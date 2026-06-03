@@ -148,12 +148,12 @@ describe('getTimeline - ゲストタイムライン (lines 115-157)', () => {
     expect(result.posts[1].isLiked).toBe(false)
     expect(result.posts[1].isBookmarked).toBe(true)
 
-    // isHidden: false でフィルタされている
+    // 非表示投稿に加え、非公開・停止著者の投稿もゲストには出さない
     expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isHidden: false },
+        where: { isHidden: false, user: { isSuspended: false, OR: [{ isPublic: true }] } },
         take: 10, // GUEST_TIMELINE_LIMIT
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       })
     )
   })
@@ -287,6 +287,35 @@ describe('getTimeline - ゲストタイムライン (lines 115-157)', () => {
     expect(result.isGuest).toBe(false)
     // 通常ユーザーの場合、getUserRelationSetsが呼ばれる
     expect(mockGetUserRelationSets).toHaveBeenCalled()
+  })
+
+  it('認証済みfeedは停止著者を除外する（自分の投稿は除外しない）', async () => {
+    mockAuth.mockResolvedValueOnce({
+      user: { id: mockUser.id, email: 'regular@example.com' },
+    })
+    mockGetUserRelationSets.mockResolvedValueOnce({
+      followingUserIds: ['u2'],
+      blockedUserIds: [],
+      mutedUserIds: [],
+      hiddenPostIds: [],
+    })
+    mockGetExcludedUserIds.mockResolvedValueOnce([])
+    mockPrisma.post.findMany.mockResolvedValueOnce([])
+    mockGetPostInteractionSets.mockResolvedValueOnce({
+      likedSet: new Set(),
+      bookmarkedSet: new Set(),
+    })
+
+    const { getTimeline } = await import('@/lib/actions/feed')
+    await getTimeline()
+
+    const where = mockPrisma.post.findMany.mock.calls[0][0].where
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { userId: mockUser.id },
+        { user: { isSuspended: false } },
+      ]),
+    )
   })
 
   it('session.user.idがない場合エラーを返す', async () => {

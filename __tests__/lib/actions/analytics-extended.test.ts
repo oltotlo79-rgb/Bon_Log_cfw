@@ -3,7 +3,7 @@
 import { vi } from 'vitest'
 vi.unmock('@/lib/actions/analytics')
 
-import { createMockPrismaClient, mockUserAnalytics } from '../../utils/test-utils'
+import { createMockPrismaClient } from '../../utils/test-utils'
 
 // Prismaモック
 const mockPrisma = createMockPrismaClient()
@@ -221,94 +221,6 @@ describe('Analytics Actions Extended', async () => {
 
       expect(result.trend).toBeDefined()
       expect(result.trend!.length).toBe(30)
-    })
-  })
-
-  // ============================================================
-  // recordProfileView
-  // ============================================================
-
-  describe('recordProfileView', async () => {
-    it('プロフィール閲覧を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordProfileView } = await import('@/lib/actions/analytics')
-      await recordProfileView('u1')
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('DB error'))
-
-      const { recordProfileView } = await import('@/lib/actions/analytics')
-      await expect(recordProfileView('u1')).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
-  // recordPostView
-  // ============================================================
-
-  describe('recordPostView', async () => {
-    it('投稿閲覧を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordPostView } = await import('@/lib/actions/analytics')
-      await recordPostView('u1')
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('DB error'))
-
-      const { recordPostView } = await import('@/lib/actions/analytics')
-      await expect(recordPostView('u1')).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
-  // recordLikeReceived
-  // ============================================================
-
-  describe('recordLikeReceived', async () => {
-    it('いいね受信を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordLikeReceived } = await import('@/lib/actions/analytics')
-      await recordLikeReceived('u1')
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('DB error'))
-
-      const { recordLikeReceived } = await import('@/lib/actions/analytics')
-      await expect(recordLikeReceived('u1')).resolves.not.toThrow()
-    })
-  })
-
-  // ============================================================
-  // recordNewFollower
-  // ============================================================
-
-  describe('recordNewFollower', async () => {
-    it('フォロワー増加を記録できる', async () => {
-      mockPrisma.userAnalytics.upsert.mockResolvedValueOnce(mockUserAnalytics)
-
-      const { recordNewFollower } = await import('@/lib/actions/analytics')
-      await recordNewFollower('u1')
-
-      expect(mockPrisma.userAnalytics.upsert).toHaveBeenCalled()
-    })
-
-    it('エラーが発生しても例外をスローしない', async () => {
-      mockPrisma.userAnalytics.upsert.mockRejectedValueOnce(new Error('DB error'))
-
-      const { recordNewFollower } = await import('@/lib/actions/analytics')
-      await expect(recordNewFollower('u1')).resolves.not.toThrow()
     })
   })
 

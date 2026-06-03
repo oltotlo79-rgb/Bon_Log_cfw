@@ -1,22 +1,7 @@
-/**
- * @file タイムラインページ専用エラーコンポーネント
- * @description タイムラインのデータ取得時にエラーが発生した場合に表示されるUI
- *
- * このファイルはNext.js App Routerの規約に基づくエラーバウンダリです。
- * /feedページでサーバーエラーやネットワークエラーが発生した際に自動的に表示されます。
- *
- * 'use client'ディレクティブが必須です。
- * これはerror.tsxがクライアントサイドでエラーをキャッチする必要があるためです。
- *
- * @see https://nextjs.org/docs/app/building-your-application/routing/error-handling
- */
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * タイムラインエラーコンポーネント
- */
 export default function FeedError({
   error,
   reset,

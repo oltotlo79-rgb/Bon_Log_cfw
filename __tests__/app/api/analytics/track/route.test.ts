@@ -38,6 +38,9 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: { api: { windowMs: 60_000, maxRequests: 60 } },
 }))
 
+// cookie は UUID 形式のみ再利用される。テストでは実在形式の UUID を使う。
+const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000'
+
 function makeRequest() {
   return new NextRequest('http://localhost:3000/api/analytics/track', {
     method: 'POST',
@@ -62,8 +65,8 @@ describe('POST /api/analytics/track', () => {
     expect(mockUpsert).toHaveBeenCalledTimes(1)
   })
 
-  it('既存 Cookie がある場合は再発行せず upsert のみ行う', async () => {
-    mockCookieGet.mockReturnValue({ value: 'existing-uuid-1234' })
+  it('既存 Cookie が UUID 形式なら再発行せず upsert のみ行う', async () => {
+    mockCookieGet.mockReturnValue({ value: VALID_UUID })
 
     const { POST } = await import('@/app/api/analytics/track/route')
     const res = await POST(makeRequest())
@@ -71,11 +74,25 @@ describe('POST /api/analytics/track', () => {
     expect(res.headers.get('set-cookie')).toBeNull()
     expect(mockUpsert).toHaveBeenCalledTimes(1)
     const args = mockUpsert.mock.calls[0]?.[0]
-    expect(args?.where?.date_visitorId?.visitorId).toBe('existing-uuid-1234')
+    expect(args?.where?.date_visitorId?.visitorId).toBe(VALID_UUID)
+  })
+
+  it('Cookie が UUID 形式でない場合は再利用せず新規 UUID を発行する（squat 対策）', async () => {
+    mockCookieGet.mockReturnValue({ value: 'attacker-controlled-value' })
+
+    const { POST } = await import('@/app/api/analytics/track/route')
+    const res = await POST(makeRequest())
+    expect(res.status).toBe(200)
+    // 不正値は採用されず、新しい UUID が Set-Cookie で再発行される
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('bon_log_visitor_id=')
+    const usedVisitorId = mockUpsert.mock.calls[0]?.[0]?.where?.date_visitorId?.visitorId
+    expect(usedVisitorId).not.toBe('attacker-controlled-value')
+    expect(usedVisitorId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   })
 
   it('認証中なら userId をバックフィルする', async () => {
-    mockCookieGet.mockReturnValue({ value: 'visitor-1' })
+    mockCookieGet.mockReturnValue({ value: VALID_UUID })
     mockAuth.mockResolvedValue({ user: { id: 'user-42' } })
 
     const { POST } = await import('@/app/api/analytics/track/route')
@@ -86,7 +103,7 @@ describe('POST /api/analytics/track', () => {
   })
 
   it('未認証なら create.userId は null', async () => {
-    mockCookieGet.mockReturnValue({ value: 'visitor-1' })
+    mockCookieGet.mockReturnValue({ value: VALID_UUID })
     mockAuth.mockResolvedValue(null)
 
     const { POST } = await import('@/app/api/analytics/track/route')
@@ -97,7 +114,7 @@ describe('POST /api/analytics/track', () => {
   })
 
   it('upsert が失敗してもユーザーへは 200 を返す（fire-and-forget）', async () => {
-    mockCookieGet.mockReturnValue({ value: 'visitor-1' })
+    mockCookieGet.mockReturnValue({ value: VALID_UUID })
     mockUpsert.mockRejectedValueOnce(new Error('DB down'))
 
     const { POST } = await import('@/app/api/analytics/track/route')
@@ -106,7 +123,7 @@ describe('POST /api/analytics/track', () => {
   })
 
   it('auth() が throw しても upsert は実行されて成功する', async () => {
-    mockCookieGet.mockReturnValue({ value: 'visitor-1' })
+    mockCookieGet.mockReturnValue({ value: VALID_UUID })
     mockAuth.mockRejectedValueOnce(new Error('auth boom'))
 
     const { POST } = await import('@/app/api/analytics/track/route')

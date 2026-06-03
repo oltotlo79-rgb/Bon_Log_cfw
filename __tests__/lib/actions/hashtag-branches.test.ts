@@ -17,6 +17,7 @@ vi.unmock('@/lib/services/hashtag-sync')
 import { createMockPrismaClient } from '../../utils/test-utils'
 
 const mockPrisma = createMockPrismaClient()
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 vi.mock('@/lib/logger', () => ({

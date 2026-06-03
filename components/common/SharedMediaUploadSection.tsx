@@ -1,13 +1,8 @@
 'use client'
 
 /**
- * @file SharedMediaUploadSection.tsx
- * @description 共通メディアアップロードセクションコンポーネント
- *
- * 複数のフォーム（DraftEditForm, ScheduledPostForm, ReviewCard, CommentForm, PostForm）
- * で共通のメディアアップロードUIを提供します。
- * アップロード状態はフック（useMediaUpload）で管理し、このコンポーネントは
- * UIの表示を担当します。
+ * @module components/common/SharedMediaUploadSection
+ * 複数フォーム共通のメディアアップロード UI。状態は useMediaUpload が持ち、ここは表示のみ。
  */
 
 import Image from 'next/image'
@@ -20,40 +15,21 @@ export type SharedMediaFile = {
 }
 
 export interface SharedMediaUploadSectionProps {
-  /** アップロード済みファイル一覧 */
   mediaFiles: SharedMediaFile[]
-  /** アップロード中かどうか */
   uploading: boolean
-  /** アップロード進捗（0-100） */
   uploadProgress: number
-  /** ファイル選択ハンドラ */
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
-  /** メディア削除ハンドラ */
   onRemove: (index: number) => void
-  /** ファイル入力要素への参照 */
   fileInputRef: React.RefObject<HTMLInputElement | null>
-  /** 最大添付数合計（画像+動画） */
   maxTotal: number
-  /** 画像のみ許可するか（falseの場合は画像+動画） */
   imagesOnly?: boolean
-  /** 無効化フラグ */
   disabled?: boolean
-  /** ボタンの表示スタイル（'ghost'=アイコンのみ, 'outline'=テキスト付き） */
   buttonVariant?: 'ghost' | 'outline'
-  /** ボタンのテキスト（buttonVariant='outline'の場合に使用） */
   buttonLabel?: string
-  /** プレビューグリッドの追加クラス */
   previewClassName?: string
-  /** ファイル選択を複数許可するか */
   multiple?: boolean
 }
 
-/**
- * 共通メディアアップロードセクションコンポーネント
- *
- * プレビュー表示、削除ボタン、ファイル選択ボタン、プログレスバーを提供します。
- * 状態管理は親コンポーネントで行い、このコンポーネントはUIのみを担当します。
- */
 export function SharedMediaUploadSection({
   mediaFiles,
   uploading,
@@ -77,7 +53,6 @@ export function SharedMediaUploadSection({
 
   return (
     <>
-      {/* メディアプレビューグリッド */}
       {mediaFiles.length > 0 && (
         <div className={previewClassName ?? `grid gap-2 ${mediaFiles.length === 1 ? '' : 'grid-cols-2'}`}>
           {mediaFiles.map((media, index) => (
@@ -99,7 +74,6 @@ export function SharedMediaUploadSection({
         </div>
       )}
 
-      {/* 非表示ファイル入力 */}
       <input
         ref={fileInputRef}
         type="file"
@@ -109,7 +83,6 @@ export function SharedMediaUploadSection({
         className="hidden"
       />
 
-      {/* ファイル選択ボタン */}
       {buttonVariant === 'outline' ? (
         <Button
           type="button"
@@ -133,7 +106,6 @@ export function SharedMediaUploadSection({
         </Button>
       )}
 
-      {/* アップロード進捗バー */}
       {uploading && (
         <div className="flex items-center gap-2">
           <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">

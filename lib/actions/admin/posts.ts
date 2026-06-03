@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
+import { detachHashtagsFromPost } from '@/lib/services/hashtag-sync'
+import { revalidatePopularTagsCache, revalidateTrendingGenresCache } from '@/lib/cache'
 import { ERR_POST_NOT_FOUND, ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_POSTS } from '@/lib/constants/routes'
 import { logger } from '@/lib/logger'
@@ -122,6 +124,10 @@ export async function deletePostByAdmin(postId: string, reason: string) {
       return actionError(ERR_POST_NOT_FOUND)
     }
 
+    // ユーザー削除と同様に、denormalized な Hashtag.count を維持するため事前に detach する。
+    // PostHashtag 行は cascade で消えるが count は別途減算しないとドリフトする（best-effort）。
+    await detachHashtagsFromPost(idParsed.data)
+
     // interactive トランザクションで削除と監査ログを atomic に書き込む。
     await prisma.$transaction(async (tx) => {
       await tx.post.delete({ where: { id: idParsed.data } })
@@ -137,6 +143,8 @@ export async function deletePostByAdmin(postId: string, reason: string) {
     })
 
     revalidatePath(ROUTE_ADMIN_POSTS)
+    revalidatePopularTagsCache()
+    revalidateTrendingGenresCache()
     return actionSuccess()
   } catch (error) {
     logger.error('Delete post by admin error', { error: error instanceof Error ? error.message : String(error) })

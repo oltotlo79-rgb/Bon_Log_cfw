@@ -69,7 +69,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
   extractHashtags: vi.fn().mockReturnValue([]),
 }))
 
-vi.mock('@/lib/actions/mention', () => ({
+vi.mock('@/lib/services/mention', () => ({
   notifyMentionedUsers: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -187,6 +187,7 @@ describe('セキュリティ境界テスト', () => {
     it('自分の投稿は正常に削除できる', async () => {
       mockPrisma.post.findUnique.mockResolvedValue({
         userId: mockUser.id,
+        media: [],
       })
       mockPrisma.post.delete.mockResolvedValue({})
 

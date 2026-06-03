@@ -79,6 +79,9 @@ export const API_ERR_TOO_MANY_REQUESTS = 'Too many requests'
 /** Stripe webhook secret 未設定時の英語メッセージ */
 export const API_ERR_WEBHOOK_NOT_CONFIGURED = 'Webhook not configured'
 
+/** Webhook ハンドラが一過性エラーで失敗し、リトライを要求する場合の英語メッセージ */
+export const API_ERR_WEBHOOK_PROCESSING_FAILED = 'Webhook processing failed'
+
 /** Webhook 受信時に stripe-signature ヘッダが欠落していた場合の英語メッセージ */
 export const API_ERR_MISSING_SIGNATURE = 'Missing signature'
 

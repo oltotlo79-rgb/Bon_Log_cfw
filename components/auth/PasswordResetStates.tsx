@@ -11,7 +11,6 @@ import { ROUTE_LOGIN, ROUTE_PASSWORD_RESET } from '@/lib/constants/routes'
 export function VerifyingState() {
   return (
     <div className="text-center py-8">
-      {/* ローディングスピナー */}
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
       <p className="mt-4 text-muted-foreground">リンクを検証中...</p>
     </div>
@@ -27,7 +26,6 @@ export function VerifyingState() {
 export function TokenInvalidState() {
   return (
     <div className="space-y-4">
-      {/* エラーメッセージカード（赤色の背景） */}
       <div className="rounded-lg bg-destructive/10 p-4 text-center">
         <p className="text-destructive font-medium">リンクが無効です</p>
         <p className="text-destructive text-sm mt-2">
@@ -36,14 +34,12 @@ export function TokenInvalidState() {
         </p>
       </div>
 
-      {/* 再リクエストへのリンク */}
       <p className="text-center">
         <Link href={ROUTE_PASSWORD_RESET} className="text-primary hover:underline">
           パスワードリセットを再度リクエスト
         </Link>
       </p>
 
-      {/* ログインページへのリンク */}
       <p className="text-center text-sm text-muted-foreground">
         <Link href={ROUTE_LOGIN} className="text-primary hover:underline">
           ログインページへ戻る
@@ -62,7 +58,6 @@ export function TokenInvalidState() {
 export function ResetSuccessState() {
   return (
     <div className="space-y-4">
-      {/* 成功メッセージカード（緑色の背景） */}
       <div className="rounded-lg bg-muted/50 p-4 text-center">
         <p className="text-foreground font-medium">パスワードを更新しました</p>
         <p className="text-foreground text-sm mt-2">
@@ -71,7 +66,6 @@ export function ResetSuccessState() {
         </p>
       </div>
 
-      {/* すぐにログインしたい場合のリンク */}
       <p className="text-center">
         <Link href={ROUTE_LOGIN} className="text-primary hover:underline">
           今すぐログインする

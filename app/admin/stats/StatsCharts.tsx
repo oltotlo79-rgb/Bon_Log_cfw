@@ -1,9 +1,3 @@
-/**
- * @file 統計グラフコンポーネント
- * @description 統計データをライン/エリア/バーグラフで表示するクライアントコンポーネント。
- *              期間・指標・グラフタイプの切り替え機能を提供する。
- */
-
 'use client'
 
 import { useState } from 'react'
@@ -190,7 +184,6 @@ export function StatsCharts({ data }: StatsChartsProps) {
         <h2 className="text-lg font-semibold">推移グラフ</h2>
 
         <div className="flex flex-wrap items-center gap-4">
-          {/* 期間選択 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">期間:</span>
             <select
@@ -206,7 +199,6 @@ export function StatsCharts({ data }: StatsChartsProps) {
             </select>
           </div>
 
-          {/* 指標選択 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">指標:</span>
             <select
@@ -223,7 +215,6 @@ export function StatsCharts({ data }: StatsChartsProps) {
             </select>
           </div>
 
-          {/* グラフタイプ選択 */}
           <div className="flex items-center gap-1 border rounded-lg p-1">
             <button
               onClick={() => setChartType('area')}

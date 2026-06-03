@@ -5,6 +5,7 @@ import { vi } from 'vitest'
 const mockRedisGet = vi.fn()
 const mockRedisSet = vi.fn()
 const mockRedisDel = vi.fn()
+const mockRedisGetdel = vi.fn()
 const mockRedisIncr = vi.fn()
 const mockRedisExpire = vi.fn()
 const mockRedisTtl = vi.fn()
@@ -14,6 +15,7 @@ vi.mock('@upstash/redis', () => ({
     get: mockRedisGet,
     set: mockRedisSet,
     del: mockRedisDel,
+    getdel: mockRedisGetdel,
     incr: mockRedisIncr,
     expire: mockRedisExpire,
     ttl: mockRedisTtl,
@@ -125,6 +127,42 @@ describe('redis', async () => {
         const result = await client.get('delete-key')
 
         expect(result).toBeNull()
+      })
+    })
+
+    describe('getdel', async () => {
+      it('値を返すと同時にキーを削除する（単回使用）', async () => {
+        const { getRedisClient } = await import('@/lib/redis')
+        const client = getRedisClient()
+
+        await client.set('getdel-key', 'once')
+        const first = await client.getdel('getdel-key')
+        const second = await client.getdel('getdel-key')
+
+        expect(first).toBe('once')
+        expect(second).toBeNull()
+        // get でも消えていることを確認
+        expect(await client.get('getdel-key')).toBeNull()
+      })
+
+      it('存在しないキーは null を返す', async () => {
+        const { getRedisClient } = await import('@/lib/redis')
+        const client = getRedisClient()
+
+        expect(await client.getdel('getdel-missing')).toBeNull()
+      })
+
+      it('期限切れキーは null を返し副作用なし', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        const { getRedisClient } = await import('@/lib/redis')
+        const client = getRedisClient()
+
+        await client.set('getdel-expiring', 'value', { ex: 1 })
+        vi.advanceTimersByTime(2000)
+
+        expect(await client.getdel('getdel-expiring')).toBeNull()
+
+        vi.useRealTimers()
       })
     })
 
@@ -314,6 +352,20 @@ describe('redis', async () => {
         await client.del('redis-key')
 
         expect(mockRedisDel).toHaveBeenCalledWith('redis-key')
+      })
+    })
+
+    describe('getdel', async () => {
+      it('Redis.getdelを呼び出して値を返す', async () => {
+        mockRedisGetdel.mockResolvedValueOnce('redis-once')
+
+        const { getRedisClient } = await import('@/lib/redis')
+        const client = getRedisClient()
+
+        const result = await client.getdel('redis-key')
+
+        expect(mockRedisGetdel).toHaveBeenCalledWith('redis-key')
+        expect(result).toBe('redis-once')
       })
     })
 

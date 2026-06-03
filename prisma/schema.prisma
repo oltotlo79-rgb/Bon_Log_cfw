@@ -72,6 +72,7 @@ enum PaymentStatus {
   succeeded
   pending
   failed
+  refunded
 }
 
 enum AdminRole {
@@ -198,6 +199,10 @@ model User {
   isPublic         Boolean   @default(true) @map("is_public")
   isSuspended      Boolean   @default(false) @map("is_suspended")
   suspendedAt      DateTime? @map("suspended_at")
+  // プロフィール先頭に固定する自分の投稿（任意・1 件）。投稿削除時は SetNull で自動解除。
+  pinnedPostId     String?   @map("pinned_post_id")
+  // 初回オンボーディング完了日時。null は未完了（ログイン後に一度だけ /onboarding へ誘導する判定に使う）。
+  onboardedAt      DateTime? @map("onboarded_at")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
@@ -218,6 +223,7 @@ model User {
 
   // App relations
   posts                  Post[]
+  pinnedPost             Post?              @relation("UserPinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
   comments               Comment[]
   likes                  Like[]
   bookmarks              Bookmark[]
@@ -291,6 +297,8 @@ model User {
   @@index([isSuspended])
   // 管理画面: ユーザー一覧のフィルタ + ソート最適化
   @@index([isSuspended, createdAt(sort: Desc)])
+  // 投稿削除時の onDelete:SetNull (pinned_post_id) を seq scan させない
+  @@index([pinnedPostId])
   @@map("users")
 }
 
@@ -306,6 +314,8 @@ model Post {
   // ユーザーが投稿を削除した場合は物理削除（DB行削除）
   isHidden     Boolean   @default(false) @map("is_hidden")
   hiddenAt     DateTime? @map("hidden_at")
+  // editedAt: 投稿後にユーザーが内容を編集した日時。null は未編集（UI の「編集済み」表示判定に使う）
+  editedAt     DateTime? @map("edited_at")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -325,6 +335,7 @@ model Post {
   hashtags      PostHashtag[]
   hiddenByUsers UserHiddenPost[]
   poll          Poll?
+  pinnedByUsers User[]           @relation("UserPinnedPost")
 
   @@index([userId])
   @@index([createdAt])
@@ -336,6 +347,9 @@ model Post {
   @@index([userId, isHidden, createdAt(sort: Desc)])
   // モデレーション用クエリの最適化
   @@index([isHidden, userId])
+  // 同一ユーザーによる同一投稿への重複リポストを DB レベルで一意化する。
+  // 通常投稿は repost_post_id IS NULL となり、Postgres は NULL を相異なる値として扱うため複数許容される。
+  @@unique([userId, repostPostId])
   @@map("posts")
 }
 
@@ -388,6 +402,8 @@ model Comment {
   userId    String    @map("user_id")
   parentId  String?   @map("parent_id")
   content   String    @db.Text
+  // editedAt: 投稿後にユーザーが内容を編集した日時。null は未編集（UI の「編集済み」表示判定に使う）
+  editedAt  DateTime? @map("edited_at")
   // isHidden/hiddenAt: 管理者による非表示（モデレーション用）
   // deletedAt: ユーザーによるソフト削除（論理削除）
   isHidden  Boolean   @default(false) @map("is_hidden")
@@ -580,7 +596,8 @@ model Notification {
 //
 // 同一 Webhook イベントが Stripe 等のリトライにより複数回到達しても
 // 二重処理されないよう、provider 別に処理済み event_id を記録する。
-// 古いレコードは別途 Cron で 30 日経過後に削除（vercel.json の cleanup-events 参照）。
+// 古いレコードは `WEBHOOK_EVENT_RETENTION_DAYS`（30 日）経過後に
+// cleanup-events Cron (`app/api/cron/cleanup-events/route.ts`) で削除する。
 model WebhookEvent {
   id          String   @id @default(cuid())
   provider    String   @db.VarChar(50) // 'stripe' / 'paypal' など

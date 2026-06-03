@@ -27,10 +27,10 @@ import {
   formatTOTPCode,
 } from '@/lib/two-factor'
 
-import { checkUserRateLimit } from '@/lib/rate-limit'
 import { getClientIp } from '@/lib/actions/utils'
+import { issueTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
 
-import { ERR_RATE_LIMIT_OPERATION, ERR_USER_NOT_FOUND, ERR_2FA_ALREADY_ENABLED, ERR_2FA_INVALID_CODE, ERR_2FA_NOT_ENABLED, ERR_2FA_SETUP_EXPIRED, ERR_NO_PASSWORD_SET, ERR_INCORRECT_PASSWORD, ERR_INVALID_BACKUP_CODE, ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ERR_USER_NOT_FOUND, ERR_2FA_ALREADY_ENABLED, ERR_2FA_INVALID_CODE, ERR_2FA_NOT_ENABLED, ERR_2FA_SETUP_EXPIRED, ERR_NO_PASSWORD_SET, ERR_INCORRECT_PASSWORD, ERR_INVALID_BACKUP_CODE, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_SETTINGS_SECURITY } from '@/lib/constants/routes'
 
 /** Redis キーのプレフィックス */
@@ -83,14 +83,6 @@ const passwordOnlySchema = z.object({
  * - TTL（TWO_FACTOR_SETUP_TTL_SECONDS）が切れると自動破棄
  *
  * @returns セットアップ情報（QRコード、setupId、画面表示用secret/backupCodes）
- *
- * @example
- * ```typescript
- * const result = await setup2FA()
- * if (result.success) {
- *   // QRコードとsetupIdを保持、enable2FA(code, setupId) で有効化
- * }
- * ```
  */
 export async function setup2FA(): Promise<ActionResult<{ qrCode: string; secret: string; setupId: string; backupCodes: string[] }>> {
   const auth = await requireActiveNonGuestUser()
@@ -144,14 +136,6 @@ export async function setup2FA(): Promise<ActionResult<{ qrCode: string; secret:
  * @param token - ユーザーが入力した6桁のTOTPコード
  * @param setupId - setup2FA で取得したセットアップID
  * @returns 有効化結果
- *
- * @example
- * ```typescript
- * const result = await enable2FA('123456', setupId)
- * if (result.success) {
- *   // 2FAが有効化されました
- * }
- * ```
  */
 export async function enable2FA(
   token: string,
@@ -167,7 +151,6 @@ export async function enable2FA(
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  // ユーザー情報を取得
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { twoFactorEnabled: true },
@@ -232,14 +215,6 @@ export async function enable2FA(
  *
  * @param password - ユーザーのパスワード
  * @returns 無効化結果
- *
- * @example
- * ```typescript
- * const result = await disable2FA('currentPassword')
- * if ('success' in result) {
- *   // 2FAが無効化されました
- * }
- * ```
  */
 export async function disable2FA(password: string): Promise<ActionResult> {
   const auth = await requireActiveNonGuestUser()
@@ -252,7 +227,6 @@ export async function disable2FA(password: string): Promise<ActionResult> {
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  // ユーザー情報を取得
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { password: true, twoFactorEnabled: true },
@@ -298,38 +272,30 @@ export async function disable2FA(password: string): Promise<ActionResult> {
  * TOTPコードまたはバックアップコードを検証します。
  * バックアップコードが使用された場合は、そのコードを無効化します。
  *
+ * 成功時は単回使用のログインチケットを発行して返す。クライアントはこれを
+ * `signIn('credentials')` に渡し、`authorize()` がセッション発行前にチケットを消費する
+ * （サーバーサイドで 2FA を強制し、signIn 直叩きによるバイパスを塞ぐ）。
+ *
  * @param email - ユーザーのメールアドレス（userIdをクライアントに露出させないため）
  * @param code - TOTPコードまたはバックアップコード
- * @returns 検証結果
- *
- * @example
- * ```typescript
- * const result = await verify2FAToken('user@example.com', '123456')
- * if ('success' in result) {
- *   // 認証成功
- * }
- * ```
+ * @returns 検証結果（成功時は `{ ticket }` を含む）
  */
 export async function verify2FAToken(
   email: string,
   code: string
-): Promise<ActionResult> {
+): Promise<ActionResult<{ ticket: string }>> {
   // レート制限チェック（ブルートフォース対策）
   // Security note: This function accepts an email without session auth
   // (called during the login flow before session creation). Both email-
   // and IP-based rate limits are enforced to mitigate unauthenticated
   // brute-force attempts.
-  const rateLimitResult = await checkUserRateLimit(`email:${email}`, 'verify_2fa')
-  if (!rateLimitResult.success) {
-    return actionError(ERR_RATE_LIMIT_OPERATION)
-  }
+  const emailRl = await enforceUserRateLimit(`email:${email}`, 'verify_2fa')
+  if (emailRl) return actionError(emailRl.error)
 
   // IP-based rate limit to prevent distributed attacks across emails
   const ip = await getClientIp()
-  const ipRateLimitResult = await checkUserRateLimit(`ip:${ip}`, 'verify_2fa')
-  if (!ipRateLimitResult.success) {
-    return actionError(ERR_RATE_LIMIT_OPERATION)
-  }
+  const ipRl = await enforceUserRateLimit(`ip:${ip}`, 'verify_2fa')
+  if (ipRl) return actionError(ipRl.error)
 
   // ユーザー情報をメールアドレスで取得
   const user = await prisma.user.findUnique({
@@ -342,12 +308,12 @@ export async function verify2FAToken(
     },
   })
 
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  if (!user.twoFactorEnabled || !user.twoFactorSecret) {
-    return actionError(ERR_2FA_NOT_ENABLED)
+  // ユーザー列挙対策: 「該当ユーザーなし」「2FA 未設定」「コード不一致」を区別できる
+  // エラーを返すとアカウント存在の有無を推測されるため、全て同一の汎用エラーに統一する。
+  // この経路はログイン（パスワード検証後・2FA 有効ユーザーのみ到達想定）の前段であり、
+  // 正規ユーザーの UX を損なわない。
+  if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+    return actionError(ERR_2FA_INVALID_CODE)
   }
 
   // コードの種類を判定
@@ -363,7 +329,7 @@ export async function verify2FAToken(
       return actionError(ERR_2FA_INVALID_CODE)
     }
 
-    return actionSuccess()
+    return actionSuccess({ ticket: await issueTwoFactorLoginTicket(email) })
   } else {
     // バックアップコードの検証
     const backupCodeIndex = verifyBackupCode(code, user.twoFactorBackupCodes)
@@ -381,7 +347,7 @@ export async function verify2FAToken(
       data: { twoFactorBackupCodes: updatedBackupCodes },
     })
 
-    return actionSuccess()
+    return actionSuccess({ ticket: await issueTwoFactorLoginTicket(email) })
   }
 }
 
@@ -393,14 +359,6 @@ export async function verify2FAToken(
  *
  * @param password - ユーザーのパスワード
  * @returns 新しいバックアップコード
- *
- * @example
- * ```typescript
- * const result = await regenerateBackupCodes('currentPassword')
- * if ('success' in result) {
- *   // 新しいバックアップコードを表示
- * }
- * ```
  */
 export async function regenerateBackupCodes(
   password: string
@@ -415,7 +373,6 @@ export async function regenerateBackupCodes(
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  // ユーザー情報を取得
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { password: true, twoFactorEnabled: true },
@@ -458,21 +415,12 @@ export async function regenerateBackupCodes(
  * 2FAの状態を取得する
  *
  * @returns 2FAの有効状態と残りのバックアップコード数
- *
- * @example
- * ```typescript
- * const status = await get2FAStatus()
- * if ('enabled' in status && status.enabled) {
- *   console.log(`残りのバックアップコード: ${status.backupCodesRemaining}`)
- * }
- * ```
  */
 export async function get2FAStatus(): Promise<ActionResult<{ enabled: boolean; backupCodesRemaining?: number }>> {
   const auth = await requireAuth()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
-  // ユーザー情報を取得
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { twoFactorEnabled: true, twoFactorBackupCodes: true },
@@ -499,14 +447,6 @@ export async function get2FAStatus(): Promise<ActionResult<{ enabled: boolean; b
  *
  * @param email - ユーザーのメールアドレス
  * @returns 2FAが必要かどうか（ユーザー存在の漏洩を防ぐためuserIdは返さない）
- *
- * @example
- * ```typescript
- * const result = await check2FARequired('user@example.com')
- * if (result.required) {
- *   // 2FA入力画面を表示
- * }
- * ```
  */
 export async function check2FARequired(
   email: string

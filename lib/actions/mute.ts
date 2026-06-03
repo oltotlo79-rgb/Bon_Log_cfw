@@ -6,39 +6,17 @@
 
 'use server'
 
-/**
- * Prismaクライアント
- * データベース操作に使用
- */
 import { prisma } from '@/lib/db'
-
-/**
- * 認証ヘルパー
- * 共通の認証チェックパターンを提供
- */
+import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { requireActiveNonGuestUser, requireAuth, requireNotGuest, actionSuccess, actionError, type ActionResult, invalidateUserRelationsCache, enforceUserRateLimit } from '@/lib/actions/utils'
-
-/**
- * Next.jsのキャッシュ再検証関数
- * ミュート後にページを更新するために使用
- */
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
+import { cuidSchema } from '@/lib/actions/schemas/common'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import { clampLimit } from '@/lib/actions/pagination'
 import { ERR_SELF_MUTE, ERR_MUTE_FAILED, ERR_UNMUTE_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_FEED, ROUTE_SETTINGS_MUTED } from '@/lib/constants/routes'
 import { buildUserPath } from '@/lib/constants/path-builders'
 
-/**
- * ユーザーIDバリデーションスキーマ
- * cuid ベースで最大 30 文字。block.ts と同じ定義にして境界検証を統一。
- */
-const userIdSchema = z.string().min(1, ERR_INVALID_INPUT).max(30)
-
-/**
- * ロガー
- * エラーログの記録に使用
- */
 import logger from '@/lib/logger'
 
 /**
@@ -59,21 +37,13 @@ import logger from '@/lib/logger'
  *
  * @param targetUserId - ミュート対象のユーザーID
  * @returns 成功時は { success: true }、失敗時は { error: string }
- *
- * @example
- * ```typescript
- * const result = await muteUser('user-123')
- * if (result.success) {
- *   toast.success('ユーザーをミュートしました')
- * }
- * ```
  */
 export async function muteUser(targetUserId: string): Promise<ActionResult> {
   const authResult = await requireActiveNonGuestUser()
   if ('error' in authResult) return actionError(authResult.error)
   const userId = authResult.userId
 
-  const idParsed = userIdSchema.safeParse(targetUserId)
+  const idParsed = cuidSchema.safeParse(targetUserId)
   if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
 
   if (userId === targetUserId) {
@@ -116,21 +86,13 @@ export async function muteUser(targetUserId: string): Promise<ActionResult> {
  *
  * @param targetUserId - ミュート解除対象のユーザーID
  * @returns 成功時は { success: true }、失敗時は { error: string }
- *
- * @example
- * ```typescript
- * const result = await unmuteUser('user-123')
- * if (result.success) {
- *   toast.success('ミュートを解除しました')
- * }
- * ```
  */
 export async function unmuteUser(targetUserId: string): Promise<ActionResult> {
   const authResult = await requireActiveNonGuestUser()
   if ('error' in authResult) return actionError(authResult.error)
   const userId = authResult.userId
 
-  const idParsed = userIdSchema.safeParse(targetUserId)
+  const idParsed = cuidSchema.safeParse(targetUserId)
   if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
 
   const rl = await enforceUserRateLimit(userId, 'unmute_user')
@@ -177,11 +139,6 @@ export async function unmuteUser(targetUserId: string): Promise<ActionResult> {
  * @param cursor - ページネーション用カーソル
  * @param limit - 取得件数（デフォルト: 20）
  * @returns ミュートしたユーザー一覧と次のカーソル
- *
- * @example
- * ```typescript
- * const { users, nextCursor } = await getMutedUsers()
- * ```
  */
 export async function getMutedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
   const auth = await requireAuth()
@@ -191,20 +148,17 @@ export async function getMutedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMIT)
   const userId = auth.userId
 
   try {
+    const safeLimit = clampLimit(limit)
     const mutes = await prisma.mute.findMany({
       where: { muterId: userId },
       include: {
         muted: {
-          select: {
-            id: true,
-            nickname: true,
-            avatarUrl: true,
-            bio: true,
-          },
+          select: USER_MINIMAL_WITH_BIO_SELECT,
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
+      // 同時刻のページ境界を安定させるため複合キー(mutedId)を第2ソートキーにする
+      orderBy: [{ createdAt: 'desc' }, { mutedId: 'desc' }],
+      take: safeLimit,
       ...(cursor && {
         cursor: { muterId_mutedId: { muterId: userId, mutedId: cursor } },
         skip: 1,
@@ -213,7 +167,7 @@ export async function getMutedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMIT)
 
     return {
       users: mutes.map((m: typeof mutes[number]) => m.muted),
-      nextCursor: mutes.length === limit ? mutes[mutes.length - 1]?.mutedId : undefined,
+      nextCursor: mutes.length === safeLimit ? mutes[mutes.length - 1]?.mutedId : undefined,
     }
   } catch (error) {
     logger.error('Get muted users error', {
@@ -239,17 +193,6 @@ export async function getMutedUsers(cursor?: string, limit = DEFAULT_PAGE_LIMIT)
  *
  * @param targetUserId - 確認対象のユーザーID
  * @returns { muted: boolean }
- *
- * @example
- * ```typescript
- * const { muted } = await isMuted('user-123')
- *
- * if (muted) {
- *   // 「ミュート解除」ボタンを表示
- * } else {
- *   // 「ミュート」ボタンを表示
- * }
- * ```
  */
 export async function isMuted(targetUserId: string) {
   const auth = await requireAuth()

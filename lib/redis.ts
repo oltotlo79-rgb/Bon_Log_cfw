@@ -16,6 +16,8 @@ interface RedisLikeStore {
   get(key: string): Promise<string | null>
   set(key: string, value: string, options?: { ex?: number }): Promise<void>
   del(key: string): Promise<void>
+  /** 値を取得すると同時に削除する（アトミック GETDEL）。単回使用トークンの二重消費防止に使う。 */
+  getdel(key: string): Promise<string | null>
   /** 値を 1 増やして返す。キーが無ければ 1 から開始。 */
   incr(key: string): Promise<number>
   expire(key: string, seconds: number): Promise<void>
@@ -63,6 +65,12 @@ class InMemoryStore implements RedisLikeStore {
 
   async del(key: string): Promise<void> {
     this.store.delete(key)
+  }
+
+  async getdel(key: string): Promise<string | null> {
+    const value = await this.get(key)
+    if (value !== null) this.store.delete(key)
+    return value
   }
 
   async incr(key: string): Promise<number> {
@@ -114,6 +122,10 @@ class UpstashRedisStore implements RedisLikeStore {
 
   async del(key: string): Promise<void> {
     await this.client.del(key)
+  }
+
+  async getdel(key: string): Promise<string | null> {
+    return await this.client.getdel<string>(key)
   }
 
   async incr(key: string): Promise<number> {

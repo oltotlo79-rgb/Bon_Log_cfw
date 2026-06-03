@@ -5,7 +5,6 @@
  * プロフィールページのレイアウトを模したスケルトンを表示し、
  * ユーザーに視覚的なフィードバックを提供します。
  *
- * @route /users/[id] (およびその子ルート)
  */
 
 /**
@@ -20,19 +19,14 @@
 export default function UserLoading() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* プロフィールヘッダーのスケルトン */}
       <div className="bg-card rounded-lg border overflow-hidden animate-pulse">
-        {/* カバー画像エリア */}
         <div className="h-32 bg-muted" />
 
-        {/* プロフィール情報エリア */}
         <div className="px-4 pb-4">
-          {/* アバター（カバー画像に重なる位置） */}
           <div className="relative -mt-12 mb-4">
             <div className="w-24 h-24 rounded-full bg-muted border-4 border-card" />
           </div>
 
-          {/* ユーザー名とバイオ */}
           <div className="space-y-3">
             <div className="h-6 bg-muted rounded w-40" />
             <div className="h-4 bg-muted rounded w-32" />
@@ -40,7 +34,6 @@ export default function UserLoading() {
             <div className="h-4 bg-muted rounded w-3/4" />
           </div>
 
-          {/* 統計情報（投稿数、フォロワー、フォロー中） */}
           <div className="flex gap-6 mt-4">
             <div className="space-y-1">
               <div className="h-5 bg-muted rounded w-8" />
@@ -56,14 +49,12 @@ export default function UserLoading() {
             </div>
           </div>
 
-          {/* フォローボタン */}
           <div className="mt-4">
             <div className="h-9 bg-muted rounded w-28" />
           </div>
         </div>
       </div>
 
-      {/* タブのスケルトン */}
       <div className="bg-card rounded-lg border overflow-hidden animate-pulse">
         <div className="flex border-b">
           <div className="flex-1 py-3 px-4">
@@ -74,7 +65,6 @@ export default function UserLoading() {
           </div>
         </div>
 
-        {/* 投稿リストのスケルトン */}
         <div className="divide-y">
           {[1, 2, 3].map((i) => (
             <div key={i} className="p-4">

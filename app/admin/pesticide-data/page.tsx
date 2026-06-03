@@ -1,9 +1,3 @@
-/**
- * @file 農薬データ管理ページ
- * @description 農薬データの一覧表示、検索、フィルタリング、追加・編集・削除機能を提供する管理者専用ページ。
- * @route /admin/pesticide-data
- */
-
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
@@ -25,9 +19,6 @@ function isPesticideType(value: string): value is PesticideType {
   return (Object.values(PesticideType) as string[]).includes(value)
 }
 
-/**
- * ページメタデータの定義
- */
 export const metadata = {
   title: '農薬データ管理 - BON-LOG 管理',
 }
@@ -37,9 +28,6 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic'
 
-/**
- * ページコンポーネントのProps型定義
- */
 interface PageProps {
   searchParams: Promise<{
     search?: string
@@ -90,7 +78,6 @@ export default async function PesticideDataPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      {/* ページタイトル */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <FlaskConical className="w-7 h-7" />
@@ -101,7 +88,6 @@ export default async function PesticideDataPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      {/* 統計サマリーカード */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-2">
@@ -134,7 +120,6 @@ export default async function PesticideDataPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* 農薬テーブル（Client Component） */}
       <Suspense fallback={<div className="text-sm text-muted-foreground">農薬データを読み込み中...</div>}>
         <PesticideTable
           pesticides={pesticides.map(p => ({

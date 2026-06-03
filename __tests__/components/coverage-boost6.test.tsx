@@ -61,6 +61,9 @@ vi.mock('@/components/post/LikeButton', () => ({
 vi.mock('@/components/post/BookmarkButton', () => ({
   BookmarkButton: ({ initialBookmarked }: any) => <button data-testid="bookmark-btn">{initialBookmarked ? 'saved' : 'unsaved'}</button>,
 }))
+vi.mock('@/components/post/RepostButton', () => ({
+  RepostButton: ({ initialCount }: any) => <button data-testid="repost-btn">{initialCount}</button>,
+}))
 vi.mock('@/components/report/ReportButton', () => ({
   ReportButton: ({ targetId }: any) => <button data-testid="report-btn">Report {targetId}</button>,
 }))

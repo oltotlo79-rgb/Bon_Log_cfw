@@ -1,21 +1,7 @@
-/**
- * @file 下書き一覧・編集ページのエラーバウンダリ
- * @description 下書きページでエラーが発生した際に表示されるエラー画面
- *
- * Next.js App Routerのerror.tsx規約に基づき、
- * /drafts およびその子ルートで発生したエラーをキャッチして表示します。
- *
- * @route /drafts (およびその子ルート)
- * @requires 'use client'
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * 下書きページのエラーコンポーネント
- */
 export default function DraftsError({
   error,
   reset,

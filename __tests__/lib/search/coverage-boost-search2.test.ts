@@ -507,7 +507,7 @@ describe('fulltext.ts coverage boost', async () => {
       mockPrismaForFulltext.$queryRaw.mockResolvedValue([{ id: 'b1' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松')
+      const result = await fulltextSearchBonsais('黒松', { userId: 'u1' })
 
       expect(result).toEqual(['b1'])
     })
@@ -525,7 +525,7 @@ describe('fulltext.ts coverage boost', async () => {
       mockPrismaForFulltext.$queryRaw.mockResolvedValue([{ id: 'b2' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松', { cursor: 'b1' })
+      const result = await fulltextSearchBonsais('黒松', { userId: 'u1', cursor: 'b1' })
 
       expect(result).toEqual(['b2'])
     })
@@ -545,7 +545,7 @@ describe('fulltext.ts coverage boost', async () => {
         .mockResolvedValueOnce([{ id: 'fb1' }])
 
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('黒松')
+      const result = await fulltextSearchBonsais('黒松', { userId: 'u1' })
 
       expect(result).toEqual(['fb1'])
     })
@@ -725,7 +725,7 @@ describe('fulltext.ts coverage boost', async () => {
 
     it('fulltextSearchBonsais returns empty for whitespace query', async () => {
       const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
-      const result = await fulltextSearchBonsais('   ')
+      const result = await fulltextSearchBonsais('   ', { userId: 'u1' })
       expect(result).toEqual([])
     })
   })

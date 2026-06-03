@@ -1,19 +1,7 @@
-/**
- * @file イベント一覧ページのエラーUI
- * @description イベント一覧ページでエラーが発生した際に表示されるエラーバウンダリ。
- * Next.js App Routerの規約により、このファイルはerror.tsx として配置することで
- * 同階層のpage.tsxで発生したエラーを自動的にキャッチして表示する。
- *
- * 注意: error.tsxはClient Componentである必要がある（'use client'が必須）
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * イベント一覧ページのエラーコンポーネント
- */
 export default function EventsError({
   error,
   reset,

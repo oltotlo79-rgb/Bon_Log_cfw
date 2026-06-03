@@ -16,6 +16,8 @@ import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
 import { sendPushNotification } from '@/lib/web-push'
 import { ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ROUTE_NOTIFICATIONS } from '@/lib/constants/routes'
+import { buildPostPath } from '@/lib/constants/path-builders'
 import { actionSuccess, actionError } from '@/types/action-result'
 import type { ActionResult } from '@/types/action-result'
 
@@ -156,7 +158,7 @@ export async function createNotification(params: {
       actorName = actor?.nickname || actorName
     }
     const pushBody = buildPushBody(type, actorName)
-    const url = postId ? `/posts/${postId}` : '/notifications'
+    const url = postId ? buildPostPath(postId) : ROUTE_NOTIFICATIONS
 
     void sendPushNotification(userId, {
       title: 'BON-LOG',

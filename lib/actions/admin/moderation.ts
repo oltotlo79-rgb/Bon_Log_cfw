@@ -4,10 +4,9 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { DEFAULT_PAGE_LIMIT, BULK_MODERATION_MAX } from '@/lib/constants/limits'
-import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
+import { requireAdmin, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { invalidateNgWordsCache } from '@/lib/ng-word-checker'
-import { checkUserRateLimit } from '@/lib/rate-limit'
 import {
   ERR_NG_WORD_REQUIRED,
   ERR_NG_WORD_DUPLICATE,
@@ -16,7 +15,6 @@ import {
   ERR_BULK_OPERATION_LIMIT,
   ERR_NG_WORD_REGEX_INVALID,
   ERR_NG_WORD_REGEX_UNSAFE,
-  ERR_RATE_LIMIT_OPERATION,
   ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
 import {
@@ -308,8 +306,8 @@ export async function bulkReviewModeration(ids: string[], action: 'approved' | '
   }
   const input = parsed.data
 
-  const rl = await checkUserRateLimit(admin.userId, 'admin_bulk')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(admin.userId, 'admin_bulk')
+  if (rl) return actionError(rl.error)
 
   await prisma.moderationQueue.updateMany({
     where: { id: { in: input.ids } },
@@ -340,8 +338,8 @@ export async function bulkDeletePosts(postIds: string[]) {
   if (!parsed.success) return actionError(ERR_BULK_LIMIT)
   const ids = parsed.data
 
-  const rl = await checkUserRateLimit(admin.userId, 'admin_bulk')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(admin.userId, 'admin_bulk')
+  if (rl) return actionError(rl.error)
 
   await prisma.$transaction([
     prisma.post.deleteMany({ where: { id: { in: ids } } }),
@@ -366,8 +364,8 @@ export async function bulkSuspendUsers(userIds: string[]) {
   if (!parsed.success) return actionError(ERR_BULK_LIMIT)
   const ids = parsed.data
 
-  const rl = await checkUserRateLimit(admin.userId, 'admin_bulk')
-  if (!rl.success) return actionError(ERR_RATE_LIMIT_OPERATION)
+  const rl = await enforceUserRateLimit(admin.userId, 'admin_bulk')
+  if (rl) return actionError(rl.error)
 
   await prisma.$transaction([
     prisma.user.updateMany({

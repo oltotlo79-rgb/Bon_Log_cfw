@@ -59,7 +59,7 @@
 
 | 技術 | バージョン | 用途 |
 |------|-----------|------|
-| Next.js Server Actions | - | API実装（86ファイル: 66ルート + 19管理者 + 1 schemas）。`'use server'` を持たず `'server-only'` のみで運用するモジュール 13 本（`dictionary.ts` / `fertilizer.ts` / `hormone.ts` / `pesticide.ts` / `search-meta.ts` の RSC データ取得 + `filter-helper.ts` / `post-include.ts` / `post-validation.ts` / `shared-includes.ts` / `prisma-filters.ts` / `pagination.ts` / `utils.ts` の内部 helper、および barrel re-export の `user.ts`）はこの数に含む |
+| Next.js Server Actions | - | API実装（85ファイル: 64ルート + 20管理者 + 1 schemas）。`'use server'` を持たず `'server-only'` のみで運用するモジュール 13 本（`dictionary.ts` / `fertilizer.ts` / `hormone.ts` / `pesticide.ts` / `search-meta.ts` の RSC データ取得 + `filter-helper.ts` / `post-include.ts` / `post-validation.ts` / `shared-includes.ts` / `prisma-filters.ts` / `pagination.ts` / `utils.ts` の内部 helper、および barrel re-export の `user.ts`）はこの数に含む |
 | NextAuth.js v5 | 5.0.0-beta.31 | 認証（JWT戦略） |
 | Google OAuth 2.0 | - | ソーシャルログイン |
 | Prisma | 6.19.2 | ORM |
@@ -220,7 +220,7 @@
 | 文字数 | 500文字 | 2,000文字 |
 | 画像 | 4枚まで | 6枚まで |
 | 動画 | 1本まで | 3本まで |
-| 1日の投稿数 | 20件 | 20件 |
+| 1日の投稿数 | 20件 | 40件 |
 
 #### 3.2.3 メディア仕様
 
@@ -290,7 +290,9 @@
 - コメントのソフトデリート
 - コメントスレッドミュート
 - メンション通知
-- 1投稿あたり最大100件
+- 1ユーザーあたり1日100件まで（`DAILY_COMMENT_LIMIT`、投稿単位の上限ではない）
+- メディア添付: 画像最大2枚 + 動画最大1本（合計最大3点。`MAX_COMMENT_IMAGES` / `MAX_COMMENT_VIDEOS` / `MAX_COMMENT_MEDIA`）
+- 最大文字数500文字（`MAX_COMMENT_LENGTH`）
 
 #### 3.4.3 ブックマーク
 - 投稿のブックマーク保存
@@ -467,7 +469,7 @@
 | 説明 | 詳細メモ |
 
 #### 3.11.2 成長記録
-- テキスト + 画像（最大3枚）
+- テキスト + 画像（最大4枚、`MAX_BONSAI_RECORD_IMAGES`）
 - 記録日時の保存
 - 時系列での一覧表示（タイムライン）
 - フォトギャラリー表示
@@ -974,7 +976,7 @@
 | formulation_types | 剤型マスタ |
 | spreader_types | 展着剤タイプ |
 | pesticide_spreader_types | 薬剤x展着剤（多対多） |
-| pesticide_incompatibilities | 薬剤間の混用不可データ（126ペア） |
+| pesticide_incompatibilities | 薬剤間の混用不可データ（134ペア = 双方向登録で67組） |
 | pesticide_columns | 農薬コラム（カテゴリ別） |
 
 #### 肥料ガイド（5モデル）
@@ -1327,9 +1329,13 @@
 |------|------|
 | `/hormones` | 植物ホルモンガイドトップ |
 | `/hormones/[slug]` | ホルモン詳細 |
+| `/hormones/techniques` | 盆栽技法×ホルモンマッピング |
+| `/hormones/diagram` | ホルモン相互作用ダイアグラム |
+| `/hormones/calendar` | 年間ホルモン活性カレンダー |
+| `/hormones/simulator` | ホルモンバランスシミュレーター |
+| `/hormones/interactions` | ホルモン相互作用一覧 |
 | `/hormones/columns` | コラム一覧 |
 | `/hormones/columns/[slug]` | コラム詳細 |
-| `/hormones/interactions` | ホルモン相互作用 |
 
 ### 6.8 盆栽園・イベント
 
@@ -1766,4 +1772,7 @@ BASIC_AUTH_PASSWORD="..."
 | 2026-05-12 | 2026-05-12 レビュー指摘の追加対応。大型ファイル機能分割（message → message-conversations / message-messages、scheduled-post → scheduled-post-crud / scheduled-post-publish、search → search-posts / search-users / search-entities）。Vitest 並列度を `maxWorkers='50%'` に固定して flaky 解消。`bonsai_care_logs` / `daily_visitors` の RLS ポリシー追加（マイグレーション `20260512100000_add_rls_policies_bonsai_care_logs_daily_visitors`）。`handle_new_user` セキュリティ強化（`20260512000000_lock_handle_new_user_security`）。 |
 | 2026-05-13 | エンジニアリングレビュー (engineering-review-verified 2026-05-13) の P0/P1/P2 全対応（目標 92 点）。**strict: true + `noUncheckedIndexedAccess: true` に切替**、ESLint 厳格化（`1d91b468`）。Server Action の認証→Zod→レート制限 順序を全 Action で再点検し、`as` キャスト排除・route リテラル統一を実施。CI 3 ジョブ（env-validation / Lighthouse / npm audit）の失敗を根本対応（`8c0978f2`）。 |
 | 2026-05-14 | **5 ドキュメントを 2026-05-14 時点の現状に追従**。`fertilizer.ts` / `hormone.ts` / `pesticide.ts` を `'use server'` から `'server-only'` の RSC データ取得モジュールに移行（page.tsx から直接 await）。`/api/analytics/view` Route Handler 追加（Server Component からの書き込み分離、Zod discriminated union、Redis dedupe、block/非公開ガード）。`lib/services/` に `analytics-recording.ts` / `analytics-service.ts` / `hashtag-recount.ts` を追加（13 ファイル化）。`lib/constants/dictionary.ts` 追加。`app/api/upload/_shared/validate-upload-file.ts` 共有検証を導入。テスト 805ファイル。マイグレーション 35 ディレクトリ。Server Actions 86 ファイル中 `'use server'` 持ちは 53 + admin 19、`'server-only'` 内部 helper / RSC データ取得 13 + barrel 1。 |
+| 2026-05-27 | エンジニアリングレビュー (engineering-review-verified 2026-05-27) の妥当な指摘へ全対応。**規約逸脱**: `lib/services/shop-change-helpers.ts`（純粋型・schema・parser のみ）を layer 規約遵守のため `lib/shop/change-request.ts` へ移設、admin page からの直接 import を解消。**SEO**: `app/(main)/settings/subscription/page.tsx` に `robots: { index: false, follow: false }` 追加（他 settings/auth ページは既に対応済み）。**セキュリティ**: `/api/webhooks/stripe` と `/api/ad-frame` に `RATE_LIMITS.api`（60req/分・IPベース fail-open）を追加し DoS 保険強化。**型安全**: `tsconfig.json` に `noImplicitOverride: true` を追加（class override 強制）。**P3 配慮**: `UserCard` を `memo()` 化、`lib/services/analytics-service.ts` の `gId` → `genreId` リネーム、admin events / contact ページのハードコード href を `ROUTE_ADMIN_EVENTS_IMPORT` / `ROUTE_ADMIN_CONTACT` 定数化。**comments.md 規約**: `lib/constants/locations.ts` の `// === REGION ===` 装飾区切り 15 箇所を空行 + シンプルコメントへ置換、`lib/actions/blacklist.ts` / `two-factor.ts` / `admin/ip-management.ts` の WHAT コメント計 7 箇所を削除。**count update**: Server Actions 85（64 ルート + 20 admin + 1 schemas）、lib/services 14、lib/shop 新設、lib/constants 47（ルート 22 + limits 18 + errors 7）、lib/utils 12、構成サマリ修正。lint / 全 15,168 テスト / build いずれもエラー警告ゼロで通過。 |
+| 2026-05-30 | 制限値・機能リストをコード（`lib/constants/limits/`）と `app/(main)` 構成に対して再検証し追従。**修正**: コメント上限を「1投稿あたり最大100件」→「1ユーザーあたり1日100件（`DAILY_COMMENT_LIMIT`、投稿単位ではない）」に訂正、コメントのメディア添付仕様（画像2 + 動画1 = 最大3点）と最大文字数500を明記。成長記録の画像枚数を「最大3枚」→「最大4枚」（`MAX_BONSAI_RECORD_IMAGES=4`）に訂正。ページ構成 6.7 の `/hormones` 配下に techniques / diagram / calendar / simulator / interactions を追加（3.14.3 と整合）。**検証済み（変更なし）**: 投稿制限（無料 500字 / 4画像 / 1動画 / 20件/日、プレミアム 2000字 / 6画像 / 3動画 / 40件/日）、ジャンル最大3、レビュー画像最大3、2FA バックアップコード 8桁×10個、動画形式 MP4/WebM/MOV、`lib/actions` 全機能の実在。 |
+| 2026-05-27 (追) | Supabase 2026-10-30 仕様変更 (public schema テーブルが Data API デフォルト非露出化) への先回り対応。Security Advisor で全 90 テーブルが anon / authenticated に GRANT ALL されている状態を検出 (旧 Supabase デフォルト)、Defense in Depth で API + DB 両層を遮断。**API 層**: Dashboard 操作で Exposed schemas から `public` を削除し Exposed tables を 0/90 化（`graphql_public` のみ残置で REST/GraphQL から public テーブル不可視）。**DB 層**: `prisma/migrations/20260527000000_revoke_data_api_grants_from_public/` 新設で `REVOKE ALL ON ALL TABLES/SEQUENCES/ROUTINES IN SCHEMA public FROM anon, authenticated` + `REVOKE USAGE ON SCHEMA public` + `ALTER DEFAULT PRIVILEGES FOR ROLE postgres ... REVOKE ALL` を一括適用。`pg_roles` 存在チェック付き DO block でローカル Docker postgres では noop。`app/api/admin/apply-migration/route.ts` の `MIGRATION_NAMES` に `revoke_data_api_grants_from_public` を追加し本番手動適用経路 (`npm run db:apply-migration-production`) を確保。**規約**: `.claude/rules/prisma-database.md` に「Supabase Data API 非使用方針」を明文化、`eslint.config.mjs` に `no-restricted-imports` で `@supabase/supabase-js` 等を禁止。**検証**: `__tests__/app/api/admin/apply-migration/route.test.ts` に新 migration の allowlist 包含 + SQL 内容（REVOKE / ALTER DEFAULT PRIVILEGES / ロール存在チェック）を assert するテスト追加。マイグレーション数 37 ディレクトリ。 |
 

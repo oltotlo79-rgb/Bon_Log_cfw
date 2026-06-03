@@ -6,11 +6,14 @@ import { z } from 'zod'
 import logger from '@/lib/logger'
 import { PREMIUM_FALLBACK_DAYS, ONE_DAY_MS, ONE_SECOND_MS } from '@/lib/constants/limits'
 import { createNotification } from '@/lib/services/notification-core'
-import { ensureWebhookEventOnce } from '@/lib/services/webhook-idempotency'
+import { ensureWebhookEventOnce, deleteWebhookEvent } from '@/lib/services/webhook-idempotency'
+import { checkRateLimit } from '@/lib/rate-limit'
 import {
   API_ERR_WEBHOOK_NOT_CONFIGURED,
   API_ERR_MISSING_SIGNATURE,
   API_ERR_INVALID_SIGNATURE,
+  API_ERR_TOO_MANY_REQUESTS,
+  API_ERR_WEBHOOK_PROCESSING_FAILED,
 } from '@/lib/constants/errors'
 
 const WEBHOOK_PROVIDER_STRIPE = 'stripe'
@@ -35,8 +38,22 @@ export const dynamic = 'force-dynamic'
 const stripeSubscriptionSchema = z.object({
   id: z.string(),
   status: z.string(),
+  // 新しい Stripe API では current_period_end が Subscription 直下から
+  // items.data[].current_period_end へ移動したため、両方の位置を許容する。
   current_period_end: z.number().int().optional(),
+  items: z
+    .object({
+      data: z.array(z.object({ current_period_end: z.number().int().optional() })).optional(),
+    })
+    .optional(),
 })
+
+/** Subscription の課金周期終了 unix 秒を、API バージョン差を吸収して取得する。 */
+function getSubscriptionPeriodEnd(
+  subscription: z.infer<typeof stripeSubscriptionSchema>,
+): number | undefined {
+  return subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end
+}
 
 // Stripe の invoice / payment_intent / subscription フィールドは expand 無しの場合は
 // ID 文字列（または null）。expand 済みオブジェクトは現状使っていないため文字列のみ許容する。
@@ -55,11 +72,39 @@ const stripeCheckoutSessionSchema = z.object({
   invoice: z.string().nullish(),
 })
 
+// charge.refunded: 返金された Charge。expand 無しでは payment_intent / customer は ID 文字列。
+// refunded=true は全額返金、amount_refunded < amount は一部返金を表す。
+const stripeChargeSchema = z.object({
+  payment_intent: z.string().nullish(),
+  customer: z.string().nullish(),
+  refunded: z.boolean().nullish(),
+  amount: z.number().nullish(),
+  amount_refunded: z.number().nullish(),
+})
+
+// charge.dispute.created: チャージバック。返金確定前のため破壊的更新はせず、アラート目的でログ化する。
+const stripeDisputeSchema = z.object({
+  charge: z.string().nullish(),
+  payment_intent: z.string().nullish(),
+  reason: z.string().nullish(),
+  status: z.string().nullish(),
+  amount: z.number().nullish(),
+})
+
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
   if (!webhookSecret) {
     logger.error('STRIPE_WEBHOOK_SECRET is not configured')
     return NextResponse.json({ error: API_ERR_WEBHOOK_NOT_CONFIGURED }, { status: 503 })
+  }
+
+  // IP ベース rate limit: 公開エンドポイントなので、署名検証 (HMAC) ですら
+  // 偽 webhook の大量送信で計算コストを消費される可能性がある。
+  // Stripe からの正規 webhook は専用 IP プールから送られるため 60/min/IP で十分。
+  // fail-open: Redis 障害時に正規 Stripe webhook を取りこぼすと売上影響が出るため。
+  const rl = await checkRateLimit(request, 'api')
+  if (!rl.success) {
+    return NextResponse.json({ error: API_ERR_TOO_MANY_REQUESTS }, { status: 429 })
   }
 
   const body = await request.text()
@@ -125,7 +170,7 @@ export async function POST(request: NextRequest) {
             })
             break
           }
-          const currentPeriodEnd = subParsed.data.current_period_end
+          const currentPeriodEnd = getSubscriptionPeriodEnd(subParsed.data)
 
           // 有効期限を計算（取得できない場合は30日後をデフォルト）
           const premiumExpiresAt = currentPeriodEnd
@@ -183,7 +228,8 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         logger.error('Failed to handle checkout.session.completed:', err)
-        // Return 200 to prevent Stripe retries for processing errors
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
       }
       break
     }
@@ -199,7 +245,8 @@ export async function POST(request: NextRequest) {
           })
           break
         }
-        const { id: subscriptionId, status: subscriptionStatus, current_period_end: currentPeriodEnd } = parsed.data
+        const { id: subscriptionId, status: subscriptionStatus } = parsed.data
+        const currentPeriodEnd = getSubscriptionPeriodEnd(parsed.data)
 
         const user = await prisma.user.findFirst({
           where: { stripeSubscriptionId: subscriptionId },
@@ -229,6 +276,8 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         logger.error('Failed to handle customer.subscription.updated:', err)
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
       }
       break
     }
@@ -264,6 +313,8 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         logger.error('Failed to handle customer.subscription.deleted:', err)
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
       }
       break
     }
@@ -308,6 +359,8 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         logger.error('Failed to handle invoice.payment_failed:', err)
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
       }
       break
     }
@@ -368,7 +421,7 @@ export async function POST(request: NextRequest) {
                 })
                 break
               }
-              const currentPeriodEnd = subParsed.data.current_period_end
+              const currentPeriodEnd = getSubscriptionPeriodEnd(subParsed.data)
               const premiumExpiresAt = currentPeriodEnd
                 ? new Date(currentPeriodEnd * ONE_SECOND_MS)
                 : new Date(Date.now() + PREMIUM_FALLBACK_DAYS * ONE_DAY_MS)
@@ -386,6 +439,117 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         logger.error('Failed to handle invoice.payment_succeeded:', err)
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
+      }
+      break
+    }
+
+    // 返金 → 全額返金時はプレミアムを失効させ payment を refunded に更新
+    case 'charge.refunded': {
+      try {
+        const parsed = stripeChargeSchema.safeParse(event.data.object)
+        if (!parsed.success) {
+          logger.error('charge.refunded: payload validation failed', {
+            eventId: event.id,
+            issues: parsed.error.issues,
+          })
+          break
+        }
+        const charge = parsed.data
+        const paymentIntentId = charge.payment_intent
+        const isFullRefund =
+          charge.refunded === true ||
+          (typeof charge.amount === 'number' &&
+            typeof charge.amount_refunded === 'number' &&
+            charge.amount_refunded >= charge.amount)
+
+        // 返金対象ユーザーは payment(payment_intent) 経由で特定し、無ければ customer から引く
+        const payment = paymentIntentId
+          ? await prisma.payment.findUnique({ where: { stripePaymentId: paymentIntentId } })
+          : null
+        const user =
+          (payment?.userId
+            ? await prisma.user.findUnique({ where: { id: payment.userId } })
+            : null) ??
+          (charge.customer
+            ? await prisma.user.findFirst({ where: { stripeCustomerId: charge.customer } })
+            : null)
+
+        logger.info('charge.refunded:', {
+          paymentIntentId,
+          isFullRefund,
+          userId: user?.id,
+        })
+
+        // 一部返金ではプレミアムを維持する（全額返金時のみ失効）
+        if (!isFullRefund) break
+
+        if (payment && payment.status !== 'refunded') {
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: { status: 'refunded' },
+          })
+        }
+
+        if (user) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { isPremium: false, premiumExpiresAt: null },
+          })
+
+          const notif = await createNotification({
+            userId: user.id,
+            actorId: user.id,
+            type: 'system',
+          })
+          if (!notif.success) {
+            logger.error('Refund notification creation failed', {
+              userId: user.id,
+              error: notif.error,
+            })
+          }
+
+          logger.info(`User ${user.id} premium revoked due to full refund`)
+        }
+      } catch (err) {
+        logger.error('Failed to handle charge.refunded:', err)
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
+      }
+      break
+    }
+
+    // チャージバック発生 → 返金は未確定のため状態は変えず、管理者向けに Sentry へアラート
+    case 'charge.dispute.created': {
+      try {
+        const parsed = stripeDisputeSchema.safeParse(event.data.object)
+        if (!parsed.success) {
+          logger.error('charge.dispute.created: payload validation failed', {
+            eventId: event.id,
+            issues: parsed.error.issues,
+          })
+          break
+        }
+        const dispute = parsed.data
+        const payment = dispute.payment_intent
+          ? await prisma.payment.findUnique({ where: { stripePaymentId: dispute.payment_intent } })
+          : null
+
+        // logger.error → 本番では Sentry に送られ、運用者が個別対応できるようにする
+        logger.error('Stripe dispute created (chargeback) — requires manual review', {
+          eventId: event.id,
+          chargeId: dispute.charge,
+          paymentIntentId: dispute.payment_intent,
+          reason: dispute.reason,
+          status: dispute.status,
+          amount: dispute.amount,
+          userId: payment?.userId ?? null,
+        })
+      } catch (err) {
+        logger.error('Failed to handle charge.dispute.created:', err)
+        await deleteWebhookEvent(WEBHOOK_PROVIDER_STRIPE, event.id)
+        return NextResponse.json({ error: API_ERR_WEBHOOK_PROCESSING_FAILED }, { status: 500 })
       }
       break
     }

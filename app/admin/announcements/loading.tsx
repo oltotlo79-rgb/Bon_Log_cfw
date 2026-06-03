@@ -1,7 +1,3 @@
-/**
- * @file お知らせ管理ページのローディング画面
- */
-
 import { LoadingScreen } from '@/components/common/LoadingScreen'
 
 export default function AnnouncementsLoading() {

@@ -28,6 +28,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.mockResolvedValue({ user: { id: 'u1' } })
   mockCheckUserRateLimit.mockResolvedValue({ success: true })
+  // ブックマーク対象は閲覧可能（本人の非表示でない投稿）を既定とする
+  mockPrisma.post.findUnique.mockResolvedValue({ id: 'p1', userId: 'u1', isHidden: false })
 })
 
 // ============================================================

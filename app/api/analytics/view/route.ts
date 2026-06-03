@@ -16,6 +16,7 @@ import {
   recordPostViewService,
   recordProfileViewService,
 } from '@/lib/services/analytics-recording'
+import { canViewPostByAuthor } from '@/lib/services/post-visibility'
 import { rateLimit } from '@/lib/rate-limit'
 import { redis } from '@/lib/redis'
 import {
@@ -111,7 +112,7 @@ type BeaconData = z.infer<typeof beaconSchema>
 /**
  * 投稿 / プロフィールの閲覧可否を確認する。
  *   - 自分自身の閲覧は計上しない
- *   - 投稿: 非表示 / 投稿者の userId が body と不一致なら拒否
+ *   - 投稿: 非表示 / 投稿者の userId が body と不一致 / 著者の可視性(非公開・停止・未フォロー)なら拒否
  *   - プロフィール: 停止中 / 非公開なら拒否
  *   - 双方向: 相手にブロックされていれば拒否
  */
@@ -130,8 +131,10 @@ async function canRecord(data: BeaconData, viewerId: string): Promise<boolean> {
       select: { isHidden: true, userId: true },
     })
     if (!post || post.isHidden) return false
+    // body の targetUserId 偽装を防止しつつ、著者の可視性(非公開/停止/未フォロー)も
+    // 通常の閲覧認可と同じ helper で再確認する。
     if (post.userId !== data.targetUserId) return false
-    return true
+    return canViewPostByAuthor(viewerId, post.userId)
   }
 
   const user = await prisma.user.findUnique({

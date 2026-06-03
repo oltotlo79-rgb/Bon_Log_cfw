@@ -1,9 +1,3 @@
-/**
- * @file 農薬関連データ表示セクション（Server Component）
- * @description 有効成分・効果（対象病害虫）・混用不可 を表形式で表示する読み取り専用ビュー。
- *              Server Component として出力する SEO 上のメリットと、初期表示の高速化が目的。
- */
-
 import Link from 'next/link'
 import { Atom, Bug, Ban } from 'lucide-react'
 
@@ -53,7 +47,6 @@ export function PesticideRelations({
 }: PesticideRelationsProps) {
   return (
     <>
-      {/* 有効成分 */}
       <section className="bg-card rounded-lg border p-6" aria-labelledby="pesticide-ingredients-heading">
         <h2
           id="pesticide-ingredients-heading"
@@ -102,7 +95,6 @@ export function PesticideRelations({
         )}
       </section>
 
-      {/* 効果（対象病害虫） */}
       <section className="bg-card rounded-lg border p-6" aria-labelledby="pesticide-effects-heading">
         <h2
           id="pesticide-effects-heading"
@@ -155,7 +147,6 @@ export function PesticideRelations({
         )}
       </section>
 
-      {/* 混用不可 */}
       <section className="bg-card rounded-lg border p-6" aria-labelledby="pesticide-incompatibles-heading">
         <h2
           id="pesticide-incompatibles-heading"

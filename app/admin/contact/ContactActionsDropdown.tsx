@@ -1,9 +1,3 @@
-/**
- * @file お問い合わせアクションドロップダウンコンポーネント
- * @description お問い合わせ一覧の各行で使用されるドロップダウンメニュー。
- *              ステータス変更と削除の操作を提供するクライアントコンポーネント。
- */
-
 'use client'
 
 // Reactのフック（状態管理、DOM参照、副作用処理用）
@@ -16,9 +10,6 @@ import { useRouter } from 'next/navigation'
 import { updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { useToast } from '@/hooks/use-toast'
 
-/**
- * コンポーネントのProps型定義
- */
 interface ContactActionsDropdownProps {
   /** お問い合わせID */
   inquiryId: string
@@ -173,7 +164,6 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
 
   return (
     <>
-      {/* 操作ボタン（クリックでドロップダウンを表示） */}
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
@@ -192,7 +182,6 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
           style={{ top: menuPos.top, left: menuPos.left }}
         >
           <div className="py-1">
-            {/* ステータス変更アクション */}
             {statusActions.map((action) => (
               <button
                 key={action.status}
@@ -202,9 +191,7 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
                 {action.label}
               </button>
             ))}
-            {/* 区切り線 */}
             <hr className="my-1" />
-            {/* 削除アクション（危険な操作なので赤色で表示） */}
             <button
               onClick={handleDelete}
               className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"

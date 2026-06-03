@@ -49,6 +49,20 @@ vi.mock('@/lib/premium', () => ({
   getMembershipLimits: vi.fn().mockReturnValue({ maxPostLength: 500, maxImages: 4, maxDailyPosts: 20 }),
 }))
 
+// ハッシュタグ同期モック（denormalized count 維持のための detach 呼び出しを検証する）
+const mockDetachHashtagsFromPost = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/lib/services/hashtag-sync', () => ({
+  detachHashtagsFromPost: (...args: unknown[]) => mockDetachHashtagsFromPost(...args),
+}))
+
+// 人気タグ・トレンドジャンルのキャッシュ無効化モック
+const mockRevalidatePopularTagsCache = vi.fn()
+const mockRevalidateTrendingGenresCache = vi.fn()
+vi.mock('@/lib/cache', () => ({
+  revalidatePopularTagsCache: () => mockRevalidatePopularTagsCache(),
+  revalidateTrendingGenresCache: () => mockRevalidateTrendingGenresCache(),
+}))
+
 const mockAdminUserRecord = {
   id: 'admin-record-id',
   userId: mockUser.id,
@@ -317,6 +331,18 @@ describe('管理者向け投稿管理アクション', () => {
       await deletePostByAdmin('post-id-1', '規約違反')
 
       expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/posts')
+    })
+
+    it('ハッシュタグを detach し人気タグキャッシュを無効化する（M-6）', async () => {
+      mockPrisma.post.findUnique.mockResolvedValue(mockPost)
+      mockTransaction.mockResolvedValue([{}, {}])
+
+      const { deletePostByAdmin } = await import('@/lib/actions/admin/posts')
+      await deletePostByAdmin('post-id-1', '規約違反')
+
+      expect(mockDetachHashtagsFromPost).toHaveBeenCalledWith('post-id-1')
+      expect(mockRevalidatePopularTagsCache).toHaveBeenCalled()
+      expect(mockRevalidateTrendingGenresCache).toHaveBeenCalled()
     })
 
     it('空の理由でも削除できる', async () => {

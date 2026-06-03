@@ -13,7 +13,14 @@ vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
 const mockExtractMentionIds = vi.fn().mockReturnValue([])
 vi.mock('@/lib/mention-utils', () => ({ extractMentionIds: (...args: any[]) => mockExtractMentionIds(...args) }))
-vi.mock('@/lib/logger', () => ({ __esModule: true, default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }))
+vi.mock('@/lib/logger', () => ({ __esModule: true, default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn() } }))
+
+const mockCheckUserRateLimit = vi.fn().mockResolvedValue({ success: true })
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: { mention_search: { maxRequests: 30, windowMs: 60000 } },
+}))
 
 // メンション通知は createNotificationsBulk へ delegate しているため helper をモック化
 const mockCreateNotificationsBulk = vi.fn()
@@ -26,6 +33,7 @@ beforeEach(() => {
   mockAuth.mockResolvedValue({ user: { id: 'u1' } })
   mockExtractMentionIds.mockReturnValue([])
   mockCreateNotificationsBulk.mockResolvedValue({ attempted: 0, filtered: 0 })
+  mockCheckUserRateLimit.mockResolvedValue({ success: true })
 })
 
 // ============================================================
@@ -87,6 +95,61 @@ describe('searchMentionUsers', async () => {
     const result = await searchMentionUsers('test')
     expect(result).toEqual([])
   })
+
+  it('公開範囲フィルタを適用し email では検索しない', async () => {
+    const { searchMentionUsers } = await import('@/lib/actions/mention')
+    mockPrisma.follow.findMany.mockResolvedValue([])
+    mockPrisma.user.findMany.mockResolvedValue([])
+
+    await searchMentionUsers('bonsai')
+
+    const where = mockPrisma.user.findMany.mock.calls[0][0].where
+    expect(where).toMatchObject({
+      isSuspended: false,
+      OR: expect.arrayContaining([
+        { isPublic: true },
+        { id: 'u1' },
+        { followers: { some: { followerId: 'u1' } } },
+      ]),
+    })
+    // email を検索条件に含めない（アカウント存在推測の防止）
+    expect(JSON.stringify(where)).not.toContain('email":{"startsWith')
+    expect(where.AND).toEqual(
+      expect.arrayContaining([{ nickname: { contains: 'bonsai', mode: 'insensitive' } }]),
+    )
+  })
+
+  it('長すぎるクエリは候補を返さない', async () => {
+    const { searchMentionUsers } = await import('@/lib/actions/mention')
+    mockPrisma.user.findMany.mockResolvedValue([])
+
+    const result = await searchMentionUsers('a'.repeat(51))
+
+    expect(result).toEqual([])
+    expect(mockPrisma.user.findMany).not.toHaveBeenCalled()
+  })
+
+  it('過大な limit は上限にクランプする', async () => {
+    const { searchMentionUsers } = await import('@/lib/actions/mention')
+    mockPrisma.follow.findMany.mockResolvedValue([])
+    mockPrisma.user.findMany.mockResolvedValue([])
+
+    await searchMentionUsers('bonsai', 9999)
+
+    expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 10 }),
+    )
+  })
+
+  it('レート制限超過時は候補を返さない', async () => {
+    const { searchMentionUsers } = await import('@/lib/actions/mention')
+    mockCheckUserRateLimit.mockResolvedValue({ success: false })
+
+    const result = await searchMentionUsers('bonsai')
+
+    expect(result).toEqual([])
+    expect(mockPrisma.user.findMany).not.toHaveBeenCalled()
+  })
 })
 
 // ============================================================
@@ -94,7 +157,7 @@ describe('searchMentionUsers', async () => {
 // ============================================================
 describe('notifyMentionedUsers', async () => {
   it('creates notifications for mentioned users', async () => {
-    const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+    const { notifyMentionedUsers } = await import('@/lib/services/mention')
     mockExtractMentionIds.mockReturnValue(['u2', 'u3'])
     mockPrisma.user.findMany.mockResolvedValue([{ id: 'u2' }, { id: 'u3' }])
 
@@ -112,7 +175,7 @@ describe('notifyMentionedUsers', async () => {
   })
 
   it('skips self-mentions', async () => {
-    const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+    const { notifyMentionedUsers } = await import('@/lib/services/mention')
     mockExtractMentionIds.mockReturnValue(['u1'])
     mockPrisma.user.findMany.mockResolvedValue([])
 
@@ -126,7 +189,7 @@ describe('notifyMentionedUsers', async () => {
   })
 
   it('handles null content', async () => {
-    const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+    const { notifyMentionedUsers } = await import('@/lib/services/mention')
 
     await notifyMentionedUsers('p1', null, 'u1')
 
@@ -134,7 +197,7 @@ describe('notifyMentionedUsers', async () => {
   })
 
   it('handles no mentions in content', async () => {
-    const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+    const { notifyMentionedUsers } = await import('@/lib/services/mention')
     mockExtractMentionIds.mockReturnValue([])
 
     await notifyMentionedUsers('p1', 'hello world', 'u1')
@@ -143,7 +206,7 @@ describe('notifyMentionedUsers', async () => {
   })
 
   it('handles db error silently', async () => {
-    const { notifyMentionedUsers } = await import('@/lib/actions/mention')
+    const { notifyMentionedUsers } = await import('@/lib/services/mention')
     mockExtractMentionIds.mockReturnValue(['u2'])
     mockPrisma.user.findMany.mockRejectedValue(new Error('DB error'))
 
@@ -156,7 +219,7 @@ describe('notifyMentionedUsers', async () => {
 // ============================================================
 describe('resolveMentionUsers', async () => {
   it('resolves user IDs to user info', async () => {
-    const { resolveMentionUsers } = await import('@/lib/actions/mention')
+    const { resolveMentionUsers } = await import('@/lib/services/mention')
     mockPrisma.user.findMany.mockResolvedValue([
       { id: 'u2', nickname: 'User2', avatarUrl: null },
     ])
@@ -167,7 +230,7 @@ describe('resolveMentionUsers', async () => {
   })
 
   it('returns empty map for empty array', async () => {
-    const { resolveMentionUsers } = await import('@/lib/actions/mention')
+    const { resolveMentionUsers } = await import('@/lib/services/mention')
 
     const result = await resolveMentionUsers([])
 
@@ -176,7 +239,7 @@ describe('resolveMentionUsers', async () => {
   })
 
   it('returns empty map for null input', async () => {
-    const { resolveMentionUsers } = await import('@/lib/actions/mention')
+    const { resolveMentionUsers } = await import('@/lib/services/mention')
 
      
     const result = await resolveMentionUsers(null as any)
@@ -185,7 +248,7 @@ describe('resolveMentionUsers', async () => {
   })
 
   it('returns empty map on error', async () => {
-    const { resolveMentionUsers } = await import('@/lib/actions/mention')
+    const { resolveMentionUsers } = await import('@/lib/services/mention')
     mockPrisma.user.findMany.mockRejectedValue(new Error('DB error'))
 
     const result = await resolveMentionUsers(['u2'])

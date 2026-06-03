@@ -156,7 +156,6 @@ export function ServiceWorkerRegistration() {
         aria-live="polite"
       >
         <div className="flex items-start gap-3">
-          {/* アップデートアイコン */}
           <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -197,7 +196,6 @@ export function ServiceWorkerRegistration() {
             </div>
           </div>
 
-          {/* 閉じるボタン */}
           <button
             onClick={dismissUpdate}
             className="flex-shrink-0 text-muted-foreground hover:text-foreground"

@@ -183,6 +183,6 @@ describe('app/(main)/bonsai/page.tsx', () => {
   it('generateMetadata: view 既定時はカレンダーを含まない', async () => {
     const { generateMetadata } = await import('@/app/(main)/bonsai/page')
     const meta = await generateMetadata({ searchParams: Promise.resolve({}) })
-    expect(meta.title).toBe('マイ盆栽 - BON-LOG')
+    expect(meta.title).toBe('マイ盆栽')
   })
 })

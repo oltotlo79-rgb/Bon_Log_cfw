@@ -7,7 +7,8 @@ import { prisma } from '@/lib/db'
 import { loadStaticParams } from '@/lib/build/static-params'
 import { DefinedTermJsonLd } from '@/components/seo/JsonLd'
 import { BASE_URL, ROUTE_DICTIONARY } from '@/lib/constants/routes'
-import { pageCanonical } from '@/lib/utils/seo'
+import { buildDictionaryPath } from '@/lib/constants/path-builders'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 import { META_DESCRIPTION_PREVIEW_LENGTH, DESCRIPTION_UI_PREVIEW_LENGTH } from '@/lib/constants/limits'
 
 export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
@@ -19,11 +20,28 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const { term } = await getTermBySlug(slug)
-  if (!term) return { title: '用語が見つかりません - BON-LOG' }
+  if (!term) return { title: '用語が見つかりません' }
+  const title = `${term.term}（${term.reading}） - 盆栽用語辞典`
+  const description = term.description.slice(0, META_DESCRIPTION_PREVIEW_LENGTH)
+  const canonical = pageCanonical(`${ROUTE_DICTIONARY}/${slug}`)
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(term.term)}`
   return {
-    title: `${term.term}（${term.reading}） - 盆栽用語辞典 - BON-LOG`,
-    description: term.description.slice(0, META_DESCRIPTION_PREVIEW_LENGTH),
-    alternates: { canonical: pageCanonical(`${ROUTE_DICTIONARY}/${slug}`) },
+    title: pageTitle(title),
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: term.term }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   }
 }
 
@@ -46,7 +64,7 @@ export async function generateStaticParams() {
 
 export default async function DictionaryTermPage({ params }: Props) {
   const { slug } = await params
-  const [{ term }, ] = await Promise.all([getTermBySlug(slug)])
+  const { term } = await getTermBySlug(slug)
 
   if (!term) notFound()
 
@@ -64,7 +82,6 @@ export default async function DictionaryTermPage({ params }: Props) {
         category={term.category}
         url={`${BASE_URL}/dictionary/${slug}`}
       />
-      {/* 戻るリンク */}
       <Link
         href="/dictionary"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -73,7 +90,6 @@ export default async function DictionaryTermPage({ params }: Props) {
         盆栽用語辞典
       </Link>
 
-      {/* 用語カード */}
       <article className="rounded-xl border border-border bg-card p-6 space-y-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -90,11 +106,10 @@ export default async function DictionaryTermPage({ params }: Props) {
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{term.description}</p>
       </article>
 
-      {/* 前後ナビゲーション */}
       <nav className="flex items-center justify-between gap-4 pt-2" aria-label="用語ナビゲーション">
         {prev ? (
           <Link
-            href={`/dictionary/${prev.slug}`}
+            href={buildDictionaryPath(prev.slug)}
             className="flex-1 flex items-center gap-2 rounded-lg border border-border p-3 hover:border-primary/50 hover:bg-muted/50 transition-colors min-w-0"
           >
             <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -109,7 +124,7 @@ export default async function DictionaryTermPage({ params }: Props) {
 
         {next ? (
           <Link
-            href={`/dictionary/${next.slug}`}
+            href={buildDictionaryPath(next.slug)}
             className="flex-1 flex items-center justify-end gap-2 rounded-lg border border-border p-3 hover:border-primary/50 hover:bg-muted/50 transition-colors min-w-0 text-right"
           >
             <div className="min-w-0">
@@ -123,7 +138,6 @@ export default async function DictionaryTermPage({ params }: Props) {
         )}
       </nav>
 
-      {/* 同カテゴリ一覧リンク */}
       <div className="text-center">
         <Link
           href={`/dictionary?category=${encodeURIComponent(term.category)}`}

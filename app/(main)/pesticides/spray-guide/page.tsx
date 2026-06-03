@@ -26,7 +26,6 @@ function waterVolumeLabel(ml: number): string {
 export default function SprayGuidePage() {
   return (
     <div className="space-y-6">
-      {/* 戻るリンク */}
       <Link
         href="/pesticides"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -35,7 +34,6 @@ export default function SprayGuidePage() {
         農薬・病害虫トップへ
       </Link>
 
-      {/* ヘッダー */}
       <div>
         <h1 className="text-2xl font-bold">散布方法ガイド</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -43,7 +41,6 @@ export default function SprayGuidePage() {
         </p>
       </div>
 
-      {/* 1. 希釈の基本 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -100,7 +97,6 @@ export default function SprayGuidePage() {
         </CardContent>
       </Card>
 
-      {/* 2. 散布のタイミング */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -142,7 +138,6 @@ export default function SprayGuidePage() {
         </CardContent>
       </Card>
 
-      {/* 3. 散布方法のポイント */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -184,7 +179,6 @@ export default function SprayGuidePage() {
         </CardContent>
       </Card>
 
-      {/* 4. 安全対策 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -261,7 +255,6 @@ export default function SprayGuidePage() {
         </CardContent>
       </Card>
 
-      {/* 免責事項 */}
       <PesticideDisclaimer />
     </div>
   )

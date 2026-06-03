@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { getPostDetailReadyLocator } from './locators'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ソーシャルインタラクションのE2Eテスト
@@ -29,10 +30,7 @@ test.describe('いいね', () => {
     await page.waitForLoadState('load')
 
     const postCards = page.locator('[data-testid="post-card"], article')
-    if ((await postCards.count()) === 0) {
-      test.skip()
-      return
-    }
+    expect(await postCards.count()).toBeGreaterThan(0)
     const postCard = postCards.first()
 
     const likeButton = postCard.locator(
@@ -56,10 +54,7 @@ test.describe('ブックマーク', () => {
     await page.waitForLoadState('load')
 
     const postCards = page.locator('[data-testid="post-card"], article')
-    if ((await postCards.count()) === 0) {
-      test.skip()
-      return
-    }
+    expect(await postCards.count()).toBeGreaterThan(0)
     const postCard = postCards.first()
 
     const bookmarkButton = postCard.locator(
@@ -73,10 +68,7 @@ test.describe('ブックマーク', () => {
     await page.waitForLoadState('load')
 
     const postCards = page.locator('[data-testid="post-card"], article')
-    if ((await postCards.count()) === 0) {
-      test.skip()
-      return
-    }
+    expect(await postCards.count()).toBeGreaterThan(0)
     const postCard = postCards.first()
 
     const bookmarkButton = postCard.locator(
@@ -98,15 +90,13 @@ test.describe('コメント', () => {
     await page.waitForLoadState('load')
 
     const postLinks = page.locator('a[href^="/posts/"]')
-    if ((await postLinks.count()) === 0) {
-      test.skip()
-      return
-    }
+    expect(await postLinks.count()).toBeGreaterThan(0)
 
-    await postLinks.first().click()
-    await expect(page).toHaveURL(/\/posts\//, { timeout: 10000 })
+    await clickAndWaitForUrl(page, postLinks.first(), /\/posts\//, { timeout: 10000 })
     await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
     await page.waitForLoadState('load')
+    // コメントフォーム/一覧は Suspense 配下でストリーミングされるため hydration 完了まで待つ
+    await page.waitForLoadState('networkidle').catch(() => {})
 
     // コメント入力フォーム
     const commentForm = page.locator(
@@ -125,13 +115,9 @@ test.describe('コメント', () => {
     await page.waitForLoadState('load')
 
     const postLinks = page.locator('a[href^="/posts/"]')
-    if ((await postLinks.count()) === 0) {
-      test.skip()
-      return
-    }
+    expect(await postLinks.count()).toBeGreaterThan(0)
 
-    await postLinks.first().click()
-    await expect(page).toHaveURL(/\/posts\//, { timeout: 10000 })
+    await clickAndWaitForUrl(page, postLinks.first(), /\/posts\//, { timeout: 10000 })
     await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
 
     const commentInput = page.locator(
@@ -156,14 +142,10 @@ test.describe('フォロー', () => {
       await page.goto('/search?q=E2E&tab=users')
       await page.waitForLoadState('load')
       userLinks = page.locator('a[href^="/users/"]')
-      if ((await userLinks.count()) === 0) {
-        test.skip()
-        return
-      }
+      expect(await userLinks.count()).toBeGreaterThan(0)
     }
 
-    await userLinks.first().click()
-    await expect(page).toHaveURL(/\/users\//, { timeout: 15000 })
+    await clickAndWaitForUrl(page, userLinks.first(), /\/users\//, { timeout: 15000 })
 
     // フォローボタン
     const followButton = page.locator(
@@ -182,10 +164,7 @@ test.describe('シェア', () => {
     await page.waitForLoadState('load')
 
     const postCards = page.locator('[data-testid="post-card"], article')
-    if ((await postCards.count()) === 0) {
-      test.skip()
-      return
-    }
+    expect(await postCards.count()).toBeGreaterThan(0)
     const postCard = postCards.first()
 
     // シェアボタンまたはリポストボタン

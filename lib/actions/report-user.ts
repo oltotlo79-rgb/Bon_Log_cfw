@@ -20,15 +20,14 @@ import {
   type ReportTargetType,
 } from '@/lib/constants/report'
 import { REPORT_STATUS } from '@/lib/constants/status'
-import { checkUserRateLimit } from '@/lib/rate-limit'
 import {
   ERR_ALREADY_REPORTED,
   ERR_CANNOT_REPORT_SELF,
   ERR_INPUT_INVALID_GENERIC,
-  ERR_RATE_LIMIT_OPERATION,
   ERR_REPORT_TARGET_NOT_FOUND,
 } from '@/lib/constants/errors'
-import { requireAuth, requireNotGuest, actionSuccess, actionError } from '@/lib/actions/utils'
+import { requireAuth, requireNotGuest, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { revalidateShopRatingsCache } from '@/lib/cache'
 
 /**
  * createReport の runtime 検証 schema。
@@ -105,6 +104,9 @@ async function autoHideContent(targetType: ReportTargetType, targetId: string, r
       break
   }
 
+  // review の自動非表示は店舗一覧の集計平均（getCachedShopRatings）に影響するため無効化する
+  if (targetType === 'review') revalidateShopRatingsCache()
+
   await prisma.report.updateMany({
     where: { targetType, targetId, status: REPORT_STATUS.PENDING },
     data: { status: REPORT_STATUS.AUTO_HIDDEN },
@@ -142,10 +144,8 @@ export async function createReport(params: unknown) {
   const { targetType, targetId, reason, description } = parsed.data
 
   // 3. レート制限 (検証通過後にだけ消費)
-  const rateLimitResult = await checkUserRateLimit(userId, 'create_report')
-  if (!rateLimitResult.success) {
-    return actionError(ERR_RATE_LIMIT_OPERATION)
-  }
+  const rl = await enforceUserRateLimit(userId, 'create_report')
+  if (rl) return actionError(rl.error)
 
   // 4. 対象の所有者 lookup + 自己通報 / 重複の弾き
   const targetUserId = await fetchTargetOwnerId(targetType, targetId)

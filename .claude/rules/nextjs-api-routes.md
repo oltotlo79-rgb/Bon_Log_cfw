@@ -43,3 +43,21 @@ export async function GET(
 
 - Stripe: `stripe.webhooks.constructEvent()` で署名検証
 - べき等性チェック（重複処理防止）
+
+## proxy.ts との関係 (重要)
+
+`proxy.ts` は `API_PREFIX` (`/api/*`) パスを **Basic 認証から除外**する設計。
+これは webhook / 外部連携 / cron に対し Basic を要求しないための意図的な分岐であり、
+**API route の保護責任は route handler 内に集約される**。
+
+new API route を追加する際は必ず以下を route 内で確認すること:
+
+- [ ] 認証: 公開 webhook 以外は `auth()` または `verifyCronAuth()` 等で identity を確認
+- [ ] 認可: ユーザー固有リソースなら `userId` 一致 / `requireAdmin` で gate
+- [ ] 入力検証: Zod safeParse でクエリ・ボディを検証
+- [ ] レート制限: `enforceUserRateLimit` または route-specific token bucket
+- [ ] 署名検証: webhook なら `constructEvent` / HMAC / Bearer 比較
+- [ ] べき等性: 同 event 二重処理を防ぐ guard
+
+これら全てが proxy で守られない以上、route handler は **fail-closed の最終防衛線** として
+振る舞う必要がある。

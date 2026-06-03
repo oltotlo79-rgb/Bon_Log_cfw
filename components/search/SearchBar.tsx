@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Search as SearchIcon, X as XIcon, Clock as ClockIcon } from 'lucide-react'
 
 import { STORAGE_KEY_RECENT_SEARCHES } from '@/lib/constants/storage-keys'
+import { ROUTE_SEARCH } from '@/lib/constants/routes'
 import { MAX_RECENT_SEARCHES } from '@/lib/constants/limits'
 
 function getRecentSearches(): string[] {
@@ -132,7 +133,7 @@ export function SearchBar({ defaultValue = '', onSearch, placeholder = '検索..
       } else {
         params.delete('q')
       }
-      router.push(`/search?${params.toString()}`)
+      router.push(`${ROUTE_SEARCH}?${params.toString()}`)
     }
     setIsFocused(false)
   }, [query, onSearch, router, searchParams])
@@ -144,7 +145,7 @@ export function SearchBar({ defaultValue = '', onSearch, placeholder = '検索..
     } else {
       const params = new URLSearchParams(searchParams.toString())
       params.delete('q')
-      router.push(`/search?${params.toString()}`)
+      router.push(`${ROUTE_SEARCH}?${params.toString()}`)
     }
   }, [onSearch, router, searchParams])
 

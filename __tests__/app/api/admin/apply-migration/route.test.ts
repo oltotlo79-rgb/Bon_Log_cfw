@@ -89,6 +89,28 @@ describe('POST /api/admin/apply-migration', () => {
     expect(data.available).toEqual(expect.arrayContaining(['add_daily_visitors']))
   })
 
+  it('revoke_data_api_grants_from_public が allowlist に含まれ実行できる', async () => {
+    const { prisma } = await import('@/lib/db')
+    vi.mocked(prisma.$executeRawUnsafe).mockResolvedValue(undefined as never)
+
+    const { POST } = await import('@/app/api/admin/apply-migration/route')
+    const res = await POST(makeRequest('test-secret-123', { migration: 'revoke_data_api_grants_from_public' }))
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.migration).toBe('revoke_data_api_grants_from_public')
+    expect(data.statementCount).toBeGreaterThan(0)
+    // 実行された SQL に REVOKE と ALTER DEFAULT PRIVILEGES が含まれることを確認
+    const calls = vi.mocked(prisma.$executeRawUnsafe).mock.calls
+    const allSql = calls.map((c) => String(c[0])).join('\n')
+    expect(allSql).toContain('REVOKE ALL ON ALL TABLES')
+    expect(allSql).toContain('ALTER DEFAULT PRIVILEGES')
+    expect(allSql).toContain('FROM anon')
+    expect(allSql).toContain('FROM authenticated')
+    // ロール存在チェック (Docker postgres 互換性) があることを確認
+    expect(allSql).toContain("rolname = 'anon'")
+    expect(allSql).toContain("rolname = 'authenticated'")
+  })
+
   it('executes statements in order on success', async () => {
     const { prisma } = await import('@/lib/db')
     vi.mocked(prisma.$executeRawUnsafe).mockResolvedValue(undefined as never)

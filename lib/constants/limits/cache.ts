@@ -67,3 +67,12 @@ export const IN_MEMORY_CLEANUP_THRESHOLD = 1000
  * 短い TTL で抑制する。メンテナンス切替の即時性は要件外（最大30秒の遅延を許容）。
  */
 export const MAINTENANCE_CACHE_TTL_MS = 30_000
+
+/**
+ * /api/og 動的 OG 画像の CDN キャッシュ秒数。
+ *
+ * title param が同じなら同じ画像が生成されるため、決定的にキャッシュ可能。
+ * 1時間 fresh / 1日 stale-while-revalidate で OG クローラ・CDN 双方の負荷を抑える。
+ */
+export const OG_CACHE_MAX_AGE_SECONDS = 3600
+export const OG_CACHE_SWR_SECONDS = 86400

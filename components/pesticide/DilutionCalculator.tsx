@@ -58,7 +58,6 @@ export function DilutionCalculator() {
 
   return (
     <div className="space-y-6">
-      {/* モード切替 */}
       <div className="flex gap-2">
         <Button
           variant={mode === 'normal' ? 'default' : 'outline'}
@@ -82,7 +81,6 @@ export function DilutionCalculator() {
             <CardTitle className="text-base">水量と倍率から薬剤量を求める</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* 水量入力 */}
             <div className="space-y-2">
               <Label htmlFor="water-volume">水量（mL）</Label>
               <Input
@@ -106,7 +104,6 @@ export function DilutionCalculator() {
               </div>
             </div>
 
-            {/* 倍率入力 */}
             <div className="space-y-2">
               <Label htmlFor="dilution-ratio">希釈倍率</Label>
               <Input
@@ -130,7 +127,6 @@ export function DilutionCalculator() {
               </div>
             </div>
 
-            {/* 結果 */}
             {normalResult !== null && (
               <div className="rounded-lg bg-muted/50 p-4 space-y-2">
                 <p className="text-sm font-medium">計算結果</p>
@@ -155,7 +151,6 @@ export function DilutionCalculator() {
             <CardTitle className="text-base">薬剤量と倍率から必要水量を求める</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* 薬剤量入力 */}
             <div className="space-y-2">
               <Label htmlFor="pesticide-amount">薬剤量（mL）</Label>
               <Input
@@ -168,7 +163,6 @@ export function DilutionCalculator() {
               />
             </div>
 
-            {/* 倍率入力 */}
             <div className="space-y-2">
               <Label htmlFor="dilution-ratio-reverse">希釈倍率</Label>
               <Input
@@ -192,7 +186,6 @@ export function DilutionCalculator() {
               </div>
             </div>
 
-            {/* 結果 */}
             {reverseResult !== null && (
               <div className="rounded-lg bg-muted/50 p-4 space-y-2">
                 <p className="text-sm font-medium">必要水量</p>

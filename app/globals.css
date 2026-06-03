@@ -13,6 +13,8 @@
   --color-bonsai-brown: var(--bonsai-brown);
   --color-bonsai-beige: var(--bonsai-beige);
   --color-bonsai-cream: var(--bonsai-cream);
+  --color-kinoko: var(--kinoko);
+  --color-yozora: var(--yozora);
   --color-washi: var(--washi);
   --color-sumi: var(--sumi);
   --color-aka: var(--aka);
@@ -63,6 +65,10 @@
 
 :root {
   --radius: 0.625rem;
+  /* フォント戦略: 和風ミンチョ系をシステムフォントのフォールバックスタックで表現する。
+     日本語 Web フォント (Yuji Syuku 等) は subset が効かず数 MB になり LCP を損なうため、
+     next/font では読み込まず、ローカル/システムのミンチョ体に段階的フォールバックする。
+     先頭の "Yuji Syuku"/"Shippori Mincho" はインストール済み環境でのみ使われる。 */
   --font-yuji-syuku: "Yuji Syuku", "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif JP", serif;
   --font-shippori-mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif JP", serif;
   --font-geist-mono: "Geist Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -93,6 +99,10 @@
   --bonsai-brown: oklch(0.40 0 0);
   --bonsai-beige: oklch(0.92 0 0);
   --bonsai-cream: oklch(0.96 0 0);
+  /* 鳥の子色 (kinoko-iro / #f0ece4): ランディングのベース紙色。CMYK 印刷の和紙風クリーム。 */
+  --kinoko: #f0ece4;
+  /* 夜空色 (yozora / #1a1a2e): ランディング hero の dark mode 背景。墨絵の月夜を示唆。 */
+  --yozora: #1a1a2e;
   --washi: oklch(0.98 0 0);
   --sumi: oklch(0.18 0 0);
   --aka: oklch(0.52 0.20 26);
@@ -606,6 +616,13 @@
 }
 
 /* Item 4: ボタンの墨グラデーション（墨の濃淡：濃墨→薄墨） */
+/*
+ * Why theme-aware gradient:
+ *   light mode は濃墨 grad + --primary-foreground (oklch 1.0 = 紙色) で sumi-e の対比を表現。
+ *   dark mode では --primary-foreground が oklch(0.12) (黒寄り) に切り替わるため、
+ *   同じ濃墨 grad を維持すると暗背景の上に暗文字が重なり読めなくなる。
+ *   dark では grad を反転 (紙→淡墨) し theme 共通の text-primary-foreground を期待通り機能させる。
+ */
 [data-slot="button"][data-variant="default"]:not(:disabled):not(.btn-washi) {
   background-image: linear-gradient(135deg, oklch(0.10 0 0), oklch(0.28 0.008 50));
   background-color: transparent;
@@ -613,6 +630,14 @@
 
 [data-slot="button"][data-variant="default"]:hover:not(:disabled):not(.btn-washi) {
   background-image: linear-gradient(135deg, oklch(0.08 0 0), oklch(0.22 0.008 50));
+}
+
+.dark [data-slot="button"][data-variant="default"]:not(:disabled):not(.btn-washi) {
+  background-image: linear-gradient(135deg, oklch(0.92 0 0), oklch(0.82 0 0));
+}
+
+.dark [data-slot="button"][data-variant="default"]:hover:not(:disabled):not(.btn-washi) {
+  background-image: linear-gradient(135deg, oklch(0.88 0 0), oklch(0.76 0 0));
 }
 
 /* ============================================================

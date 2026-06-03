@@ -33,6 +33,7 @@
  * })
  */
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 // ============================================================================
 // 認証機能テストスイート
@@ -286,23 +287,12 @@ test.describe('認証機能', () => {
       await page.waitForTimeout(1000)
 
       /**
-       * page.getByRole('link', { name: /新規登録/i }).click()
+       * 「新規登録」リンクをクリックし、/register への遷移を atomic に待つ。
        *
-       * 'link' ロールは <a> タグに対応します。
-       * 「新規登録」というテキストを持つリンクを検索してクリックします。
+       * 'link' ロールは <a> タグに対応します。Next.js の <Link> はクライアントサイド
+       * ナビゲーションを行うため、click → URL 遷移を Promise.all で同時に待機する。
        */
-      await page.getByRole('link', { name: /新規登録/i }).click()
-
-      /**
-       * expect(page).toHaveURL('/register')
-       *
-       * ページのURLが '/register' であることを検証します。
-       * リンクをクリックした後、正しいページに遷移したかどうかを確認しています。
-       *
-       * Next.jsの <Link> コンポーネントはクライアントサイドナビゲーションを行うため、
-       * ページ全体のリロードなしに遷移が完了します。
-       */
-      await expect(page).toHaveURL('/register')
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /新規登録/i }), '/register')
     })
 
     /**
@@ -322,18 +312,13 @@ test.describe('認証機能', () => {
       await page.waitForTimeout(1000)
 
       /**
-       * リンクテキスト「パスワードをお忘れ」にマッチするリンクをクリック
+       * リンクテキスト「パスワードをお忘れ」にマッチするリンクをクリックし、
+       * /password-reset への遷移を atomic に待つ。
        *
-       * 正規表現 /パスワードをお忘れ/i を使用して部分一致で検索しています。
-       * 実際のテキストは「パスワードをお忘れですか？」ですが、
-       * 部分一致なので「パスワードをお忘れ」だけでマッチします。
+       * 正規表現 /パスワードをお忘れ/i は部分一致。実際のテキストは
+       * 「パスワードをお忘れですか？」だが「パスワードをお忘れ」でマッチする。
        */
-      await page.getByRole('link', { name: /パスワードをお忘れ/i }).click()
-
-      /**
-       * パスワードリセットページ（/password-reset）に遷移したことを確認
-       */
-      await expect(page).toHaveURL('/password-reset')
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /パスワードをお忘れ/i }), '/password-reset')
     })
   })
 
@@ -412,14 +397,9 @@ test.describe('認証機能', () => {
       await page.waitForTimeout(1000)
 
       /**
-       * 「ログイン」リンクをクリック
+       * 「ログイン」リンクをクリックし、/login への遷移を atomic に待つ
        */
-      await page.getByRole('link', { name: /ログイン/i }).click()
-
-      /**
-       * ログインページ（/login）に遷移したことを確認
-       */
-      await expect(page).toHaveURL('/login')
+      await clickAndWaitForUrl(page, page.getByRole('link', { name: /ログイン/i }), '/login')
     })
 
     // CI standalone では Server Action のバリデーション結果がクライアントに返らずエラーが表示されないためスキップ

@@ -1,7 +1,4 @@
 /**
- * @file app/api/og/route.tsx
- * @description 動的OG画像生成API
- *
  * 水墨画の生成済み画像を背景に、タイトルをオーバーレイしてOG画像を動的生成。
  *
  * @usage
@@ -10,8 +7,15 @@
  */
 
 import { ImageResponse } from 'next/og'
-import { NextRequest } from 'next/server'
-import { OG_TITLE_MAX_LENGTH, OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT } from '@/lib/constants/limits'
+import { NextRequest, NextResponse } from 'next/server'
+import {
+  OG_TITLE_MAX_LENGTH,
+  OG_IMAGE_WIDTH,
+  OG_IMAGE_HEIGHT,
+  OG_CACHE_MAX_AGE_SECONDS,
+  OG_CACHE_SWR_SECONDS,
+} from '@/lib/constants/limits'
+import { rateLimit, RATE_LIMITS, getClientIp } from '@/lib/rate-limit'
 
 // Next.js 14+ では `next/og` が Node.js / Edge 双方で動作する。
 // Next.js 16 で `runtime = 'edge'` を明示すると "edge runtime disables static generation" の
@@ -22,7 +26,18 @@ const size = {
   height: OG_IMAGE_HEIGHT,
 }
 
+const CACHE_CONTROL_VALUE = `public, max-age=${OG_CACHE_MAX_AGE_SECONDS}, s-maxage=${OG_CACHE_MAX_AGE_SECONDS}, stale-while-revalidate=${OG_CACHE_SWR_SECONDS}`
+
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request)
+  const rl = await rateLimit(`og:${ip}`, RATE_LIMITS.api)
+  if (!rl.success) {
+    return new NextResponse('Too Many Requests', {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetTime - Date.now()) / 1000)) },
+    })
+  }
+
   const { searchParams } = new URL(request.url)
   const title = searchParams.get('title')
 
@@ -40,8 +55,9 @@ export async function GET(request: NextRequest) {
           position: 'relative',
         }}
       >
-        {/* 水墨画背景 */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* 水墨画背景: next/og (Satori) は React 風JSX を解釈するが next/image は使えないため
+            生 <img> を使う（next/image は Next.js client runtime に依存する）。 */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse 内では next/image 不可 */}
         <img
           src={ogBgUrl}
           alt=""
@@ -55,7 +71,6 @@ export async function GET(request: NextRequest) {
           }}
         />
 
-        {/* 右側にテキストオーバーレイ（画像の右2/3は余白エリア） */}
         <div
           style={{
             position: 'absolute',
@@ -70,7 +85,6 @@ export async function GET(request: NextRequest) {
             padding: '60px 80px 60px 40px',
           }}
         >
-          {/* サイト名 */}
           <div
             style={{
               fontSize: '64px',
@@ -84,7 +98,6 @@ export async function GET(request: NextRequest) {
             BON-LOG
           </div>
 
-          {/* タイトルまたはキャッチコピー */}
           <div
             style={{
               fontSize: title ? '30px' : '26px',
@@ -102,7 +115,6 @@ export async function GET(request: NextRequest) {
           </div>
         </div>
 
-        {/* フッター */}
         <div
           style={{
             position: 'absolute',
@@ -117,6 +129,11 @@ export async function GET(request: NextRequest) {
         </div>
       </div>
     ),
-    { ...size }
+    {
+      ...size,
+      headers: {
+        'Cache-Control': CACHE_CONTROL_VALUE,
+      },
+    },
   )
 }

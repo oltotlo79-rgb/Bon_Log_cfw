@@ -18,6 +18,7 @@ import {
   cancelFollowRequest,
 } from '@/lib/actions/follow-request'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { buildUserPath } from '@/lib/constants/path-builders'
 
 type FollowRequestUser = {
   id: string
@@ -153,7 +154,6 @@ export function FollowRequestsClient({
 
   return (
     <div>
-      {/* タブ */}
       <div className="flex border-b">
         <button
           onClick={() => setActiveTab('received')}
@@ -187,7 +187,6 @@ export function FollowRequestsClient({
         </button>
       </div>
 
-      {/* コンテンツ */}
       <div>
         {activeTab === 'received' ? (
           // 受信したリクエスト
@@ -195,8 +194,7 @@ export function FollowRequestsClient({
             <div className="divide-y">
               {receivedRequests.map((request) => (
                 <div key={request.id} className="p-4 flex items-start gap-3">
-                  {/* アバター */}
-                  <Link href={`/users/${request.user.id}`}>
+                  <Link href={buildUserPath(request.user.id)}>
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex-shrink-0">
                       {request.user.avatarUrl ? (
                         <Image
@@ -214,10 +212,9 @@ export function FollowRequestsClient({
                     </div>
                   </Link>
 
-                  {/* ユーザー情報 */}
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/users/${request.user.id}`}
+                      href={buildUserPath(request.user.id)}
                       className="font-medium hover:underline"
                     >
                       {request.user.nickname}
@@ -232,7 +229,6 @@ export function FollowRequestsClient({
                     </p>
                   </div>
 
-                  {/* アクションボタン */}
                   <div className="flex gap-2 flex-shrink-0">
                     <Button
                       size="sm"
@@ -265,8 +261,7 @@ export function FollowRequestsClient({
             <div className="divide-y">
               {sentRequests.map((request) => (
                 <div key={request.id} className="p-4 flex items-start gap-3">
-                  {/* アバター */}
-                  <Link href={`/users/${request.user.id}`}>
+                  <Link href={buildUserPath(request.user.id)}>
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex-shrink-0">
                       {request.user.avatarUrl ? (
                         <Image
@@ -284,10 +279,9 @@ export function FollowRequestsClient({
                     </div>
                   </Link>
 
-                  {/* ユーザー情報 */}
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/users/${request.user.id}`}
+                      href={buildUserPath(request.user.id)}
                       className="font-medium hover:underline"
                     >
                       {request.user.nickname}
@@ -302,7 +296,6 @@ export function FollowRequestsClient({
                     </p>
                   </div>
 
-                  {/* キャンセルボタン */}
                   <Button
                     size="sm"
                     variant="outline"

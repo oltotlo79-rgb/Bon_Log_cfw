@@ -1,51 +1,31 @@
-/**
- * @file 盆栽園詳細ページ
- * @description 個別の盆栽園の詳細情報を表示するページ。
- * 盆栽園の基本情報、地図、レビュー一覧、レビュー投稿フォームを含む。
- * SEO対策として構造化データ（JSON-LD）も出力する。
- */
-
-// Next.jsのnotFound関数: 404ページを表示
 import { notFound } from 'next/navigation'
-// Next.jsのMetadata型: 動的メタデータ生成用
+import { cache } from 'react'
 import { Metadata } from 'next'
-// Next.jsのLinkコンポーネント: クライアントサイドナビゲーション
 import Link from 'next/link'
-// NextAuth.jsの認証ヘルパー: 現在のセッション取得
 import { auth } from '@/lib/auth'
-// 盆栽園データ取得用のServer Action
-import { getShop } from '@/lib/actions/shop'
-// 星評価表示コンポーネント
+import { getShop as _getShop } from '@/lib/actions/shop'
+
+// generateMetadata と本体で同一店舗の取得をリクエスト内 1 回に集約する
+const getShop = cache((id: string) => _getShop(id))
 import { StarRatingDisplay } from '@/components/shop/StarRating'
-// レビュー投稿フォームコンポーネント
 import { ReviewForm } from '@/components/shop/ReviewForm'
-// レビュー一覧表示コンポーネント
 import { ReviewList } from '@/components/shop/ReviewList'
-// 小型地図表示用ラッパーコンポーネント
 import { MapWrapperSmall } from '@/components/shop/MapWrapper'
-// SEO用のJSON-LD構造化データコンポーネント
 import { LocalBusinessJsonLd } from '@/components/seo/JsonLd'
-// パンくずリストUIコンポーネント
 import { Breadcrumb } from '@/components/common/Breadcrumb'
-// 盆栽園の編集・削除アクションコンポーネント
 import { ShopActions } from '@/components/shop/ShopActions'
-// ジャンル編集コンポーネント（誰でも編集可能）
 import { ShopGenreEditor } from '@/components/shop/ShopGenreEditor'
-import { BASE_URL, ROUTE_FEED, ROUTE_SHOPS } from '@/lib/constants/routes'
+import { ROUTE_HOME, ROUTE_SHOPS } from '@/lib/constants/routes'
 import { buildShopPath } from '@/lib/constants/path-builders'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 
 /**
- * ページコンポーネントのProps型定義
  * 動的ルートパラメータ（盆栽園ID）を受け取る
  */
 interface ShopDetailPageProps {
   params: Promise<{ id: string }>
 }
 
-/**
- * 地図ピンアイコンコンポーネント
- * 住所表示に使用するSVGアイコン
- */
 function MapPinIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -55,10 +35,6 @@ function MapPinIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 電話アイコンコンポーネント
- * 電話番号表示に使用するSVGアイコン
- */
 function PhoneIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -67,10 +43,6 @@ function PhoneIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 時計アイコンコンポーネント
- * 営業時間表示に使用するSVGアイコン
- */
 function ClockIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -80,10 +52,6 @@ function ClockIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * カレンダーオフアイコンコンポーネント
- * 定休日表示に使用するSVGアイコン
- */
 function CalendarOffIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -96,10 +64,6 @@ function CalendarOffIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 地球アイコンコンポーネント
- * ウェブサイトリンク表示に使用するSVGアイコン
- */
 function GlobeIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -110,10 +74,6 @@ function GlobeIcon({ className }: { className?: string }) {
   )
 }
 
-/**
- * 左矢印アイコンコンポーネント
- * 「戻る」ボタンに使用するSVGアイコン
- */
 function ArrowLeftIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -143,19 +103,21 @@ export async function generateMetadata({ params }: ShopDetailPageProps): Promise
   const title = shop.name
   // 説明文を動的に生成（住所、評価、取り扱いジャンルを含む）
   const description = `${shop.address}にある盆栽園「${shop.name}」の情報。${shop.averageRating ? `評価: ${shop.averageRating.toFixed(1)}点` : ''}${shop.genres.length > 0 ? ` 取り扱い: ${shop.genres.map((g: { name: string }) => g.name).join('、')}` : ''}`
+  // 動的 OG 画像に店舗名を載せる（汎用画像ではなく店舗ごとのカードにする）
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(title)}`
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     // Open Graph（SNSシェア用）メタデータ
     openGraph: {
       type: 'website',
       title: `${title} - 盆栽園`,
       description,
-      url: `${BASE_URL}/shops/${id}`,
+      url: pageCanonical(buildShopPath(id)),
       images: [
         {
-          url: '/api/og',
+          url: ogImageUrl,
           width: 1200,
           height: 630,
           alt: title,
@@ -167,11 +129,11 @@ export async function generateMetadata({ params }: ShopDetailPageProps): Promise
       card: 'summary_large_image',
       title: `${title} - 盆栽園`,
       description,
-      images: ['/api/og'],
+      images: [ogImageUrl],
     },
     // 正規URLを指定（重複コンテンツ対策）
     alternates: {
-      canonical: `${BASE_URL}/shops/${id}`,
+      canonical: pageCanonical(buildShopPath(id)),
     },
   }
 }
@@ -208,10 +170,9 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
 
   return (
     <>
-      {/* パンくずリスト（UI + JSON-LD） */}
       <Breadcrumb
         items={[
-          { name: 'ホーム', href: ROUTE_FEED },
+          { name: 'ホーム', href: ROUTE_HOME },
           { name: '盆栽園マップ', href: ROUTE_SHOPS },
           { name: shop.name },
         ]}
@@ -219,7 +180,7 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
       <LocalBusinessJsonLd
         name={shop.name}
         address={shop.address}
-        url={`${BASE_URL}${buildShopPath(shop.id)}`}
+        url={pageCanonical(buildShopPath(shop.id))}
         telephone={shop.phone || undefined}
         openingHours={shop.businessHours || undefined}
         aggregateRating={
@@ -234,7 +195,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
         }
       />
     <div className="space-y-6">
-      {/* 戻るボタン: 盆栽園マップページへのナビゲーション */}
       <Link
         href={ROUTE_SHOPS}
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
@@ -243,13 +203,10 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
         <span>盆栽園マップに戻る</span>
       </Link>
 
-      {/* ヘッダーカード: 盆栽園の基本情報 */}
       <div className="bg-card rounded-lg border p-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            {/* 盆栽園名 */}
             <h1 className="text-2xl font-bold mb-2">{shop.name}</h1>
-            {/* 評価（レビューがある場合のみ表示） */}
             {shop.averageRating !== null && (
               <div className="flex items-center gap-2">
                 <StarRatingDisplay rating={shop.averageRating} size="md" showValue />
@@ -259,7 +216,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
               </div>
             )}
           </div>
-          {/* アクションボタン（編集・削除・シェア） */}
           <ShopActions
             shop={{
               id: shop.id,
@@ -275,15 +231,12 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
           />
         </div>
 
-        {/* 詳細情報リスト */}
         <div className="space-y-3">
-          {/* 住所 */}
           <div className="flex items-start gap-3">
             <MapPinIcon className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
             <span>{shop.address}</span>
           </div>
 
-          {/* 電話番号（存在する場合のみ表示） */}
           {shop.phone && (
             <div className="flex items-center gap-3">
               <PhoneIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -293,7 +246,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
             </div>
           )}
 
-          {/* ウェブサイト（存在する場合のみ表示） */}
           {shop.website && (
             <div className="flex items-center gap-3">
               <GlobeIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -308,7 +260,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
             </div>
           )}
 
-          {/* 営業時間（存在する場合のみ表示） */}
           {shop.businessHours && (
             <div className="flex items-center gap-3">
               <ClockIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -316,7 +267,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
             </div>
           )}
 
-          {/* 定休日（存在する場合のみ表示） */}
           {shop.closedDays && (
             <div className="flex items-center gap-3">
               <CalendarOffIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -325,7 +275,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
           )}
         </div>
 
-        {/* ジャンル編集セクション（ログインユーザーは誰でも編集可能） */}
         <ShopGenreEditor
           shopId={shop.id}
           currentGenres={shop.genres}
@@ -333,7 +282,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
         />
       </div>
 
-      {/* マップ表示（緯度経度がある場合のみ） */}
       {shop.latitude !== null && shop.longitude !== null && (
         <div className="bg-card rounded-lg border overflow-hidden">
           <MapWrapperSmall
@@ -344,27 +292,23 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
         </div>
       )}
 
-      {/* レビューセクション */}
       <div className="bg-card rounded-lg border">
         <div className="p-4 border-b">
           <h2 className="text-lg font-semibold">レビュー</h2>
         </div>
 
-        {/* レビューフォーム（ログイン済み＆未レビューの場合） */}
         {session?.user && !hasReviewed && (
           <div className="p-4 border-b">
             <ReviewForm shopId={shop.id} />
           </div>
         )}
 
-        {/* レビュー済みメッセージ */}
         {hasReviewed && (
           <div className="p-4 border-b text-sm text-muted-foreground text-center">
             この盆栽園にはレビュー済みです
           </div>
         )}
 
-        {/* 未ログインユーザーへのメッセージ */}
         {!session?.user && (
           <div className="p-4 border-b text-center">
             <p className="text-sm text-muted-foreground mb-2">
@@ -379,7 +323,6 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
           </div>
         )}
 
-        {/* レビュー一覧 */}
         <ReviewList
           reviews={shop.reviews}
           currentUserId={session?.user?.id}

@@ -55,14 +55,16 @@ test.describe('コメント投稿', () => {
       await page.waitForURL(/\/posts\//, { timeout: 10000 })
       await page.waitForLoadState('load')
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
+      // コメントフォームは Suspense 配下で遅延ロードされ得るため client fetch 完了まで待つ
+      await page.waitForLoadState('networkidle').catch(() => {})
 
       const submitBtn = page.locator(
         'button[type="submit"], [data-testid="comment-submit"], button[aria-label*="送信"], button[aria-label*="コメント"]'
       ).first()
-      const hasSubmit = await submitBtn.isVisible({ timeout: 5000 }).catch(() => false)
+      const hasSubmit = await submitBtn.isVisible({ timeout: 8000 }).catch(() => false)
       // 送信ボタンか「コメントする」テキストのボタンが存在
       const commentBtn = page.getByRole('button', { name: /コメント|送信|返信/i }).first()
-      const hasCommentBtn = await commentBtn.isVisible({ timeout: 3000 }).catch(() => false)
+      const hasCommentBtn = await commentBtn.isVisible({ timeout: 5000 }).catch(() => false)
       expect(hasSubmit || hasCommentBtn).toBe(true)
     }
   })
@@ -79,6 +81,9 @@ test.describe('コメント一覧', () => {
       await page.waitForURL(/\/posts\//, { timeout: 10000 })
       await page.waitForLoadState('load')
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
+      // コメント一覧は Suspense 配下でストリーミングされる（skeleton には「コメント」文言が無い）ため、
+      // client fetch / hydration 完了まで待ってから検証する
+      await page.waitForLoadState('networkidle').catch(() => {})
 
       const commentSection = page.locator(
         '[data-testid="comment-list"], [data-testid="comments"], section'
@@ -100,12 +105,14 @@ test.describe('コメント一覧', () => {
       await page.waitForURL(/\/posts\//, { timeout: 10000 })
       await page.waitForLoadState('load')
       await expect(getPostDetailReadyLocator(page)).toBeVisible({ timeout: 30000 })
+      // コメント一覧は Suspense 配下で遅延ロードされ得るため client fetch 完了まで待つ
+      await page.waitForLoadState('networkidle').catch(() => {})
 
       // コメントが存在する場合は表示確認、なければ空メッセージを確認
       const commentCard = page.locator('[data-testid="comment-card"], [class*="comment"]').first()
       const emptyMsg = page.getByText(/コメントはありません|まだコメントはありません|コメントがありません/i).first()
-      const hasComment = await commentCard.isVisible({ timeout: 3000 }).catch(() => false)
-      const hasEmpty = await emptyMsg.isVisible({ timeout: 3000 }).catch(() => false)
+      const hasComment = await commentCard.isVisible({ timeout: 8000 }).catch(() => false)
+      const hasEmpty = await emptyMsg.isVisible({ timeout: 5000 }).catch(() => false)
       expect(hasComment || hasEmpty).toBe(true)
     }
   })

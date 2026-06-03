@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 test.describe('盆栽用語辞典', () => {
   test.beforeEach(async ({ page }) => {
@@ -32,10 +33,11 @@ test.describe('盆栽用語辞典', () => {
 
     if (count > 0) {
       const href = await termCards.first().getAttribute('href')
-      await termCards.first().click()
 
       if (href) {
-        await expect(page).toHaveURL(new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 10000 })
+        await clickAndWaitForUrl(page, termCards.first(), new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 10000 })
+      } else {
+        await termCards.first().click()
       }
     }
   })

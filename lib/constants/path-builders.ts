@@ -14,6 +14,7 @@ export const buildUserFollowersPath = (id: string) => `/users/${id}/followers`
 export const buildUserLikesPath = (id: string) => `/users/${id}/likes`
 
 export const buildPostPath = (id: string) => `/posts/${id}`
+export const buildPostEditPath = (id: string) => `/posts/${id}/edit`
 export const buildScheduledPostEditPath = (id: string) => `/posts/scheduled/${id}/edit`
 
 export const buildBonsaiPath = (id: string) => `/bonsai/${id}`

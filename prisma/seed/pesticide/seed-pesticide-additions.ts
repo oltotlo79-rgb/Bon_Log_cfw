@@ -220,7 +220,8 @@ export async function seedPesticideAdditions() {
         slug: 'fosetyl-aluminum',
         name: 'フォセチルアルミニウム',
         nameEn: 'Fosetyl-aluminum',
-        fracCode: '33',
+        // ホスホネートは2018年にFRAC旧コード33(U33)からP07(宿主抵抗性誘導)へ再分類済み
+        fracCode: 'P07',
         ingredientGroup: 'ホスホネート系殺菌剤',
         resistanceRisk: 'low' as const,
         description:

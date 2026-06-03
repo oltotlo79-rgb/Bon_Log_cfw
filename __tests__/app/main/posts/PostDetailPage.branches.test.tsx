@@ -10,10 +10,14 @@ import { render, screen } from '@testing-library/react'
  */
 
 const mockFindMany = vi.fn()
+const mockUserFindUnique = vi.fn()
 vi.mock('@/lib/db', () => ({
   prisma: {
     commentThreadMute: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
+    },
+    user: {
+      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
     },
   },
 }))
@@ -269,6 +273,7 @@ describe('generateMetadata - ブランチカバレッジ', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    mockUserFindUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
 
     const mod = await import('@/app/(main)/posts/[id]/page')
     generateMetadata = mod.generateMetadata

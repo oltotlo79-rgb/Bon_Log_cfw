@@ -131,32 +131,32 @@ describe('isDeviceBlacklisted', async () => {
 
 describe('recordUserDevice', async () => {
   it('records device with upsert', async () => {
-    const { recordUserDevice } = await import('@/lib/actions/blacklist')
+    const { recordUserDevice } = await import('@/lib/services/device-tracking')
     ;(mockPrisma.userDevice.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({})
     await recordUserDevice('u1', 'fp1', 'Chrome', '1.2.3.4')
     expect(mockPrisma.userDevice.upsert).toHaveBeenCalled()
   })
 
   it('skips empty userId', async () => {
-    const { recordUserDevice } = await import('@/lib/actions/blacklist')
+    const { recordUserDevice } = await import('@/lib/services/device-tracking')
     await recordUserDevice('', 'fp1')
     expect(mockPrisma.userDevice.upsert).not.toHaveBeenCalled()
   })
 
   it('skips empty fingerprint', async () => {
-    const { recordUserDevice } = await import('@/lib/actions/blacklist')
+    const { recordUserDevice } = await import('@/lib/services/device-tracking')
     await recordUserDevice('u1', '')
     expect(mockPrisma.userDevice.upsert).not.toHaveBeenCalled()
   })
 
   it('handles error silently', async () => {
-    const { recordUserDevice } = await import('@/lib/actions/blacklist')
+    const { recordUserDevice } = await import('@/lib/services/device-tracking')
     ;(mockPrisma.userDevice.upsert as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'))
     await expect(recordUserDevice('u1', 'fp1')).resolves.not.toThrow()
   })
 
   it('records without optional params', async () => {
-    const { recordUserDevice } = await import('@/lib/actions/blacklist')
+    const { recordUserDevice } = await import('@/lib/services/device-tracking')
     ;(mockPrisma.userDevice.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({})
     await recordUserDevice('u1', 'fp1')
     expect(mockPrisma.userDevice.upsert).toHaveBeenCalledWith(

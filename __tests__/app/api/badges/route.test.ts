@@ -19,6 +19,11 @@ vi.mock('@/lib/logger', () => ({
 
 vi.mock('@/lib/constants/limits', () => ({
   BADGES_CONVERSATIONS_LIMIT: 3,
+  BADGES_MUTED_USERS_LIMIT: 1000,
+}))
+
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }),
 }))
 
 describe('GET /api/badges', async () => {
@@ -259,5 +264,32 @@ describe('GET /api/badges', async () => {
     const data = await response.json()
 
     expect(data).toEqual({ notifications: 0, messages: 0 })
+  })
+
+  it('レート制限超過時は notifications:0, messages:0 を返す', async () => {
+    const { checkUserRateLimit } = await import('@/lib/rate-limit')
+    ;(checkUserRateLimit as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ success: false })
+    mockAuth.mockResolvedValue({ user: { id: 'user1' } })
+
+    const { GET } = await import('@/app/api/badges/route')
+    const response = await GET()
+    const data = await response.json()
+
+    expect(data).toEqual({ notifications: 0, messages: 0 })
+    expect(mockMuteFindMany).not.toHaveBeenCalled()
+  })
+
+  it('mute.findMany に BADGES_MUTED_USERS_LIMIT が take として渡される', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'user1' } })
+    mockMuteFindMany.mockResolvedValue([])
+    mockNotificationCount.mockResolvedValue(0)
+    mockParticipantFindMany.mockResolvedValue([])
+
+    const { GET } = await import('@/app/api/badges/route')
+    await GET()
+
+    expect(mockMuteFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 1000 })
+    )
   })
 })

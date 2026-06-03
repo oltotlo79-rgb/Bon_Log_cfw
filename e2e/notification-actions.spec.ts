@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 通知アクション E2E テスト
@@ -67,8 +68,7 @@ test.describe('通知ページ詳細', () => {
 
     const notifLink = page.locator('a[href="/notifications"]').first()
     if (await notifLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await notifLink.click()
-      await expect(page).toHaveURL(/\/notifications/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, notifLink, /\/notifications/, { timeout: 10000 })
     }
   })
 })

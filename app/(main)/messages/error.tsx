@@ -1,20 +1,7 @@
-/**
- * @fileoverview メッセージ一覧・会話ページのエラーバウンダリ
- *
- * このファイルはNext.js App Routerの規約に従ったエラーUIコンポーネントです。
- * /messagesページおよびその子ルートで発生したエラーをキャッチして表示します。
- *
- * @route /messages (およびその子ルート)
- * @requires 'use client' - エラーバウンダリはクライアントコンポーネントである必要がある
- */
-
 'use client'
 
 import { PageError } from '@/components/common/PageError'
 
-/**
- * メッセージページのエラーコンポーネント
- */
 export default function MessagesError({
   error,
   reset,

@@ -69,7 +69,7 @@ npm run test:all      # 全テスト実行
 ```
 app/
 ├── (auth)/        # 認証ページ (login, register, password-reset, verify-email)
-├── (main)/        # メインアプリ (feed, posts, users, search, shops, events, notifications, messages, bonsai, settings, analytics, drafts, pesticides, fertilizers, dictionary)
+├── (main)/        # メインアプリ (feed, posts, users, search, shops, events, notifications, messages, bonsai, bookmarks, settings, analytics, drafts, pesticides, fertilizers, hormones, dictionary)
 ├── (legal)/       # プライバシー, 利用規約, 特商法
 ├── (public)/      # about, contact, help
 ├── admin/         # 管理者ダッシュボード (28サブディレクトリ)

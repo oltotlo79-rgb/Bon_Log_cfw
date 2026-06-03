@@ -1,9 +1,3 @@
-/**
- * @file 警告発行ダイアログコンポーネント
- * @description ユーザーへの警告を発行するためのモーダルダイアログ。
- *              ユーザー検索、レベル選択、理由入力、有効期限設定が可能。
- */
-
 'use client'
 
 import { useState, useCallback } from 'react'
@@ -74,7 +68,14 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
       return
     }
 
-    setSearchResults(result.users as SearchUser[])
+    setSearchResults(
+      result.users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        nickname: u.nickname,
+        avatarUrl: u.avatarUrl,
+      })),
+    )
   }, [])
 
   /** ユーザーを選択する */
@@ -119,8 +120,8 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
     })
     setIsSubmitting(false)
 
-    if ('error' in result) {
-      toast({ title: result.error as string, variant: 'destructive' })
+    if (!result.success) {
+      toast({ title: result.error, variant: 'destructive' })
       return
     }
 
@@ -140,19 +141,16 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
 
   return (
     <>
-      {/* オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/50 z-[200]"
         onClick={handleClose}
       />
 
-      {/* ダイアログ本体 */}
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
         <div
           className="bg-card rounded-lg border shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ヘッダー */}
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <h2 className="text-lg font-bold">警告を発行</h2>
             <button
@@ -167,9 +165,7 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
             </button>
           </div>
 
-          {/* フォーム */}
           <div className="px-6 py-4 space-y-4">
-            {/* ユーザー検索 */}
             <div>
               <label className="block text-sm font-medium mb-1">対象ユーザー</label>
               {selectedUser ? (
@@ -215,7 +211,6 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
                     </div>
                   )}
 
-                  {/* 検索結果ドロップダウン */}
                   {searchResults.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 max-h-[200px] overflow-y-auto">
                       {searchResults.map((user) => (
@@ -253,7 +248,6 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
               )}
             </div>
 
-            {/* 警告レベル */}
             <div>
               <label className="block text-sm font-medium mb-1">警告レベル</label>
               <select
@@ -281,7 +275,6 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
               />
             </div>
 
-            {/* 有効期限（任意） */}
             <div>
               <label className="block text-sm font-medium mb-1">
                 有効期限（任意）
@@ -309,7 +302,6 @@ export function IssueWarningDialog({ isOpen, onClose }: IssueWarningDialogProps)
             )}
           </div>
 
-          {/* フッター */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
             <button
               onClick={handleClose}

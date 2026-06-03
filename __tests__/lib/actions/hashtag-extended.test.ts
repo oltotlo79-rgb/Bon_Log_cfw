@@ -6,6 +6,7 @@ vi.unmock('@/lib/actions/hashtag')
 import { createMockPrismaClient } from '../../utils/test-utils'
 
 const mockPrisma = createMockPrismaClient()
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockAuth = vi.fn()
@@ -230,5 +231,101 @@ describe('searchHashtags', async () => {
     const result = await searchHashtags('盆')
 
     expect(result).toEqual([])
+  })
+})
+
+// ============================================================
+// getPostsByHashtag: pagination cursor branches
+// ============================================================
+describe('getPostsByHashtag pagination', async () => {
+  it('limit と同じ件数返ったら nextCursor に末尾IDを返す。count は Hashtag テーブルの実数', async () => {
+    const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+    const posts = [
+      { id: 'p1', content: '#a' },
+      { id: 'p2', content: '#a' },
+      { id: 'p3', content: '#a' },
+    ]
+    mockPrisma.post.findMany.mockResolvedValue(posts)
+    mockPrisma.hashtag.findUnique.mockResolvedValue({ count: 99 })
+
+    const result = await getPostsByHashtag('a', { limit: 3 })
+
+    expect(result.nextCursor).toBe('p3')
+    // posts.length(3) ではなく Hashtag テーブルの count(99) を返すこと
+    expect(result.hashtag).toEqual({ name: 'a', count: 99 })
+  })
+
+  it('limit より少なければ nextCursor は undefined', async () => {
+    const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+    mockPrisma.post.findMany.mockResolvedValue([{ id: 'p1', content: '#a' }])
+    mockPrisma.hashtag.findUnique.mockResolvedValue({ count: 1 })
+
+    const result = await getPostsByHashtag('a', { limit: 5 })
+
+    expect(result.nextCursor).toBeUndefined()
+  })
+})
+
+// ============================================================
+// recalculateHashtagCounts (admin-gated)
+// ============================================================
+describe('recalculateHashtagCounts', async () => {
+  it('管理者でない場合は ERR_ADMIN_REQUIRED を返し、再計算は実行しない', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    mockPrisma.adminUser.findUnique.mockResolvedValue(null)
+
+    const { recalculateHashtagCounts } = await import('@/lib/actions/hashtag')
+    const result = await recalculateHashtagCounts()
+
+    expect(result.success).toBe(false)
+    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
+  })
+
+  it('未ログインの場合は error を返し、再計算は実行しない', async () => {
+    mockAuth.mockResolvedValue(null)
+
+    const { recalculateHashtagCounts } = await import('@/lib/actions/hashtag')
+    const result = await recalculateHashtagCounts()
+
+    expect(result.success).toBe(false)
+    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
+  })
+
+  it('super_admin ロールは再計算を実行し成功を返す', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    mockPrisma.adminUser.findUnique.mockResolvedValue({ role: 'super_admin' })
+    mockPrisma.$executeRaw.mockResolvedValue(1)
+
+    const { recalculateHashtagCounts } = await import('@/lib/actions/hashtag')
+    const result = await recalculateHashtagCounts()
+
+    expect(result.success).toBe(true)
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
+  })
+
+  it('停止中ユーザーは ERR_ACCOUNT_SUSPENDED で再計算をブロックする', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: true })
+
+    const { recalculateHashtagCounts } = await import('@/lib/actions/hashtag')
+    const result = await recalculateHashtagCounts()
+
+    expect(result.success).toBe(false)
+    expect(mockPrisma.adminUser.findUnique).not.toHaveBeenCalled()
+    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
+  })
+
+  it('readonly ロールは hashtags:recalculate 権限がないため拒否される', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    mockPrisma.adminUser.findUnique.mockResolvedValue({ role: 'readonly' })
+
+    const { recalculateHashtagCounts } = await import('@/lib/actions/hashtag')
+    const result = await recalculateHashtagCounts()
+
+    expect(result.success).toBe(false)
+    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
   })
 })

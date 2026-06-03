@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * 設定ページのE2Eテスト
@@ -108,16 +109,12 @@ test.describe('プロフィール編集', () => {
 test.describe('設定サブページ', () => {
   test('アカウント設定ページに遷移できる', async ({ page }) => {
     await page.goto('/settings')
-    await page.getByRole('link', { name: /アカウント設定/i }).first().click()
-
-    await expect(page).toHaveURL(/\/settings\/account/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, page.getByRole('link', { name: /アカウント設定/i }).first(), /\/settings\/account/, { timeout: 10000 })
     await expect(page.getByText(/アカウント設定|公開|削除/i).first()).toBeVisible({ timeout: 10000 })
   })
 
   test('プラン管理ページに遷移できる', async ({ page }) => {
     await page.goto('/settings')
-    await page.getByRole('link', { name: /プラン管理/i }).first().click()
-
-    await expect(page).toHaveURL(/\/settings\/subscription/, { timeout: 10000 })
+    await clickAndWaitForUrl(page, page.getByRole('link', { name: /プラン管理/i }).first(), /\/settings\/subscription/, { timeout: 10000 })
   })
 })

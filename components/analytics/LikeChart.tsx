@@ -2,9 +2,6 @@
 
 import { DEFAULT_ANALYTICS_DAYS } from '@/lib/constants/limits/analytics'
 
-/**
- * LikeChartコンポーネントのProps型定義
- */
 type LikeChartProps = {
   /** 日別のいいね・コメントデータの配列 */
   data: {
@@ -50,7 +47,6 @@ export function LikeChart({ data }: LikeChartProps) {
         高さを固定し、各棒を均等配置
       */}
       <div className="flex items-end justify-between h-40 gap-1">
-        {/* 最新30日分のデータのみ表示（古いデータは切り捨て） */}
         {data.slice(-DEFAULT_ANALYTICS_DAYS).map((item) => {
           // いいね部分の高さを最大値に対する比率で計算（0-100%）
           const likeHeight = (item.likes / maxValue) * 100
@@ -59,7 +55,6 @@ export function LikeChart({ data }: LikeChartProps) {
 
           return (
             <div key={item.date} className="flex-1 flex flex-col items-center">
-              {/* 積み上げ棒グラフのコンテナ */}
               <div className="w-full flex flex-col gap-0.5" style={{ height: '100%' }}>
                 {/*
                   棒グラフ部分
@@ -111,12 +106,10 @@ export function LikeChart({ data }: LikeChartProps) {
           いいね（濃い色）とコメント（薄い色）の意味を表示
         */}
         <div className="flex items-center gap-4">
-          {/* いいねの凡例 */}
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded bg-primary/60" />
             いいね
           </span>
-          {/* コメントの凡例 */}
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded bg-primary/30" />
             コメント

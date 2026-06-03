@@ -196,7 +196,7 @@ describe('generateMetadata for events', async () => {
     } as ReturnType<typeof getEvent> extends Promise<infer T> ? T : never)
 
     const result = await generateMetadata({ params: Promise.resolve({ id: 'evt-1' }) })
-    expect(result.title).toBe('Bonsai Exhibition')
+    expect(result.title).toBe('Bonsai Exhibition | BON-LOG')
   })
 
   it('returns fallback when not found', async () => {

@@ -9,7 +9,6 @@
  * - アカウント削除（危険な操作として明示）
  * - 認証チェックによるアクセス制御
  *
- * @route /settings/account
  * @requires 認証必須 - 未ログインユーザーはログインページへリダイレクト
  */
 
@@ -39,11 +38,11 @@ import { PrivacyToggle } from '@/components/user/PrivacyToggle'
 import { DeleteAccountButton } from '@/components/user/DeleteAccountButton'
 
 /**
- * 静的メタデータの定義
  * ページタイトルの設定
  */
 export const metadata = {
-  title: 'アカウント設定 - BON-LOG',
+  title: 'アカウント設定',
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -86,9 +85,7 @@ export default async function AccountSettingsPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-card rounded-lg border">
-        {/* ヘッダーセクション */}
         <div className="px-4 py-3 border-b">
-          {/* 設定トップページへの戻りリンク */}
           <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
             &larr; 設定に戻る
           </Link>
@@ -96,17 +93,13 @@ export default async function AccountSettingsPage() {
         </div>
 
         <div className="divide-y">
-          {/* 公開設定セクション */}
           <div className="p-4">
             <h2 className="font-medium mb-2">プライバシー設定</h2>
-            {/* 公開/非公開の切り替えトグル（現在の設定を初期値として渡す） */}
             <PrivacyToggle initialIsPublic={user.isPublic} />
           </div>
 
-          {/* アカウント削除セクション（危険な操作として赤色で表示） */}
           <div className="p-4">
             <h2 className="font-medium mb-2 text-destructive">危険な操作</h2>
-            {/* アカウント削除ボタン（確認ダイアログ付き） */}
             <DeleteAccountButton />
           </div>
         </div>

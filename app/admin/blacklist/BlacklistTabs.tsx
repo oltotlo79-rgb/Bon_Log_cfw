@@ -1,10 +1,3 @@
-/**
- * @file ブラックリストタブコンポーネント
- * @description メールアドレスとデバイスフィンガープリントのブラックリストを
- *              タブで切り替えて表示・管理するクライアントコンポーネント。
- *              スパムアカウントや悪質ユーザーの再登録を防止するための機能。
- */
-
 'use client'
 
 // Reactのフック（状態管理用）
@@ -36,9 +29,6 @@ import { FINGERPRINT_DISPLAY_LENGTH } from '@/lib/constants/limits'
 import { useToast } from '@/hooks/use-toast'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
-/**
- * メールブラックリストアイテムの型定義
- */
 interface EmailBlacklistItem {
   /** ブラックリストレコードID */
   id: string
@@ -52,9 +42,6 @@ interface EmailBlacklistItem {
   createdAt: Date
 }
 
-/**
- * デバイスブラックリストアイテムの型定義
- */
 interface DeviceBlacklistItem {
   /** ブラックリストレコードID */
   id: string
@@ -70,9 +57,6 @@ interface DeviceBlacklistItem {
   createdAt: Date
 }
 
-/**
- * BlacklistTabsコンポーネントのProps型定義
- */
 interface BlacklistTabsProps {
   /** 現在選択されているタブ */
   tab: 'email' | 'device'
@@ -265,7 +249,6 @@ export function BlacklistTabs({
 
   return (
     <div className="space-y-4">
-      {/* タブ */}
       <div className="flex gap-2 border-b">
         <button
           onClick={() => handleTabChange('email')}
@@ -293,7 +276,6 @@ export function BlacklistTabs({
         </button>
       </div>
 
-      {/* フィルター & 追加ボタン */}
       <div className="bg-card rounded-lg border p-4">
         <div className="flex flex-wrap gap-4">
           <form className="flex-1 min-w-[200px]">
@@ -317,7 +299,6 @@ export function BlacklistTabs({
         </div>
       </div>
 
-      {/* 追加モーダル */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card rounded-lg p-6 w-full max-w-md mx-4">
@@ -406,7 +387,6 @@ export function BlacklistTabs({
         </div>
       )}
 
-      {/* テーブル */}
       <div className="bg-card rounded-lg border">
         <table className="w-full">
           <thead className="bg-muted/50">
@@ -498,7 +478,6 @@ export function BlacklistTabs({
         </table>
       </div>
 
-      {/* カーソルベースページネーション（前へ=履歴戻し / 次へ=cursor 更新） */}
       {(currentNextCursor || !isFirstPage) && (
         <div className="flex items-center justify-center gap-2">
           {!isFirstPage && (

@@ -88,13 +88,13 @@ describe('SpreadersPage', async () => {
 
   it('generateMetadata: typeなしの場合デフォルトタイトル', async () => {
     const metadata = await generateMetadata({ searchParams: Promise.resolve({}) })
-    expect(metadata.title).toBe('展着剤一覧 - 農薬・病害虫 - BON-LOG')
+    expect(metadata.title).toBe('展着剤一覧 - 農薬・病害虫')
   })
 
   it('generateMetadata: type指定時にタイトルに型名が含まれる', async () => {
     mockGetSpreaderTypeBySlug.mockResolvedValue({ name: '非イオン性' })
 
     const metadata = await generateMetadata({ searchParams: Promise.resolve({ type: 'non-ionic' }) })
-    expect(metadata.title).toBe('非イオン性の展着剤 - 農薬・病害虫 - BON-LOG')
+    expect(metadata.title).toBe('非イオン性の展着剤 - 農薬・病害虫')
   })
 })

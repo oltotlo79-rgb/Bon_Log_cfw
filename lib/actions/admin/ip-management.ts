@@ -89,7 +89,6 @@ export async function detectMultiAccounts() {
       LIMIT ${MULTI_ACCOUNT_DETECTION_LIMIT}
     `
 
-    // ユーザー情報を取得
     const parsedResults = results.map(r => ({
       ...r,
       userIdList: r.user_ids.split(','),

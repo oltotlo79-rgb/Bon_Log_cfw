@@ -1,10 +1,3 @@
-/**
- * @file ブラックリスト管理ページ
- * @description メールアドレスとデバイスのブラックリストを管理する管理者専用ページ。
- *              スパムアカウントや悪質ユーザーの再登録を防止するための機能を提供。
- * @route /admin/blacklist
- */
-
 import { Suspense } from 'react'
 import { getEmailBlacklist, getDeviceBlacklist } from '@/lib/actions/blacklist'
 import { BlacklistTabs } from './BlacklistTabs'

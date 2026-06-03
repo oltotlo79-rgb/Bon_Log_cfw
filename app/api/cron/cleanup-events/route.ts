@@ -1,8 +1,12 @@
 /**
- * 古いイベントを削除するCronジョブ
+ * 古いデータを削除する定期 Cron ジョブ。
  *
- * 終了日から6ヶ月経過したイベントをデータベースから削除します。
- * Vercel Cron Jobsにより毎月1日0時(JST)に自動実行されます。
+ * 1) 終了日から 6 ヶ月経過したイベント (`events`)
+ * 2) 処理から 30 日経過した Webhook 冪等性レコード (`webhook_events`)
+ * 3) 有効期限切れのメール確認 / パスワードリセットトークン (発行時に同一 email 分しか
+ *    deleteMany しないため、未消費の失効トークンが蓄積する。これを定期回収する)
+ *
+ * Vercel Cron Jobs により毎月 1 日 0 時 (JST) に自動実行される。
  *
  * @module app/api/cron/cleanup-events
  */
@@ -10,7 +14,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { EVENT_RETENTION_MONTHS } from '@/lib/constants/limits'
+import {
+  EVENT_RETENTION_MONTHS,
+  WEBHOOK_EVENT_RETENTION_DAYS,
+  ONE_DAY_MS,
+} from '@/lib/constants/limits'
 import { verifyCronAuth } from '@/lib/cron-auth'
 import { API_ERR_UNAUTHORIZED, API_ERR_INTERNAL_SERVER_ERROR } from '@/lib/constants/errors'
 
@@ -40,35 +48,60 @@ export async function GET(request: NextRequest) {
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - EVENT_RETENTION_MONTHS)
 
+    // Webhook 冪等性レコード保持の cutoff (今日から 30 日前)
+    const webhookCutoff = new Date(Date.now() - WEBHOOK_EVENT_RETENTION_DAYS * ONE_DAY_MS)
+
+    // 失効トークンの cutoff (現在時刻。expires < now を削除)
+    const now = new Date()
+
     // 終了日がnullの場合は開始日を使用
     // 終了日または開始日が6ヶ月以上前のイベントを削除
-    const result = await prisma.event.deleteMany({
-      where: {
-        OR: [
-          // 終了日がある場合：終了日が6ヶ月以上前
-          {
-            endDate: {
-              not: null,
-              lt: sixMonthsAgo,
+    // 各処理は独立しているので Promise.all で並列実行し、片方が落ちても他方は返せるようにする。
+    const [eventResult, webhookResult, emailTokenResult, passwordTokenResult] = await Promise.all([
+      prisma.event.deleteMany({
+        where: {
+          OR: [
+            // 終了日がある場合：終了日が6ヶ月以上前
+            {
+              endDate: {
+                not: null,
+                lt: sixMonthsAgo,
+              },
             },
-          },
-          // 終了日がない場合：開始日が6ヶ月以上前
-          {
-            endDate: null,
-            startDate: {
-              lt: sixMonthsAgo,
+            // 終了日がない場合：開始日が6ヶ月以上前
+            {
+              endDate: null,
+              startDate: {
+                lt: sixMonthsAgo,
+              },
             },
-          },
-        ],
-      },
-    })
+          ],
+        },
+      }),
+      prisma.webhookEvent.deleteMany({
+        where: { processedAt: { lt: webhookCutoff } },
+      }),
+      prisma.emailVerificationToken.deleteMany({
+        where: { expires: { lt: now } },
+      }),
+      prisma.passwordResetToken.deleteMany({
+        where: { expires: { lt: now } },
+      }),
+    ])
 
-    logger.info(`[Cron] Deleted ${result.count} old events`)
+    const expiredTokensDeleted = emailTokenResult.count + passwordTokenResult.count
+
+    logger.info(
+      `[Cron] Deleted ${eventResult.count} old events, ${webhookResult.count} old webhook events, ${expiredTokensDeleted} expired tokens`,
+    )
 
     return NextResponse.json({
       success: true,
-      deletedCount: result.count,
+      deletedCount: eventResult.count,
       cutoffDate: sixMonthsAgo.toISOString(),
+      webhookDeletedCount: webhookResult.count,
+      webhookCutoffDate: webhookCutoff.toISOString(),
+      expiredTokensDeleted,
     })
   } catch (error) {
     logger.error('[Cron] Event cleanup error:', error)

@@ -10,7 +10,7 @@ import { BASE_URL, ROUTE_HORMONES, ROUTE_HORMONE_TECHNIQUES } from '@/lib/consta
 import { pageCanonical } from '@/lib/utils/seo'
 
 export const metadata: Metadata = {
-  title: '技法とホルモン - 植物ホルモン - BON-LOG',
+  title: '技法とホルモン - 植物ホルモン',
   description: '盆栽の各技法（摘芯・剪定・針金掛け等）が植物ホルモンに与える影響を科学的に解説します。',
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_TECHNIQUES) },
 }

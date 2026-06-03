@@ -1,8 +1,5 @@
 /** いいねの獲得パターンを時間帯別・曜日別に視覚化するヒートマップコンポーネント。 */
 
-/**
- * TimeHeatmapコンポーネントのProps型定義
- */
 type TimeHeatmapProps = {
   /** 時間帯別（0-23時）のいいね数配列（24要素） */
   hourlyData: number[]
@@ -66,7 +63,6 @@ export function TimeHeatmap({ hourlyData, weekdayData }: TimeHeatmapProps) {
         24本の棒グラフで各時間帯のいいね数を表示
       */}
       <div>
-        {/* セクションタイトル */}
         <p className="text-xs text-muted-foreground mb-2">時間帯別</p>
         {/*
           棒グラフコンテナ
@@ -90,7 +86,6 @@ export function TimeHeatmap({ hourlyData, weekdayData }: TimeHeatmapProps) {
             </div>
           ))}
         </div>
-        {/* X軸のラベル（3時間おき） */}
         <div className="flex justify-between mt-1 text-xs text-muted-foreground">
           {HOURS.map((h) => (
             <span key={h}>{h}</span>
@@ -103,9 +98,7 @@ export function TimeHeatmap({ hourlyData, weekdayData }: TimeHeatmapProps) {
         7つのセルで各曜日のいいね数をヒートマップ形式で表示
       */}
       <div>
-        {/* セクションタイトル */}
         <p className="text-xs text-muted-foreground mb-2">曜日別</p>
-        {/* 曜日セルのコンテナ（均等配置） */}
         <div className="flex gap-2">
           {weekdayData.map((value, day) => {
             // 曜日データ内での最大値を取得（各セルの色計算に使用）
@@ -132,10 +125,8 @@ export function TimeHeatmap({ hourlyData, weekdayData }: TimeHeatmapProps) {
                   // ホバー時に曜日と件数をツールチップ表示
                   title={`${WEEKDAYS[day]}: ${value}件`}
                 >
-                  {/* 1件以上の場合のみ数値を表示 */}
                   {value > 0 && <span className="text-primary-foreground font-medium">{value}</span>}
                 </div>
-                {/* 曜日ラベル */}
                 <span className="text-xs text-muted-foreground mt-1 block">
                   {WEEKDAYS[day]}
                 </span>
@@ -151,7 +142,6 @@ export function TimeHeatmap({ hourlyData, weekdayData }: TimeHeatmapProps) {
       */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
         <span>少</span>
-        {/* 5段階の色見本を横並びで表示 */}
         <div className="flex gap-1">
           <span className="w-4 h-4 rounded bg-muted" />
           <span className="w-4 h-4 rounded bg-primary/20" />

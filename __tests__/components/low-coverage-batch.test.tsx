@@ -58,18 +58,16 @@ vi.mock('@/lib/services/notification-core', () => ({
 // ThreadMuteButton
 // ============================================================
 describe('ThreadMuteButton', async () => {
-  it('renders mute button', async () => {
+  it('未ミュート時はミュート操作のラベルを表示する', async () => {
     const { ThreadMuteButton } = await import('@/components/comment/ThreadMuteButton')
     render(<ThreadMuteButton rootCommentId="c1" initialMuted={false} />)
-    const btn = screen.getByRole('button')
-    expect(btn).toBeDefined()
+    expect(screen.getByRole('button', { name: 'スレッド通知をミュート' })).toBeInTheDocument()
   })
 
-  it('renders unmute when already muted', async () => {
+  it('ミュート済み時は解除操作のラベルを表示する', async () => {
     const { ThreadMuteButton } = await import('@/components/comment/ThreadMuteButton')
     render(<ThreadMuteButton rootCommentId="c1" initialMuted={true} />)
-    const btn = screen.getByRole('button')
-    expect(btn).toBeDefined()
+    expect(screen.getByRole('button', { name: 'スレッド通知をオンにする' })).toBeInTheDocument()
   })
 })
 
@@ -77,12 +75,11 @@ describe('ThreadMuteButton', async () => {
 // NotificationBadge
 // ============================================================
 describe('NotificationBadge', async () => {
-  it('renders badge', async () => {
-    const mod = await import('@/components/notification/NotificationBadge')
-     
-    const NotificationBadge = mod.NotificationBadge || (mod as any).default
+  it('未読が0件のときはバッジを描画しない', async () => {
+    // モックの getUnreadCount は count:0 を返すため、バッジ span は出力されない
+    const { NotificationBadge } = await import('@/components/notification/NotificationBadge')
     const { container } = render(<NotificationBadge />)
-    expect(container).toBeDefined()
+    expect(container.querySelector('span')).toBeNull()
   })
 })
 
@@ -97,10 +94,8 @@ describe('ShareButtons', async () => {
     })
   })
 
-  it('renders share buttons', async () => {
-    const mod = await import('@/components/post/ShareButtons')
-     
-    const ShareButtons = mod.ShareButtons || (mod as any).default
+  it('共有ボタン群を描画する', async () => {
+    const { ShareButtons } = await import('@/components/post/ShareButtons')
     render(<ShareButtons url="/posts/p1" title="Test post" />)
     const btns = screen.getAllByRole('button')
     expect(btns.length).toBeGreaterThan(0)
@@ -111,19 +106,23 @@ describe('ShareButtons', async () => {
 // Comment & Common index exports
 // ============================================================
 
-describe('common/index exports', async () => {
-  it('exports components', async () => {
+describe('common/index re-exports', async () => {
+  it('消費側が依存する名前付きエクスポートを再公開する', async () => {
     const mod = await import('@/components/common/index')
-    expect(mod).toBeDefined()
+    expect(mod.FormError).toBeDefined()
+    expect(mod.PageError).toBeDefined()
+    expect(mod.SkipLink).toBeDefined()
   })
 })
 
 // ============================================================
 // Ads index exports
 // ============================================================
-describe('ads/index exports', async () => {
-  it('exports components', async () => {
+describe('ads/index re-exports', async () => {
+  it('主要な広告コンポーネントを再公開する', async () => {
     const mod = await import('@/components/ads/index')
-    expect(mod).toBeDefined()
+    expect(mod.GoogleAdSense).toBeDefined()
+    expect(mod.AdBanner).toBeDefined()
+    expect(mod.AdProvider).toBeDefined()
   })
 })

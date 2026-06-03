@@ -131,6 +131,13 @@ export function validateEnv(): void {
         `[FATAL] NEXT_PUBLIC_APP_URL は HTTPS でなければなりません (loopback は例外)。現在の値: ${appUrl}`
       )
     }
+    // DISABLE_RATE_LIMIT は CI E2E (loopback) 専用フラグ。実本番に漏れると
+    // レート制限が無効化される恐れがあるため、非 loopback では起動を中断する (fail-closed)。
+    if (process.env.DISABLE_RATE_LIMIT === 'true' && !isLoopback) {
+      throw new Error(
+        `[FATAL] DISABLE_RATE_LIMIT=true は loopback (CI E2E) でのみ許可されます。実本番では設定しないでください。現在の URL: ${appUrl}`
+      )
+    }
     const authUrl = process.env.NEXTAUTH_URL
     if (authUrl) {
       try {

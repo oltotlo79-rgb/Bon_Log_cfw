@@ -1,7 +1,4 @@
 /**
- * @file パスワードリセット申請ページ
- * @description ユーザーがパスワードを忘れた場合にリセット用メールを送信するためのページ
- *
  * 機能概要:
  * - メールアドレス入力フォームの表示
  * - パスワードリセット用メールの送信申請
@@ -55,7 +52,6 @@ export default function PasswordResetPage() {
   return (
     // shadcn/uiのCardコンポーネントでフォームを囲む
     <Card>
-      {/* カードヘッダー - タイトル表示領域 */}
       <CardHeader>
         {/* ページタイトル - 中央揃えで表示。
             CardTitle は <div> 要素として描画されるため、
@@ -65,10 +61,7 @@ export default function PasswordResetPage() {
         </h1>
       </CardHeader>
 
-      {/* カードコンテンツ - フォーム表示領域 */}
       <CardContent>
-        {/* パスワードリセット申請フォーム */}
-        {/* メールアドレス入力と送信ボタンを含む */}
         <PasswordResetForm />
       </CardContent>
     </Card>

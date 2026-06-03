@@ -84,8 +84,8 @@ export async function searchEvents(
   return _searchEvents(query, cursor, limit, options)
 }
 
-export async function searchBonsais(query: string, cursor?: string, limit?: number, userId?: string) {
-  return _searchBonsais(query, cursor, limit, userId)
+export async function searchBonsais(query: string, cursor?: string, limit?: number) {
+  return _searchBonsais(query, cursor, limit)
 }
 
 export async function searchGlobal(query: string) {

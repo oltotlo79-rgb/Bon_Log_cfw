@@ -91,6 +91,12 @@ vi.mock('next/font/google', () => ({
   Shippori_Mincho: () => ({ variable: '--font-shippori-mincho', className: 'shippori-mincho' }),
 }))
 
+// next/headers は Next.js request scope 外で実行すると throw する。
+// RootLayout は CSP nonce 動的化のため `await headers()` を呼ぶので、テスト用にスタブする。
+vi.mock('next/headers', () => ({
+  headers: vi.fn().mockResolvedValue(new Map([['x-nonce', 'test-nonce']])),
+}))
+
 describe('MainLayout', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -157,7 +163,7 @@ describe('RootLayout', async () => {
 
   it('childrenをレンダリングする', async () => {
     const { default: RootLayout } = await import('@/app/layout')
-    const result = RootLayout({ children: <div>test</div> })
+    const result = await RootLayout({ children: <div>test</div> })
 
     expect(result).toBeTruthy()
   })

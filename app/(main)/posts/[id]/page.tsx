@@ -1,36 +1,14 @@
-/**
- * @file 投稿詳細ページ
- * @description 個別の投稿とそのコメントを表示するページ
- *
- * このファイルは[id]動的ルートパラメータを使用して、
- * 特定の投稿の詳細情報を表示します。
- *
- * @features
- * - 投稿内容の詳細表示（テキスト、画像、動画）
- * - 動的OGP/メタデータ生成（SNSシェア対応）
- * - コメントスレッド表示
- * - ソーシャルシェアボタン
- * - 広告バナー表示
- * - 投稿閲覧の分析記録
- *
- * @see https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes
- */
-
 import { notFound } from 'next/navigation'
 
 import { Metadata } from 'next'
 
-// React cache: リクエスト単位でのメモ化（generateMetadata と Page で同じクエリを共有）
 import { cache, Suspense } from 'react'
 
 import { auth } from '@/lib/auth'
 
 import { getPost as _getPost } from '@/lib/actions/post'
 
-/**
- * リクエスト単位でメモ化された投稿取得。
- * React cache() により generateMetadata と Page で同一投稿への呼び出しが1回に集約される。
- */
+// generateMetadata と Page で同一投稿への呼び出しをリクエスト内 1 回に集約する
 const getPost = cache((id: string) => _getPost(id))
 
 import { getComments, getCommentCount } from '@/lib/actions/comment'
@@ -51,31 +29,25 @@ import Link from 'next/link'
 import { ArticleJsonLd } from '@/components/seo/JsonLd'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { CONTENT_PREVIEW_LENGTH, POST_PREVIEW_LENGTH } from '@/lib/constants/limits'
-import { BASE_URL, ROUTE_FEED } from '@/lib/constants/routes'
+import { ROUTE_FEED, ROUTE_HOME } from '@/lib/constants/routes'
+import { pageCanonical, pageTitle } from '@/lib/utils/seo'
+import { buildPostPath, buildUserPath } from '@/lib/constants/path-builders'
 
 /**
- * ページパラメータの型定義
- * Next.js 15以降ではparamsはPromiseとして渡される
+ * メタデータ専用の著者公開状態取得。USER_MINIMAL_RELATION は機密の isPublic/isSuspended を
+ * 含めない方針のため、noindex 判定はここで別途取得する。React cache() でリクエスト内 1 回に集約。
  */
+const getPostAuthorVisibility = cache((userId: string) =>
+  prisma.user.findUnique({
+    where: { id: userId },
+    select: { isPublic: true, isSuspended: true },
+  })
+)
+
 type Props = {
   params: Promise<{ id: string }>
 }
 
-/**
- * 動的メタデータ生成関数
- *
- * 投稿内容に基づいてOGP（Open Graph Protocol）メタデータを動的に生成します。
- * これによりSNSでシェアされた際に、投稿内容のプレビューが正しく表示されます。
- *
- * 生成されるメタデータ:
- * - title: 投稿者名を含むタイトル
- * - description: 投稿内容の先頭100文字
- * - OpenGraph: 記事タイプ、画像、公開日時
- * - Twitter Card: 大きな画像付きカード形式
- *
- * @param params - 動的ルートパラメータ（投稿ID）
- * @returns メタデータオブジェクト
- */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const result = await getPost(id)
@@ -88,42 +60,45 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const content = post.content || '投稿'
   const truncated = content.length > CONTENT_PREVIEW_LENGTH ? content.slice(0, CONTENT_PREVIEW_LENGTH) + '...' : content
   const title = `${post.user.nickname}さんの投稿`
-  const ogImage = post.media?.[0]?.url || '/api/og'
+  const mediaUrl = post.media?.[0]?.url
+  // 実メディアは縦横比が不定（アバター等のポートレートを 1.91:1 と偽らない）。
+  // 寸法を宣言するのは固定サイズの /api/og フォールバックのときだけにする。
+  const ogImages = mediaUrl
+    ? [{ url: mediaUrl, alt: title }]
+    : [{ url: '/api/og', width: 1200, height: 630, alt: title }]
+  const canonical = pageCanonical(buildPostPath(id))
+
+  // 非公開 / 停止ユーザーの投稿は sitemap から除外済み。detail page もインデックスさせず整合させる。
+  const author = await getPostAuthorVisibility(post.user.id)
+  const shouldNoindex = !author || author.isPublic === false || author.isSuspended
 
   return {
-    title,
+    title: pageTitle(title),
     description: truncated,
     openGraph: {
       type: 'article',
       title,
       description: truncated,
-      url: `${BASE_URL}/posts/${id}`,
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-      publishedTime: post.createdAt?.toString(),  // 投稿日時
-      authors: [post.user.nickname],              // 投稿者名
+      url: canonical,
+      images: ogImages,
+      publishedTime: post.createdAt?.toString(),
+      authors: [post.user.nickname],
     },
     twitter: {
-      card: 'summary_large_image',  // 大きな画像付きカード形式
+      card: 'summary_large_image',
       title,
       description: truncated,
-      images: [ogImage],
-    },    alternates: {
-      canonical: `${BASE_URL}/posts/${id}`,
+      images: ogImages,
     },
+    alternates: {
+      canonical,
+    },
+    ...(shouldNoindex && {
+      robots: { index: false, follow: false },
+    }),
   }
 }
 
-/**
- * コメントセクションコンポーネント
- * Suspenseでラップして非同期に読み込むことで、投稿本体を先に表示する
- */
 async function CommentSection({ postId, currentUserId }: { postId: string; currentUserId?: string }) {
   const [commentsResult, countResult] = await Promise.all([
     getComments(postId),
@@ -155,9 +130,6 @@ async function CommentSection({ postId, currentUserId }: { postId: string; curre
   )
 }
 
-/**
- * コメントセクションのローディングフォールバック
- */
 function CommentSectionSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
@@ -178,16 +150,9 @@ function CommentSectionSkeleton() {
   )
 }
 
-/**
- * 投稿詳細ページコンポーネント
- *
- * 個別の投稿とそのコメントを表示するServer Componentです。
- * 投稿本体を先に表示し、コメントセクションはSuspenseで非同期に読み込みます。
- *
- * @param params - 動的ルートパラメータ（投稿ID）
- * @returns 投稿詳細ページのJSX要素
- */
-export default async function PostDetailPage({ params }: Props) {  const { id } = await params  const session = await auth()  const postResult = await getPost(id)
+export default async function PostDetailPage({ params }: Props) {
+  const { id } = await params
+  const [session, postResult] = await Promise.all([auth(), getPost(id)])
 
   if (!postResult.success || !postResult.data) {
     notFound()
@@ -203,24 +168,28 @@ export default async function PostDetailPage({ params }: Props) {  const { id }
     <>
       {!isSelfView && session?.user?.id && (
         <ViewBeacon type="post" postId={post.id} targetUserId={post.user.id} />
-      )}      <Breadcrumb
+      )}
+      <Breadcrumb
         items={[
-          { name: 'ホーム', href: ROUTE_FEED },
-          { name: 'タイムライン', href: ROUTE_FEED },
+          { name: 'ホーム', href: ROUTE_HOME },
           { name: `${post.user.nickname}さんの投稿` },
         ]}
-      />      <ArticleJsonLd
+      />
+      <ArticleJsonLd
         headline={post.content ? (post.content.length > CONTENT_PREVIEW_LENGTH ? post.content.slice(0, CONTENT_PREVIEW_LENGTH) + '...' : post.content) : '投稿'}
         datePublished={post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString()}
         author={{
           name: post.user.nickname,
-          url: `${BASE_URL}/users/${post.user.id}`,
+          url: pageCanonical(buildUserPath(post.user.id)),
         }}
-        url={`${BASE_URL}/posts/${id}`}
+        url={pageCanonical(buildPostPath(id))}
         image={post.media?.[0]?.url}
         description={post.content ? (post.content.length > POST_PREVIEW_LENGTH ? post.content.slice(0, POST_PREVIEW_LENGTH) + '...' : post.content) : undefined}
       />
     <div className="max-w-2xl mx-auto">
+      {/* ページの主題を示す見出し。視覚デザインは PostCard が担うため sr-only にする
+          （スクリーンリーダーの起点 + 検索エンジンのトピックシグナル用）。 */}
+      <h1 className="sr-only">{post.user.nickname}さんの投稿</h1>
       <div className="bg-card rounded-lg border overflow-hidden">
         <div className="px-4 py-3 border-b">
           <Link href={ROUTE_FEED} className="text-sm text-muted-foreground hover:underline">
@@ -230,7 +199,7 @@ export default async function PostDetailPage({ params }: Props) {  const { id }
         <PostCard post={post} currentUserId={session?.user?.id} disableNavigation={true} />
         <div className="border-t px-4 py-3">
           <ShareButtons
-            url={`${BASE_URL}/posts/${id}`}
+            url={pageCanonical(buildPostPath(id))}
             title={`${post.user.nickname}さんの投稿 | BON-LOG`}
             text={post.content ? (post.content.length > CONTENT_PREVIEW_LENGTH ? post.content.slice(0, CONTENT_PREVIEW_LENGTH) + '...' : post.content) : ''}
           />

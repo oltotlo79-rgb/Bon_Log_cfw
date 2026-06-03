@@ -1,11 +1,3 @@
-/**
- * @file ブックマーク投稿リストコンポーネント
- * @description ブックマークした投稿一覧を表示するClient Component
- *              - 無限スクロール（追加読み込み）機能を実装
- *              - 投稿カードの表示とインタラクションを管理
- *              - ブックマークが空の場合の状態表示も担当
- */
-
 // Client Componentとして宣言 - useStateやuseCallback等のフックを使用するため
 'use client'
 
@@ -32,18 +24,12 @@ import { Bookmark } from 'lucide-react'
 // next/image - デコレーション画像の表示に使用
 import Image from 'next/image'
 
-/**
- * 投稿者の型定義
- */
 type PostUser = {
   id: string              // ユーザーID
   nickname: string        // ニックネーム
   avatarUrl: string | null // アバター画像URL
 }
 
-/**
- * 投稿メディア（画像/動画）の型定義
- */
 type PostMedia = {
   id: string        // メディアID
   url: string       // メディアURL
@@ -51,9 +37,6 @@ type PostMedia = {
   sortOrder: number // 表示順序
 }
 
-/**
- * 投稿ジャンルの型定義
- */
 type PostGenre = {
   id: string       // ジャンルID
   name: string     // ジャンル名
@@ -61,7 +44,6 @@ type PostGenre = {
 }
 
 /**
- * 引用投稿の型定義
  * 引用元またはリポスト元の投稿情報
  */
 type QuotePost = {
@@ -72,7 +54,6 @@ type QuotePost = {
 }
 
 /**
- * 投稿の型定義
  * ブックマークリストで表示する投稿の全情報
  */
 type Post = {
@@ -90,9 +71,6 @@ type Post = {
   isBookmarked?: boolean                          // 現在ユーザーがブックマーク済みか
 }
 
-/**
- * コンポーネントのプロパティ型定義
- */
 type BookmarkPostListProps = {
   initialPosts: BookmarkedPost[]         // 初期表示する投稿一覧
   initialNextCursor?: string             // 次ページ取得用カーソル
@@ -102,10 +80,6 @@ type BookmarkPostListProps = {
 /**
  * ブックマーク投稿リストコンポーネント
  *
- * @description
- * - 初期データとしてServer Componentから投稿一覧を受け取る
- * - 「さらに読み込む」ボタンで追加データを取得
- * - ブックマークが空の場合は案内メッセージを表示
  *
  * @param initialPosts - 初期表示する投稿一覧
  * @param initialNextCursor - 次ページ取得用カーソル
@@ -129,9 +103,6 @@ export function BookmarkPostList({
   /**
    * 追加データ読み込み処理
    *
-   * @description
-   * カーソルを使用して次ページの投稿を取得し、
-   * 既存の投稿リストに追加する
    */
   const loadMore = useCallback(async () => {
     // カーソルがない、またはローディング中の場合は処理しない
@@ -156,17 +127,13 @@ export function BookmarkPostList({
   if (posts.length === 0) {
     return (
       <div className="text-center py-12">
-        {/* デコレーション画像 */}
         <Image src="/images/generated/placeholders/empty-bookmark.webp" alt="" width={192} height={144} className="mx-auto mb-4 opacity-60 empty-state-illustration" />
-        {/* ブックマークアイコン */}
         <Bookmark className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
 
-        {/* メインメッセージ */}
         <p className="text-muted-foreground">
           ブックマークした投稿はありません
         </p>
 
-        {/* 補足説明 */}
         <p className="text-sm text-muted-foreground mt-2">
           気になる投稿をブックマークして後で見返しましょう
         </p>
@@ -176,7 +143,6 @@ export function BookmarkPostList({
 
   return (
     <div>
-      {/* 投稿カード一覧 */}
       <div className="divide-y">
         {posts.map((post: Post) => (
           <PostCard
@@ -187,7 +153,6 @@ export function BookmarkPostList({
         ))}
       </div>
 
-      {/* 追加読み込みボタン - 次ページがある場合のみ表示 */}
       {nextCursor && (
         <div className="p-4 text-center border-t">
           <Button

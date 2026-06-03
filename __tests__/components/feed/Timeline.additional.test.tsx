@@ -72,6 +72,7 @@ const mockFetchNextPage = vi.fn()
 const mockUseInfiniteQuery = vi.fn()
 vi.mock('@tanstack/react-query', () => ({
   useInfiniteQuery: (config: { initialData: unknown }) => mockUseInfiniteQuery(config),
+  useQuery: vi.fn(() => ({ data: undefined })),
   useQueryClient: vi.fn(() => ({
     invalidateQueries: vi.fn(),
     setQueryData: vi.fn(),

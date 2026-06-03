@@ -22,7 +22,7 @@ import {
 } from '@/lib/constants/limits'
 
 export const metadata: Metadata = {
-  title: 'ヘルプ - BON-LOG',
+  title: 'ヘルプ',
   description: 'BON-LOG（ボンログ）のヘルプページです。',
   alternates: { canonical: pageCanonical(ROUTE_HELP) },
 }
@@ -66,7 +66,8 @@ const helpSections: HelpSection[] = [
         answer: 'パスワードを忘れた場合は、ログイン画面の「パスワードをお忘れですか？」からパスワードリセットを行ってください。メールアドレスが間違っている場合は、登録時のメールアドレスをご確認ください。',
       },
     ],
-  },  {
+  },
+  {
     title: '投稿について',
     items: [
       {
@@ -90,7 +91,8 @@ const helpSections: HelpSection[] = [
         answer: `ジャンルは投稿のカテゴリーです。「松柏類」「雑木類」「道具」など、投稿内容に合ったジャンルを最大${MAX_GENRES_PER_POST}つまで選択できます。ジャンルを設定すると、興味のあるユーザーに発見されやすくなります。`,
       },
     ],
-  },  {
+  },
+  {
     title: 'プレミアム会員',
     items: [
       {
@@ -118,7 +120,8 @@ const helpSections: HelpSection[] = [
         answer: '新規のお客様には、無料トライアル期間を設けている場合があります。詳細は料金ページをご確認ください。トライアル期間中に解約した場合、料金は発生しません。',
       },
     ],
-  },  {
+  },
+  {
     title: 'プライバシーとセキュリティ',
     items: [
       {
@@ -142,7 +145,8 @@ const helpSections: HelpSection[] = [
         answer: '設定画面の「アカウント」から、アカウントの削除を申請できます。削除すると、すべての投稿、コメント、いいねなどのデータが完全に削除され、復元できません。有料会員の場合は、事前に解約手続きを行ってください。',
       },
     ],
-  },  {
+  },
+  {
     title: '通知について',
     items: [
       {
@@ -162,7 +166,8 @@ const helpSections: HelpSection[] = [
         answer: '以下をご確認ください：\n・設定 > 通知設定で該当の通知がOFFになっていないか\n・相手をミュートしていないか\n・ブロック関係になっていないか\nそれでも解決しない場合は、お問い合わせフォームからご連絡ください。',
       },
     ],
-  },  {
+  },
+  {
     title: 'イベント',
     items: [
       {
@@ -178,7 +183,8 @@ const helpSections: HelpSection[] = [
         answer: '終了したイベントは、デフォルトでは一覧に表示されません。過去のイベントを確認したい場合は、フィルターで「終了済み」を選択してください。',
       },
     ],
-  },  {
+  },
+  {
     title: 'ダイレクトメッセージ',
     items: [
       {
@@ -190,7 +196,8 @@ const helpSections: HelpSection[] = [
         answer: '以下の場合、メッセージを送ることができません：\n・相手にブロックされている場合\n・相手をブロックしている場合\nブロックを解除すれば、再びメッセージのやり取りが可能になります。',
       },
     ],
-  },  {
+  },
+  {
     title: '盆栽育成記録',
     items: [
       {
@@ -206,7 +213,8 @@ const helpSections: HelpSection[] = [
         answer: '投稿作成時に、登録した盆栽を紐付けて投稿することができます。盆栽の成長過程を他のユーザーと共有する際に便利です。',
       },
     ],
-  },  {
+  },
+  {
     title: '盆栽園マップ',
     items: [
       {
@@ -226,7 +234,8 @@ const helpSections: HelpSection[] = [
         answer: '盆栽園マップで、現在地ボタンをクリックすると、あなたの現在地に地図が移動します。位置情報の利用を許可する必要があります。',
       },
     ],
-  },  {
+  },
+  {
     title: 'その他',
     items: [
       {
@@ -268,7 +277,8 @@ export default function HelpPage() {
         <p className="text-muted-foreground">
           BON-LOGの使い方や、よくあるご質問についてご案内します。
         </p>
-      </div>      <div className="relative">
+      </div>
+      <div className="relative">
         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <input
           type="text"
@@ -276,19 +286,23 @@ export default function HelpPage() {
           className="w-full pl-10 pr-4 py-3 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
           disabled
         />
-      </div>      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">        <Link
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Link
           href="#premium"
           className="flex items-center justify-between p-4 bg-card border rounded-lg hover:bg-muted transition-colors"
         >
           <span className="font-medium">プレミアム会員について</span>
           <ChevronRightIcon className="w-5 h-5 text-muted-foreground" />
-        </Link>        <Link
+        </Link>
+        <Link
           href={ROUTE_TERMS}
           className="flex items-center justify-between p-4 bg-card border rounded-lg hover:bg-muted transition-colors"
         >
           <span className="font-medium">利用規約</span>
           <ChevronRightIcon className="w-5 h-5 text-muted-foreground" />
-        </Link>        <Link
+        </Link>
+        <Link
           href={ROUTE_PRIVACY}
           className="flex items-center justify-between p-4 bg-card border rounded-lg hover:bg-muted transition-colors"
         >
@@ -302,18 +316,26 @@ export default function HelpPage() {
           <span className="font-medium">通知設定</span>
           <ChevronRightIcon className="w-5 h-5 text-muted-foreground" />
         </Link>
-      </div>      <div className="space-y-8">
+      </div>
+      <div className="space-y-8">
         {helpSections.map((section, sectionIndex) => (
           <section
-            key={sectionIndex}            id={section.title === 'プレミアム会員' ? 'premium' : section.title === '通知について' ? 'notifications' : undefined}
+            key={sectionIndex}
+            id={section.title === 'プレミアム会員' ? 'premium' : section.title === '通知について' ? 'notifications' : undefined}
             className="scroll-mt-8"
-          >            <h2 className="text-xl font-bold mb-4 pb-2 border-b">{section.title}</h2>            <div className="space-y-4">
-              {section.items.map((item, itemIndex) => (                <details
+          >
+            <h2 className="text-xl font-bold mb-4 pb-2 border-b">{section.title}</h2>
+            <div className="space-y-4">
+              {section.items.map((item, itemIndex) => (
+                <details
                   key={itemIndex}
                   className="group bg-card border rounded-lg"
-                >                  <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-muted/50 rounded-lg">
-                    <span className="font-medium pr-4">{item.question}</span>                    <ChevronRightIcon className="w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform group-open:rotate-90" />
-                  </summary>                  <div className="px-4 pb-4 text-muted-foreground whitespace-pre-line">
+                >
+                  <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-muted/50 rounded-lg">
+                    <span className="font-medium pr-4">{item.question}</span>
+                    <ChevronRightIcon className="w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform group-open:rotate-90" />
+                  </summary>
+                  <div className="px-4 pb-4 text-muted-foreground whitespace-pre-line">
                     {item.answer}
                   </div>
                 </details>
@@ -321,13 +343,16 @@ export default function HelpPage() {
             </div>
           </section>
         ))}
-      </div>      <section className="bg-muted/50 rounded-lg p-6">
+      </div>
+      <section className="bg-muted/50 rounded-lg p-6">
         <h2 className="text-xl font-bold mb-2">お探しの答えが見つかりませんか？</h2>
         <p className="text-muted-foreground mb-4">
           ヘルプセンターで解決しない場合は、お問い合わせフォームからご連絡ください。
-        </p>        <div className="bg-card border rounded-lg p-6">
+        </p>
+        <div className="bg-card border rounded-lg p-6">
           <h3 className="font-semibold mb-4">お問い合わせフォーム</h3>
-          <form className="space-y-4">            <div>
+          <form className="space-y-4">
+            <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1">
                 メールアドレス
               </label>
@@ -339,7 +364,8 @@ export default function HelpPage() {
                 className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="your@email.com"
               />
-            </div>            <div>
+            </div>
+            <div>
               <label htmlFor="category" className="block text-sm font-medium mb-1">
                 お問い合わせ種類
               </label>
@@ -357,7 +383,8 @@ export default function HelpPage() {
                 <option value="report">不適切なコンテンツの報告</option>
                 <option value="other">その他</option>
               </select>
-            </div>            <div>
+            </div>
+            <div>
               <label htmlFor="message" className="block text-sm font-medium mb-1">
                 お問い合わせ内容
               </label>
@@ -369,13 +396,15 @@ export default function HelpPage() {
                 className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 placeholder="お問い合わせ内容を詳しくご記入ください..."
               />
-            </div>            <button
+            </div>
+            <button
               type="submit"
               className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               送信する
             </button>
-          </form>          <p className="text-xs text-muted-foreground mt-4">
+          </form>
+          <p className="text-xs text-muted-foreground mt-4">
             ※ 通常、3営業日以内にご返信いたします。
           </p>
         </div>

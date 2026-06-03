@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { revalidatePath } from 'next/cache'
 import logger from '@/lib/logger'
@@ -12,6 +13,7 @@ import {
   MAX_RATING,
   MAX_REVIEW_IMAGE_SIZE,
   REVIEWS_PAGE_LIMIT,
+  MAX_NOTIFICATION_ID_LENGTH,
 } from '@/lib/constants/limits'
 import {
   ERR_SHOP_NOT_FOUND,
@@ -27,8 +29,12 @@ import {
   ERR_FILE_NOT_SELECTED,
   ERR_REVIEW_SHOP_ID_REQUIRED,
   ERR_REVIEW_RATING_REQUIRED,
+  ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
+
+const reviewIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
 import { requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { normalizeCursorPagination } from '@/lib/actions/pagination'
 import { actionZodError } from '@/lib/actions/schemas/common'
 import { validateImageFile, generateSafeFileName } from '@/lib/file-validation'
 import { buildShopPath } from '@/lib/constants/path-builders'
@@ -208,12 +214,15 @@ export async function deleteReview(reviewId: string): Promise<ActionResult> {
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  const parsed = reviewIdSchema.safeParse(reviewId)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
   const rl = await enforceUserRateLimit(userId, 'delete_review')
   if (rl) return actionError(rl.error)
 
   const review = await prisma.shopReview.findUnique({
-    where: { id: reviewId },
-    select: { userId: true, shopId: true },
+    where: { id: parsed.data },
+    select: { userId: true, shopId: true, images: { select: { url: true } } },
   })
 
   if (!review) {
@@ -225,8 +234,11 @@ export async function deleteReview(reviewId: string): Promise<ActionResult> {
   }
 
   await prisma.shopReview.delete({
-    where: { id: reviewId },
+    where: { id: parsed.data },
   })
+
+  // DB カスケード後にストレージ実体も回収（オーファン防止、best-effort）
+  await deleteMediaFiles(review.images.map((i) => i.url))
 
   revalidatePath(buildShopPath(review.shopId))
   revalidateShopRatingsCache()
@@ -237,6 +249,7 @@ export async function deleteReview(reviewId: string): Promise<ActionResult> {
 /** 盆栽園のレビュー一覧をカーソルベースページネーションで取得する。 */
 export async function getReviews(shopId: string, cursor?: string, limit = REVIEWS_PAGE_LIMIT) {
   try {
+    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
     const reviews = await prisma.shopReview.findMany({
       where: { shopId },
       include: {
@@ -245,15 +258,15 @@ export async function getReviews(shopId: string, cursor?: string, limit = REVIEW
         },
         images: true,
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor && {
-        cursor: { id: cursor },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: safeLimit,
+      ...(safeCursor && {
+        cursor: { id: safeCursor },
         skip: 1,
       }),
     })
 
-    const hasMore = reviews.length === limit
+    const hasMore = reviews.length === safeLimit
 
     return {
       reviews,

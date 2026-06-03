@@ -360,16 +360,18 @@ describe('Two-Factor Actions', async () => {
   // ============================================================
 
   describe('verify2FAToken', async () => {
-    it('ユーザーが見つからない場合はエラーを返す', async () => {
+    // ユーザー列挙対策: 該当ユーザーなし / 2FA 未設定 / コード不一致を区別できないよう
+    // verify2FAToken は全て同一の汎用エラー（ERR_2FA_INVALID_CODE）を返す。
+    it('ユーザーが見つからない場合も汎用の認証コードエラーを返す（列挙対策）', async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce(null)
 
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('user@example.com', '123456')
 
-      expect(result).toMatchObject({ error: 'ユーザーが見つかりません' })
+      expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
 
-    it('2FAが有効でない場合はエラーを返す', async () => {
+    it('2FAが有効でない場合も汎用の認証コードエラーを返す（列挙対策）', async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({
         id: 'user-123',
         twoFactorEnabled: false,
@@ -380,7 +382,7 @@ describe('Two-Factor Actions', async () => {
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('user@example.com', '123456')
 
-      expect(result).toMatchObject({ error: '2段階認証が有効ではありません' })
+      expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
 
     it('TOTPコードで正常に検証する', async () => {
@@ -398,7 +400,7 @@ describe('Two-Factor Actions', async () => {
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('user@example.com', '123456')
 
-      expect(result).toEqual({ success: true })
+      expect(result).toMatchObject({ success: true, data: { ticket: expect.any(String) } })
     })
 
     it('無効なTOTPコードの場合はエラーを返す', async () => {
@@ -433,7 +435,7 @@ describe('Two-Factor Actions', async () => {
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('user@example.com', 'BACKUPCODE')
 
-      expect(result).toEqual({ success: true })
+      expect(result).toMatchObject({ success: true, data: { ticket: expect.any(String) } })
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-123' },
         data: { twoFactorBackupCodes: ['hash1', 'hash3'] },

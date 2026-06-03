@@ -18,7 +18,10 @@ vi.mock('next/cache', () => ({
 }))
 
 vi.mock('@/lib/rate-limit', () => ({ checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }), RATE_LIMITS: {} }))
-vi.mock('@/lib/logger', () => ({ __esModule: true, default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }))
+vi.mock('@/lib/logger', () => {
+  const log = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn(), debug: vi.fn() }
+  return { __esModule: true, default: log, logger: log }
+})
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Map([['x-forwarded-for', '127.0.0.1']])) }))
 vi.mock('@/lib/premium', () => ({ isPremiumUser: vi.fn().mockResolvedValue(false), getMembershipLimits: vi.fn().mockReturnValue({ maxPostLength: 500, maxImages: 4, maxDailyPosts: 20 }) }))
 
@@ -489,14 +492,111 @@ describe('管理者ロール管理アクション', () => {
   // ============================================================
 
   describe('エッジケース', () => {
-    it('既にadminのユーザーをaddAdminで再追加するとPrismaエラーになる', async () => {
+    it('既にadminのユーザーをaddAdminで再追加するとPrismaエラーを catch して ERR_OPERATION_FAILED を返す', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-admin-id', nickname: 'Existing Admin' })
       // create時にユニーク制約違反のPrismaエラー
       mockPrisma.adminUser.create.mockRejectedValue(new Error('Unique constraint failed on the fields: (`userId`)'))
       mockTransaction.mockRejectedValueOnce(new Error('Unique constraint failed on the fields: (`userId`)'))
 
       const { addAdmin } = await import('@/lib/actions/admin/roles')
-      await expect(addAdmin('existing-admin-id', 'moderator' as never)).rejects.toThrow()
+      const result = await addAdmin('existing-admin-id', 'moderator' as never)
+      // ユニーク制約違反は try/catch で握って ERR_OPERATION_FAILED を返す。
+      // 呼び出し側に throw が伝播すると Server Action 境界で stack trace が露出するため fail-closed で error 文字列を返す設計。
+      expect(result).toMatchObject({ success: false })
+    })
+  })
+
+  // ============================================================
+  // Zod / catch ブランチの補完
+  // ============================================================
+  describe('入力検証エラー', () => {
+    it('updateAdminRole: 空文字 ID は ERR_INVALID_INPUT を返す', async () => {
+      const { updateAdminRole } = await import('@/lib/actions/admin/roles')
+      const result = await updateAdminRole('', 'moderator' as never)
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.adminUser.update).not.toHaveBeenCalled()
+    })
+
+    it('updateAdminRole: 不正なロール値は ERR_INVALID_INPUT を返す', async () => {
+      const { updateAdminRole } = await import('@/lib/actions/admin/roles')
+      const result = await updateAdminRole('user-x', 'not_a_role' as never)
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.adminUser.update).not.toHaveBeenCalled()
+    })
+
+    it('addAdmin: 空文字 ID は ERR_INVALID_INPUT を返す', async () => {
+      const { addAdmin } = await import('@/lib/actions/admin/roles')
+      const result = await addAdmin('', 'moderator' as never)
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.adminUser.create).not.toHaveBeenCalled()
+    })
+
+    it('addAdmin: 不正なロール値は ERR_INVALID_INPUT を返す', async () => {
+      const { addAdmin } = await import('@/lib/actions/admin/roles')
+      const result = await addAdmin('user-x', 'not_a_role' as never)
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.adminUser.create).not.toHaveBeenCalled()
+    })
+
+    it('removeAdmin: 空文字 ID は ERR_INVALID_INPUT を返す', async () => {
+      const { removeAdmin } = await import('@/lib/actions/admin/roles')
+      const result = await removeAdmin('')
+      expect(result).toMatchObject({ success: false })
+      expect(mockPrisma.adminUser.delete).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('catch 経路: トランザクション失敗時はエラー文字列を返す', () => {
+    it('updateAdminRole の $transaction 失敗で ERR_OPERATION_FAILED', async () => {
+      const moderatorRecord = { id: 'mod-record', userId: 'mod-id', role: 'moderator', createdAt: new Date() }
+      mockPrisma.adminUser.findUnique
+        .mockResolvedValueOnce(mockAdminUserRecord)
+        .mockResolvedValueOnce(moderatorRecord)
+      mockTransaction.mockRejectedValueOnce(new Error('TX failure'))
+
+      const { updateAdminRole } = await import('@/lib/actions/admin/roles')
+      const result = await updateAdminRole('mod-id', 'support' as never)
+      expect(result).toMatchObject({ success: false })
+    })
+
+    it('addAdmin の $transaction 失敗で ERR_OPERATION_FAILED', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'u-x', nickname: 'X' })
+      mockTransaction.mockRejectedValueOnce(new Error('TX failure'))
+
+      const { addAdmin } = await import('@/lib/actions/admin/roles')
+      const result = await addAdmin('u-x', 'support' as never)
+      expect(result).toMatchObject({ success: false })
+    })
+
+    it('removeAdmin の $transaction 失敗で ERR_OPERATION_FAILED', async () => {
+      const supportRecord = { id: 'sup-record', userId: 'sup-id', role: 'support', createdAt: new Date() }
+      mockPrisma.adminUser.findUnique
+        .mockResolvedValueOnce(mockAdminUserRecord)
+        .mockResolvedValueOnce(supportRecord)
+      mockTransaction.mockRejectedValueOnce(new Error('TX failure'))
+
+      const { removeAdmin } = await import('@/lib/actions/admin/roles')
+      const result = await removeAdmin('sup-id')
+      expect(result).toMatchObject({ success: false })
+    })
+
+    it('getAdminRoles の findMany 失敗時は空配列を返す (catch経路)', async () => {
+      mockPrisma.adminUser.findMany.mockRejectedValue(new Error('DB down'))
+
+      const { getAdminRoles } = await import('@/lib/actions/admin/roles')
+      const result = await getAdminRoles()
+      if ('error' in result) throw new Error('Expected admins, got error')
+      expect(result.admins).toEqual([])
+    })
+
+    it('catch ブランチで非Errorオブジェクトが投げられても安全', async () => {
+      // error instanceof Error が false の経路
+      mockPrisma.adminUser.findMany.mockRejectedValue('not an error object')
+
+      const { getAdminRoles } = await import('@/lib/actions/admin/roles')
+      const result = await getAdminRoles()
+      if ('error' in result) throw new Error('Expected admins, got error')
+      expect(result.admins).toEqual([])
     })
   })
 })

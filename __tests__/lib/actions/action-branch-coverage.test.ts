@@ -75,7 +75,7 @@ vi.mock('@/lib/services/hashtag-sync', () => ({
   extractHashtags: vi.fn().mockReturnValue([]),
 }))
 
-vi.mock('@/lib/actions/mention', () => ({
+vi.mock('@/lib/services/mention', () => ({
   notifyMentionedUsers: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -200,19 +200,19 @@ describe('Action Branch Coverage', async () => {
       expect('error' in result && result.error).toBe('入力データが不正です')
     })
 
-    it('リポスト対象の投稿が存在しない場合（findUnique が null）でもリポストは作成される', async () => {
+    it('リポスト対象の投稿が存在しない場合（findUnique が null）は not found を返す（可視性ガード）', async () => {
       // トランザクション1: 既存リポストなし
       mockPrisma.post.findFirst.mockResolvedValue(null)
       mockPrisma.post.count.mockResolvedValue(0)
-      // トランザクション2: 対象投稿が見つからない（削除済み等）
+      // 対象投稿が見つからない（削除済み等）→ assertCanViewPost で遮断され作成されない
       mockPrisma.post.findUnique.mockResolvedValue(null)
       mockPrisma.post.create.mockResolvedValue({ id: 'new-repost-id' })
 
       const { createRepost } = await import('@/lib/actions/post')
       const result = await createRepost('deleted-post-id')
 
-      expect(result).toEqual({ success: true, data: { reposted: true } })
-      // 対象投稿が null なので通知は作成されない
+      expect('error' in result && result.error).toBe('投稿が見つかりません')
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
       expect(mockPrisma.notification.create).not.toHaveBeenCalled()
     })
 
@@ -239,8 +239,9 @@ describe('Action Branch Coverage', async () => {
       return result.data
     }
 
-    it('ログイン中のユーザーでもgetPostsByBonsaiは投稿を取得できる', async () => {
+    it('所有者は盆栽の関連投稿を取得できる', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: mockUser.id })
       mockPrisma.post.findMany.mockResolvedValue([
         {
           ...mockPost,
@@ -257,31 +258,26 @@ describe('Action Branch Coverage', async () => {
       expect(data.posts).toHaveLength(1)
       expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ bonsaiId: 'bonsai-1' }),
+          where: expect.objectContaining({ bonsaiId: 'bonsai-1', isHidden: false }),
         })
       )
     })
 
-    it('未ログイン時はフィルタリングなしで投稿を取得する', async () => {
+    it('非所有者（未ログイン含む）は空配列を返し投稿を取得しない', async () => {
       mockAuth.mockResolvedValue(null)
-      mockPrisma.post.findMany.mockResolvedValue([
-        {
-          ...mockPost,
-          bonsaiId: 'bonsai-1',
-          _count: { likes: 0, comments: 0 },
-          genres: [],
-        },
-      ])
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: 'other-owner' })
 
       const { getPostsByBonsai } = await import('@/lib/actions/post')
       const result = await getPostsByBonsai('bonsai-1')
 
       const data = unwrapOk<{ posts: unknown[]; nextCursor?: string }>(result)
-      expect(data.posts).toHaveLength(1)
+      expect(data.posts).toHaveLength(0)
+      expect(mockPrisma.post.findMany).not.toHaveBeenCalled()
     })
 
     it('カーソルなしの場合はcursorパラメータが含まれない', async () => {
-      mockAuth.mockResolvedValue(null)
+      mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: mockUser.id })
       mockPrisma.post.findMany.mockResolvedValue([])
 
       const { getPostsByBonsai } = await import('@/lib/actions/post')
@@ -317,18 +313,16 @@ describe('Action Branch Coverage', async () => {
   // ==========================================================================
 
   describe('createComment — 未カバーブランチ', () => {
-    it('parentIdが存在しないコメントIDでも作成自体は試行される（DBエラーなし）', async () => {
+    beforeEach(() => {
+      // コメント対象投稿は閲覧可能（本人の非表示でない投稿）を既定とする
+      mockPrisma.post.findUnique.mockResolvedValue({ id: mockPost.id, userId: mockUser.id, isHidden: false })
+    })
+
+    it('存在しない親コメントを指定した返信はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockPrisma.comment.findUnique.mockResolvedValue(null)
       mockPrisma.comment.count.mockResolvedValue(0)
-      mockPrisma.comment.create.mockResolvedValue({
-        id: 'new-comment-id',
-        postId: mockPost.id,
-        userId: mockUser.id,
-        content: '返信テスト',
-        parentId: 'nonexistent-parent-id',
-        createdAt: new Date(),
-      })
 
       const formData = new FormData()
       formData.set('postId', mockPost.id)
@@ -338,17 +332,21 @@ describe('Action Branch Coverage', async () => {
       const { createComment } = await import('@/lib/actions/comment')
       const result = await createComment(formData)
 
-      expect(result.success).toBe(true)
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe('コメントが見つかりません')
+      expect(mockPrisma.comment.create).not.toHaveBeenCalled()
     })
 
-    it('parentIdが存在しないコメントでDB外部キー制約エラーが発生した場合はエラーを返す', async () => {
+    it('有効な親コメントへの返信でトランザクション失敗時はエラーを返す', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      // 親コメントは同一投稿に属し有効（返信先バリデーションを通過させる）
+      mockPrisma.comment.findUnique.mockResolvedValue({ postId: mockPost.id, isHidden: false, deletedAt: null })
       mockPrisma.$transaction.mockRejectedValue(new Error('Foreign key constraint failed'))
 
       const formData = new FormData()
       formData.set('postId', mockPost.id)
-      formData.set('parentId', 'nonexistent-parent-id')
+      formData.set('parentId', mockComment.id)
       formData.set('content', '返信テスト')
 
       const { createComment } = await import('@/lib/actions/comment')
@@ -455,6 +453,12 @@ describe('Action Branch Coverage', async () => {
   // ==========================================================================
 
   describe('getComments — 削除済みコメントのフィルタリング', () => {
+    beforeEach(() => {
+      // 投稿は公開著者の閲覧可能なものを既定とする（ゲスト視点で getComments の可視性ゲートを通過させる）
+      mockPrisma.post.findUnique.mockResolvedValue({ id: mockPost.id, userId: mockUser.id, isHidden: false })
+      mockPrisma.user.findUnique.mockResolvedValue({ isPublic: true, isSuspended: false })
+    })
+
     it('削除済みで返信がないコメントはフィルタリングされる', async () => {
       mockAuth.mockResolvedValue(null)
       mockPrisma.comment.findMany.mockResolvedValue([
@@ -761,7 +765,7 @@ describe('Action Branch Coverage', async () => {
   // ==========================================================================
 
   describe('createQuotePost — 引用元が存在しない場合', () => {
-    it('引用元投稿が見つからなくても投稿自体は作成される', async () => {
+    it('引用元投稿が見つからない場合は not found を返す（可視性ガード）', async () => {
       mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
       mockPrisma.post.count.mockResolvedValue(0)
@@ -774,8 +778,8 @@ describe('Action Branch Coverage', async () => {
       const { createQuotePost } = await import('@/lib/actions/post')
       const result = await createQuotePost(formData, 'nonexistent-post-id')
 
-      expect(result).toEqual({ success: true, data: { postId: 'quote-post-id' } })
-      // 引用元が null なので通知は作成されない
+      expect('error' in result && result.error).toBe('投稿が見つかりません')
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
       expect(mockPrisma.notification.create).not.toHaveBeenCalled()
     })
   })

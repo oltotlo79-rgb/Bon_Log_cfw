@@ -25,11 +25,14 @@ async function resolveAsyncJsx(element: React.ReactElement): Promise<React.React
 
   if (props?.children) {
     const children = Array.isArray(props.children)
-      ? await Promise.all(props.children.map(async (child: React.ReactNode) => {
-          if (React.isValidElement(child)) {
-            return resolveAsyncJsx(child)
-          }
-          return child
+      ? await Promise.all(props.children.map(async (child: React.ReactNode, i: number) => {
+          if (!React.isValidElement(child)) return child
+          const resolved = await resolveAsyncJsx(child)
+          // cloneElement で静的 children を明示配列にすると React が key を要求するため、
+          // key の無い要素には index ベースの key を補う (test 専用 render で reconcile しない)
+          return React.isValidElement(resolved) && resolved.key == null
+            ? React.cloneElement(resolved, { key: `__rk${i}` })
+            : resolved
         }))
       : React.isValidElement(props.children)
         ? await resolveAsyncJsx(props.children)
@@ -181,6 +184,28 @@ describe('UserProfilePage', async () => {
     expect(notFound).toHaveBeenCalled()
   })
 
+  it('停止ユーザーのプロフィールは本人以外に notFound を返す', async () => {
+    mockAuth.mockResolvedValue(null as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeUser({ isSuspended: true }))
+
+    await expect(
+      Page({ params: Promise.resolve({ id: 'user-1' }) })
+    ).rejects.toThrow('NOT_FOUND')
+    expect(notFound).toHaveBeenCalled()
+  })
+
+  it('プロフィールの最近の投稿クエリは isHidden:false で非表示投稿を除外する', async () => {
+    mockAuth.mockResolvedValue(null as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeUser())
+    ;(prisma.post.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([])
+
+    await resolveAsyncJsx(await Page({ params: Promise.resolve({ id: 'user-1' }) }))
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ isHidden: false }) })
+    )
+  })
+
   it('shows blocked message when user is blocked', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'me' }, expires: '' } as never)
     ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeUser())
@@ -246,6 +271,26 @@ describe('UserProfilePage', async () => {
     expect(prisma.like.findMany).toHaveBeenCalled()
     expect(prisma.bookmark.findMany).toHaveBeenCalled()
   })
+
+  it('コメント一覧は対象投稿の可視性で絞り込む（M-2）', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'me' }, expires: '' } as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeUser({ id: 'other' }))
+    ;(prisma.post.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([])
+
+    const result = await Page({ params: Promise.resolve({ id: 'other' }) })
+    render(await resolveAsyncJsx(result))
+
+    expect(prisma.comment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'other',
+          deletedAt: null,
+          isHidden: false,
+          post: { isHidden: false, user: { isSuspended: false, OR: [{ isPublic: true }, { id: 'me' }, { followers: { some: { followerId: 'me' } } }] } },
+        }),
+      }),
+    )
+  })
 })
 
 describe('generateMetadata', async () => {
@@ -262,10 +307,11 @@ describe('generateMetadata', async () => {
       nickname: 'TestUser',
       bio: 'My bio',
       avatarUrl: '/avatar.jpg',
+      isPublic: true,
     })
 
     const result = await generateMetadata({ params: Promise.resolve({ id: 'user-1' }) })
-    expect(result.title).toBe('TestUserさんのプロフィール')
+    expect(result.title).toBe('TestUserさんのプロフィール | BON-LOG')
   })
 
   it('returns fallback when user not found', async () => {
@@ -273,5 +319,29 @@ describe('generateMetadata', async () => {
 
     const result = await generateMetadata({ params: Promise.resolve({ id: 'none' }) })
     expect(result.title).toBe('ユーザーが見つかりません')
+  })
+
+  it('公開アカウントは robots を設定しない (ルートレイアウト継承)', async () => {
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      nickname: 'PublicUser',
+      bio: null,
+      avatarUrl: null,
+      isPublic: true,
+    })
+
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'user-public' }) })
+    expect(result.robots).toBeUndefined()
+  })
+
+  it('非公開アカウントは noindex / nofollow を返す', async () => {
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      nickname: 'PrivateUser',
+      bio: null,
+      avatarUrl: null,
+      isPublic: false,
+    })
+
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'user-private' }) })
+    expect(result.robots).toEqual({ index: false, follow: false })
   })
 })

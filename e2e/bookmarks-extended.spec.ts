@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * ブックマーク機能 拡張E2Eテスト
@@ -45,8 +46,7 @@ test.describe('ブックマーク — 拡張テスト', () => {
 
     const bookmarkLink = page.getByRole('link', { name: /ブックマーク/i })
     if (await bookmarkLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await bookmarkLink.click()
-      await expect(page).toHaveURL(/\/bookmarks/, { timeout: 10000 })
+      await clickAndWaitForUrl(page, bookmarkLink, /\/bookmarks/, { timeout: 10000 })
     }
   })
 })

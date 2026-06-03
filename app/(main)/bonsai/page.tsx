@@ -5,7 +5,6 @@
  * カレンダーモードは `next/dynamic` で遅延読み込みするため、
  * タイムラインのみを利用するユーザーのバンドルには影響しない。
  *
- * @route /bonsai
  */
 
 import dynamic from 'next/dynamic'
@@ -95,7 +94,7 @@ export async function generateMetadata({
   const view = resolveView(pickString(sp[BONSAI_VIEW_PARAM]))
   const isCalendar = view === BONSAI_VIEW_CALENDAR
   return {
-    title: isCalendar ? 'マイ盆栽カレンダー - BON-LOG' : 'マイ盆栽 - BON-LOG',
+    title: isCalendar ? 'マイ盆栽カレンダー' : 'マイ盆栽',
     description: isCalendar
       ? 'あなたの盆栽の手入れ記録をカレンダーで俯瞰'
       : 'あなたの盆栽コレクションを管理',

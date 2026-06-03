@@ -1,5 +1,4 @@
 /**
- * 画像・動画ギャラリー共通型定義
  *
  * @module components/post/gallery/types
  */

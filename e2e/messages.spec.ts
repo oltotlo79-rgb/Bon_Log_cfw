@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clickAndWaitForUrl } from './helpers/navigation'
 
 /**
  * メッセージページのE2Eテスト
@@ -34,8 +35,7 @@ test.describe('メッセージページ', () => {
       return
     }
 
-    await conversationLinks.first().click()
-    await expect(page).toHaveURL(/\/messages\//, { timeout: 10000 })
+    await clickAndWaitForUrl(page, conversationLinks.first(), /\/messages\//, { timeout: 10000 })
   })
 
   test('会話詳細にメッセージ入力フォームが表示される', async ({ page }) => {
@@ -48,8 +48,7 @@ test.describe('メッセージページ', () => {
       return
     }
 
-    await conversationLinks.first().click()
-    await expect(page).toHaveURL(/\/messages\//, { timeout: 15000 })
+    await clickAndWaitForUrl(page, conversationLinks.first(), /\/messages\//, { timeout: 15000 })
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {})
 
     // メッセージ入力フォーム（placeholder="メッセージを入力..."）
@@ -72,8 +71,7 @@ test.describe('メッセージページ', () => {
       return
     }
 
-    await conversationLinks.first().click()
-    await expect(page).toHaveURL(/\/messages\//, { timeout: 10000 })
+    await clickAndWaitForUrl(page, conversationLinks.first(), /\/messages\//, { timeout: 10000 })
 
     // 戻るリンク/ボタン
     const backLink = page.locator(

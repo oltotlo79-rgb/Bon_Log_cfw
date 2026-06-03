@@ -18,7 +18,6 @@
  * - 広告非表示
  * - 詳細なアナリティクス機能
  *
- * @route /settings/subscription
  * @requires 認証必須 - 未ログインユーザーはログインページへリダイレクト
  */
 
@@ -63,11 +62,12 @@ import Image from 'next/image'
 import { PAYMENT_HISTORY_LIMIT, PREMIUM_PRICE_MONTHLY_JPY, PREMIUM_PRICE_YEARLY_JPY } from '@/lib/constants/limits'
 
 /**
- * 静的メタデータの定義
  * ページタイトルの設定
  */
 export const metadata = {
-  title: 'プラン管理 | BONLOG',
+  title: 'プラン管理 | BON-LOG',
+  // 認証必須のユーザー個別データのため検索エンジンには公開しない
+  robots: { index: false, follow: false },
 }
 
 /**
@@ -139,7 +139,6 @@ export default async function SubscriptionPage({
   // プラン管理ページのUIをレンダリング
   return (
     <div className="max-w-2xl mx-auto py-4 px-4">
-      {/* プレミアム装飾バナー */}
       <div className="relative h-24 rounded-lg overflow-hidden mb-6">
         <Image
           src="/images/generated/premium/premium-bg-pattern.webp"
@@ -159,7 +158,6 @@ export default async function SubscriptionPage({
         </div>
       </div>
 
-      {/* 成功メッセージ（Stripe決済完了後のリダイレクト時に表示） */}
       {params.success === 'true' && (
         <Alert className="mb-6 border-border bg-muted/50">
           <CheckCircle className="w-4 h-4 text-foreground" />
@@ -169,7 +167,6 @@ export default async function SubscriptionPage({
         </Alert>
       )}
 
-      {/* キャンセルメッセージ（Stripe決済キャンセル時に表示） */}
       {params.canceled === 'true' && (
         <Alert className="mb-6 border-border bg-muted/50">
           <XCircle className="w-4 h-4 text-muted-foreground" />
@@ -179,7 +176,6 @@ export default async function SubscriptionPage({
         </Alert>
       )}
 
-      {/* 現在のプラン情報（プレミアム会員の場合のみ表示） */}
       {isPremium && (
         <div className="mb-6 space-y-4">
           <SubscriptionStatus
@@ -187,7 +183,6 @@ export default async function SubscriptionPage({
             premiumExpiresAt={premiumExpiresAt}
             subscription={subscription}
           />
-          {/* 利用中のプレミアム特典を明示（広告非表示を含む） */}
           <div className="rounded-lg border border-border bg-muted/30 p-4">
             <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">
               <Crown className="w-4 h-4 text-primary" />
@@ -204,12 +199,10 @@ export default async function SubscriptionPage({
         </div>
       )}
 
-      {/* 料金プラン選択カード（プレミアム会員でない場合のみ表示） */}
       {!isPremium && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-4">料金プラン</h2>
           <div className="grid gap-4 md:grid-cols-2 pt-4">
-            {/* 月額プランカード */}
             <PricingCard
               isPremium={isPremium}
               priceId={monthlyPriceId}
@@ -219,7 +212,6 @@ export default async function SubscriptionPage({
               period="月"
               popular  // おすすめバッジ表示
             />
-            {/* 年額プランカード（2ヶ月分お得） */}
             <PricingCard
               isPremium={isPremium}
               priceId={yearlyPriceId}
@@ -233,7 +225,6 @@ export default async function SubscriptionPage({
         </div>
       )}
 
-      {/* 支払い履歴セクション（履歴がある場合のみ表示） */}
       {payments.length > 0 && (
         <PaymentHistory payments={payments} />
       )}

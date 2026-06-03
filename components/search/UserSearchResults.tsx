@@ -7,6 +7,7 @@ import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
 import { searchUsers } from '@/lib/actions/search'
 import { DEFAULT_PAGE_LIMIT, STALE_TIME_SEARCH_MS } from '@/lib/constants/limits'
 import { SearchResultsSkeleton } from '@/components/search/SearchResultsSkeleton'
+import { buildUserPath } from '@/lib/constants/path-builders'
 
 type User = {
   /** ユーザーID */
@@ -102,7 +103,7 @@ export function UserSearchResults({ query, initialUsers }: UserSearchResultsProp
       {allUsers.map((user) => (
         <Link
           key={user.id}
-          href={`/users/${user.id}`}
+          href={buildUserPath(user.id)}
           className="flex items-center gap-3 p-3 bg-card rounded-lg border hover:bg-muted/50 transition-colors"
         >
           {user.avatarUrl ? (

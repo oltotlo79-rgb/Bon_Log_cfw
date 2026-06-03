@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
+import { ERR_AUTH_REQUIRED } from '@/lib/constants/errors'
 
 /**
  * 各アクションの設定
@@ -70,7 +71,7 @@ export function useFollowAction(): UseFollowActionReturn {
         // ロールバック
         onRollback()
 
-        if (errorMessage === '認証が必要です') {
+        if (errorMessage === ERR_AUTH_REQUIRED) {
           router.push(ROUTE_LOGIN)
         } else {
           toast({

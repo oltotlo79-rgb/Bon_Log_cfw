@@ -1,20 +1,8 @@
-/**
- * @file 管理者ダッシュボードのレイアウトコンポーネント
- * @description 管理者専用ページ全体を包むレイアウト。サイドバーナビゲーションと認証チェックを提供する。
- *              管理者権限を持つユーザーのみがアクセス可能。
- */
-
-// Next.jsのナビゲーションユーティリティ（リダイレクト処理用）
 import { redirect } from 'next/navigation'
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
-// NextAuth.jsの認証関数とサインアウト関数
 import { auth, signOut } from '@/lib/auth'
-// 管理者権限チェック用のServer Action
 import { isAdmin } from '@/lib/actions/admin'
-// Prismaデータベースクライアント
 import { prisma } from '@/lib/db'
-// ルート定数
 import {
   ROUTE_ADMIN,
   ROUTE_ADMIN_ANALYTICS_COHORT,
@@ -49,7 +37,6 @@ import {
   ROUTE_HOME,
   ROUTE_LOGIN,
 } from '@/lib/constants/routes'
-// lucide-react アイコン
 import {
   Home as HomeIcon,
   Users as UsersIcon,
@@ -79,13 +66,9 @@ import {
   Activity as ActivityIcon,
 } from 'lucide-react'
 
-// ビルド時の静的生成を無効化（データベース接続が必要なため）
+// DB 接続を伴う認可チェックを毎リクエスト実行するため静的生成を無効化する
 export const dynamic = 'force-dynamic'
 
-/**
- * サイドバーナビゲーション項目の定義
- * 各項目はURL、ラベル、アイコンコンポーネントを持つ
- */
 type NavSection = {
   title: string
   items: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[]
@@ -158,58 +141,37 @@ const navSections: NavSection[] = [
   },
 ]
 
-/**
- * 管理者レイアウトコンポーネント
- * 管理者ページ全体のレイアウトを定義し、認証・権限チェックを行う
- *
- * @param children - 子コンポーネント（各管理ページのコンテンツ）
- * @returns レイアウトを適用したJSX要素
- *
- * 処理内容:
- * 1. ユーザーテーブルが空の場合はサインアウトしてトップへリダイレクト
- * 2. 未認証の場合はログインページへリダイレクト
- * 3. 管理者権限がない場合はフィードページへリダイレクト
- * 4. サイドバーナビゲーションとメインコンテンツエリアを表示
- */
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // usersテーブルが空の場合はログアウトしてトップページへ
+  // users が空＝初期化前/データ消失。誤って管理画面に入れないようサインアウトしてトップへ。
   const userCount = await prisma.user.count()
   if (userCount === 0) {
     await signOut({ redirect: false })
     redirect(ROUTE_HOME)
   }
 
-  // 現在のセッション情報を取得
   const session = await auth()
-
-  // 未認証の場合はログインページへリダイレクト
   if (!session?.user?.id) {
     redirect(ROUTE_LOGIN)
   }
 
-  // 管理者権限をチェック
+  // isAdmin は毎回 DB を引き直す fresh check。権限剥奪が既存セッションにも即時反映される。
   const isAdminUser = await isAdmin()
-
-  // 管理者でない場合はフィードページへリダイレクト
   if (!isAdminUser) {
     redirect(ROUTE_FEED)
   }
 
   return (
     <div className="admin-theme min-h-screen bg-muted/30">
-      {/* サイドバー - 固定表示のナビゲーションメニュー（カラーテーマ適用） */}
       <aside className="fixed top-0 left-0 w-64 h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border z-50 flex flex-col">
-        {/* ヘッダー部分 - ロゴとタイトル */}
         <div className="p-4 border-b border-sidebar-border">
           <h1 className="text-xl font-bold">BON-LOG 管理</h1>
           <p className="text-sm text-sidebar-foreground/60">管理者ダッシュボード</p>
         </div>
 
-        {/* ナビゲーションメニュー */}
         <nav className="p-4 overflow-y-auto flex-1">
           {navSections.map((section) => (
             <div key={section.title} className="mb-4">
@@ -233,7 +195,6 @@ export default async function AdminLayout({
           ))}
         </nav>
 
-        {/* フッター部分 - サイトへ戻るリンク */}
         <div className="mt-auto p-4 border-t border-sidebar-border">
           <Link
             href={ROUTE_FEED}
@@ -245,7 +206,6 @@ export default async function AdminLayout({
         </div>
       </aside>
 
-      {/* メインコンテンツエリア - サイドバーの幅分オフセット */}
       <main id="main-content" className="ml-64 min-h-screen" tabIndex={-1}>
         <div className="p-6">
           {children}

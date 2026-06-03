@@ -99,42 +99,39 @@ describe('segments.ts uncovered branches', () => {
     expect(result).toEqual({ success: false, error: 'セグメント条件が不正です' })
   })
 
-  it('evaluateSegment handles postCount field (existence check)', async () => {
+  // SQL 変換ロジックの網羅検証は __tests__/lib/services/segment-evaluation.test.ts に集約。
+  // ここでは各 field 種別を通して evaluateSegment が件数を返す配線のみ確認する。
+  it('evaluateSegment handles postCount field via raw SQL', async () => {
     mockPrisma.userSegment.findUnique.mockResolvedValue({
       id: 'seg-post',
       name: 'Post count',
       conditions: {
-        rules: [{ field: 'postCount', operator: 'gt', value: 0 }],
+        rules: [{ field: 'postCount', operator: 'gt', value: 3 }],
         logic: 'AND',
       },
     })
-    mockPrisma.user.count.mockResolvedValue(5)
+    mockPrisma.$queryRaw.mockResolvedValue([{ count: 5 }])
 
     const { evaluateSegment } = await import('@/lib/actions/admin/segments')
     const result = await evaluateSegment('seg-post')
     expect(result).toEqual({ count: 5 })
-
-    const call = mockPrisma.user.count.mock.calls[0][0]
-    expect(call.where.AND[0]).toEqual({ posts: { some: {} } })
+    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1)
   })
 
-  it('evaluateSegment handles followerCount field (existence check)', async () => {
+  it('evaluateSegment handles followerCount field via raw SQL', async () => {
     mockPrisma.userSegment.findUnique.mockResolvedValue({
       id: 'seg-follower',
       name: 'Follower count',
       conditions: {
-        rules: [{ field: 'followerCount', operator: 'gt', value: 0 }],
+        rules: [{ field: 'followerCount', operator: 'gte', value: 10 }],
         logic: 'AND',
       },
     })
-    mockPrisma.user.count.mockResolvedValue(3)
+    mockPrisma.$queryRaw.mockResolvedValue([{ count: 3 }])
 
     const { evaluateSegment } = await import('@/lib/actions/admin/segments')
     const result = await evaluateSegment('seg-follower')
     expect(result).toEqual({ count: 3 })
-
-    const call = mockPrisma.user.count.mock.calls[0][0]
-    expect(call.where.AND[0]).toEqual({ followers: { some: {} } })
   })
 
   it('evaluateSegment handles createdAt with lt operator', async () => {
@@ -146,54 +143,11 @@ describe('segments.ts uncovered branches', () => {
         logic: 'AND',
       },
     })
-    mockPrisma.user.count.mockResolvedValue(10)
+    mockPrisma.$queryRaw.mockResolvedValue([{ count: 10 }])
 
     const { evaluateSegment } = await import('@/lib/actions/admin/segments')
     const result = await evaluateSegment('seg-lt')
     expect(result).toEqual({ count: 10 })
-
-    const call = mockPrisma.user.count.mock.calls[0][0]
-    expect(call.where.AND[0].createdAt).toHaveProperty('lt')
-    expect(call.where.AND[0].createdAt.lt).toBeInstanceOf(Date)
-  })
-
-  it('evaluateSegment handles createdAt with lte operator', async () => {
-    mockPrisma.userSegment.findUnique.mockResolvedValue({
-      id: 'seg-lte',
-      name: 'Created on or before',
-      conditions: {
-        rules: [{ field: 'createdAt', operator: 'lte', value: '2025-06-01' }],
-        logic: 'AND',
-      },
-    })
-    mockPrisma.user.count.mockResolvedValue(7)
-
-    const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-    const result = await evaluateSegment('seg-lte')
-    expect(result).toEqual({ count: 7 })
-
-    const call = mockPrisma.user.count.mock.calls[0][0]
-    expect(call.where.AND[0].createdAt).toHaveProperty('lte')
-  })
-
-  it('evaluateSegment handles createdAt with eq operator', async () => {
-    mockPrisma.userSegment.findUnique.mockResolvedValue({
-      id: 'seg-eq',
-      name: 'Created eq',
-      conditions: {
-        rules: [{ field: 'createdAt', operator: 'eq', value: '2025-03-15' }],
-        logic: 'AND',
-      },
-    })
-    mockPrisma.user.count.mockResolvedValue(1)
-
-    const { evaluateSegment } = await import('@/lib/actions/admin/segments')
-    const result = await evaluateSegment('seg-eq')
-    expect(result).toEqual({ count: 1 })
-
-    const call = mockPrisma.user.count.mock.calls[0][0]
-    // eq returns the Date directly (not wrapped in {eq: ...})
-    expect(call.where.AND[0].createdAt).toBeInstanceOf(Date)
   })
 
   it('evaluateSegment handles isSuspended with string "true"', async () => {
@@ -205,13 +159,11 @@ describe('segments.ts uncovered branches', () => {
         logic: 'AND',
       },
     })
-    mockPrisma.user.count.mockResolvedValue(2)
+    mockPrisma.$queryRaw.mockResolvedValue([{ count: 2 }])
 
     const { evaluateSegment } = await import('@/lib/actions/admin/segments')
     const result = await evaluateSegment('seg-sus')
     expect(result).toEqual({ count: 2 })
-    const call = mockPrisma.user.count.mock.calls[0][0]
-    expect(call.where.AND[0].isSuspended).toBe(true)
   })
 
   it('evaluateSegment rejects unknown operator via Zod validation', async () => {
@@ -229,7 +181,7 @@ describe('segments.ts uncovered branches', () => {
     const { evaluateSegment } = await import('@/lib/actions/admin/segments')
     const result = await evaluateSegment('seg-def')
     expect(result).toMatchObject({ success: false, error: 'セグメント条件が不正です' })
-    expect(mockPrisma.user.count).not.toHaveBeenCalled()
+    expect(mockPrisma.$queryRaw).not.toHaveBeenCalled()
   })
 })
 

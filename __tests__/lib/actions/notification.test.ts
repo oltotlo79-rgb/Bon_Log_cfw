@@ -102,6 +102,17 @@ describe('Notification Actions', async () => {
         })
       )
     })
+
+    it('過大な limit は MAX_PAGE_LIMIT に clamp する', async () => {
+      mockPrisma.notification.findMany.mockResolvedValueOnce([])
+
+      const { getNotifications } = await import('@/lib/actions/notification')
+      await getNotifications(undefined, 1_000_000)
+
+      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      )
+    })
   })
 
   // ============================================================

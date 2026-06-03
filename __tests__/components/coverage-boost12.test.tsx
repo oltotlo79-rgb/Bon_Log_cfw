@@ -125,6 +125,25 @@ vi.mock('@/components/report/ReportButton', () => ({
   ReportButton: () => <button data-testid="report-button">Report</button>,
 }))
 
+// next/navigation: stable router handles so back()/refresh() are assertable
+const mockRouterBack = vi.fn()
+const mockRouterRefresh = vi.fn()
+const mockRouterPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockRouterPush,
+    replace: vi.fn(),
+    back: mockRouterBack,
+    forward: vi.fn(),
+    refresh: mockRouterRefresh,
+    prefetch: vi.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
+  redirect: vi.fn(),
+  notFound: vi.fn(),
+}))
+
 // Prefectures mock
 vi.mock('@/lib/prefectures', () => ({
   PREFECTURES: ['北海道', '東京都', '大阪府', '埼玉県'],
@@ -617,7 +636,7 @@ describe('EventForm', () => {
     render(<EventForm mode="create" />)
     const cancelButton = screen.getByText('キャンセル')
     fireEvent.click(cancelButton)
-    // router.back() is called, no assertion needed beyond no crash
+    expect(mockRouterBack).toHaveBeenCalled()
   })
 })
 
@@ -1069,17 +1088,18 @@ describe('AnalogClockPicker', () => {
     const minutesButton = screen.getAllByRole('button').find(
       btn => btn.textContent === '00' && btn.className.includes('text-3xl')
     )
-    if (minutesButton) {
-      fireEvent.click(minutesButton)
-    }
+    expect(minutesButton).toBeDefined()
+    fireEvent.click(minutesButton as HTMLElement)
+    expect(minutesButton).toHaveClass('bg-primary')
 
     // Click hours button to switch back to hour mode
     const hoursButton = screen.getAllByRole('button').find(
       btn => btn.textContent === '09' && btn.className.includes('text-3xl')
     )
-    if (hoursButton) {
-      fireEvent.click(hoursButton)
-    }
+    expect(hoursButton).toBeDefined()
+    fireEvent.click(hoursButton as HTMLElement)
+    expect(hoursButton).toHaveClass('bg-primary')
+    expect(minutesButton).not.toHaveClass('bg-primary')
   })
 
   it('handles mouse interactions on clock face', () => {
@@ -1127,21 +1147,23 @@ describe('AnalogClockPicker', () => {
     const minutesBtn = screen.getAllByRole('button').find(
       btn => btn.textContent === '00' && btn.className.includes('text-3xl')
     )
-    if (minutesBtn) {
-      fireEvent.click(minutesBtn)
-    }
+    expect(minutesBtn).toBeDefined()
+    fireEvent.click(minutesBtn as HTMLElement)
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      vi.spyOn(clockFace, 'getBoundingClientRect').mockReturnValue({
-        left: 0, top: 0, right: 224, bottom: 224,
-        width: 224, height: 224, x: 0, y: 0, toJSON: () => ({}),
-      })
+    expect(clockFace).not.toBeNull()
+    vi.spyOn(clockFace as Element, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 224, bottom: 224,
+      width: 224, height: 224, x: 0, y: 0, toJSON: () => ({}),
+    })
 
-      // Interact in minute mode
-      fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 10 })
-      fireEvent.mouseUp(clockFace, { clientX: 112, clientY: 10 })
-    }
+    // Interact in minute mode: right edge (3 o'clock) => 15 minutes, hours kept at 09
+    fireEvent.mouseDown(clockFace as Element, { clientX: 200, clientY: 112 })
+    expect(defaultProps.onChange).toHaveBeenCalledWith('09:15')
+
+    // MouseUp in minute mode closes the picker
+    fireEvent.mouseUp(clockFace as Element, { clientX: 200, clientY: 112 })
+    expect(screen.queryByText('OK')).not.toBeInTheDocument()
   })
 
   it('closes on OK button', () => {
@@ -1196,30 +1218,36 @@ describe('AnalogClockPicker', () => {
     fireEvent.click(screen.getByText('09:00'))
 
     const clockFace = document.querySelector('.rounded-full.bg-muted\\/50')
-    if (clockFace) {
-      vi.spyOn(clockFace, 'getBoundingClientRect').mockReturnValue({
-        left: 0, top: 0, right: 224, bottom: 224,
-        width: 224, height: 224, x: 0, y: 0, toJSON: () => ({}),
-      })
+    expect(clockFace).not.toBeNull()
+    vi.spyOn(clockFace as Element, 'getBoundingClientRect').mockReturnValue({
+      left: 0, top: 0, right: 224, bottom: 224,
+      width: 224, height: 224, x: 0, y: 0, toJSON: () => ({}),
+    })
 
-      // Touch start
-      fireEvent.touchStart(clockFace, {
-        touches: [{ clientX: 112, clientY: 10 }],
-        preventDefault: vi.fn(),
-      })
+    // Touch start at top outer ring => 12 o'clock (00:00)
+    fireEvent.touchStart(clockFace as Element, {
+      touches: [{ clientX: 112, clientY: 10 }],
+      preventDefault: vi.fn(),
+    })
+    expect(defaultProps.onChange).toHaveBeenCalledWith('00:00')
 
-      // Touch move
-      fireEvent.touchMove(clockFace, {
-        touches: [{ clientX: 200, clientY: 112 }],
-        preventDefault: vi.fn(),
-      })
+    ;(defaultProps.onChange as ReturnType<typeof vi.fn>).mockClear()
+    // Touch move to right edge => 3 o'clock (03:00)
+    fireEvent.touchMove(clockFace as Element, {
+      touches: [{ clientX: 200, clientY: 112 }],
+      preventDefault: vi.fn(),
+    })
+    expect(defaultProps.onChange).toHaveBeenCalledWith('03:00')
 
-      // Touch end
-      fireEvent.touchEnd(clockFace, {
-        changedTouches: [{ clientX: 200, clientY: 112 }],
-        preventDefault: vi.fn(),
-      })
-    }
+    // Touch end finalizes hours and switches to minutes mode
+    fireEvent.touchEnd(clockFace as Element, {
+      changedTouches: [{ clientX: 200, clientY: 112 }],
+      preventDefault: vi.fn(),
+    })
+    const minuteHeader = screen.getAllByRole('button').find(
+      btn => btn.textContent === '00' && btn.className.includes('text-3xl')
+    )
+    expect(minuteHeader).toHaveClass('bg-primary')
   })
 
   it('handles inner ring selection (PM hours)', () => {
