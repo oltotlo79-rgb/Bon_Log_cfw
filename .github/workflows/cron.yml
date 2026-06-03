@@ -1,0 +1,67 @@
+name: Scheduled Jobs (cron)
+
+# Vercel Cron の代替。fly.io には組込 cron がないため GitHub Actions の
+# schedule で各 cron エンドポイントを叩く。認証は Bearer CRON_SECRET（GET）。
+#
+# 必要な設定:
+#   - Repository secret: CRON_SECRET  （fly secrets の CRON_SECRET と同値）
+#   - Repository variable: APP_URL    （例 https://bon-log.fly.dev / 独自ドメイン）
+#
+# 注意: GitHub Actions の schedule は高負荷時に数分遅延し得る。
+#       厳密な */5 精度が必要なら fly scheduled machines / 外部 cron を検討。
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # publish-scheduled: 予約投稿の公開
+    - cron: '0 * * * *'    # update-weather: 毎時の天気更新
+    - cron: '0 1 * * *'    # check-subscriptions: サブスク確認（毎日 01:00 UTC）
+    - cron: '0 0 1 * *'    # cleanup-events: イベント整理（毎月 1 日 00:00 UTC）
+  workflow_dispatch:
+    inputs:
+      path:
+        description: '手動実行する cron パス (例 /api/cron/publish-scheduled)'
+        required: true
+        default: '/api/cron/publish-scheduled'
+
+permissions:
+  contents: read
+
+env:
+  APP_URL: ${{ vars.APP_URL || 'https://bon-log.fly.dev' }}
+
+jobs:
+  publish-scheduled:
+    if: github.event.schedule == '*/5 * * * *' || github.event.inputs.path == '/api/cron/publish-scheduled'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS --retry 2 --max-time 60 -X GET \
+            "$APP_URL/api/cron/publish-scheduled" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  update-weather:
+    if: github.event.schedule == '0 * * * *' || github.event.inputs.path == '/api/cron/update-weather'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS --retry 2 --max-time 120 -X GET \
+            "$APP_URL/api/cron/update-weather" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  check-subscriptions:
+    if: github.event.schedule == '0 1 * * *' || github.event.inputs.path == '/api/cron/check-subscriptions'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS --retry 2 --max-time 120 -X GET \
+            "$APP_URL/api/cron/check-subscriptions" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  cleanup-events:
+    if: github.event.schedule == '0 0 1 * *' || github.event.inputs.path == '/api/cron/cleanup-events'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS --retry 2 --max-time 120 -X GET \
+            "$APP_URL/api/cron/cleanup-events" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

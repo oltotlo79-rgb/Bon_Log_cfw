@@ -1,0 +1,70 @@
+# fly.io 設定ファイル — Bon-Log (Next.js standalone / Docker デプロイ)
+#
+# デプロイ構成:
+#   - コンピュートのみ fly.io。DB(Supabase) / Storage(R2) / Cache(Upstash) /
+#     Stripe / Resend / Sentry は外部サービスを継続利用する。
+#   - 秘匿値は fly.toml に書かず `fly secrets set` / `fly secrets import` で投入する。
+#   - NEXT_PUBLIC_* はクライアントバンドルにビルド時 inline されるため
+#     [build.args] で渡す（ブラウザに出る公開値なのでここに書いてよい）。
+
+app = "bon-log"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+  # ブラウザに露出する公開値のみ。デプロイ前に実値へ書き換えること。
+  # 秘匿値（DATABASE_URL 等）はここではなく fly secrets で投入する。
+  [build.args]
+    NEXT_PUBLIC_APP_URL = "https://bon-log.fly.dev"
+    NEXT_PUBLIC_SUPABASE_URL = "https://yxwmnimyzcmseshtittp.supabase.co"
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BK_pgnzMZs8UWZVHMddwzPdXISoyggBLJUbomRQvfg3Pqc46OraLpj1lND4h-jD7Zh3ItDLpQoS5BjPjqO8DKRI"
+    NEXT_PUBLIC_SENTRY_DSN = "https://3177513f591ed7e067e19a0a74c47915@o4510731524440064.ingest.us.sentry.io/4510731541020672"
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_live_51SrLU4CvNmTUMgj11kAeMpTfrMSD4UMul7yFTSTKU9mWQyBlxr7JA0Z6K3BZMiCpJNIKHSE0l7pFVVbZEM7NvhUy00S19bizu6"
+    R2_PUBLIC_URL = "https://pub-97e0795645694b38a0a3af56c04d38a6.r2.dev"
+    # 広告（未使用なら空のままで可）
+    NEXT_PUBLIC_AD_PROVIDER = "ninja"
+    NEXT_PUBLIC_ADSENSE_CLIENT_ID = ""
+    NEXT_PUBLIC_ADSENSE_SLOT_INFEED = ""
+    NEXT_PUBLIC_ADSENSE_SLOT_POST_DETAIL = ""
+    NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR = ""
+    NEXT_PUBLIC_NINJA_AD_ID_SIDEBAR = "4e55411e79d071683ac398379fe7ada7"
+    NEXT_PUBLIC_NINJA_AD_ID_INFEED = "dd94c8a3546c548ad6db330a2506d3a8"
+    NEXT_PUBLIC_NINJA_AD_ID_POST_DETAIL = "39d3008ae8a651ad0a7e2901ecb22e6e"
+
+# マイグレーションは release_command にしない:
+#   runner イメージは standalone 最小構成で prisma CLI(devDep) を含まないため。
+#   かつ fly app は既存 Vercel 本番と同じ Supabase を指すので原則適用済み。
+#   新規マイグレーションはローカルから実行する:
+#     npx dotenv -e .env.local -- npx prisma migrate deploy   （DIRECT_URL を使用）
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  HOSTNAME = "0.0.0.0"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # 本番 SNS のためコールドスタートを避けて常時 1 台稼働。コスト優先なら 0 に下げる。
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
