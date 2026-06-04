@@ -66,6 +66,10 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_PUBLIC_NINJA_AD_ID_POST_DETAIL=$NEXT_PUBLIC_NINJA_AD_ID_POST_DETAIL \
     NEXT_PUBLIC_NINJA_AD_ID_SIDEBAR=$NEXT_PUBLIC_NINJA_AD_ID_SIDEBAR
 
+# next build (webpack) は大規模アプリでデフォルト(~2GB)を超え OOM するため拡張。
+# CI ランナー(amd64/十分なRAM)でビルドする前提。
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Next.jsをビルド
 RUN npm run build
 

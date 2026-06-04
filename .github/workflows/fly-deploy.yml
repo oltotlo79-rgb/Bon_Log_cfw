@@ -1,0 +1,30 @@
+name: Deploy to Fly.io
+
+# ローカル(Windows on ARM)では amd64 ビルドが qemu エミュレーションで失敗し、
+# fly の depot リモートビルダはメモリ不足で OOM する。amd64 Linux ランナー上で
+# --local-only ビルドすればアーキ・メモリ・ローカル Docker 依存の問題を全て回避できる。
+#
+# 必要な設定: Repository secret FLY_API_TOKEN (`fly tokens create deploy -a bon-log`)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'memory/**'
+
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # depot(小容量)ではなくランナー上の Docker でビルドし OOM を避ける。
+      - run: flyctl deploy --local-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
