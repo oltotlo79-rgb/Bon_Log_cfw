@@ -110,7 +110,7 @@ export function ProfileHeader({ user, isOwner, isFollowing, isBlocked, isMuted, 
       </div>
 
       <div className="px-4 pb-4 pt-14 sm:pt-20">
-        <div className="flex justify-end gap-2 mb-4">
+        <div className="flex flex-wrap justify-end gap-2 mb-4">
           {isOwner ? (
             <Button variant="outline" asChild>
               <Link href={ROUTE_SETTINGS_PROFILE}>プロフィールを編集</Link>

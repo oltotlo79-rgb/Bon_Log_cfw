@@ -49,10 +49,10 @@ export function ReportButton({ targetType, targetId, variant = 'menu', className
       {variant === 'text' && (
         <button
           onClick={handleClick}
-          className={`flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground ${className || ''}`}
+          className={`flex shrink-0 items-center gap-2 whitespace-nowrap text-sm text-muted-foreground hover:text-foreground ${className || ''}`}
           aria-label="このコンテンツを通報"
         >
-          <FlagIcon className="w-4 h-4" aria-hidden="true" />
+          <FlagIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>通報する</span>
         </button>
       )}
