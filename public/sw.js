@@ -8,7 +8,7 @@
  * `Cache-Control: no-store|private` や `Set-Cookie` を含む応答は明示的に cache を回避する。
  */
 
-const CACHE_VERSION = 'v3'
+const CACHE_VERSION = 'v4'
 const STATIC_CACHE = `bon-log-static-${CACHE_VERSION}`
 const IMAGE_CACHE = `bon-log-images-${CACHE_VERSION}`
 
@@ -16,7 +16,6 @@ const IMAGE_CACHE = `bon-log-images-${CACHE_VERSION}`
 // `/` は proxy がログイン状態によって `/feed` リダイレクトを返すため対象外。
 const PRECACHE_ASSETS = [
   '/offline.html',
-  '/favicon.ico',
   '/icon-192.png',
   '/icon-512.png',
   '/site.webmanifest',
@@ -103,6 +102,17 @@ self.addEventListener('fetch', (event) => {
 
   // GET 以外は cache に乗せない。
   if (request.method !== 'GET') {
+    return
+  }
+
+  // RSC (App Router のクライアント遷移データ) は介入せずネットワーク直結にする。
+  // SW の respondWith が失敗すると router.push が RSC を取得できず遷移が固まる
+  // (登録成功後に verify-email-sent へ遷移できず「登録中…」のまま) ため。
+  if (
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Accept')?.includes('text/x-component') ||
+    url.search.includes('_rsc=')
+  ) {
     return
   }
 
