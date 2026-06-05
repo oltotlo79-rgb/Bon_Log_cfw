@@ -8,7 +8,7 @@
  * `Cache-Control: no-store|private` や `Set-Cookie` を含む応答は明示的に cache を回避する。
  */
 
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const STATIC_CACHE = `bon-log-static-${CACHE_VERSION}`
 const IMAGE_CACHE = `bon-log-images-${CACHE_VERSION}`
 
@@ -185,17 +185,20 @@ async function networkOnlyWithOfflineFallback(request) {
       await safeCachePut(STATIC_CACHE, request, networkResponse.clone())
     }
     return networkResponse
-  } catch (_error) {
-    console.log('[SW] network failure; serving offline fallback')
-
+  } catch (error) {
+    // HTML ドキュメントナビゲーションのみ offline ページにフォールバックする。
+    // RSC(text/x-component) や Next が abort した fetch に 503 "Offline" を捏造すると、
+    // App Router がそれを RSC と解釈できず遷移が固まる(登録成功後の router.push 等)。
+    // 非 HTML はエラーをそのまま伝播させ、Next の通常処理(ハードナビゲーション等)に委ねる。
     if (request.headers.get('accept')?.includes('text/html')) {
+      console.log('[SW] network failure; serving offline fallback')
       const offlinePage = await caches.match('/offline.html')
       if (offlinePage) {
         return offlinePage
       }
     }
 
-    return new Response('Offline', { status: 503 })
+    throw error
   }
 }
 
