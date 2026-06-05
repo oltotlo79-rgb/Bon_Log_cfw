@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,7 +16,6 @@ import { MSG_ERROR_FALLBACK, MSG_PASSWORD_MISMATCH, MSG_TERMS_AGREEMENT_REQUIRED
 import { getFormString } from '@/lib/utils/form-data'
 
 export function RegisterForm() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -87,8 +85,10 @@ export function RegisterForm() {
         return
       }
 
-      router.push(ROUTE_VERIFY_EMAIL_SENT)
-      router.refresh()
+      // サーバーアクション直後の router.push はアクションの再レンダリングや
+      // ハイドレーション状態と競合し、遷移が反映されず「登録中…」のまま固まることがある。
+      // 確認ページへの一度きりの遷移なので、ハードナビゲーションで確実に遷移させる。
+      window.location.assign(ROUTE_VERIFY_EMAIL_SENT)
     } catch {
       setError(MSG_ERROR_FALLBACK)
       setLoading(false)

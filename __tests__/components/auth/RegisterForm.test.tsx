@@ -28,8 +28,23 @@ vi.mock('@/lib/actions/auth', () => ({
 }))
 
 describe('RegisterForm', () => {
+  const originalLocation = window.location
+  const assignMock = vi.fn()
+
   beforeEach(() => {
     vi.clearAllMocks()
+    // 登録成功後は window.location.assign でハードナビゲーションするためモックする。
+    Object.defineProperty(window, 'location', {
+      value: { ...originalLocation, assign: assignMock },
+      writable: true,
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+    })
   })
 
   // ヘルパー関数
@@ -183,8 +198,7 @@ describe('RegisterForm', () => {
     })
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/register/verify-email-sent')
-      expect(mockRefresh).toHaveBeenCalled()
+      expect(assignMock).toHaveBeenCalledWith('/register/verify-email-sent')
     })
     expect(mockSignIn).not.toHaveBeenCalled()
   })
