@@ -239,6 +239,61 @@ describe('proxy Basic 認証', () => {
   })
 })
 
+describe('proxy apex → www 正規化', () => {
+  afterEach(() => {
+    vi.mocked(getAppUrl).mockReturnValue('http://localhost:3000')
+  })
+
+  it('apex ホストへのアクセスは canonical な www へ 308 リダイレクトする', async () => {
+    vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
+    const result = (await runProxy({
+      pathname: '/feed',
+      headers: { host: 'bon-log.com' },
+    })) as { type: string; url: string }
+    expect(result.type).toBe('redirect')
+    expect(result.url).toBe('https://www.bon-log.com/feed')
+  })
+
+  it('apex への POST も pathname / search を保持して www へリダイレクトする', async () => {
+    vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
+    const result = (await runProxy({
+      pathname: '/monitoring',
+      method: 'POST',
+      headers: { host: 'bon-log.com', origin: 'https://bon-log.com' },
+    })) as { type: string; url: string }
+    expect(result.type).toBe('redirect')
+    expect(result.url).toBe('https://www.bon-log.com/monitoring')
+  })
+
+  it('x-forwarded-host が apex の場合もリダイレクトする', async () => {
+    vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
+    const result = (await runProxy({
+      pathname: '/',
+      headers: { 'x-forwarded-host': 'bon-log.com', host: 'internal:3000' },
+    })) as { type: string; url: string }
+    expect(result.type).toBe('redirect')
+    expect(result.url).toBe('https://www.bon-log.com/')
+  })
+
+  it('canonical な www ホストはリダイレクトせず通過する', async () => {
+    vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
+    const result = (await runProxy({
+      pathname: '/feed',
+      headers: { host: 'www.bon-log.com' },
+      auth: { user: { id: 'u1' } },
+    })) as { type: string }
+    expect(result.type).toBe('next')
+  })
+
+  it('canonical が www でない (localhost) 場合はホスト判定をスキップする', async () => {
+    const result = (await runProxy({
+      pathname: '/',
+      headers: { host: 'bon-log.com' },
+    })) as { type: string }
+    expect(result.type).toBe('next')
+  })
+})
+
 describe('proxy Origin / Referer 検証 (CSRF)', () => {
   it('GET リクエストは Origin 検証をスキップする', async () => {
     const result = (await runProxy({ pathname: '/', method: 'GET' })) as { type: string }

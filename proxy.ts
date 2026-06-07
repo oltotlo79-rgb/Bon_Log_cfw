@@ -445,6 +445,30 @@ function isMaintenanceAllowedPath(pathname: string): boolean {
 export default auth(async (req) => {
   const { nextUrl } = req
 
+  // apex (www なし) ドメインへのアクセスは canonical な www へ 308 リダイレクトする。
+  // canonical host は NEXT_PUBLIC_APP_URL 由来 (例: www.bon-log.com)。apex で配信すると
+  // ページの origin が apex になり、Server Actions / Sentry tunnel の Origin・Referer 検証
+  // (allowedOrigins は www のみ) で弾かれる。canonical / sitemap / CSP も www 前提のため、
+  // CSRF・SEO 両面で host を 1 つに集約する。fly は Host を転送するためヘッダから判定する
+  // (Next standalone の request.url は内部バインド 0.0.0.0 を指すため URL からは判定不可)。
+  let canonicalHost = ''
+  try {
+    canonicalHost = new URL(getAppUrl()).host
+  } catch {
+    canonicalHost = ''
+  }
+  if (canonicalHost.startsWith('www.')) {
+    const apexHost = canonicalHost.slice(4)
+    const rawHost = req.headers.get('x-forwarded-host') || req.headers.get('host') || ''
+    const reqHostname = rawHost.split(',')[0]?.trim().split(':')[0] ?? ''
+    if (reqHostname === apexHost) {
+      return NextResponse.redirect(
+        new URL(`https://${canonicalHost}${nextUrl.pathname}${nextUrl.search}`),
+        308,
+      )
+    }
+  }
+
   // CSP nonce を生成（各リクエストで一意の値）
   const nonce = generateNonce()
   // CSP ヘッダーは request / response 双方に同一値を載せる。
