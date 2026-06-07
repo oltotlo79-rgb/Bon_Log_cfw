@@ -246,7 +246,8 @@ describe('PostCard - extended coverage', () => {
     await user.click(menuButton!)
 
     // 自分のリポストは削除できる。編集・固定は元投稿用なので出さない。
-    expect(screen.getByTestId('delete-post-button')).toBeInTheDocument()
+    // DeletePostButton(実コンポーネント)は aria-label="投稿を削除" で描画される。
+    expect(screen.getByRole('button', { name: '投稿を削除' })).toBeInTheDocument()
     expect(screen.queryByTestId('edit-post-link')).not.toBeInTheDocument()
     expect(screen.queryByTestId('pin-post-button')).not.toBeInTheDocument()
   })
