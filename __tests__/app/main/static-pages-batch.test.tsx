@@ -321,8 +321,9 @@ describe('HormoneInteractionsPage', () => {
     expect(screen.getByTestId('hormone-disclaimer')).toBeInTheDocument()
   })
 
-  it('revalidate が 3600（1 時間）にセットされている', async () => {
+  it('force-dynamic が宣言されている（(main) レイアウト/PremiumProvider が auth() を使うため静的化不可）', async () => {
     const mod = await import('@/app/(main)/hormones/interactions/page')
-    expect(mod.revalidate).toBe(3600)
+    expect(mod.dynamic).toBe('force-dynamic')
+    expect(mod.revalidate).toBeUndefined()
   })
 })

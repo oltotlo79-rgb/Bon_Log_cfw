@@ -144,7 +144,7 @@ describe('HormonesLayout', () => {
 // =============================================================================
 describe('Fertilizer guide static pages', () => {
   it('absorption page renders heading + diagram + disclaimer + back link', async () => {
-    const { default: Page, metadata, revalidate } = await import(
+    const { default: Page, metadata, dynamic } = await import(
       '@/app/(main)/fertilizers/absorption/page'
     )
     render(<Page />)
@@ -156,12 +156,11 @@ describe('Fertilizer guide static pages', () => {
     expect(screen.getByText('← 肥料ガイドに戻る')).toBeDefined()
     expect(metadata.title).toContain('栄養素の吸収と転流')
     expect(metadata.alternates?.canonical).toContain('/fertilizers/absorption')
-    // Static literal — Next.js rejects imported constants here.
-    expect(revalidate).toBe(3600)
+    expect(dynamic).toBe('force-dynamic')
   })
 
   it('symptoms page renders heading + symptom search + disclaimer + back link', async () => {
-    const { default: Page, metadata, revalidate } = await import(
+    const { default: Page, metadata, dynamic } = await import(
       '@/app/(main)/fertilizers/symptoms/page'
     )
     render(<Page />)
@@ -173,7 +172,7 @@ describe('Fertilizer guide static pages', () => {
     expect(screen.getByText('← 肥料ガイドに戻る')).toBeDefined()
     expect(metadata.title).toContain('症状から探す栄養素')
     expect(metadata.alternates?.canonical).toContain('/fertilizers/symptoms')
-    expect(revalidate).toBe(3600)
+    expect(dynamic).toBe('force-dynamic')
   })
 })
 
