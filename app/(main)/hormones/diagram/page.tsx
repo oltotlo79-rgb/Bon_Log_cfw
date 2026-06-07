@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_DIAGRAM) },
 }
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 export default async function HormoneInteractionDiagramPage() {
   const [{ hormones }, { interactions }] = await Promise.all([

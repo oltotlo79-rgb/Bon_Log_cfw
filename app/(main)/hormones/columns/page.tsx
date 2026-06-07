@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   alternates: { canonical: pageCanonical(ROUTE_HORMONE_COLUMNS) },
 }
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 const CATEGORY_LABELS: Record<string, string> = {
   basics: '基礎知識',

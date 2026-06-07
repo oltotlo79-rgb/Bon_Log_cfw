@@ -4,8 +4,6 @@ import { ChevronLeft, Beaker, TreeDeciduous, Lightbulb, MapPin, Zap, FlaskConica
 import { notFound } from 'next/navigation'
 import { getHormoneBySlug, getHormoneTechniquesBySlug } from '@/lib/actions/hormone'
 import { BONSAI_TECHNIQUES, TECHNIQUE_EFFECT_TYPE_LABELS, TECHNIQUE_EFFECT_TYPE_COLORS, TECHNIQUE_MAGNITUDE_LABELS } from '@/lib/constants/hormone-techniques'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { HormoneCategoryBadge } from '@/components/hormone/HormoneCategoryBadge'
 import { HormoneEffectList } from '@/components/hormone/HormoneEffectList'
 import { HormoneSeasonalChart } from '@/components/hormone/HormoneSeasonalChart'
@@ -16,7 +14,7 @@ import { BASE_URL, ROUTE_HORMONES, ROUTE_HORMONE_INTERACTIONS, ROUTE_HORMONE_TEC
 import { pageCanonical } from '@/lib/utils/seo'
 import { COLUMN_OG_DESCRIPTION_LENGTH } from '@/lib/constants/limits'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -48,13 +46,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: [ogImageUrl],
     },
   }
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.hormoneType.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/hormones')
 }
 
 /** セクションコンポーネント */

@@ -3,8 +3,6 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Info, Beaker, AlertTriangle, Bug } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { getPesticideBySlug } from '@/lib/actions/pesticide'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { getMaffUrl, getResistanceRiskLabel, RESISTANCE_RISK_ORDER } from '@/lib/utils/pesticide'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
 import { CATEGORY_BADGE, PESTICIDE_TYPE_BADGE, type DiseasePestCategory } from '@/lib/utils/pesticide-badge'
@@ -23,7 +21,7 @@ import {
 } from '@/lib/constants/path-builders'
 import { pageCanonical } from '@/lib/utils/seo'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -50,13 +48,6 @@ function getMaxResistanceRiskFromIngredients(ingredients: { activeIngredient: { 
     if (max == null || RESISTANCE_RISK_ORDER[r] > RESISTANCE_RISK_ORDER[max]) max = r
   }
   return max
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.pesticide.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/pesticides/products')
 }
 
 export default async function PesticideDetailPage({ params }: Props) {

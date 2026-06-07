@@ -3,14 +3,12 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { getActiveIngredientBySlug } from '@/lib/actions/pesticide'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { getResistanceRiskLabel } from '@/lib/utils/pesticide'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
 import { ROUTE_PESTICIDES_INGREDIENTS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -22,13 +20,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${ing.name} - 原体詳細`,
     alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES_INGREDIENTS}/${slug}`) },
   }
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.activeIngredient.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/pesticides/ingredients')
 }
 
 export default async function IngredientDetailPage({ params }: Props) {

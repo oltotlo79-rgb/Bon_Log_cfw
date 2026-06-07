@@ -11,7 +11,7 @@ import { Plus as PlusIcon, Calendar as CalendarIcon, List as ListIcon } from 'lu
 import { ROUTE_EVENTS, ROUTE_EVENTS_NEW } from '@/lib/constants/routes'
 import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 
-export const revalidate = 300 // REVALIDATE_LIST_PAGE 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 export const metadata = {
   title: pageTitle('イベント'),

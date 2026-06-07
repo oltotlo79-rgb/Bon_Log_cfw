@@ -177,21 +177,3 @@ describe('SpreaderDetailPage - generateMetadata', () => {
     expect(result).toEqual({ title: '展着剤が見つかりません' })
   })
 })
-
-describe('SpreaderDetailPage - generateStaticParams', () => {
-  let generateStaticParams: typeof import('@/app/(main)/pesticides/spreaders/[slug]/page').generateStaticParams
-
-  beforeEach(async () => {
-    vi.clearAllMocks()
-    const mod = await import('@/app/(main)/pesticides/spreaders/[slug]/page')
-    generateStaticParams = mod.generateStaticParams
-  })
-
-  it('DB例外時は空配列を返す', async () => {
-    // prisma.spreaderType is not in the global mock, so findMany will throw
-    // The catch block in generateStaticParams should return []
-    const result = await generateStaticParams()
-
-    expect(result).toEqual([])
-  })
-})

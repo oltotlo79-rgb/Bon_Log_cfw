@@ -3,15 +3,13 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { getFertilizerColumnBySlug } from '@/lib/actions/fertilizer'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { FertilizerDisclaimer } from '@/components/fertilizer/FertilizerDisclaimer'
 import { ArticleJsonLd } from '@/components/seo/ArticleJsonLd'
 import { COLUMN_OG_DESCRIPTION_LENGTH } from '@/lib/constants/limits'
 import { BASE_URL, ROUTE_FERTILIZERS_COLUMNS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -23,13 +21,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${col.title} - コラム`,
     alternates: { canonical: pageCanonical(`${ROUTE_FERTILIZERS_COLUMNS}/${slug}`) },
   }
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.fertilizerColumn.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/fertilizers/columns')
 }
 
 export default async function FertilizerColumnDetailPage({ params }: Props) {

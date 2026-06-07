@@ -11,7 +11,7 @@ import type { PesticideType } from '@prisma/client'
 import { ROUTE_PESTICIDES_FORMULATIONS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 const TYPE_LABELS: Record<PesticideType, string> = {
   fungicide: '殺菌剤',

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   alternates: { canonical: pageCanonical(ROUTE_FERTILIZERS_PRODUCTS) },
 }
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 export default async function FertilizerProductsPage() {
   const { columns } = await getFertilizerColumns({ category: 'product_guide' })

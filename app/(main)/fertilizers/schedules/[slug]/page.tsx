@@ -3,8 +3,6 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { getFertilizationSchedule } from '@/lib/actions/fertilizer'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { TREE_CATEGORY_BADGE, FERTILIZER_ACTION_BADGE } from '@/lib/utils/fertilizer'
 import { FertilizationCalendar } from '@/components/fertilizer/FertilizationCalendar'
 import { FertilizationTimeline } from '@/components/fertilizer/FertilizationTimeline'
@@ -12,7 +10,7 @@ import { FertilizerDisclaimer } from '@/components/fertilizer/FertilizerDisclaim
 import type { FertilizerAction } from '@prisma/client'
 import { ROUTE_FERTILIZERS_SCHEDULES } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -24,13 +22,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${species.name} 施肥スケジュール - 施肥ガイド`,
     alternates: { canonical: pageCanonical(`${ROUTE_FERTILIZERS_SCHEDULES}/${slug}`) },
   }
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.treeSpecies.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/fertilizers/schedules')
 }
 
 /** 季節サマリーを計算 */

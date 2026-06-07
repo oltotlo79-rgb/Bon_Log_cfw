@@ -3,13 +3,11 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { getPesticideBySlug, getSpreaderTypeBySlug } from '@/lib/actions/pesticide'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
 import { ROUTE_PESTICIDES_SPREADERS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -31,13 +29,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
   return { title: '展着剤が見つかりません' }
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.spreaderType.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/pesticides/spreaders')
 }
 
 export default async function SpreaderDetailPage({ params }: Props) {

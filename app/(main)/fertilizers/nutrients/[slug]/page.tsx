@@ -3,13 +3,11 @@ import Link from 'next/link'
 import { ChevronLeft, BookOpen, Sprout, AlertTriangle, ShieldAlert, Package } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { getNutrientBySlug, getNutrients } from '@/lib/actions/fertilizer'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { NutrientCategoryBadge } from '@/components/fertilizer/NutrientCategoryBadge'
 import { NutrientCard } from '@/components/fertilizer/NutrientCard'
 import { ROUTE_FERTILIZERS_NUTRIENTS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -21,13 +19,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${nutrient.name}（${nutrient.symbol}） - 栄養素`,
     alternates: { canonical: pageCanonical(`${ROUTE_FERTILIZERS_NUTRIENTS}/${slug}`) },
   }
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.fertilizerNutrient.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/fertilizers/nutrients')
 }
 
 /** セクションコンポーネント */

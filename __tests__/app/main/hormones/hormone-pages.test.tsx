@@ -25,17 +25,6 @@ vi.mock('@/lib/actions/hormone', () => ({
   getSimulatorData: (...args: unknown[]) => mockGetSimulatorData(...args),
 }))
 
-vi.mock('@/lib/build/static-params', () => ({
-  loadStaticParams: (loader: () => Promise<unknown[]>) => loader(),
-}))
-
-vi.mock('@/lib/db', () => ({
-  prisma: {
-    hormoneType: { findMany: vi.fn().mockResolvedValue([]) },
-    hormoneColumn: { findMany: vi.fn().mockResolvedValue([]) },
-  },
-}))
-
 const mockNotFound = vi.fn()
 vi.mock('next/navigation', () => ({
   notFound: () => { mockNotFound(); throw new Error('NOT_FOUND') },
@@ -385,26 +374,6 @@ describe('Hormone detail page', () => {
     expect(metadata.title).toBe('ホルモンが見つかりません')
   })
 
-  it('generateStaticParams returns slugs from database', async () => {
-    const { prisma } = await import('@/lib/db')
-    ;(prisma.hormoneType.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { slug: 'auxin' },
-      { slug: 'gibberellin' },
-    ])
-    const { generateStaticParams } = await import('@/app/(main)/hormones/[slug]/page')
-    const result = await generateStaticParams()
-    expect(result).toEqual([{ slug: 'auxin' }, { slug: 'gibberellin' }])
-  })
-
-  it('generateStaticParams は prisma エラーを伝播させ build を fail-fast にする', async () => {
-    const { prisma } = await import('@/lib/db')
-    ;(prisma.hormoneType.findMany as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('DB cold start'),
-    )
-    const { generateStaticParams } = await import('@/app/(main)/hormones/[slug]/page')
-    await expect(generateStaticParams()).rejects.toThrow('DB cold start')
-  })
-
   it('renders related bonsai techniques (with effectColors + magnitude + mechanism)', async () => {
     mockGetHormoneBySlug.mockResolvedValue(fullHormone)
     mockGetHormoneTechniquesBySlug.mockResolvedValueOnce({
@@ -603,17 +572,6 @@ describe('Hormone column detail page', () => {
     const { generateMetadata } = await import('@/app/(main)/hormones/columns/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
     expect(metadata.title).toBe('コラムが見つかりません')
-  })
-
-  it('generateStaticParams returns slugs from database', async () => {
-    const { prisma } = await import('@/lib/db')
-    ;(prisma.hormoneColumn.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { slug: 'basics' },
-      { slug: 'advanced' },
-    ])
-    const { generateStaticParams } = await import('@/app/(main)/hormones/columns/[slug]/page')
-    const result = await generateStaticParams()
-    expect(result).toEqual([{ slug: 'basics' }, { slug: 'advanced' }])
   })
 })
 

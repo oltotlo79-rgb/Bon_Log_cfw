@@ -13,7 +13,7 @@ import { MapWrapper } from '@/components/shop/MapWrapper'
 import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 import { ROUTE_SHOPS } from '@/lib/constants/routes'
 
-export const revalidate = 300 // REVALIDATE_LIST_PAGE 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 export const metadata = {
   title: pageTitle('盆栽園マップ'),

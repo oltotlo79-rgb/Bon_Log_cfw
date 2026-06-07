@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   alternates: { canonical: pageCanonical(ROUTE_DICTIONARY) },
 }
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 const CATEGORY_COLORS: Record<string, string> = {
   '樹形': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',

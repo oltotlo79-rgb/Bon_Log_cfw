@@ -3,15 +3,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { getTermBySlug, getAdjacentTerms } from '@/lib/actions/dictionary'
-import { prisma } from '@/lib/db'
-import { loadStaticParams } from '@/lib/build/static-params'
 import { DefinedTermJsonLd } from '@/components/seo/JsonLd'
 import { BASE_URL, ROUTE_DICTIONARY } from '@/lib/constants/routes'
 import { buildDictionaryPath } from '@/lib/constants/path-builders'
 import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 import { META_DESCRIPTION_PREVIEW_LENGTH, DESCRIPTION_UI_PREVIEW_LENGTH } from '@/lib/constants/limits'
 
-export const revalidate = 3600 // REVALIDATE_MASTER_DATA 相当（Next.js は revalidate に静的リテラルを要求）
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -53,13 +51,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   '盆器・鉢': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   '用土・肥料': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
   '展示・鑑賞': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-}
-
-export async function generateStaticParams() {
-  return loadStaticParams(async () => {
-    const items = await prisma.bonsaiTerm.findMany({ select: { slug: true } })
-    return items.map((i) => ({ slug: i.slug }))
-  }, '/dictionary')
 }
 
 export default async function DictionaryTermPage({ params }: Props) {

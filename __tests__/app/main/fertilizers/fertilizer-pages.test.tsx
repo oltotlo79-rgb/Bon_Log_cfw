@@ -25,18 +25,6 @@ vi.mock('@/lib/actions/fertilizer', () => ({
   getFertilizerColumnBySlug: (...args: unknown[]) => mockGetFertilizerColumnBySlug(...args),
 }))
 
-vi.mock('@/lib/build/static-params', () => ({
-  loadStaticParams: (loader: () => Promise<unknown[]>) => loader(),
-}))
-
-vi.mock('@/lib/db', () => ({
-  prisma: {
-    fertilizerNutrient: { findMany: vi.fn().mockResolvedValue([]) },
-    fertilizerColumn: { findMany: vi.fn().mockResolvedValue([]) },
-    treeSpecies: { findMany: vi.fn().mockResolvedValue([]) },
-  },
-}))
-
 const mockNotFound = vi.fn()
 vi.mock('next/navigation', () => ({
   notFound: () => { mockNotFound(); throw new Error('NOT_FOUND') },
@@ -242,17 +230,6 @@ describe('Column detail page', () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
     expect(metadata.title).toBe('コラムが見つかりません')
   })
-
-  it('generateStaticParams returns slugs', async () => {
-    const { prisma } = await import('@/lib/db')
-    ;(prisma.fertilizerColumn.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { slug: 'a' },
-      { slug: 'b' },
-    ])
-    const { generateStaticParams } = await import('@/app/(main)/fertilizers/columns/[slug]/page')
-    const result = await generateStaticParams()
-    expect(result).toEqual([{ slug: 'a' }, { slug: 'b' }])
-  })
 })
 
 describe('Nutrients list page', () => {
@@ -350,17 +327,6 @@ describe('Nutrient detail page', () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
     expect(metadata.title).toBe('栄養素が見つかりません')
   })
-
-  it('generateStaticParams returns slugs', async () => {
-    const { prisma } = await import('@/lib/db')
-    ;(prisma.fertilizerNutrient.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { slug: 'nitrogen' },
-      { slug: 'phosphorus' },
-    ])
-    const { generateStaticParams } = await import('@/app/(main)/fertilizers/nutrients/[slug]/page')
-    const result = await generateStaticParams()
-    expect(result).toEqual([{ slug: 'nitrogen' }, { slug: 'phosphorus' }])
-  })
 })
 
 describe('Schedules list page', () => {
@@ -455,16 +421,5 @@ describe('Schedule detail page', () => {
     const { generateMetadata } = await import('@/app/(main)/fertilizers/schedules/[slug]/page')
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
     expect(metadata.title).toBe('樹種が見つかりません')
-  })
-
-  it('generateStaticParams returns slugs', async () => {
-    const { prisma } = await import('@/lib/db')
-    ;(prisma.treeSpecies.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { slug: 'kuromatsu' },
-      { slug: 'momiji' },
-    ])
-    const { generateStaticParams } = await import('@/app/(main)/fertilizers/schedules/[slug]/page')
-    const result = await generateStaticParams()
-    expect(result).toEqual([{ slug: 'kuromatsu' }, { slug: 'momiji' }])
   })
 })
