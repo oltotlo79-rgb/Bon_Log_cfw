@@ -6,6 +6,8 @@
  * - カスタム: /api/og?title=投稿タイトル
  */
 
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
 import { NextRequest, NextResponse } from 'next/server'
 import {
@@ -28,6 +30,19 @@ const size = {
 
 const CACHE_CONTROL_VALUE = `public, max-age=${OG_CACHE_MAX_AGE_SECONDS}, s-maxage=${OG_CACHE_MAX_AGE_SECONDS}, stale-while-revalidate=${OG_CACHE_SWR_SECONDS}`
 
+// next/og (Satori) は WebP 非対応のため PNG を使う。
+// 背景画像を `request.url` 基準の絶対 URL で fetch すると、fly standalone では
+// request.url が内部バインド (https://0.0.0.0:3000) を指して fetch に失敗するため、
+// public/ の PNG をファイルから直接読み込んで data URL として埋め込む。
+let cachedOgBgDataUrl: string | null = null
+async function getOgBackgroundDataUrl(): Promise<string> {
+  if (cachedOgBgDataUrl) return cachedOgBgDataUrl
+  const pngPath = join(process.cwd(), 'public/images/generated/ui/og-default.png')
+  const buffer = await readFile(pngPath)
+  cachedOgBgDataUrl = `data:image/png;base64,${buffer.toString('base64')}`
+  return cachedOgBgDataUrl
+}
+
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request)
   const rl = await rateLimit(`og:${ip}`, RATE_LIMITS.api)
@@ -41,9 +56,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const title = searchParams.get('title')
 
-  // 生成済みOG画像のURLを構築
-  // 注: next/og (Satori) は WebP 非対応のため PNG を使用すること
-  const ogBgUrl = new URL('/images/generated/ui/og-default.png', request.url).toString()
+  const ogBgUrl = await getOgBackgroundDataUrl()
 
   return new ImageResponse(
     (

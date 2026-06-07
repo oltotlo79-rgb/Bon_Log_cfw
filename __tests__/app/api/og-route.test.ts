@@ -111,8 +111,16 @@ describe('GET /api/og', () => {
     const [element] = mockImageResponse.mock.calls[0]
     const src = findImgSrc(element)
     expect(src).toBeTruthy()
-    expect(src).toMatch(/\.png$/)
-    expect(src).not.toMatch(/\.webp$/)
+    expect(src).toMatch(/^data:image\/png;base64,/)
+    expect(src).not.toMatch(/webp/)
+  })
+
+  it('embeds the background as a filesystem data URL (not a request.url-based URL that breaks on fly standalone)', async () => {
+    await GET(createRequest('/api/og'))
+    const [element] = mockImageResponse.mock.calls[0]
+    const src = findImgSrc(element)
+    expect(src).toMatch(/^data:image\/png;base64,/)
+    expect(src).not.toMatch(/0\.0\.0\.0|localhost|https?:\/\//)
   })
 
   it('OG background PNG file exists under public/', () => {
