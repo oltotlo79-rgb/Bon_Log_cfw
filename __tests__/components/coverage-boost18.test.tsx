@@ -59,6 +59,9 @@ vi.mock('lucide-react', () => ({
   Ban: ({ className }: { className?: string }) => <span data-testid="ban-icon" className={className} />,
   CalendarPlus: ({ className }: { className?: string }) => <span data-testid="calendar-icon" className={className} />,
   ChevronRight: ({ className }: { className?: string }) => <span data-testid="chevron-right" className={className} aria-hidden />,
+  AlertCircle: ({ className }: { className?: string }) => <span data-testid="alert-circle-icon" className={className} />,
+  ExternalLink: ({ className }: { className?: string }) => <span data-testid="external-link-icon" className={className} />,
+  RefreshCcw: ({ className }: { className?: string }) => <span data-testid="refresh-icon" className={className} />,
 }))
 
 vi.mock('@/components/ui/dropdown-menu', () => ({

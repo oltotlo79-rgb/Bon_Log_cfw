@@ -87,6 +87,7 @@ vi.mock('lucide-react', () => ({
   CalendarPlus: ({ className }: { className?: string }) => <span data-testid="calendar-icon" className={className} />,
   X: ({ className }: { className?: string }) => <span data-testid="x-icon" className={className} />,
   Image: ({ className }: { className?: string }) => <span data-testid="image-icon" className={className} />,
+  AlertTriangle: ({ className }: { className?: string }) => <span data-testid="alert-triangle-icon" className={className} />,
 }))
 
 // ============================================================
