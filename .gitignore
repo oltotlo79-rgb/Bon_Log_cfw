@@ -77,3 +77,5 @@ vitest-stderr.txt
 .codex/
 .vscode/
 .claude/scheduled_tasks.lock
+# 本番テストデータ削除時のバックアップ (機微データを含むためコミット禁止)
+e2e-prod-data-backup-*.json

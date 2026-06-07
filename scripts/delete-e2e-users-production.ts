@@ -1,12 +1,19 @@
 /**
- * 本番環境に残ったE2Eテスト用ユーザーを削除するスクリプト
+ * 本番環境に残ったE2Eテスト用データを削除するスクリプト
  *
  * 削除対象（すべて削除）:
  * - メールが e2e-test@example.com のユーザー（E2Eテスト用・本番には不要）
  * - メールが e2e-register-*@example.com のユーザー
  * - ニックネームが「E2Eテストユーザー」「E2E他ユーザー」「E2E登録テスト」「E2E Test User」のユーザー
+ * - E2E が作成したコンテンツ（名前マーカーで厳密一致）:
+ *   - bonsai_shops.name = 'E2E用テスト盆栽園'（shop_genres / reviews は Cascade）
+ *   - events.title       = 'E2E用テストイベント'
  *
- * 使用場面: 本番DBに誤って残ったE2Eユーザーを1回だけ削除するとき。
+ * Why content cleanup: event / shop の createdBy は onDelete:SetNull のため、ユーザーだけ
+ * 削除すると createdBy が null 化してコンテンツが孤立残存する（本番 /shops に E2E 盆栽園が
+ * 残った原因）。ユーザー所有の投稿・盆栽等は onDelete:Cascade でユーザー削除時に消える。
+ *
+ * 使用場面: 本番DBに誤って残ったE2Eデータを削除するとき。
  * 実行前に DATABASE_URL が本番を指していることを確認すること。
  *
  * 実行: CLEANUP_E2E_PRODUCTION=1 npm run e2e:delete-production-users
@@ -25,8 +32,15 @@ import { prisma } from '../lib/db'
 
 const E2E_EMAIL_OFFICIAL = 'e2e-test@example.com'
 const RESERVED_NICKNAMES = ['E2Eテストユーザー', 'E2E他ユーザー', 'E2E登録テスト', 'E2E Test User']
+const E2E_SHOP_NAME = 'E2E用テスト盆栽園'
+const E2E_EVENT_TITLE = 'E2E用テストイベント'
 
 async function main() {
+  // createdBy が SetNull のため、ユーザー削除では消えない E2E コンテンツを名前で先に削除する。
+  const delEvents = await prisma.event.deleteMany({ where: { title: E2E_EVENT_TITLE } })
+  const delShops = await prisma.bonsaiShop.deleteMany({ where: { name: E2E_SHOP_NAME } })
+  console.log(`Deleted ${delEvents.count} E2E event(s), ${delShops.count} E2E shop(s).`)
+
   const byEmail = await prisma.user.findMany({
     where: {
       OR: [
