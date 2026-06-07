@@ -238,9 +238,7 @@ describe('PostCard - extended coverage', () => {
     }
     render(<PostCard {...props} />)
 
-    const menuButtons = screen.getAllByRole('button')
-    const menuButton = menuButtons.find(btn => btn.querySelector('svg'))
-    await user.click(menuButton!)
+    await user.click(screen.getByTestId('post-menu-button'))
 
     // 自分のリポストは削除できる。編集・固定は元投稿用なので出さない。
     await waitFor(() => {
