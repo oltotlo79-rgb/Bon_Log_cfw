@@ -137,7 +137,7 @@ export const PostCardHeader = memo(function PostCardHeader({
               className="fixed inset-0 z-10"
               onClick={() => setShowMenu(false)}
             />
-            <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border/50 rounded-xl shadow-washi-lg py-1.5 min-w-[160px]" data-testid="post-menu-dropdown">
+            <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border/50 rounded-xl shadow-washi-lg py-1.5 min-w-[160px] whitespace-nowrap" data-testid="post-menu-dropdown">
               {isOwner && !isRepost && (
                 <>
                   <Link

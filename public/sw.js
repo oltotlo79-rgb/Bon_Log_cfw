@@ -8,7 +8,7 @@
  * `Cache-Control: no-store|private` や `Set-Cookie` を含む応答は明示的に cache を回避する。
  */
 
-const CACHE_VERSION = 'v4'
+const CACHE_VERSION = 'v5'
 const STATIC_CACHE = `bon-log-static-${CACHE_VERSION}`
 const IMAGE_CACHE = `bon-log-images-${CACHE_VERSION}`
 
@@ -131,8 +131,14 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 残りは public HTML 想定。private 判定で cache 拒否するため独立 helper を使う。
-  event.respondWith(networkOnlyWithOfflineFallback(request))
+  // 残りは public HTML 想定。ただし **ドキュメントナビゲーション** (request.mode === 'navigate')
+  // のみ介入する。RSC (router.refresh / router.push)・プリフェッチ・その他クライアント fetch まで
+  // respondWith すると、fetch 失敗時に FetchEvent が network error 化し、呼び出し側の処理が固まる
+  // (例: コメント送信後の router.refresh() が完了せず useTransition の isPending が「送信中…」のまま)。
+  // 非ナビゲーションは介入せずブラウザ/Next のネイティブ処理に委ねる。
+  if (request.mode === 'navigate') {
+    event.respondWith(networkOnlyWithOfflineFallback(request))
+  }
 })
 
 /**

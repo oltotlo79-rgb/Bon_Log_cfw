@@ -185,7 +185,10 @@ describe('PostCardHeader', () => {
       )
       const menuButton = screen.getByTestId('post-menu-button')
       fireEvent.click(menuButton)
-      expect(screen.getByTestId('post-menu-dropdown')).toBeInTheDocument()
+      const dropdown = screen.getByTestId('post-menu-dropdown')
+      expect(dropdown).toBeInTheDocument()
+      // 「プロフィールに固定」等の長いラベルが折り返さないこと
+      expect(dropdown).toHaveClass('whitespace-nowrap')
     })
 
     it('オーナーかつ非リポストの場合に削除ボタンが表示される', async () => {
