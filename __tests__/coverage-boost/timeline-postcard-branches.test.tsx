@@ -517,7 +517,7 @@ describe('PostCard', () => {
     expect(screen.getByText('7')).toBeInTheDocument()
   })
 
-  // ---- Branch: repost by current user (isOwner && isRepost - delete only, no edit/pin) ----
+  // isOwner && isRepost: 自分のリポストは削除のみ表示（編集・固定は出さない）
   it('shows DeletePostButton but not edit/pin for a repost when owner', async () => {
     const user = userEvent.setup()
     const repostByOwner = {
