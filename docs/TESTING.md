@@ -20,11 +20,11 @@ Vitest は `vitest.config.ts` で次を設定している:
 
 > **`--configLoader runner` について**: `package.json` の test スクリプトは `vitest run --configLoader runner` を使う。Windows sandbox 等で設定ファイル解決が落ちるのを避けるための指定であり、`npm test` 経由なら自動で付与される。`npx vitest run` を直接叩く場合（CI もこちら）はこのフラグは不要。
 
-## テスト統計（2026-05-30時点）
+## テスト統計（2026-06-07時点）
 
 | 項目 | 数値 |
 |------|------|
-| テストファイル数（Vitest） | 825（`.test.ts` 343 + `.test.tsx` 482） |
+| テストファイル数（Vitest） | 845（`.test.ts` 353 + `.test.tsx` 492） |
 | カバレッジ閾値 | Branches 80% / Functions 85% / Lines 85% / Statements 85% |
 | カバレッジ実測（参考） | Statements ~96.7% / Branches ~90.9% / Functions ~97.4% / Lines ~98.0%（閾値を大きく上回る） |
 | TypeScript strict | `strict: true` + `noUncheckedIndexedAccess: true` + `noImplicitOverride: true` |
@@ -32,7 +32,7 @@ Vitest は `vitest.config.ts` で次を設定している:
 | E2E specファイル数 | 60 |
 | E2E Playwrightプロジェクト数 | 8（setup, chromium, firefox, webkit, Mobile Chrome, Mobile Safari, chromium-noauth, teardown） |
 | E2E ワーカー数（CI） | 3（`PLAYWRIGHT_WORKERS` 環境変数で上書き可） |
-| パーサーテスト | 6ファイル・195テストケース |
+| パーサーテスト | 6ファイル・98テストケース |
 | カバレッジ向上テスト | 24ファイル（__tests__/coverage-boost/） |
 | モックオブジェクト数 | 30+（test-utils.tsx） |
 | 通知ヘルパーテスト | `__tests__/lib/services/notification-bulk.test.ts`（25 ケース）/ `notification-core.test.ts` |
@@ -141,7 +141,7 @@ npm run test:all
 
 ```
 project/
-├── __tests__/                    # Vitestテスト（825ファイル）
+├── __tests__/                    # Vitestテスト（845ファイル）
 │   ├── utils/
 │   │   └── test-utils.tsx        # テストユーティリティ、モック（30+モックデータ + Prismaクライアントモック）
 │   ├── helpers/
@@ -167,7 +167,7 @@ project/
 │   │   ├── storage/              # ストレージテスト
 │   │   ├── utils/                # ユーティリティテスト（admin-cursor / form-data / preserve-order 含む）
 │   │   └── validations/          # バリデーションテスト
-│   ├── prisma/validation/parsers/ # 農薬CSVパーサーテスト（6ファイル・195ケース）
+│   ├── prisma/validation/parsers/ # 農薬CSVパーサーテスト（6ファイル・98ケース）
 │   ├── coverage-boost/           # カバレッジ向上テスト（24ファイル）
 │   ├── unit/actions/             # 追加ユニットテスト
 │   ├── types/                    # 型定義テスト
@@ -359,11 +359,11 @@ await clickAndWaitForUrl(page, link, /\/feed/)
 | テストファイル | テスト数 | 検証内容 |
 |--------------|---------|---------|
 | csv-utils.test.ts | 14 | BOM付きCSV入出力、カンマ/引用符エスケープ、複合キーdedup |
-| data-parser.test.ts | 18 | 農薬・成分・効果・病害虫・混用不可・展着剤のパース |
+| data-parser.test.ts | 27 | 農薬・成分・効果・病害虫・混用不可・展着剤のパース |
 | additions-parser.test.ts | 7 | シングルクォート形式、`as EffectRating`キャスト対応 |
 | additions2-parser.test.ts | 10 | `.id`参照、ensureSprayProduct/prisma.findUnique変数対応 |
 | spray-parser.test.ts | 6 | スプレー製品のパースと変数マッピング |
-| integration.test.ts | 42 | 実シードファイルでの件数検証、MAFF突合データとの正確性照合、効果データの論理整合性、回帰テスト |
+| integration.test.ts | 34 | 実シードファイルでの件数検証、MAFF突合データとの正確性照合、効果データの論理整合性、回帰テスト |
 
 **回帰テスト**: カリグリーンの全レベル値、サンヨール液剤ALの11件抽出、混用不可126ペアの石灰硫黄合剤 x マシン油等の重要データが将来壊れないことを保証。
 

@@ -275,7 +275,7 @@
 
 ---
 
-## Server Actions (87 ファイル: ルート 66 + 管理者 20 + schemas 1。うち `'use server'` ディレクティブ付きは 73 本)
+## Server Actions (90 ファイル: ルート 69 + 管理者 20 + schemas 1。うち `'use server'` ディレクティブ付きは 75 本)
 
 ### 戻り値型ポリシー（CLAUDE.md ルール2）
 
@@ -291,7 +291,7 @@ type ActionResult<T = void> =
 
 #### `'use server'` を持たないモジュール（規約対象外）
 
-`lib/actions/` 配下でも以下は **クライアントから RPC 公開しない内部 helper / RSC データ取得モジュール** として `'use server'` を外し、`'server-only'` ガードのみを置く設計に統一されている。これらは Server Action ではないため ActionResult 規約は適用されず、ドメイン型を直接返す（**lib/actions/ ルート 66 ファイル中 12 ファイル** + `admin/_schemas.ts` + `schemas/common.ts` が該当）:
+`lib/actions/` 配下でも以下は **クライアントから RPC 公開しない内部 helper / RSC データ取得モジュール** として `'use server'` を外し、`'server-only'` ガードのみを置く設計に統一されている。これらは Server Action ではないため ActionResult 規約は適用されず、ドメイン型を直接返す（**lib/actions/ ルート 69 ファイル中 13 ファイル** + `admin/_schemas.ts` + `schemas/common.ts` が該当）:
 
 **RSC データ取得モジュール（読み取り専用 query、RSC からの直接 await 用途）:**
 - `lib/actions/dictionary.ts` — 盆栽用語辞典の取得（`getTerms` / `getTermBySlug` / `getAdjacentTerms`）
@@ -301,6 +301,7 @@ type ActionResult<T = void> =
 - `lib/actions/search-meta.ts` — 検索メタ情報（`getPopularTags` / `getAllGenres` / `getSearchModeInfo`）
 
 **内部 helper（任意 input で外部から呼ばれない設計）:**
+- `lib/actions/admin.ts` — admin Server Component 専用の認可ヘルパー（`isAdmin` / `getAdminInfo`）。`'use server'` を付けると `isAdmin` が公開 RPC になり攻撃面が増えるため `'server-only'` 化（write 系 admin Action は `lib/actions/admin/*.ts`）
 - `lib/actions/filter-helper.ts` — ブロック/ミュート除外 ID 取得（`getExcludedUserIds` / `getBlockedUserIds` / `getMutedUserIds`）。以前は `'use server'` 配下で公開されており任意 userId で他人の関係を取得できる懸念があったため、`'server-only'` 化により RPC 露出を遮断
 - `lib/actions/post-include.ts` — Prisma include 共有定義（`POST_LIST_INCLUDE` / `POST_QUOTE_INCLUDE` / `POST_REPOST_INCLUDE` / `buildPostPollInclude(currentUserId?)` / `formatPostForClient`）
 - `lib/actions/post-validation.ts` — `createPost` の純粋検証ヘルパー（`validatePollOptions` / `parseCreatePostShape` / `applyCreatePostBusinessRules`）
@@ -321,7 +322,7 @@ type ActionResult<T = void> =
 
 ### ファイル一覧
 
-**ルートActions (66):** admin, analytics, announcement, auth, auth-email-verify, auth-password-reset, blacklist, block, bonsai, bonsai-care-log, bonsai-record, bookmark, comment, comment-thread-mute, contact, dictionary\*, draft, event, event-import, feed, fertilizer\*, filter-helper\*, follow, follow-request, hashtag, hide-post, hormone\*, like, maintenance, mention, message, message-conversations, message-messages, mute, notification, notification-preferences, pagination\*, pesticide\*, poll, post, post-include\*, post-validation\*, prisma-filters\*, push-subscription, report, report-admin, report-user, review, scheduled-post, scheduled-post-crud, scheduled-post-publish, search, search-entities, search-meta\*, search-posts, search-users, shop, shop-change-request, subscription, two-factor, user\*\*, user-account, user-media, user-profile, utils\*, weather
+**ルートActions (69):** admin\*, analytics, announcement, auth, auth-email-verify, auth-password-reset, blacklist, block, bonsai, bonsai-care-log, bonsai-record, bookmark, comment, comment-thread-mute, contact, dictionary\*, draft, event, event-import, feed, fertilizer\*, filter-helper\*, follow, follow-request, hashtag, hide-post, hormone\*, like, maintenance, mention, message, message-conversations, message-messages, mute, notification, notification-preferences, onboarding, pagination\*, pesticide\*, pin-post, poll, post, post-include\*, post-validation\*, prisma-filters\*, push-subscription, report, report-admin, report-user, review, scheduled-post, scheduled-post-crud, scheduled-post-publish, search, search-entities, search-meta\*, search-posts, search-users, security-activity, shop, shop-change-request, subscription, two-factor, user\*\*, user-account, user-media, user-profile, utils\*, weather
 
 \* 印は `'use server'` を持たない RSC データ取得 / 内部 helper モジュール（`'server-only'` ガード付き）。
 \*\* `user.ts` は `user-profile` / `user-media` / `user-account` の barrel re-export（自身は `'use server'` を持たないが、再エクスポート先は持つ）。
@@ -420,6 +421,7 @@ type ActionResult<T = void> =
 | `createQuotePost(formData, quotePostId)` | 引用投稿作成 |
 | `createRepost(postId)` | リポスト |
 | `deletePost(postId)` | 投稿削除（本人のみ） |
+| `updatePost(postId, formData)` | 投稿編集（本人のみ） |
 | `getPost(postId)` | 投稿詳細取得 |
 | `getPosts(cursor?, limit?)` | 投稿一覧取得（カーソルベースページネーション） |
 | `getGenres()` | ジャンルマスタ一覧取得 |
@@ -436,6 +438,7 @@ type ActionResult<T = void> =
 |------|------|
 | `createComment(formData)` | コメント作成（スレッド形式対応） |
 | `deleteComment(commentId)` | コメント削除（本人のみ） |
+| `updateComment(commentId, content)` | コメント編集（本人のみ） |
 | `getComments(postId, cursor?, limit?)` | 投稿のコメント一覧取得 |
 | `getReplies(commentId, cursor?, limit?)` | コメントの返信一覧取得 |
 | `getCommentCount(postId)` | コメント数取得 |
@@ -540,7 +543,7 @@ type ActionResult<T = void> =
 
 **Session 認証必須**。
 
-**`NotificationType`:** `'like'` | `'comment'` | `'follow'` | `'quote'` | `'reply'` | `'comment_like'` | `'follow_request'` | `'follow_request_approved'` | `'mention'`
+**`NotificationType`** (`types/notification.ts` の `VALID_NOTIFICATION_TYPES`、Prisma enum と同期): `'like'` | `'comment'` | `'follow'` | `'quote'` | `'reply'` | `'comment_like'` | `'follow_request'` | `'follow_request_approved'` | `'mention'` | `'message'` | `'repost'` | `'system'` | `'subscription_expiring'`
 
 | 関数 | 説明 |
 |------|------|
@@ -587,7 +590,7 @@ type ActionResult<T = void> =
 
 | 関数 | 説明 |
 |------|------|
-| `getBonsais(userId?)` | 盆栽一覧取得 |
+| `getBonsais()` | 盆栽一覧取得（自分の盆栽） |
 | `getBonsai(bonsaiId)` | 盆栽詳細取得 |
 | `createBonsai(data)` | 盆栽登録 |
 | `updateBonsai(bonsaiId, data)` | 盆栽更新 |
@@ -925,12 +928,14 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 
 | 関数 | 認証 | 説明 |
 |------|------|------|
-| `createReport(params)` | Session | 通報作成（投稿・コメント・ユーザー対象） |
-| `getReports(options?)` | Admin | 通報一覧取得（ステータスフィルタ） |
-| `updateReportStatus(reportId, status, response?)` | Admin | 通報ステータス更新 |
-| `deleteReportedContent(reportId, contentType)` | Admin | 通報対象コンテンツ削除 |
+| `createReport(params)` | Session | 通報作成（投稿・コメント・ユーザー対象。`report-user.ts` 実装） |
+| `getReports(options?)` | Admin | 通報一覧取得（ステータス・対象種別フィルタ。`report-admin.ts` 実装） |
+| `updateReportStatus(reportId, status, note?)` | Admin | 通報ステータス更新 |
+| `deleteReportedContent(targetType, targetId)` | Admin | 通報対象コンテンツ削除 |
 | `deleteReport(reportId)` | Admin | 通報削除 |
 | `getReportStats()` | Admin | 通報統計 |
+
+通報機能は `report.ts` バレルが `report-user.ts`（一般ユーザー向け作成）/ `report-admin.ts`（管理者向け管理）を再エクスポートする構成。
 
 ---
 
@@ -1004,14 +1009,47 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 
 ---
 
+### オンボーディング (`lib/actions/onboarding.ts`)
+
+**Session 認証必須**（非ゲスト）。
+
+| 関数 | 説明 |
+|------|------|
+| `completeOnboarding()` | オンボーディング完了記録（`User.onboardedAt` を更新、冪等） |
+
+---
+
+### 固定投稿 (`lib/actions/pin-post.ts`)
+
+**Session 認証必須**（非ゲスト）。ユーザーは自分の投稿を 1 件だけプロフィール先頭に固定できる（`User.pinnedPostId`）。`engagement` レート制限を適用。
+
+| 関数 | 説明 |
+|------|------|
+| `pinPost(postId)` | 自分の投稿をプロフィールに固定（既存の固定を置き換え） |
+| `unpinPost()` | プロフィールの固定を解除 |
+
+---
+
+### セキュリティ活動 (`lib/actions/security-activity.ts`)
+
+**Session 認証必須**。戻り値は `ActionResult` ではなく `{ events: SecurityActivityEvent[] }`（読み取り例外、未認証時は空配列）。
+
+| 関数 | 説明 |
+|------|------|
+| `getMySecurityEvents()` | 自分の直近セキュリティイベント（ログイン失敗・パスワード変更・2FA 切替・メール変更）を新しい順で取得 |
+
+---
+
 ## 管理者 Server Actions
 
 ### 管理者共通 (`lib/actions/admin.ts`)
 
+**`'use server'` を持たない `'server-only'` モジュール**（admin Server Component から直接 await する認可ヘルパー。`isAdmin` を公開 RPC にしないため Server Action 化していない）。戻り値はドメイン値を直接返す。
+
 | 関数 | 説明 |
 |------|------|
-| `isAdmin()` | 管理者判定 |
-| `getAdminInfo()` | 管理者情報取得 |
+| `isAdmin()` | 管理者判定（`boolean`） |
+| `getAdminInfo()` | 管理者情報取得（`{ userId, role }` または `null`） |
 
 ---
 
@@ -1324,16 +1362,29 @@ Upstash Redis によるスライディングウィンドウ方式。
 | update_review | 5回 | 1分 |
 | create_draft | 5回 | 1分 |
 | update_draft | 10回 | 1分 |
+| publish_draft | 10回 | 1分 |
+| delete_draft | 10回 | 1分 |
 | create_report | 5回 | 1分 |
 | create_bonsai | 3回 | 1分 |
 | update_bonsai | 5回 | 1分 |
+| delete_bonsai | 5回 | 1分 |
 | create_bonsai_record | 5回 | 1分 |
+| care_log_write | 10回 | 1分 |
+| delete_care_log | 10回 | 1分 |
 | send_message | 20回 | 1分 |
 | toggle_like | 30回 | 1分 |
+| create_shop_change_request | 3回 | 1分 |
 | delete_shop | 5回 | 1分 |
 | delete_event | 5回 | 1分 |
 | delete_review | 5回 | 1分 |
 | delete_comment | 10回 | 1分 |
+| update_comment | 15回 | 1分 |
+| delete_post | 5回 | 1分 |
+| block_user / unblock_user | 10回 | 1分 |
+| mute_user / unmute_user | 10回 | 1分 |
+| two_factor_setup | 10回 | 15分 |
+| admin_bulk | 5回 | 1分 |
+| stripe_billing | 5回 | 1分 |
 
 #### 読み取り系
 
@@ -1341,9 +1392,13 @@ Upstash Redis によるスライディングウィンドウ方式。
 |-----------|------|----------|------|
 | api | 60回 | 1分 | IPベース |
 | search | 20回 | 1分 | IPベース |
+| mention_search | 30回 | 1分 | @入力サジェスト（debounce 前提） |
 | engagement | 30回 | 1分 | |
 | timeline | 30回 | 1分 | |
+| get_timeline | 30回 | 1分 | |
+| get_recommended | 20回 | 1分 | |
 | read | 60回 | 1分 | |
+| care_log_read | 60回 | 1分 | カレンダー手入れログ取得 |
 
 #### 日次制限
 

@@ -62,7 +62,7 @@
 | Next.js Server Actions | - | API実装（85ファイル: 64ルート + 20管理者 + 1 schemas）。`'use server'` を持たず `'server-only'` のみで運用するモジュール 13 本（`dictionary.ts` / `fertilizer.ts` / `hormone.ts` / `pesticide.ts` / `search-meta.ts` の RSC データ取得 + `filter-helper.ts` / `post-include.ts` / `post-validation.ts` / `shared-includes.ts` / `prisma-filters.ts` / `pagination.ts` / `utils.ts` の内部 helper、および barrel re-export の `user.ts`）はこの数に含む |
 | NextAuth.js v5 | 5.0.0-beta.31 | 認証（JWT戦略） |
 | Google OAuth 2.0 | - | ソーシャルログイン |
-| Prisma | 6.19.2 | ORM |
+| Prisma | 6.19.2 | ORM（`@prisma/adapter-pg` + `pg` ^8.16 ドライバアダプタ経由） |
 | Zod | 4.x | バリデーション |
 | Stripe | 20.x | 決済処理 |
 | Resend | 6.x | メール送信 |
@@ -84,15 +84,27 @@
 
 ### 2.4 インフラストラクチャ
 
+ホスティングは **fly.io**（コンピュートのみ）。DB / ストレージ / キャッシュ / メール / 決済 / 監視は外部マネージドサービスを継続利用する。
+
 | サービス | 用途 | プラン |
 |---------|------|--------|
-| Vercel | ホスティング・デプロイ | Pro ($20/月) |
+| fly.io | ホスティング・デプロイ（app `bon-log` / region `nrt` 東京 / shared-cpu-1x / 1GB / 常時 1 台稼働） | 従量課金 |
 | Supabase | PostgreSQLデータベース | Free〜Pro |
 | Upstash | Redis（キャッシュ・レート制限） | Free |
 | Cloudflare R2 | 画像・動画ストレージ | 従量課金 |
 | Resend | メール送信 | Free (100通/日) |
 | Stripe | 決済処理 | 従量課金 |
 | Sentry | エラー監視 | Free (5,000エラー/月) |
+
+#### デプロイ・スケジュール実行
+
+- **デプロイ**: GitHub Actions (`fly-deploy.yml`) で `master` push 時に `flyctl deploy --local-only` を実行（amd64 ランナー上でローカル Docker ビルド）。秘匿値は `fly secrets set` / `fly secrets import`、`NEXT_PUBLIC_*` は `fly.toml` の `[build.args]` でビルド時 inline。
+- **Cron**: fly.io に組込 cron がないため GitHub Actions (`cron.yml`) の schedule で各 cron エンドポイントを Bearer `CRON_SECRET` で叩く。
+  - `publish-scheduled`: 5 分毎（予約投稿の公開）
+  - `update-weather`: 毎時（天気更新）
+  - `check-subscriptions`: 毎日 01:00 UTC（サブスク確認）
+  - `cleanup-events`: 毎月 1 日 00:00 UTC（終了イベント整理）
+- **マイグレーション**: runner イメージは standalone 最小構成で prisma CLI を含まないため release_command にせず、ローカルから `prisma migrate deploy`（`DIRECT_URL` 使用）で適用する。
 
 ### 2.5 外部サービス連携（20+）
 
@@ -114,8 +126,8 @@
 | Web Push API | ブラウザプッシュ通知 |
 | Ninja AdMax | 広告配信 |
 | Google AdSense | 広告配信 |
-| Vercel | ホスティング・Edge Network |
-| GitHub Actions | CI/CDパイプライン |
+| fly.io | ホスティング（Docker / standalone デプロイ） |
+| GitHub Actions | CI/CDパイプライン・デプロイ・cron スケジューラ |
 | Lighthouse CI | パフォーマンス監査 |
 | CodeQL | セキュリティ静的解析 |
 | Sharp | サーバーサイド画像処理 |
@@ -124,9 +136,9 @@
 
 | サービス | 選定理由 |
 |---------|---------|
-| Vercel | Next.jsとの最高の親和性、自動スケーリング、Edge Network |
+| fly.io | Docker そのままデプロイ可能、東京リージョン（nrt）で低レイテンシ、コンピュート従量課金、ベンダーロックインが薄い |
 | Supabase | PostgreSQL + 接続プーリング、マネージドサービス |
-| Upstash | サーバーレスRedis、REST API対応、Vercel統合 |
+| Upstash | サーバーレスRedis、REST API対応、Edge から利用可能 |
 | Cloudflare R2 | S3互換API、エグレス料金無料、低コスト |
 | Resend | シンプルなAPI、高い配信率、無料枠あり |
 | Sentry | Next.js公式対応、詳細なエラートラッキング |
@@ -1477,9 +1489,9 @@
 - いいね・ブックマーク・フォロー等のソーシャルアクションにもレート制限を適用
 
 ### 7.8 IP検出・通知・DB接続の堅牢化
-- IP検出: `x-vercel-forwarded-for`を優先し、`x-forwarded-for`チェーンの最後のIPを使用（スプーフィング耐性）
+- IP検出: `lib/utils/client-ip.ts` の `extractClientIp()` に一元化。優先順位は `cf-connecting-ip` → `x-vercel-forwarded-for` → `x-forwarded-for`（チェーンが3要素以上なら末尾から2番目、それ以下は先頭）→ `x-real-ip` → `'unknown'`。クライアント偽装可能な先頭IPの単純採用を排除（スプーフィング耐性）
 - 通知作成: パラメータをZodでバリデーション
-- データベース接続プール: エラーイベントハンドラを設定
+- データベース接続プール: `@prisma/adapter-pg` + `pg` Pool でエラーイベントハンドラを設定
 
 ### 7.9 セキュリティヘッダー
 - `X-XSS-Protection`: XSS攻撃対策
@@ -1651,41 +1663,45 @@ npm run test:all        # 全テスト実行
 
 | サービス | プラン | 月額 |
 |---------|--------|------|
-| Vercel | Pro | $20 |
+| fly.io | shared-cpu-1x / 1GB / 1台常時稼働 | 約$5〜10 |
 | Supabase | Free | $0 |
 | Upstash | Free | $0 |
 | Cloudflare R2 | Free枠 | $0 |
 | Resend | Free | $0 |
 | Sentry | Free | $0 |
-| **合計** | | **約$20（\3,000）** |
+| **合計** | | **約$5〜10（\1,000〜1,500）** |
 
 ### 10.2 成長期（〜1,000ユーザー）
 
 | サービス | プラン | 月額 |
 |---------|--------|------|
-| Vercel | Pro | $20 |
+| fly.io | スケールアップ / 複数台 | $10〜30 |
 | Supabase | Pro | $25 |
 | Upstash | Pay as you go | $5 |
 | Cloudflare R2 | 従量課金 | $5 |
 | Resend | Pro | $20 |
 | Stripe | 従量課金 | 決済額の3.6% |
 | Sentry | Free/Team | $0〜$26 |
-| **合計** | | **約$75〜100（\11,000〜15,000）** |
+| **合計** | | **約$65〜110（\10,000〜16,000）** |
 
 ---
 
 ## 11. 環境変数
 
+> 本番（fly.io）では秘匿値を `fly secrets set` / `fly secrets import` で投入し、`NEXT_PUBLIC_*` は `fly.toml` の `[build.args]` でビルド時 inline する。
+
 ### 11.1 必須環境変数
 
 ```bash
 # データベース（Supabase）
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
+DATABASE_URL="postgresql://..."   # pooler 経由（?sslmode 等は付けない）
+DIRECT_URL="postgresql://..."      # 直接接続（マイグレーション用）
+SUPABASE_CA_CERT="<Base64エンコードしたCA証明書>"  # 本番でDB接続のSSL検証に必須（fail-closed）
 
 # 認証
 NEXTAUTH_URL="https://www.bon-log.com"
-NEXTAUTH_SECRET="..."
+NEXTAUTH_SECRET="..."              # openssl rand -base64 32
+AUTH_TRUST_HOST="true"            # fly.io 等プロキシ配下で必須
 
 # アプリケーション
 NEXT_PUBLIC_APP_URL="https://www.bon-log.com"
@@ -1700,6 +1716,9 @@ NEXT_PUBLIC_SENTRY_DSN="https://..."
 
 # 2段階認証
 TWO_FACTOR_ENCRYPTION_KEY="..."  # 32バイトのhex文字列
+
+# Cron（GitHub Actions の schedule から Bearer 認証で叩く）
+CRON_SECRET="..."
 ```
 
 ### 11.2 オプション環境変数
@@ -1716,6 +1735,10 @@ R2_PUBLIC_URL="..."
 # メール（Resend）
 EMAIL_PROVIDER="resend"
 RESEND_API_KEY="..."
+EMAIL_FROM="BON-LOG <noreply@bon-log.com>"
+
+# 検索（PostgreSQL 全文検索）
+SEARCH_MODE="trgm"   # like / trgm（pg_trgm）/ bigm（pg_bigm）
 
 # 決済（Stripe）
 STRIPE_SECRET_KEY="..."
@@ -1724,19 +1747,29 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="..."
 STRIPE_PRICE_ID_MONTHLY="..."
 STRIPE_PRICE_ID_YEARLY="..."
 
-# 広告（Google AdSense / 忍者AdMax）
-NEXT_PUBLIC_AD_PROVIDER="..."
+# 広告（忍者AdMax / Google AdSense）
+NEXT_PUBLIC_AD_PROVIDER="ninja"   # ninja / adsense
+# 忍者AdMax（広告枠ID）
+NEXT_PUBLIC_NINJA_AD_ID_SIDEBAR="..."
+NEXT_PUBLIC_NINJA_AD_ID_INFEED="..."
+NEXT_PUBLIC_NINJA_AD_ID_POST_DETAIL="..."
+# Google AdSense
 NEXT_PUBLIC_ADSENSE_CLIENT_ID="..."
 NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR="..."
-NEXT_PUBLIC_ADSENSE_SLOT_FEED="..."
+NEXT_PUBLIC_ADSENSE_SLOT_INFEED="..."
+NEXT_PUBLIC_ADSENSE_SLOT_POST_DETAIL="..."
 
 # Google OAuth
 GOOGLE_CLIENT_ID="..."
 GOOGLE_CLIENT_SECRET="..."
 
-# Web Push
+# Web Push（npx web-push generate-vapid-keys で生成）
 NEXT_PUBLIC_VAPID_PUBLIC_KEY="..."
 VAPID_PRIVATE_KEY="..."
+VAPID_SUBJECT="mailto:noreply@bon-log.com"
+
+# ゲスト（のぞいてみる）ログイン
+GUEST_PASSWORD="..."
 
 # Basic認証（ステージング環境用）
 BASIC_AUTH_USER="..."
@@ -1774,5 +1807,6 @@ BASIC_AUTH_PASSWORD="..."
 | 2026-05-14 | **5 ドキュメントを 2026-05-14 時点の現状に追従**。`fertilizer.ts` / `hormone.ts` / `pesticide.ts` を `'use server'` から `'server-only'` の RSC データ取得モジュールに移行（page.tsx から直接 await）。`/api/analytics/view` Route Handler 追加（Server Component からの書き込み分離、Zod discriminated union、Redis dedupe、block/非公開ガード）。`lib/services/` に `analytics-recording.ts` / `analytics-service.ts` / `hashtag-recount.ts` を追加（13 ファイル化）。`lib/constants/dictionary.ts` 追加。`app/api/upload/_shared/validate-upload-file.ts` 共有検証を導入。テスト 805ファイル。マイグレーション 35 ディレクトリ。Server Actions 86 ファイル中 `'use server'` 持ちは 53 + admin 19、`'server-only'` 内部 helper / RSC データ取得 13 + barrel 1。 |
 | 2026-05-27 | エンジニアリングレビュー (engineering-review-verified 2026-05-27) の妥当な指摘へ全対応。**規約逸脱**: `lib/services/shop-change-helpers.ts`（純粋型・schema・parser のみ）を layer 規約遵守のため `lib/shop/change-request.ts` へ移設、admin page からの直接 import を解消。**SEO**: `app/(main)/settings/subscription/page.tsx` に `robots: { index: false, follow: false }` 追加（他 settings/auth ページは既に対応済み）。**セキュリティ**: `/api/webhooks/stripe` と `/api/ad-frame` に `RATE_LIMITS.api`（60req/分・IPベース fail-open）を追加し DoS 保険強化。**型安全**: `tsconfig.json` に `noImplicitOverride: true` を追加（class override 強制）。**P3 配慮**: `UserCard` を `memo()` 化、`lib/services/analytics-service.ts` の `gId` → `genreId` リネーム、admin events / contact ページのハードコード href を `ROUTE_ADMIN_EVENTS_IMPORT` / `ROUTE_ADMIN_CONTACT` 定数化。**comments.md 規約**: `lib/constants/locations.ts` の `// === REGION ===` 装飾区切り 15 箇所を空行 + シンプルコメントへ置換、`lib/actions/blacklist.ts` / `two-factor.ts` / `admin/ip-management.ts` の WHAT コメント計 7 箇所を削除。**count update**: Server Actions 85（64 ルート + 20 admin + 1 schemas）、lib/services 14、lib/shop 新設、lib/constants 47（ルート 22 + limits 18 + errors 7）、lib/utils 12、構成サマリ修正。lint / 全 15,168 テスト / build いずれもエラー警告ゼロで通過。 |
 | 2026-05-30 | 制限値・機能リストをコード（`lib/constants/limits/`）と `app/(main)` 構成に対して再検証し追従。**修正**: コメント上限を「1投稿あたり最大100件」→「1ユーザーあたり1日100件（`DAILY_COMMENT_LIMIT`、投稿単位ではない）」に訂正、コメントのメディア添付仕様（画像2 + 動画1 = 最大3点）と最大文字数500を明記。成長記録の画像枚数を「最大3枚」→「最大4枚」（`MAX_BONSAI_RECORD_IMAGES=4`）に訂正。ページ構成 6.7 の `/hormones` 配下に techniques / diagram / calendar / simulator / interactions を追加（3.14.3 と整合）。**検証済み（変更なし）**: 投稿制限（無料 500字 / 4画像 / 1動画 / 20件/日、プレミアム 2000字 / 6画像 / 3動画 / 40件/日）、ジャンル最大3、レビュー画像最大3、2FA バックアップコード 8桁×10個、動画形式 MP4/WebM/MOV、`lib/actions` 全機能の実在。 |
+| 2026-06-07 | **ホスティングを Vercel から fly.io へ移行**（本番ドメイン `https://www.bon-log.com` を fly.io app `bon-log` / region `nrt` 東京へ切替）。コンピュートのみ fly.io、DB(Supabase) / Storage(R2) / Cache(Upstash) / Stripe / Resend / Sentry は外部サービス継続。**デプロイ**: GitHub Actions `fly-deploy.yml`（master push → `flyctl deploy --local-only`）。秘匿値は `fly secrets`、`NEXT_PUBLIC_*` は `fly.toml [build.args]`。**Cron**: fly に組込 cron が無いため GitHub Actions `cron.yml` の schedule から Bearer `CRON_SECRET` で叩く（publish-scheduled */5分・update-weather 毎時・check-subscriptions 毎日01:00 UTC・cleanup-events 毎月1日00:00 UTC）。**環境変数**: `AUTH_TRUST_HOST=true` / `CRON_SECRET` / `SUPABASE_CA_CERT` / `SEARCH_MODE` / `EMAIL_FROM` / `VAPID_SUBJECT` / `NEXT_PUBLIC_NINJA_AD_ID_*` / `GUEST_PASSWORD` を env 一覧に反映、広告スロット名を `_INFEED` / `_POST_DETAIL` に訂正。インフラ・運用コスト・サービス選定理由・IP検出（`cf-connecting-ip` 優先）の記述を fly.io 構成に追従。Prisma は `@prisma/adapter-pg` + `pg` ドライバアダプタ経由であることを明記。 |
 | 2026-05-27 (追) | Supabase 2026-10-30 仕様変更 (public schema テーブルが Data API デフォルト非露出化) への先回り対応。Security Advisor で全 90 テーブルが anon / authenticated に GRANT ALL されている状態を検出 (旧 Supabase デフォルト)、Defense in Depth で API + DB 両層を遮断。**API 層**: Dashboard 操作で Exposed schemas から `public` を削除し Exposed tables を 0/90 化（`graphql_public` のみ残置で REST/GraphQL から public テーブル不可視）。**DB 層**: `prisma/migrations/20260527000000_revoke_data_api_grants_from_public/` 新設で `REVOKE ALL ON ALL TABLES/SEQUENCES/ROUTINES IN SCHEMA public FROM anon, authenticated` + `REVOKE USAGE ON SCHEMA public` + `ALTER DEFAULT PRIVILEGES FOR ROLE postgres ... REVOKE ALL` を一括適用。`pg_roles` 存在チェック付き DO block でローカル Docker postgres では noop。`app/api/admin/apply-migration/route.ts` の `MIGRATION_NAMES` に `revoke_data_api_grants_from_public` を追加し本番手動適用経路 (`npm run db:apply-migration-production`) を確保。**規約**: `.claude/rules/prisma-database.md` に「Supabase Data API 非使用方針」を明文化、`eslint.config.mjs` に `no-restricted-imports` で `@supabase/supabase-js` 等を禁止。**検証**: `__tests__/app/api/admin/apply-migration/route.test.ts` に新 migration の allowlist 包含 + SQL 内容（REVOKE / ALTER DEFAULT PRIVILEGES / ロール存在チェック）を assert するテスト追加。マイグレーション数 37 ディレクトリ。 |
 

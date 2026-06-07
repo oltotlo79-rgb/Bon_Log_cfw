@@ -22,8 +22,9 @@ bonsai-sns-project/
 | `README.md` | プロジェクト概要・セットアップ手順 |
 | `components.json` | shadcn/uiの設定ファイル |
 | `docker-compose.yml` | Docker Compose定義（PostgreSQL、Next.js） |
-| `Dockerfile` | 本番用Dockerイメージ定義 |
+| `Dockerfile` | 本番用Dockerイメージ定義（fly.io デプロイ用） |
 | `Dockerfile.dev` | 開発用Dockerイメージ定義 |
+| `fly.toml` | fly.io デプロイ設定（app `bon-log`、リージョン nrt/東京。本番のコンピュート基盤） |
 | `eslint.config.mjs` | ESLint設定 |
 | `instrumentation.ts` | Next.js Instrumentation（Sentry サーバー側初期化） |
 | `instrumentation-client.ts` | Next.js Instrumentation（Sentry クライアント側初期化） |
@@ -45,7 +46,7 @@ bonsai-sns-project/
 | `tsconfig.json` | TypeScript設定 |
 | `tsconfig.check.json` | CI用型チェック設定（`__tests__` およびスクリプト・検証用TSを除外） |
 | `tsconfig.tsbuildinfo` | TypeScriptビルド情報キャッシュ（自動生成） |
-| `vercel.json` | Vercelデプロイ設定（cron: 予約投稿5分毎、サブスク確認毎日1時、イベント清掃毎月1日） |
+| `vercel.json` | Vercel 互換の cron 定義（残存）。実際の定期実行は fly.io 移行に伴い GitHub Actions（`.github/workflows/cron.yml`）で行う |
 | `.lighthouserc.json` | Lighthouse CI設定 |
 
 ---
@@ -56,9 +57,9 @@ bonsai-sns-project/
 app/
 ├── (auth)/           # 認証ページ
 ├── (legal)/          # 法務・規約ページ
-├── (main)/           # メインアプリケーション（17機能エリア）
+├── (main)/           # メインアプリケーション（19機能エリア）
 ├── (public)/         # 公開ページ
-├── admin/            # 管理者ダッシュボード（28サブディレクトリ / 35 page.tsx）
+├── admin/            # 管理者ダッシュボード（28サブディレクトリ）
 ├── api/              # APIルート（23 route.ts + 1 route.tsx = 24 ハンドラ、`upload/_shared/` に共有ヘルパー 2 本）
 ├── auth/             # 特殊認証ページ（NextAuth コールバック）
 ├── maintenance/      # メンテナンスページ
@@ -93,7 +94,7 @@ app/
 | `password-reset/confirm/page.tsx` | パスワードリセット実行ページ |
 | `verify-email/page.tsx` | メールアドレス確認ページ（トークン検証） |
 
-### app/(main)/ — メインアプリケーション（認証必須・17機能エリア）
+### app/(main)/ — メインアプリケーション（認証必須・19機能エリア）
 
 | ファイル | 役割 |
 |---------|------|
@@ -163,6 +164,12 @@ app/
 | `[id]/error.tsx` | エラー表示 |
 | `[id]/loading.tsx` | ローディング表示 |
 
+#### app/(main)/explore/ — 発見（おすすめ・トレンド）
+
+| ファイル | 役割 |
+|---------|------|
+| `page.tsx` | 発見ページ（おすすめユーザー・トレンド・人気投稿） |
+
 #### app/(main)/feed/ — タイムライン
 
 | ファイル | 役割 |
@@ -179,13 +186,19 @@ app/
 | `layout.tsx` | 肥料ガイドレイアウト |
 | `error.tsx` | エラー表示 |
 | `loading.tsx` | ローディング表示 |
+| `absorption/page.tsx` | 養分吸収の仕組みページ |
 | `categories/page.tsx` | 肥料カテゴリ一覧ページ |
 | `columns/page.tsx` | 肥料コラム一覧ページ |
 | `columns/[slug]/page.tsx` | 肥料コラム詳細ページ |
 | `nutrients/page.tsx` | 栄養素一覧ページ |
 | `nutrients/[slug]/page.tsx` | 栄養素詳細ページ |
+| `products/page.tsx` | 肥料製品一覧ページ |
 | `schedules/page.tsx` | 施肥スケジュール一覧ページ |
 | `schedules/[slug]/page.tsx` | 樹種別施肥スケジュール詳細ページ |
+| `soil/page.tsx` | 用土・土壌ページ |
+| `symptoms/page.tsx` | 栄養障害の症状ページ |
+| `troubles/page.tsx` | 施肥トラブル対処ページ |
+| `watering/page.tsx` | 水やり管理ページ |
 
 #### app/(main)/hormones/ — 植物ホルモンガイド
 
@@ -223,6 +236,12 @@ app/
 | `error.tsx` | エラー表示 |
 | `loading.tsx` | ローディング表示 |
 
+#### app/(main)/onboarding/ — オンボーディング
+
+| ファイル | 役割 |
+|---------|------|
+| `page.tsx` | 新規ユーザー向けオンボーディングフロー（初回プロフィール設定・おすすめフォロー等） |
+
 #### app/(main)/pesticides/ — 農薬・病害虫（ログインユーザー向け、ゲストはオーバーレイで制限）
 
 | ファイル | 役割 |
@@ -250,6 +269,9 @@ app/
 | `spreaders/[slug]/page.tsx` | 展着剤詳細。製品slugは `/pesticides/products/[slug]` へリダイレクト |
 | `columns/page.tsx` | コラム一覧 |
 | `columns/[slug]/page.tsx` | コラム詳細 |
+| `dilution-calculator/page.tsx` | 希釈倍率計算ツール |
+| `mixing-checker/page.tsx` | 混用可否チェッカー |
+| `spray-guide/page.tsx` | 散布ガイドページ |
 
 #### app/(main)/posts/ — 投稿
 
@@ -342,7 +364,7 @@ app/
 | `terms/page.tsx` | 利用規約 |
 | `tokushoho/page.tsx` | 特定商取引法に基づく表記 |
 
-### app/admin/ — 管理者ダッシュボード（28サブディレクトリ + ダッシュボード、35 page.tsx）
+### app/admin/ — 管理者ダッシュボード（28サブディレクトリ + ダッシュボード）
 
 | ファイル | 役割 |
 |---------|------|
@@ -624,7 +646,7 @@ app/
 
 ---
 
-## components/ — Reactコンポーネント（269ファイル、33サブディレクトリ）
+## components/ — Reactコンポーネント（262ファイル、34サブディレクトリ）
 
 ### components/ ルートファイル
 
@@ -838,6 +860,12 @@ app/
 | `NotificationItem.tsx` | 通知アイテム表示 |
 | `NotificationList.tsx` | 通知一覧 |
 
+### components/onboarding/ — オンボーディング
+
+| ファイル | 役割 |
+|---------|------|
+| `OnboardingComplete.tsx` | オンボーディング完了表示・遷移コンポーネント |
+
 ### components/pesticide/ — 農薬・病害虫
 
 | ファイル | 役割 |
@@ -1042,7 +1070,7 @@ app/
 
 ---
 
-## hooks/ — カスタムReact Hooks（8ファイル）
+## hooks/ — カスタムReact Hooks（7ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1052,8 +1080,9 @@ app/
 | `use-infinite-scroll.ts` | 無限スクロール実装用フック（IntersectionObserver ベース） |
 | `use-is-client.ts` | クライアントマウント判定フック（SSR/CSR ハイドレーション差異の回避） |
 | `use-keyboard-shortcuts.ts` | グローバルキーボードショートカットフック（/検索、n投稿、g+hホーム等） |
-| `use-media-upload.ts` | メディアアップロードフック（画像・動画のアップロード管理） |
 | `use-toast.ts` | トースト通知フック |
+
+> メディアアップロードフックは `components/post/hooks/useMediaUpload.ts` に配置（投稿フォーム専用）。
 
 ---
 
@@ -1061,14 +1090,14 @@ app/
 
 ```
 lib/
-├── actions/          # Server Actions（root 66 + admin/20 + schemas/1 = 87 .ts、うち 'use server' 73）
+├── actions/          # Server Actions（root 69 + admin/20 + schemas/1 = 90 .ts）
 ├── constants/        # 定数（22ルートファイル + limits/18 + errors/7 = 47）
 ├── email/            # メール送信（index.ts + templates/5）
 ├── prisma/           # Prisma 形状共有定義（shared-includes.ts）
 ├── scraping/         # スクレイピング
 ├── search/           # 全文検索（3ファイル）
 ├── security/         # セキュリティ
-├── services/         # サービス層（15ファイル）
+├── services/         # サービス層（19ファイル）
 ├── shop/             # Shop ドメイン共有ユーティリティ（1ファイル）
 ├── storage/          # ストレージ（R2 / S3 / local 切替）
 ├── utils/            # ドメイン別ユーティリティ（12ファイル）
@@ -1110,7 +1139,7 @@ lib/
 | `utils.ts` | 汎用ユーティリティ関数（cn等） |
 | `web-push.ts` | Web Push通知送信 |
 
-### lib/actions/ — Server Actions（root 66 + admin/20 + schemas/1 = 87 .ts）
+### lib/actions/ — Server Actions（root 69 + admin/20 + schemas/1 = 90 .ts）
 
 > 戻り値型ポリシー: すべての Server Action は `ActionResult<T>` を返す（`types/action-result.ts`、CLAUDE.md ルール2）。
 > 例外として、RSC からのみ呼ばれる / 内部 helper として使う読み取り専用モジュールは `'use server'` を付けず `'server-only'` ガードのみを置き、ドメイン型を直接返す。
@@ -1125,7 +1154,7 @@ lib/
 > **barrel re-export（自身は無ディレクティブ、再エクスポート先が `'use server'`）:**
 > `user.ts`
 >
-> 計 73 ファイルが `'use server'` を持つ。残りが上記の `'server-only'` / barrel 群。
+> 大半のファイルが `'use server'` を持つ。残りが上記の `'server-only'` / barrel 群。
 
 | ファイル | 役割 |
 |---------|------|
@@ -1166,8 +1195,10 @@ lib/
 | `mute.ts` | ミュート操作 |
 | `notification.ts` | 通知取得・既読管理 + `createNotification` / `deleteNotification` ヘルパー |
 | `notification-preferences.ts` | 通知設定管理 |
+| `onboarding.ts` | オンボーディング進行管理（初回設定完了フラグ `onboardedAt` の更新等） |
 | `pagination.ts` | カーソルベースページネーション用 Prisma クエリ条件生成ユーティリティ（`MAX_PAGE_LIMIT` で clamp）。**`'use server'` を持たない内部 helper** |
 | `pesticide.ts` | 農薬・病害虫（薬剤一覧、病害虫、原体、展着剤、コラム等）。**RSC データ取得モジュール**（`'use server'` 不付与・`'server-only'`、内部で `requireAuth()` を呼ぶ） |
+| `pin-post.ts` | 投稿のプロフィール固定（ピン留め）操作 |
 | `poll.ts` | 投稿アンケート操作（投票、結果取得） |
 | `post.ts` | 投稿 CRUD（通常投稿、引用、リポスト、削除、メディアアップロード、`getPost` / `getPosts` / `getPostsByBonsai`）。`createPost` の純粋検証ロジックは `post-validation.ts` に分離済み（`'server-only'`、817→659 行に縮小） |
 | `post-include.ts` | 投稿取得時の Prisma include パターン共有定義（`POST_LIST_INCLUDE` / `POST_QUOTE_INCLUDE` / `POST_REPOST_INCLUDE` / `buildPostPollInclude(currentUserId?)` / `formatPostForClient`）。`feed.ts` / `post.ts` の重複 include を集約。**`'use server'` を持たない `'server-only'` モジュール** |
@@ -1186,6 +1217,7 @@ lib/
 | `search-meta.ts` | 検索メタ情報（人気タグ・ジャンル・検索モード）。**RSC データ取得モジュール**（`'use server'` 不付与・`'server-only'`） |
 | `search-posts.ts` | 投稿検索（FTS / LIKE フォールバック）。返り値は `ActionResult<{posts, nextCursor}>` |
 | `search-users.ts` | ユーザー検索。返り値は `ActionResult<{users, nextCursor}>`（client component から RPC 呼び出しのため `'use server'` 必須） |
+| `security-activity.ts` | ユーザー自身のセキュリティアクティビティ（ログイン履歴・デバイス等）取得・管理 |
 | `shop.ts` | 盆栽園CRUD |
 | `shop-change-request.ts` | 盆栽園変更リクエスト |
 | `subscription.ts` | サブスクリプション管理（Stripe連携） |
@@ -1322,7 +1354,7 @@ lib/
 | `oauth-guard.ts` | OAuth プロバイダー連携時の検証ガード |
 | `index.ts` | エクスポートまとめ |
 
-### lib/services/ — サービス層（15ファイル）
+### lib/services/ — サービス層（19ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1331,14 +1363,18 @@ lib/
 | `authorization.ts` | 認可チェックサービス（権限判定の共通化） |
 | `comment-notifications.ts` | コメント通知サービス（`createNotification` / `createNotificationsBulk` へ delegate） |
 | `comment-thread-mute.ts` | コメントスレッドミュート状態の判定共有ロジック |
+| `device-tracking.ts` | デバイス識別・追跡共有ロジック（UserDevice 記録、ブラックリスト照合） |
 | `hashtag-recount.ts` | ハッシュタグ参照件数の再計算（管理操作 / 定期 cron 用） |
 | `hashtag-sync.ts` | 投稿ハッシュタグの同期・差分更新（attach/detach 内部処理） |
 | `media-cleanup.ts` | アップロード済みメディアの実体削除（投稿/コメント/下書き/予約投稿/レビュー/盆栽記録の削除時に R2/local のオーファンを回収） |
 | `mention.ts` | メンション関連の解決・通知共有ロジック |
 | `notification-bulk.ts` | **複数受信者への通知一括作成**（block/prefs フィルタ + `createMany skipDuplicates` + push 並列） |
 | `notification-core.ts` | 通知のブロック/設定/重複チェック等の内部ヘルパー |
+| `post-visibility.ts` | 投稿の可視性判定共有ロジック（公開/非公開/ブロック関係を考慮したアクセス可否） |
 | `security-events.ts` | セキュリティイベント記録サービス |
-| `usage.ts` | Vercel / Supabase / R2 / Resend 利用量集計サービス |
+| `segment-evaluation.ts` | ユーザーセグメント条件の評価ロジック（セグメントビルダー条件→対象ユーザー判定） |
+| `usage.ts` | fly.io / Supabase / R2 / Resend 利用量集計サービス |
+| `user-eligibility.ts` | ユーザーの操作適格性判定（停止/ゲスト/プレミアム等の状態に基づく許可判定） |
 | `webhook-idempotency.ts` | **外部 Webhook 冪等性ガード**（`webhook_events` UNIQUE INSERT、Stripe 等のリトライ抑止） |
 | `weather-service.ts` | 天気サービス（Open-Meteo API連携、天気データ取得・キャッシュ、盆栽管理アドバイス生成） |
 
@@ -1400,7 +1436,7 @@ lib/
 
 ---
 
-## prisma/ — データベース（90モデル、24 enum、38マイグレーション）
+## prisma/ — データベース（90モデル、24 enum、41マイグレーション）
 
 ```
 prisma/
@@ -1453,10 +1489,10 @@ prisma/
 │       ├── additions2-parser.ts     # seed-pesticide-additions2.ts用パーサー
 │       ├── spray-parser.ts          # スプレー製品データ用パーサー
 │       └── supplement-parser.ts     # 効果補完データ用パーサー（互換性のため残存）
-└── migrations/                      # マイグレーション（38ディレクトリ）
+└── migrations/                      # マイグレーション（41ディレクトリ）
 ```
 
-### マイグレーション一覧（38ディレクトリ）
+### マイグレーション一覧（41ディレクトリ）
 
 | ディレクトリ | 内容 |
 |---------|------|
@@ -1498,6 +1534,9 @@ prisma/
 | `20260516000000_add_likes_check_constraint` | `likes` テーブルに CHECK 制約追加（投稿/コメントいずれか一方のみを指す整合性保証） |
 | `20260527000000_revoke_data_api_grants_from_public` | Supabase Data API 用 grant を public/anon/authenticated から全剥奪 + 将来のデフォルト grant も REVOKE（Prisma postgres ロール経由のみに統一） |
 | `20260530000000_add_payment_status_refunded` | 決済ステータスに `refunded`（返金）追加 |
+| `20260531000000_add_post_edited_at_and_user_pinned_post` | 投稿に編集日時（`edited_at`）、ユーザーに固定投稿（pinned post）フィールド追加 |
+| `20260531100000_add_comment_edited_at_and_user_onboarded_at` | コメントに編集日時、ユーザーにオンボーディング完了日時（`onboarded_at`）追加 |
+| `20260602000000_add_repost_unique_constraint` | リポストの重複防止 UNIQUE 制約追加 |
 
 ---
 
@@ -1530,9 +1569,9 @@ prisma/
 
 ---
 
-## __tests__/ — ユニットテスト（Vitest、825ファイル）
+## __tests__/ — ユニットテスト（Vitest、845ファイル）
 
-テストファイルは `__tests__/` 配下にプロジェクト構造を反映して配置。Vitest 4.x を使用。内訳は `.test.ts` 343 + `.test.tsx` 482。
+テストファイルは `__tests__/` 配下にプロジェクト構造を反映して配置。Vitest 4.x を使用。内訳は `.test.ts` 353 + `.test.tsx` 492。
 
 カバレッジ閾値: Branches 80% / Functions / Lines / Statements 85%（`@vitest/coverage-istanbul`）。
 TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化）。配列インデックスや `Map.get` の戻り値は `T | undefined` として絞り込む必要があり、テスト側も同様に整備済み。
@@ -1595,44 +1634,24 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 
 ---
 
-## scripts/ — ユーティリティスクリプト
+## scripts/ — ユーティリティスクリプト（14ファイル）
 
 | ファイル | 役割 |
 |---------|------|
-| `setup-fts.ts` | 全文検索セットアップ |
-| `check-fts.ts` | 全文検索検証 |
+| `setup-fts.ts` | 全文検索（FTS）セットアップ |
 | `call-seed-pesticide-api.mjs` | 本番環境の農薬シード投入API呼び出し |
 | `call-seed-api.mjs` | 本番環境の統合シード投入API呼び出し（domain 引数: `genres` / `dictionary` / `fertilizer` / `hormone` / `guest` / `all`） |
+| `call-apply-migration-api.mjs` | 本番環境のマイグレーション適用API（`/api/admin/apply-migration`）呼び出し |
 | `seed-guest-user.ts` | ゲストユーザーのシード投入 |
-| `seed-spreader-only.ts` | 展着剤タイプ・製品・紐付けのみシード投入（本番用） |
 | `delete-e2e-test-users.ts` | E2Eテスト用ユーザー削除 |
 | `delete-e2e-users-production.ts` | 本番DBからE2Eテストユーザー削除 |
 | `delete-duplicate-guest-user.ts` | 重複ゲストユーザー削除 |
-| `delete-guest-bon-log.ts` | ゲストユーザー（bon-log）削除 |
 | `delete-guest-nickname-user.ts` | ゲストニックネームユーザー削除 |
-| `update-acephate-description.ts` | アセフェート農薬の説明文更新 |
-| `ensure-placeholder-images.js` | トップページ用プレースホルダー画像作成（E2E/CI用） |
+| `promote-admin-role.ts` | 指定ユーザーへの管理者ロール付与 |
+| `fly-secrets-import.mjs` | `.env` から fly.io の secrets を一括インポート |
 | `generate-pwa-icons.mjs` | PWAアイコン生成 |
 | `convert-tutorial-pdf.js` | チュートリアルPDF変換（Mermaid図描画あり） |
 | `convert-all-nomermaid-pdf.js` | チュートリアルPDF一括変換（Mermaidはコードブロック表示） |
-| `convert-artifacts-to-webp.js` | アーティファクトWebP変換 |
-| `convert-additional-artifacts-to-webp.js` | 追加アーティファクトWebP変換 |
-| `convert-phase8-artifacts-to-webp.js` | Phase8アーティファクトWebP変換 |
-| `apply-phase9-fixes.js` | Phase9修正適用 |
-| `apply-phase9-resize.js` | Phase9リサイズ適用 |
-| `apply-phase10-fixes.js` | Phase10修正適用 |
-| `fix-image-deployment.js` | 画像デプロイ修正 |
-| `diagnose-index.js` | FTSインデックス診断 |
-| `diagnose-mermaid.js` | Mermaid図診断 |
-| `diagnose-svg.js` | SVG診断 |
-| `diagnose-svg2.js` | SVG診断2 |
-| `diagnose-failures.js` | テスト失敗診断 |
-| `check-image-status.js` | 画像ステータス確認 |
-| `check-image-status2.js` | 画像ステータス確認2 |
-| `copy-prev-images.js` | 画像コピー（前版） |
-| `copy-current-images.js` | 画像コピー（現行） |
-| `make_transparent.js` | 画像透過処理 |
-| `fetch-e2e-failure-log.ps1` | E2Eテスト失敗ログ取得（PowerShell） |
 
 ---
 
@@ -1706,30 +1725,32 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 |---------|------|
 | `dependabot.yml` | Dependabot依存関係自動更新設定 |
 | `pull_request_template.md` | PRテンプレート |
-| `workflows/ci.yml` | CI/CDワークフロー（Lint & Type Check、Security Scan、Unit Tests、Build、E2E） |
+| `workflows/ci.yml` | CIワークフロー（Lint & Type Check、Security Scan、Unit Tests、Build、E2E） |
+| `workflows/fly-deploy.yml` | fly.io 本番デプロイ（amd64 ランナーで `flyctl deploy --local-only` を実行） |
+| `workflows/cron.yml` | 定期ジョブ実行（予約投稿公開・サブスク確認・イベント清掃・天気更新の cron。Vercel Cron の代替） |
 | `workflows/lighthouse.yml` | Lighthouse CI パフォーマンス監査（push + PR） |
 | `workflows/seed-pesticide-production.yml` | 農薬シード本番投入ワークフロー |
 
 ---
 
-## 統計サマリー（2026-05-30時点）
+## 統計サマリー（2026-06-07時点）
 
 | 項目 | 数量 |
 |------|------|
-| app/ ルートグループ | 4 (auth, legal, main, public) + admin + api |
-| app/(main)/ 機能エリア | 17 |
+| app/ ルートグループ | 4 (auth, legal, main, public) + admin + api + auth + feed.xml + maintenance |
+| app/(main)/ 機能エリア | 19 |
 | app/(legal)/ ページ | 4 (accessibility, privacy, terms, tokushoho) |
-| app/ 全 page.tsx | 128（**全ページに metadata 設定済み、100% カバー**） |
-| app/admin/ page.tsx | 35 |
+| app/ 全 page.tsx | 131 |
+| app/ 全 layout.tsx | 9 |
 | app/admin/ サブディレクトリ | 28 |
-| app/api/ 総ルート | 24 ハンドラ（`.ts` 23 + `.tsx` 1、`upload/_shared/` 2 ヘルパー）+ `/feed.xml` + `/auth/callback` = 26 |
-| components/ サブディレクトリ | 33 |
-| components/ ファイル数 | 269 |
-| hooks/ カスタムフック | 8 |
+| app/api/ 総ルート | 24 ハンドラ（`.ts` 23 + `.tsx` 1、`upload/_shared/` 2 ヘルパー）+ `/feed.xml` + `/auth/callback` |
+| components/ サブディレクトリ | 34 |
+| components/ ファイル数 | 262 |
+| hooks/ カスタムフック | 7 |
 | lib/ ルートファイル | 29 |
-| lib/actions/ ファイル | root 66 + admin/20 + schemas/1（合計 87 .ts）。`'use server'` 持ち 73、残りが `'server-only'` データ取得 / 内部 helper / barrel |
+| lib/actions/ ファイル | root 69 + admin/20 + schemas/1（合計 90 .ts）。大半が `'use server'`、残りが `'server-only'` データ取得 / 内部 helper / barrel |
 | lib/prisma/ ファイル | 1（shared-includes.ts — 依存方向中立な Prisma include/select 形状の集約） |
-| lib/services/ ファイル | 15（analytics-recording / analytics-service / authorization / comment-notifications / comment-thread-mute / hashtag-recount / hashtag-sync / media-cleanup / mention / notification-bulk / notification-core / security-events / usage / webhook-idempotency / weather-service） |
+| lib/services/ ファイル | 19（analytics-recording / analytics-service / authorization / comment-notifications / comment-thread-mute / device-tracking / hashtag-recount / hashtag-sync / media-cleanup / mention / notification-bulk / notification-core / post-visibility / security-events / segment-evaluation / usage / user-eligibility / webhook-idempotency / weather-service） |
 | lib/search/ ファイル | 3（fulltext / fulltext-config / fulltext-search） |
 | lib/shop/ ファイル | 1（change-request.ts — 旧 services/shop-change-helpers から layer-neutral utility として移動） |
 | lib/storage/ ファイル | 8（index barrel + types/helpers/image-sanitize + r2/local/supabase provider + s3-sign） |
@@ -1738,10 +1759,12 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 | types/ ファイル | 7 |
 | prisma/ モデル数 | 90 |
 | prisma/ enum数 | 24 |
-| prisma/ マイグレーション | 38 |
+| prisma/ マイグレーション | 41 |
 | prisma/ シード構成 | `seed.ts` + `seed/` ドメイン別（dictionary, e2e, fertilizer, genre, hormone, pesticide, shared） |
-| __tests__/ テストファイル | 825（`.test.ts` 343 + `.test.tsx` 482。components / lib / app / coverage-boost / prisma / hooks / types / その他） |
+| __tests__/ テストファイル | 845（`.test.ts` 353 + `.test.tsx` 492。components / lib / app / coverage-boost / prisma / hooks / types / その他） |
 | __tests__/ カバレッジ閾値 | Branches 80% / Functions 85% / Lines 85% / Statements 85% |
 | TypeScript 厳格設定 | `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化） |
-| e2e/ specファイル | 60（Playwright 8 プロジェクト, CI ワーカー数 3） |
-| .github/workflows/ | 3 |
+| e2e/ specファイル | 60（Playwright、CI ワーカー数 3） |
+| scripts/ ファイル | 14 |
+| .github/workflows/ | 5（ci / fly-deploy / cron / lighthouse / seed-pesticide-production） |
+| デプロイ基盤 | fly.io（app `bon-log`、nrt/東京）。DB=Supabase / Storage=Cloudflare R2 / Cache=Upstash Redis / Email=Resend / 決済=Stripe / 監視=Sentry はすべて外部サービス。本番ドメイン: https://www.bon-log.com |

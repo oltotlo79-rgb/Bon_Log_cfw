@@ -54,7 +54,7 @@ BON-LOGは、盆栽愛好家が日々の管理記録・作品共有・情報交�
 | Map | Leaflet + OpenStreetMap |
 | Monitoring | Sentry |
 | Testing | Vitest 4.0.18 + Playwright 1.57.0 |
-| Deploy | Vercel |
+| Deploy | fly.io（app `bon-log` / region `nrt`、Docker standalone）+ GitHub Actions（デプロイ・Cron） |
 
 ---
 
@@ -87,7 +87,9 @@ npx prisma db push
 npx prisma generate
 
 # 6. シードデータ投入（任意）
-npx prisma db seed
+npm run db:seed                # 基本シード（prisma/seed.ts）
+# npm run db:seed-pesticide     # 農薬データのみ
+# npm run db:seed-pesticide-all # 農薬関連全データ
 
 # 7. 開発サーバー起動
 npm run dev
@@ -116,6 +118,11 @@ npx prisma studio    # DB管理GUI起動
 npx prisma db push   # スキーマをDBに反映（開発用）
 npx prisma migrate dev --name <name>  # マイグレーション作成
 npx prisma generate  # Prismaクライアント再生成
+
+# シード
+npm run db:seed              # 基本シード
+npm run db:seed-pesticide    # 農薬データ
+npm run db:seed-pesticide-all # 農薬関連全データ
 
 # テスト
 npm test                # ユニットテスト
@@ -156,7 +163,8 @@ curl http://localhost:3000/api/health
 | `TWO_FACTOR_ENCRYPTION_KEY_v1`, `_v2`, ... | 鍵バージョニング対応（無停止ローテーション用、任意） |
 | `TWO_FACTOR_KEY_VERSION` | 暗号化に使う現行鍵のバージョン（既定 `v1`） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuthクレデンシャル |
-| `CRON_SECRET` | Vercel Cron HMAC署名検証用シークレット |
+| `CRON_SECRET` | Cron エンドポイント認証用シークレット（GitHub Actions の Bearer 認証 + HMAC 署名検証） |
+| `AUTH_TRUST_HOST` | fly.io 等のリバースプロキシ配下で NextAuth がホストを信頼するため `true` 必須 |
 | `PLAYWRIGHT_WORKERS` | E2E 並列ワーカー数（CI 既定 3、未指定なら自動） |
 
 ---
@@ -265,20 +273,52 @@ GitHub Actions により PR・mainブランチへのプッシュ時に自動実�
 | build | Next.jsビルド検証 |
 | e2e | Playwright E2Eテスト（mainのみ） |
 
-ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+ワークフロー:
+
+| ワークフロー | 内容 |
+|---|---|
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | lint / security / test / build / e2e |
+| [`.github/workflows/fly-deploy.yml`](.github/workflows/fly-deploy.yml) | master プッシュ時に fly.io へデプロイ |
+| [`.github/workflows/cron.yml`](.github/workflows/cron.yml) | スケジュール実行の Cron ジョブ |
 
 ---
 
 ## デプロイ
 
-### Vercel（推奨）
+本番は **fly.io**（app `bon-log` / primary region `nrt`＝東京）に Docker standalone イメージとしてデプロイされます。DB（Supabase）・Storage（R2）・Cache（Upstash）・Stripe・Resend・Sentry は外部サービスを継続利用します。
+
+### デプロイ（GitHub Actions 経由）
+
+`master` への push（または手動 `workflow_dispatch`）で [`fly-deploy.yml`](.github/workflows/fly-deploy.yml) が起動し、amd64 ランナー上で `flyctl deploy --local-only` を実行します（ローカル ARM での amd64 ビルド失敗・depot ビルダの OOM を回避するため）。
+
+- 必要な GitHub Secret: `FLY_API_TOKEN`（`fly tokens create deploy -a bon-log`）
+- 構成ファイル: [`fly.toml`](fly.toml)（`NEXT_PUBLIC_*` は `[build.args]` でビルド時 inline）, [`Dockerfile`](Dockerfile)（multistage standalone）
+- `NextAuth` がプロキシ配下でホストを信頼するため `AUTH_TRUST_HOST=true` が必須
+
+### Secrets 投入
+
+秘匿値（`DATABASE_URL` 等）は `fly.toml` に書かず `fly secrets` で投入します。`.env.local` を一括取り込みするヘルパーを用意:
 
 ```bash
-# ビルドコマンド（npm script: build:deploy）
-prisma generate && prisma migrate deploy && next build --webpack
+node scripts/fly-secrets-import.mjs   # .env.local をパースして fly secrets import に流す
 ```
 
-### Docker（本番）
+### Cron
+
+fly.io には組込 cron が無いため、[`cron.yml`](.github/workflows/cron.yml) が GitHub Actions の schedule で各 Cron エンドポイント（`/api/cron/*`）を `Authorization: Bearer $CRON_SECRET` で叩きます。
+
+- 必要な GitHub Secret: `CRON_SECRET`（fly secrets の同名値と一致させる）
+- 必要な GitHub Variable: `APP_URL`（既定 `https://www.bon-log.com`）
+
+### マイグレーション
+
+runner イメージは prisma CLI（devDependency）を含まないため、マイグレーションは release_command では行わずローカルから実行します:
+
+```bash
+npx dotenv -e .env.local -- npx prisma migrate deploy   # DIRECT_URL を使用
+```
+
+### ローカル Docker（本番相当の確認）
 
 ```bash
 docker build -t bonsai-sns .
