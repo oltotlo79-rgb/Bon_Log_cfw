@@ -275,6 +275,25 @@ describe('proxy apex → www 正規化', () => {
     expect(result.url).toBe('https://www.bon-log.com/')
   })
 
+  it('fly のデフォルトサブドメイン (*.fly.dev) も www へ 308 リダイレクトする', async () => {
+    vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
+    const result = (await runProxy({
+      pathname: '/feed',
+      headers: { host: 'bon-log.fly.dev' },
+    })) as { type: string; url: string }
+    expect(result.type).toBe('redirect')
+    expect(result.url).toBe('https://www.bon-log.com/feed')
+  })
+
+  it('/api/* は非 canonical ホストでもリダイレクトしない (ヘルスチェック保護)', async () => {
+    vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
+    const result = (await runProxy({
+      pathname: '/api/health',
+      headers: { host: 'bon-log.fly.dev' },
+    })) as { type: string }
+    expect(result.type).toBe('next')
+  })
+
   it('canonical な www ホストはリダイレクトせず通過する', async () => {
     vi.mocked(getAppUrl).mockReturnValue('https://www.bon-log.com')
     const result = (await runProxy({

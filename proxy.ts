@@ -461,7 +461,15 @@ export default auth(async (req) => {
     const apexHost = canonicalHost.slice(4)
     const rawHost = req.headers.get('x-forwarded-host') || req.headers.get('host') || ''
     const reqHostname = rawHost.split(',')[0]?.trim().split(':')[0] ?? ''
-    if (reqHostname === apexHost) {
+    // apex (www なし) と fly のデフォルトサブドメイン (*.fly.dev) からのアクセスは
+    // canonical な www へ寄せる。/api/* は除外し、fly のヘルスチェック (/api/health) や
+    // webhook を 308 で壊さないようにする。
+    const isNonCanonicalHost = reqHostname === apexHost || reqHostname.endsWith('.fly.dev')
+    if (
+      isNonCanonicalHost &&
+      reqHostname !== canonicalHost &&
+      !nextUrl.pathname.startsWith(API_PREFIX)
+    ) {
       return NextResponse.redirect(
         new URL(`https://${canonicalHost}${nextUrl.pathname}${nextUrl.search}`),
         308,
