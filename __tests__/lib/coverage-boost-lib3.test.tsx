@@ -46,7 +46,7 @@ describe('api/admin/usage/route - uncovered branches', async () => {
     report: { findMany: vi.fn() },
   }
   const mockSend = vi.fn()
-  const mockGetVercelUsage = vi.fn()
+  const mockGetFlyioUsage = vi.fn()
   const mockGetResendUsage = vi.fn()
 
   function setupMocks() {
@@ -64,14 +64,14 @@ describe('api/admin/usage/route - uncovered branches', async () => {
       listObjects: (...args: unknown[]) => mockSend(...args),
     }))
     vi.doMock('@/lib/services/usage', () => ({
-      getVercelUsage: () => mockGetVercelUsage(),
+      getFlyioUsage: () => mockGetFlyioUsage(),
       getResendUsage: () => mockGetResendUsage(),
     }))
   }
 
   function setupAdmin() {
     mockRequireAdmin.mockResolvedValue({ userId: 'admin-id', role: 'admin' })
-    mockGetVercelUsage.mockResolvedValue({ name: 'Vercel', status: 'ok', dashboardUrl: '#', lastUpdated: '' })
+    mockGetFlyioUsage.mockResolvedValue({ name: 'fly.io', status: 'ok', dashboardUrl: '#', lastUpdated: '' })
     mockGetResendUsage.mockResolvedValue({ name: 'Resend', status: 'ok', dashboardUrl: '#', lastUpdated: '' })
   }
 
@@ -331,7 +331,7 @@ describe('api/admin/usage/route - uncovered branches', async () => {
     setupMocks()
     setupAdmin()
     delete process.env.R2_ACCOUNT_ID
-    mockGetVercelUsage.mockRejectedValue(new Error('fail'))
+    mockGetFlyioUsage.mockRejectedValue(new Error('fail'))
     mockGetResendUsage.mockRejectedValue(new Error('fail'))
     mockPrisma.$queryRaw.mockResolvedValue([{ size: BigInt(1000) }])
     mockPrisma.user.count.mockResolvedValue(1)
@@ -339,9 +339,9 @@ describe('api/admin/usage/route - uncovered branches', async () => {
     const { GET } = await import('@/app/api/admin/usage/route')
     const res = await GET()
     const data = await res.json()
-    const vercel = data.data.find((d: any) => d.name === 'Vercel')
-    expect(vercel.status).toBe('error')
-    expect(vercel.error).toBe('取得中にエラーが発生')
+    const flyio = data.data.find((d: any) => d.name === 'fly.io')
+    expect(flyio.status).toBe('error')
+    expect(flyio.error).toBe('取得中にエラーが発生')
   })
 
   it('Supabase dashboardUrl with orgId and projectRef', async () => {
@@ -391,33 +391,32 @@ describe('lib/services/usage - uncovered branches', async () => {
     process.env = originalEnv
   })
 
-  it('Vercel: userRes.ok=false branch', async () => {
-    process.env.VERCEL_TOKEN = 'token'
+  it('fly.io: GraphQL HTTP エラー(!ok)は error を返す（FLY_APP_NAME なし）', async () => {
+    delete process.env.FLY_APP_NAME
+    process.env.FLY_API_TOKEN = 'token'
 
-    mockFetch
-      .mockResolvedValueOnce({ ok: false, status: 401 }) // userRes
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ deployments: [] }) })
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ projects: [] }) })
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
 
-    const { getVercelUsage } = await import('@/lib/services/usage')
-    const result = await getVercelUsage()
-    expect(result.status).toBe('ok')
-    expect(result.dashboardUrl).toBe('https://vercel.com/account/usage')
+    const { getFlyioUsage } = await import('@/lib/services/usage')
+    const result = await getFlyioUsage()
+    expect(result.status).toBe('error')
+    expect(result.error).toBe('HTTP 500')
   })
 
-  it('Vercel: deploymentsRes.ok=false skips deployment usage', async () => {
-    process.env.VERCEL_TOKEN = 'token'
-    process.env.VERCEL_TEAM_ID = 'team'
+  it('fly.io: GraphQL でアプリ一覧を取得し usage に件数を入れる', async () => {
+    delete process.env.FLY_APP_NAME
+    process.env.FLY_API_TOKEN = 'token'
 
-    mockFetch
-      .mockResolvedValueOnce({ ok: false, status: 500 }) // deploymentsRes
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ projects: [{ id: '1' }] }) })
-      .mockResolvedValueOnce({ ok: false, status: 404 }) // teamsRes
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: { apps: { nodes: [{ name: 'bon-log' }, { name: 'x' }] } } }),
+    })
 
-    const { getVercelUsage } = await import('@/lib/services/usage')
-    const result = await getVercelUsage()
+    const { getFlyioUsage } = await import('@/lib/services/usage')
+    const result = await getFlyioUsage()
     expect(result.status).toBe('ok')
-    expect(result.usage?.length).toBe(1)
+    expect(result.usage?.[0].current).toBe(2)
+    expect(result.usage?.[0].unit).toBe('アプリ')
   })
 
   it('Cloudflare R2: bucketsRes.json() throws -> error with HTTP status', async () => {
@@ -509,12 +508,13 @@ describe('lib/services/usage - uncovered branches', async () => {
     expect(result.error).toBe('取得に失敗')
   })
 
-  it('Vercel: non-Error exception in catch', async () => {
-    process.env.VERCEL_TOKEN = 'token'
+  it('fly.io: non-Error 例外は汎用エラーメッセージを返す（FLY_APP_NAME なし）', async () => {
+    delete process.env.FLY_APP_NAME
+    process.env.FLY_API_TOKEN = 'token'
     mockFetch.mockRejectedValue(42)
 
-    const { getVercelUsage } = await import('@/lib/services/usage')
-    const result = await getVercelUsage()
+    const { getFlyioUsage } = await import('@/lib/services/usage')
+    const result = await getFlyioUsage()
     expect(result.status).toBe('error')
     expect(result.error).toBe('取得に失敗')
   })
@@ -552,21 +552,23 @@ describe('lib/services/usage - uncovered branches', async () => {
     expect(result.status).toBe('ok')
   })
 
-  it('Vercel: projectsRes.ok=false skips project usage', async () => {
-    process.env.VERCEL_TOKEN = 'token'
-    process.env.VERCEL_TEAM_ID = 'team'
+  it('fly.io: FLY_APP_NAME ありで稼働マシン数を取得する', async () => {
+    process.env.FLY_API_TOKEN = 'token'
+    process.env.FLY_APP_NAME = 'bon-log'
 
-    mockFetch
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ deployments: [] }) })
-      .mockResolvedValueOnce({ ok: false, status: 500 }) // projectsRes fails
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ slug: 'myteam' }) })
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        data: { app: { machines: { nodes: [{ state: 'started' }, { state: 'started' }, { state: 'stopped' }] } } },
+      }),
+    })
 
-    const { getVercelUsage } = await import('@/lib/services/usage')
-    const result = await getVercelUsage()
+    const { getFlyioUsage } = await import('@/lib/services/usage')
+    const result = await getFlyioUsage()
     expect(result.status).toBe('ok')
-    // Only deployments, no projects
-    expect(result.usage?.length).toBe(1)
-    expect(result.usage?.[0].unit).toContain('デプロイ')
+    expect(result.usage?.[0].current).toBe(2) // started 2件
+    expect(result.usage?.[0].limit).toBe(3) // 総数3件
+    expect(result.usage?.[0].unit).toContain('マシン')
   })
 })
 

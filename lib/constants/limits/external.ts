@@ -36,15 +36,6 @@ export const SUPABASE_PRICE_PER_GB = 0.015
 /** Supabase Pro: デフォルトディスク容量（GB） */
 export const SUPABASE_PRO_DISK_GB = 8
 
-/** Vercel Pro: デプロイ制限 */
-export const VERCEL_PRO_DEPLOY_LIMIT = 6000
-
-/** Vercel Pro: プロジェクト制限 */
-export const VERCEL_PRO_PROJECT_LIMIT = 200
-
-/** Vercel API: 1リクエストあたりの取得件数 */
-export const VERCEL_API_PAGE_SIZE = 100
-
 /** Cloudflare R2: バケット制限 */
 export const R2_BUCKET_LIMIT = 100
 

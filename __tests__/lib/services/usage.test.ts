@@ -2,7 +2,7 @@
 
 import { vi } from 'vitest'
 import {
-  getVercelUsage,
+  getFlyioUsage,
   getCloudflareR2Usage,
   getResendUsage,
 } from '@/lib/services/usage'
@@ -15,95 +15,98 @@ describe('Usage Service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // 環境変数をリセット
-    delete process.env.VERCEL_TOKEN
-    delete process.env.VERCEL_TEAM_ID
+    delete process.env.FLY_API_TOKEN
+    delete process.env.FLY_ACCESS_TOKEN
+    delete process.env.FLY_APP_NAME
+    delete process.env.FLY_REGION
     delete process.env.CLOUDFLARE_API_TOKEN
     delete process.env.R2_ACCOUNT_ID
     delete process.env.CLOUDFLARE_ACCOUNT_ID
     delete process.env.RESEND_API_KEY
   })
 
-  describe('getVercelUsage', () => {
-    it('VERCEL_TOKENが未設定の場合はunconfiguredを返す', async () => {
-      const result = await getVercelUsage()
+  describe('getFlyioUsage', () => {
+    it('トークンも fly.io ランタイムも無い場合は unconfigured を返す', async () => {
+      const result = await getFlyioUsage()
 
-      expect(result.name).toBe('Vercel')
+      expect(result.name).toBe('fly.io')
       expect(result.status).toBe('unconfigured')
-      expect(result.error).toBe('VERCEL_TOKEN が未設定')
+      expect(result.error).toBe('FLY_API_TOKEN が未設定')
     })
 
-    it('トークンが設定されている場合は使用量を取得する', async () => {
-      process.env.VERCEL_TOKEN = 'test-token'
-      process.env.VERCEL_TEAM_ID = 'test-team'
+    it('トークン設定時は GraphQL でアプリ数を取得する', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
 
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({
-            deployments: [
-              { created: Date.now() },
-              { created: Date.now() },
-            ],
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({
-            projects: [{ id: '1' }, { id: '2' }],
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({
-            slug: 'test-team',
-          }),
-        })
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: { apps: { nodes: [{ name: 'bon-log' }, { name: 'other' }] } },
+        }),
+      })
 
-      const result = await getVercelUsage()
+      const result = await getFlyioUsage()
 
-      expect(result.name).toBe('Vercel')
+      expect(result.name).toBe('fly.io')
       expect(result.status).toBe('ok')
       expect(result.usage).toBeDefined()
+      expect(result.usage![0].current).toBe(2)
     })
 
-    it('API呼び出しに失敗した場合はerrorを返す', async () => {
-      process.env.VERCEL_TOKEN = 'test-token'
+    it('トークンあり・FLY_APP_NAMEなしで API 失敗時は error を返す', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
 
       mockFetch.mockRejectedValue(new Error('Network error'))
 
-      const result = await getVercelUsage()
+      const result = await getFlyioUsage()
 
-      expect(result.name).toBe('Vercel')
+      expect(result.name).toBe('fly.io')
       expect(result.status).toBe('error')
       expect(result.error).toBe('Network error')
     })
 
-    it('チームIDが未設定の場合はユーザー情報から取得する', async () => {
-      process.env.VERCEL_TOKEN = 'test-token'
+    it('fly.io ランタイム(FLY_APP_NAME)があればトークン無しでも ok で基本情報を返す', async () => {
+      process.env.FLY_APP_NAME = 'bon-log'
+      process.env.FLY_REGION = 'nrt'
 
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({
-            user: { defaultTeamId: 'auto-team-id' },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ deployments: [] }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ projects: [] }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ slug: 'auto-team' }),
-        })
+      const result = await getFlyioUsage()
 
-      const result = await getVercelUsage()
+      expect(result.name).toBe('fly.io')
+      expect(result.status).toBe('ok')
+      expect(result.helpText).toContain('bon-log')
+      expect(result.helpText).toContain('nrt')
+      expect(result.dashboardUrl).toBe('https://fly.io/apps/bon-log')
+      // トークン無しのため GraphQL は呼ばれない
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('FLY_APP_NAME あり・トークンありで GraphQL 失敗時もランタイム情報で ok を維持する', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+
+      mockFetch.mockRejectedValue(new Error('Network error'))
+
+      const result = await getFlyioUsage()
 
       expect(result.status).toBe('ok')
+      expect(result.helpText).toContain('bon-log')
+    })
+
+    it('トークンあり・FLY_APP_NAMEありで稼働マシン数を取得する', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: { app: { machines: { nodes: [{ state: 'started' }, { state: 'stopped' }] } } },
+        }),
+      })
+
+      const result = await getFlyioUsage()
+
+      expect(result.status).toBe('ok')
+      expect(result.usage![0].current).toBe(1) // started のみ
+      expect(result.usage![0].limit).toBe(2) // 総数
     })
   })
 

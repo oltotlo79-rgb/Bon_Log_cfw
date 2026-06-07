@@ -104,7 +104,7 @@ export const API_ERR_CRON_INVALID_SIGNATURE = 'Invalid signature'
 export const ERR_SENTRY_API_STATUS = (status: number) => `Sentry API: ${status}`
 
 /** Usage API (`/api/admin/usage`) の外部プロバイダ認証情報未設定エラー */
-export const ERR_USAGE_VERCEL_TOKEN_MISSING = 'VERCEL_TOKEN が未設定'
+export const ERR_USAGE_FLYIO_TOKEN_MISSING = 'FLY_API_TOKEN が未設定'
 export const ERR_USAGE_RESEND_API_KEY_MISSING = 'RESEND_API_KEY が未設定'
 
 /** Sentry 管理 API (`/api/admin/sentry`) のエラー / 案内文 */

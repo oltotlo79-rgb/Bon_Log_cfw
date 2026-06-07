@@ -3,8 +3,6 @@
 import 'server-only'
 
 import {
-  VERCEL_PRO_DEPLOY_LIMIT,
-  VERCEL_PRO_PROJECT_LIMIT,
   R2_BUCKET_LIMIT,
   RESEND_DAILY_EMAIL_LIMIT,
   RESEND_MONTHLY_EMAIL_LIMIT,
@@ -12,12 +10,11 @@ import {
   USAGE_ERROR_THRESHOLD,
   USAGE_CACHE_REVALIDATE_SECONDS,
   USAGE_MAX_FETCH_PAGES,
-  VERCEL_API_PAGE_SIZE,
   RESEND_EMAILS_PAGE_SIZE,
 } from '@/lib/constants/limits'
 import { getResendApiKey } from '@/lib/env'
 import {
-  ERR_USAGE_VERCEL_TOKEN_MISSING,
+  ERR_USAGE_FLYIO_TOKEN_MISSING,
   ERR_USAGE_RESEND_API_KEY_MISSING,
 } from '@/lib/constants/errors'
 
@@ -37,121 +34,99 @@ export interface ServiceUsage {
   lastUpdated: string
 }
 
-// Vercel使用量を取得
-export async function getVercelUsage(): Promise<ServiceUsage> {
-  const token = process.env.VERCEL_TOKEN
-  const teamId = process.env.VERCEL_TEAM_ID
+/**
+ * fly.io の使用状況を取得する。
+ *
+ * fly.io は本番ランタイムで `FLY_APP_NAME` / `FLY_REGION` 等を自動注入するため、
+ * トークンが無くても fly.io 上であればアプリ名・リージョンを表示できる。
+ * `FLY_API_TOKEN` がある場合は GraphQL API でマシン数を補足する（best-effort、
+ * 失敗してもランタイム情報で 'ok' を維持し、ページを壊さない）。請求やコンピュート/
+ * 帯域の詳細はダッシュボードで確認する前提とする。
+ */
+export async function getFlyioUsage(): Promise<ServiceUsage> {
+  const token = process.env.FLY_API_TOKEN || process.env.FLY_ACCESS_TOKEN
+  const appName = process.env.FLY_APP_NAME
+  const region = process.env.FLY_REGION
+  const dashboardUrl = appName ? `https://fly.io/apps/${appName}` : 'https://fly.io/dashboard'
 
-  if (!token) {
+  // トークンも無く fly.io ランタイムでもない（ローカル等）場合のみ未設定扱い。
+  if (!token && !appName) {
     return {
-      name: 'Vercel',
+      name: 'fly.io',
       status: 'unconfigured',
-      error: ERR_USAGE_VERCEL_TOKEN_MISSING,
-      helpText: 'Vercel Account Settings → Tokens で作成',
-      helpUrl: 'https://vercel.com/account/tokens',
-      dashboardUrl: 'https://vercel.com/dashboard',
+      error: ERR_USAGE_FLYIO_TOKEN_MISSING,
+      helpText: '`fly tokens create org` で作成し FLY_API_TOKEN に設定（fly.io 上では基本情報を自動表示）',
+      helpUrl: 'https://fly.io/dashboard/personal/tokens',
+      dashboardUrl,
       lastUpdated: new Date().toISOString(),
     }
   }
 
-  try {
-    const usage: ServiceUsage['usage'] = []
+  const usage: ServiceUsage['usage'] = []
 
-    // ユーザー情報からチームIDを取得（設定されていない場合）
-    let resolvedTeamId = teamId
-    if (!resolvedTeamId) {
-      const userRes = await fetch('https://api.vercel.com/www/user', {
-        headers: { Authorization: `Bearer ${token}` },
+  if (token) {
+    try {
+      const res = await fetch('https://api.fly.io/graphql', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: appName
+            ? 'query($name: String!) { app(name: $name) { machines { nodes { state } } } }'
+            : 'query { apps { nodes { name } } }',
+          variables: appName ? { name: appName } : {},
+        }),
         next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
       })
-      if (userRes.ok) {
-        const userData = await userRes.json()
-        resolvedTeamId = userData.user?.defaultTeamId
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      if (Array.isArray(json.errors) && json.errors.length > 0) {
+        throw new Error(json.errors[0]?.message || 'GraphQL error')
+      }
+
+      if (appName) {
+        const machines: { state?: string }[] = json.data?.app?.machines?.nodes ?? []
+        const running = machines.filter((m) => m.state === 'started').length
+        usage.push({
+          current: running,
+          limit: machines.length,
+          unit: '稼働中マシン / 総数',
+          percentage: machines.length > 0 ? Math.round((running / machines.length) * 100) : 0,
+        })
+      } else {
+        const apps: unknown[] = json.data?.apps?.nodes ?? []
+        usage.push({ current: apps.length, limit: 0, unit: 'アプリ', percentage: 0 })
+      }
+    } catch (error) {
+      // fly.io 上(FLY_APP_NAME あり)ならランタイム情報で 'ok' を維持。
+      // そうでなければ取得失敗を error として表示する。
+      if (!appName) {
+        return {
+          name: 'fly.io',
+          status: 'error',
+          error: error instanceof Error ? error.message : '取得に失敗',
+          dashboardUrl,
+          lastUpdated: new Date().toISOString(),
+        }
       }
     }
+  }
 
-    // デプロイ数を取得（今月）
-    const deploymentsUrl = resolvedTeamId
-      ? `https://api.vercel.com/v6/deployments?teamId=${resolvedTeamId}&limit=${VERCEL_API_PAGE_SIZE}`
-      : `https://api.vercel.com/v6/deployments?limit=${VERCEL_API_PAGE_SIZE}`
+  const helpParts: string[] = []
+  if (appName) helpParts.push(`アプリ: ${appName}`)
+  if (region) helpParts.push(`リージョン: ${region}`)
+  helpParts.push('請求・コンピュート/帯域の詳細はダッシュボードで確認')
 
-    const deploymentsRes = await fetch(deploymentsUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
-    })
-
-    if (deploymentsRes.ok) {
-      const deploymentsData = await deploymentsRes.json()
-      const deployments = deploymentsData.deployments || []
-
-      // 今月のデプロイ数をカウント
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const monthlyDeployments = deployments.filter(
-        (d: { created: number }) => new Date(d.created) >= monthStart
-      ).length
-
-      // Pro: 無制限だが目安として表示
-      usage.push({
-        current: monthlyDeployments,
-        limit: VERCEL_PRO_DEPLOY_LIMIT,
-        unit: 'デプロイ (今月)',
-        percentage: Math.min(Math.round((monthlyDeployments / VERCEL_PRO_DEPLOY_LIMIT) * 100), 100),
-      })
-    }
-
-    // プロジェクト数を取得
-    const projectsUrl = resolvedTeamId
-      ? `https://api.vercel.com/v9/projects?teamId=${resolvedTeamId}&limit=${VERCEL_API_PAGE_SIZE}`
-      : `https://api.vercel.com/v9/projects?limit=${VERCEL_API_PAGE_SIZE}`
-
-    const projectsRes = await fetch(projectsUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
-    })
-
-    if (projectsRes.ok) {
-      const projectsData = await projectsRes.json()
-      const projectCount = projectsData.projects?.length || 0
-
-      usage.push({
-        current: projectCount,
-        limit: VERCEL_PRO_PROJECT_LIMIT,
-        unit: 'プロジェクト',
-        percentage: Math.round((projectCount / VERCEL_PRO_PROJECT_LIMIT) * 100),
-      })
-    }
-
-    // ダッシュボードURL（チームの場合はチームページ）
-    let dashboardUrl = 'https://vercel.com/account/usage'
-    if (resolvedTeamId) {
-      // チーム名を取得してURLを構築
-      const teamsRes = await fetch(`https://api.vercel.com/v2/teams/${resolvedTeamId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
-      })
-      if (teamsRes.ok) {
-        const teamData = await teamsRes.json()
-        dashboardUrl = `https://vercel.com/${teamData.slug || teamData.name}/~/usage`
-      }
-    }
-
-    return {
-      name: 'Vercel',
-      status: 'ok',
-      usage: usage.length > 0 ? usage : undefined,
-      helpText: 'Pro プラン - データ転送量はダッシュボードで確認',
-      dashboardUrl,
-      lastUpdated: new Date().toISOString(),
-    }
-  } catch (error) {
-    return {
-      name: 'Vercel',
-      status: 'error',
-      error: error instanceof Error ? error.message : '取得に失敗',
-      dashboardUrl: 'https://vercel.com/dashboard',
-      lastUpdated: new Date().toISOString(),
-    }
+  return {
+    name: 'fly.io',
+    status: 'ok',
+    usage: usage.length > 0 ? usage : undefined,
+    helpText: helpParts.join(' / '),
+    dashboardUrl,
+    lastUpdated: new Date().toISOString(),
   }
 }
 

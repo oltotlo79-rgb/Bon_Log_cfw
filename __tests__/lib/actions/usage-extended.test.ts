@@ -19,50 +19,64 @@ describe('usage service', async () => {
   })
 
   // ============================================================
-  // getVercelUsage
+  // getFlyioUsage
   // ============================================================
-  describe('getVercelUsage', async () => {
-    it('returns unconfigured when no VERCEL_TOKEN', async () => {
-      delete process.env.VERCEL_TOKEN
-      const { getVercelUsage } = await import('@/lib/services/usage')
-      const result = await getVercelUsage()
+  describe('getFlyioUsage', async () => {
+    it('returns unconfigured when no token and not on fly.io', async () => {
+      delete process.env.FLY_API_TOKEN
+      delete process.env.FLY_ACCESS_TOKEN
+      delete process.env.FLY_APP_NAME
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
       expect(result.status).toBe('unconfigured')
-      expect(result.name).toBe('Vercel')
+      expect(result.name).toBe('fly.io')
     })
 
-    it('returns usage data on success', async () => {
-      process.env.VERCEL_TOKEN = 'test-token'
-      process.env.VERCEL_TEAM_ID = 'team1'
-      mockFetch
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ deployments: [] }) })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ projects: [] }) })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ slug: 'my-team' }) })
-      const { getVercelUsage } = await import('@/lib/services/usage')
-      const result = await getVercelUsage()
+    it('returns usage data (app count) on GraphQL success', async () => {
+      delete process.env.FLY_APP_NAME
+      process.env.FLY_API_TOKEN = 'test-token'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { apps: { nodes: [{ name: 'bon-log' }] } } }),
+      })
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
       expect(result.status).toBe('ok')
-      expect(result.name).toBe('Vercel')
+      expect(result.name).toBe('fly.io')
     })
 
-    it('returns error on fetch failure', async () => {
-      process.env.VERCEL_TOKEN = 'test-token'
-      process.env.VERCEL_TEAM_ID = 'team1'
+    it('returns error on fetch failure when not on fly.io', async () => {
+      delete process.env.FLY_APP_NAME
+      process.env.FLY_API_TOKEN = 'test-token'
       mockFetch.mockRejectedValue(new Error('Network error'))
-      const { getVercelUsage } = await import('@/lib/services/usage')
-      const result = await getVercelUsage()
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
       expect(result.status).toBe('error')
       expect(result.error).toBe('Network error')
     })
 
-    it('returns ok even with non-200 deployment response', async () => {
-      process.env.VERCEL_TOKEN = 'test-token'
-      process.env.VERCEL_TEAM_ID = 'team1'
-      mockFetch
-        .mockResolvedValueOnce({ ok: false, status: 403 })
-        .mockResolvedValueOnce({ ok: false, status: 403 })
-        .mockResolvedValueOnce({ ok: false, status: 403 })
-      const { getVercelUsage } = await import('@/lib/services/usage')
-      const result = await getVercelUsage()
+    it('returns error when GraphQL returns errors array', async () => {
+      delete process.env.FLY_APP_NAME
+      process.env.FLY_API_TOKEN = 'test-token'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ errors: [{ message: 'unauthorized' }] }),
+      })
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
+      expect(result.status).toBe('error')
+      expect(result.error).toBe('unauthorized')
+    })
+
+    it('returns ok with runtime info when FLY_APP_NAME is set (no token)', async () => {
+      delete process.env.FLY_API_TOKEN
+      delete process.env.FLY_ACCESS_TOKEN
+      process.env.FLY_APP_NAME = 'bon-log'
+      process.env.FLY_REGION = 'nrt'
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
       expect(result.status).toBe('ok')
+      expect(result.helpText).toContain('bon-log')
     })
   })
 

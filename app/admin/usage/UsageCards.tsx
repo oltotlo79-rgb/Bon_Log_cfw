@@ -14,9 +14,9 @@ import { USAGE_DANGER_THRESHOLD, USAGE_WARNING_THRESHOLD } from '@/lib/constants
 
 /** サービス名をキーにしたブランドロゴ。lucide に無い独自ロゴのため生 SVG を保持する */
 const serviceIcons: Record<string, React.ReactNode> = {
-  Vercel: (
-    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
-      <path d="M24 22.525H0l12-21.05 12 21.05z"/>
+  'fly.io': (
+    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor" aria-hidden="true">
+      <path d="M12 2a7 7 0 0 0-7 7c0 3.53 2.61 6.43 6 6.92V18H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.08c3.39-.49 6-3.39 6-6.92a7 7 0 0 0-7-7Z"/>
     </svg>
   ),
   Supabase: (
@@ -49,7 +49,7 @@ const serviceIcons: Record<string, React.ReactNode> = {
 }
 
 const serviceColors: Record<string, string> = {
-  Vercel: 'bg-black text-white',
+  'fly.io': 'bg-violet-600 text-white',
   Supabase: 'bg-emerald-600 text-white',
   'Cloudflare R2': 'bg-orange-500 text-white',
   Resend: 'bg-black text-white',
@@ -168,10 +168,10 @@ function UsageCard({ service }: { service: ServiceUsage }) {
         </div>
       )}
 
-      {service.name === 'Vercel' && service.status === 'ok' && (
+      {service.name === 'fly.io' && service.status === 'ok' && (
         <div className="mt-3 p-2 bg-muted/50 border border-border rounded text-xs">
           <p className="text-muted-foreground mb-1">
-            「—」の項目はAPIで取得できないため、ダッシュボードで確認してください
+            請求・コンピュート/帯域などの詳細はダッシュボードで確認してください
           </p>
           <a
             href={service.dashboardUrl}
@@ -179,13 +179,13 @@ function UsageCard({ service }: { service: ServiceUsage }) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-muted-foreground hover:underline font-medium"
           >
-            Vercel Usage ダッシュボード
+            fly.io ダッシュボード
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
       )}
 
-      {service.status === 'ok' && service.helpText && service.name !== 'Vercel' && (
+      {service.status === 'ok' && service.helpText && service.name !== 'fly.io' && (
         <p className="text-xs text-muted-foreground mt-3">{service.helpText}</p>
       )}
 
@@ -283,9 +283,8 @@ export function UsageCards() {
             使用量を取得するには、各サービスの管理用APIトークンを環境変数に設定してください。
           </p>
           <pre className="bg-card border rounded-lg p-3 text-xs overflow-x-auto">
-{`# Vercel
-VERCEL_TOKEN=your_vercel_token
-# VERCEL_TEAM_ID=team_xxx  # チーム利用時
+{`# fly.io（fly.io 上では FLY_APP_NAME 等が自動注入され基本情報を表示）
+FLY_API_TOKEN=your_fly_token  # \`fly tokens create org\` で作成
 
 # Supabase
 SUPABASE_ACCESS_TOKEN=sbp_xxx

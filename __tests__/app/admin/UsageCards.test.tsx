@@ -24,18 +24,18 @@ describe('UsageCards', () => {
       ok: true,
       json: () => Promise.resolve({
         data: [{
-          name: 'Vercel',
+          name: 'fly.io',
           status: 'ok',
-          dashboardUrl: 'https://vercel.com',
+          dashboardUrl: 'https://fly.io/apps/bon-log',
           lastUpdated: '2025-01-01T00:00:00Z',
-          usage: [{ unit: 'ビルド', current: 50, limit: 100, percentage: 50 }],
+          usage: [{ unit: 'マシン', current: 50, limit: 100, percentage: 50 }],
         }],
         fetchedAt: '2025-01-01T00:00:00Z',
       }),
     })
     render(<UsageCards />)
     await waitFor(() => {
-      expect(screen.getByText('Vercel')).toBeInTheDocument()
+      expect(screen.getByText('fly.io')).toBeInTheDocument()
     })
     expect(screen.getByText('正常')).toBeInTheDocument()
     expect(screen.getByText('50 / 100')).toBeInTheDocument()
@@ -116,7 +116,7 @@ describe('UsageCards', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
-        data: [{ name: 'Vercel', status: 'unconfigured', helpText: 'トークンを設定してください', helpUrl: 'https://vercel.com/tokens', dashboardUrl: 'https://vercel.com', lastUpdated: '2025-01-01T00:00:00Z', usage: [] }],
+        data: [{ name: 'fly.io', status: 'unconfigured', helpText: 'トークンを設定してください', helpUrl: 'https://fly.io/dashboard/personal/tokens', dashboardUrl: 'https://fly.io/dashboard', lastUpdated: '2025-01-01T00:00:00Z', usage: [] }],
         fetchedAt: '2025-01-01T00:00:00Z',
       }),
     })
@@ -129,11 +129,11 @@ describe('UsageCards', () => {
     })
   })
 
-  it('Vercelのok時にデータ転送量の注意を表示する', async () => {
+  it('fly.ioのok時にダッシュボード確認の注意を表示する', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
-        data: [{ name: 'Vercel', status: 'ok', dashboardUrl: 'https://vercel.com', lastUpdated: '2025-01-01T00:00:00Z', usage: [] }],
+        data: [{ name: 'fly.io', status: 'ok', dashboardUrl: 'https://fly.io/apps/bon-log', lastUpdated: '2025-01-01T00:00:00Z', usage: [] }],
         fetchedAt: '2025-01-01T00:00:00Z',
       }),
     })
@@ -172,7 +172,7 @@ describe('UsageCards', () => {
     })
   })
 
-  it('ok + helpTextでVercel以外にヘルプテキストを表示する', async () => {
+  it('ok + helpTextでfly.io以外にヘルプテキストを表示する', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({

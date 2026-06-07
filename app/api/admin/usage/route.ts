@@ -13,7 +13,7 @@ import {
 import { prisma } from '@/lib/db'
 import { listObjects } from '@/lib/storage/s3-sign'
 import {
-  getVercelUsage,
+  getFlyioUsage,
   getResendUsage,
   type ServiceUsage,
 } from '@/lib/services/usage'
@@ -363,7 +363,7 @@ export async function GET() {
 
     // 全サービスの使用量を並列取得
     const results = await Promise.allSettled([
-      getVercelUsage(),
+      getFlyioUsage(),
       getSupabaseUsageFromDB(), // Prismaを使用
       getCloudflareR2UsageWithS3(), // S3 APIで正確なストレージ取得
       getResendUsage(),
@@ -374,7 +374,7 @@ export async function GET() {
         return result.value
       }
 
-      const names = ['Vercel', 'Supabase', 'Cloudflare R2', 'Resend']
+      const names = ['fly.io', 'Supabase', 'Cloudflare R2', 'Resend']
       return {
         name: names[index],
         status: 'error' as const,

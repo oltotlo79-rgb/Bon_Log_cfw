@@ -17,7 +17,7 @@ vi.mock('@/lib/storage/s3-sign', () => ({
 }))
 
 vi.mock('@/lib/services/usage', () => ({
-  getVercelUsage: vi.fn(),
+  getFlyioUsage: vi.fn(),
   getResendUsage: vi.fn(),
 }))
 
@@ -56,9 +56,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       lastUpdated: new Date().toISOString(),
     })
@@ -94,9 +94,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       lastUpdated: new Date().toISOString(),
     })
@@ -132,9 +132,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -165,9 +165,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -210,9 +210,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -256,9 +256,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -294,9 +294,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -342,9 +342,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -391,9 +391,9 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockResolvedValue({
-      name: 'Vercel',
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockResolvedValue({
+      name: 'fly.io',
       status: 'ok',
       dashboardUrl: 'https://vercel.com',
       lastUpdated: new Date().toISOString(),
@@ -432,8 +432,8 @@ describe('Admin Usage API', () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
 
-    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
-    vi.mocked(getVercelUsage).mockRejectedValue(new Error('Vercel Error'))
+    const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getFlyioUsage).mockRejectedValue(new Error('Vercel Error'))
     vi.mocked(getResendUsage).mockRejectedValue(new Error('Resend Error'))
 
     const { prisma } = await import('@/lib/db')
