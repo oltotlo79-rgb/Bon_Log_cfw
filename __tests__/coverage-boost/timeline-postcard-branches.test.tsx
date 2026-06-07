@@ -517,8 +517,8 @@ describe('PostCard', () => {
     expect(screen.getByText('7')).toBeInTheDocument()
   })
 
-  // ---- Branch: repost by current user (isOwner && isRepost - no delete button) ----
-  it('does not show DeletePostButton for a repost even when owner', async () => {
+  // ---- Branch: repost by current user (isOwner && isRepost - delete only, no edit/pin) ----
+  it('shows DeletePostButton but not edit/pin for a repost when owner', async () => {
     const user = userEvent.setup()
     const repostByOwner = {
       ...basePost,
@@ -542,8 +542,10 @@ describe('PostCard', () => {
     })
     await user.click(menuButton!)
 
-    // isOwner && isRepost => DeletePostButton should NOT show
-    expect(screen.queryByTestId('delete-post-button')).not.toBeInTheDocument()
+    // isOwner && isRepost => 自分のリポストは削除できる。編集・固定は元投稿用なので出さない。
+    expect(screen.getByTestId('delete-post-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('edit-post-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pin-post-button')).not.toBeInTheDocument()
   })
 
   // ---- Branch: media with multiple items ----

@@ -270,23 +270,25 @@ describe('PostCardHeader', () => {
       expect(screen.queryByTestId('report-button')).not.toBeInTheDocument()
     })
 
-    it('リポストの場合はオーナーでも削除ボタンが表示されない', async () => {
+    it('リポストの場合はオーナーは削除のみ表示され編集・固定は表示されない', async () => {
       const PostCardHeader = await importComponent()
       render(
         <PostCardHeader
           user={testUser}
           timeAgo="1分前"
-          postId="post-1"
+          postId="repost-1"
           isOwner={true}
           isRepost={true}
           currentUserId={mockUser.id}
-          displayPostId="post-1"
+          displayPostId="original-1"
           disableNavigation={false}
           onHidden={() => {}}
         />
       )
       fireEvent.click(screen.getByTestId('post-menu-button'))
-      expect(screen.queryByTestId('delete-post-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('delete-post-button')).toBeInTheDocument()
+      expect(screen.queryByTestId('edit-post-link')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('pin-post-button')).not.toBeInTheDocument()
     })
   })
 

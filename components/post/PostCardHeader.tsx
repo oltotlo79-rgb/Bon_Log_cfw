@@ -138,25 +138,29 @@ export const PostCardHeader = memo(function PostCardHeader({
               onClick={() => setShowMenu(false)}
             />
             <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border/50 rounded-xl shadow-washi-lg py-1.5 min-w-[160px] whitespace-nowrap" data-testid="post-menu-dropdown">
-              {isOwner && !isRepost && (
+              {isOwner && (
                 <>
-                  <Link
-                    href={buildPostEditPath(postId)}
-                    onClick={() => setShowMenu(false)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
-                    data-testid="edit-post-link"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                    <span>編集</span>
-                  </Link>
-                  <button
-                    onClick={handleTogglePin}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
-                    data-testid="pin-post-button"
-                  >
-                    {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
-                    <span>{isPinned ? '固定を解除' : 'プロフィールに固定'}</span>
-                  </button>
+                  {!isRepost && (
+                    <>
+                      <Link
+                        href={buildPostEditPath(postId)}
+                        onClick={() => setShowMenu(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+                        data-testid="edit-post-link"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                        <span>編集</span>
+                      </Link>
+                      <button
+                        onClick={handleTogglePin}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+                        data-testid="pin-post-button"
+                      >
+                        {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
+                        <span>{isPinned ? '固定を解除' : 'プロフィールに固定'}</span>
+                      </button>
+                    </>
+                  )}
                   <DeletePostButton postId={postId} variant="menu" onDeleted={() => setShowMenu(false)} />
                 </>
               )}
