@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { buildPostPath } from '@/lib/constants/path-builders'
 import { Heart, MessageSquare } from 'lucide-react'
-import { QUOTE_DISPLAY_LIMIT } from '@/lib/constants/limits'
+import { QUOTE_DISPLAY_LIMIT, ONE_DAY_MS, DAYS_PER_WEEK, DAYS_PER_MONTH } from '@/lib/constants/limits'
 
 type Quote = {
   id: string
@@ -26,13 +26,13 @@ type QuoteListProps = {
 function formatRelativeTime(date: Date) {
   const now = new Date()
   const diff = now.getTime() - new Date(date).getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const days = Math.floor(diff / ONE_DAY_MS)
 
   if (days === 0) return '今日'
   if (days === 1) return '昨日'
-  if (days < 7) return `${days}日前`
-  if (days < 30) return `${Math.floor(days / 7)}週間前`
-  return `${Math.floor(days / 30)}ヶ月前`
+  if (days < DAYS_PER_WEEK) return `${days}日前`
+  if (days < DAYS_PER_MONTH) return `${Math.floor(days / DAYS_PER_WEEK)}週間前`
+  return `${Math.floor(days / DAYS_PER_MONTH)}ヶ月前`
 }
 
 export function QuoteList({ quotes }: QuoteListProps) {

@@ -1,10 +1,8 @@
 'use client'
 
-// ReactのuseStateフック（状態管理用）
 import { useState } from 'react'
-// Next.jsのルーター（ページ遷移・更新用）
 import { useRouter } from 'next/navigation'
-// ユーザー管理用のServer Action（停止/復帰/削除）
+import { AlertTriangle } from 'lucide-react'
 import { suspendUser, activateUser, deleteUserByAdmin } from '@/lib/actions/admin/users'
 import { ROUTE_ADMIN_USERS } from '@/lib/constants/routes'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
@@ -15,28 +13,6 @@ type UserDetailActionsProps = {
   nickname: string
 }
 
-function AlertTriangleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>
-    </svg>
-  )
-}
-
-/**
- * ユーザー詳細アクションコンポーネント
- * ユーザーに対する管理操作（停止/復帰/削除）を提供するパネル
- *
- * @param userId - 操作対象のユーザーID
- * @param isSuspended - ユーザーの停止状態
- * @param nickname - ユーザーのニックネーム（確認表示用）
- * @returns アクションパネルのJSX要素
- *
- * 機能:
- * - アカウント停止（理由入力必須）
- * - アカウント復帰
- * - アカウント削除（確認ダイアログ付き、取り消し不可）
- */
 export function UserDetailActions({ userId, isSuspended, nickname }: UserDetailActionsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
@@ -146,7 +122,7 @@ export function UserDetailActions({ userId, isSuspended, nickname }: UserDetailA
       ) : (
         <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
           <div className="flex items-center gap-2 text-destructive">
-            <AlertTriangleIcon className="w-5 h-5" />
+            <AlertTriangle className="w-5 h-5" />
             <span className="font-semibold">アカウント削除の確認</span>
           </div>
           <p className="text-sm text-muted-foreground">

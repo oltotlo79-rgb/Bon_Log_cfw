@@ -90,6 +90,44 @@ describe('Admin Usage API', () => {
     expect(data.data).toBeDefined()
   })
 
+  it('Platform APIが想定外の形式(Zod検証失敗)を返す場合 pg_database_size にフォールバックする', async () => {
+    const { requireAdmin } = await import('@/lib/actions/utils')
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+
+    const { getVercelUsage, getResendUsage } = await import('@/lib/services/usage')
+    vi.mocked(getVercelUsage).mockResolvedValue({
+      name: 'Vercel',
+      status: 'ok',
+      lastUpdated: new Date().toISOString(),
+    })
+    vi.mocked(getResendUsage).mockResolvedValue({
+      name: 'Resend',
+      status: 'ok',
+      lastUpdated: new Date().toISOString(),
+    })
+
+    // Platform API は 200 を返すが想定外の JSON 形状（Zod 検証に失敗する）
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ unexpected: 'shape', db_size: 'not-a-number' }),
+    })
+
+    const { prisma } = await import('@/lib/db')
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([{ pg_database_size: '1000000' }])
+
+    const { listObjects } = await import('@/lib/storage/s3-sign')
+    vi.mocked(listObjects).mockResolvedValue({ contents: [], isTruncated: false })
+
+    const { GET } = await import('@/app/api/admin/usage/route')
+    const response = await GET()
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.data).toBeDefined()
+  })
+
   it('R2未設定時にunconfiguredを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
     vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })

@@ -1,44 +1,18 @@
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
-// Next.jsの画像最適化コンポーネント
 import Image from 'next/image'
-// Next.jsのリダイレクト関数
 import { redirect } from 'next/navigation'
-// 認証失敗時のリダイレクト先
+import { Search } from 'lucide-react'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
-// 管理者用ユーザー一覧取得のServer Action
 import { getAdminUsers } from '@/lib/actions/admin/users'
-// ユーザー操作用ドロップダウンメニューコンポーネント
 import { UserActionsDropdown } from './UserActionsDropdown'
-// ページネーション定数
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * 検索アイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="11" cy="11" r="8"/>
-      <path d="m21 21-4.3-4.3"/>
-    </svg>
-  )
-}
-
-/**
- * ブラウザのタイトルバーに表示される
- */
 export const metadata = {
   title: 'ユーザー管理 - BON-LOG 管理',
 }
 
-/**
- * URLのクエリパラメータを受け取る
- */
 interface PageProps {
   searchParams: Promise<{
     /** ニックネーム・メールアドレスの検索キーワード */
@@ -52,19 +26,6 @@ interface PageProps {
   }>
 }
 
-/**
- * 管理者用ユーザー管理ページコンポーネント
- * ユーザー一覧をテーブル形式で表示し、検索・フィルタリング機能を提供する
- *
- * @param searchParams - URLのクエリパラメータ
- * @returns ユーザー管理ページのJSX要素
- *
- * 処理内容:
- * 1. クエリパラメータから検索条件を取得
- * 2. ページネーション設定（1ページ20件）
- * 3. getAdminUsersでユーザー一覧を取得
- * 4. 検索フォーム、ユーザーテーブル、ページネーションを表示
- */
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   const params = await searchParams
   const search = params.search || ''
@@ -94,7 +55,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         <form className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 name="search"

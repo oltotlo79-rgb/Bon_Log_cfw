@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import {
+  ADMIN_STATS_PERIODS,
   isAdminStatsPeriod,
   isAdminStatsMetric,
   type AdminStatsPeriod,
@@ -39,10 +40,8 @@ export function StatsCharts({ data }: StatsChartsProps) {
   const [period, setPeriod] = useState<AdminStatsPeriod>('30')
   const [selectedMetric, setSelectedMetric] = useState<AdminStatsMetric>('all')
 
-  // 期間でフィルタ
   const filteredData = data.slice(-parseInt(period))
 
-  // 日付をフォーマット
   const formattedData = filteredData.map((item: StatsData) => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }),
@@ -193,9 +192,9 @@ export function StatsCharts({ data }: StatsChartsProps) {
               }}
               className="px-3 py-1.5 text-sm border rounded-lg bg-background"
             >
-              <option value="7">7日間</option>
-              <option value="14">14日間</option>
-              <option value="30">30日間</option>
+              {ADMIN_STATS_PERIODS.map((p) => (
+                <option key={p} value={p}>{p}日間</option>
+              ))}
             </select>
           </div>
 

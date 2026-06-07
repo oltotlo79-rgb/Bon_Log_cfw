@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 <style>body{margin:0;padding:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}</style>
 </head>
 <body>
-<script type="text/javascript" charset="utf-8" src="https://adm.shinobi.jp/s/${adId}"><\/script>
+<script type="text/javascript" charset="utf-8" src="https://adm.shinobi.jp/s/${encodeURIComponent(adId)}"><\/script>
 </body>
 </html>`
 

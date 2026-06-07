@@ -1,14 +1,6 @@
 /**
- * @fileoverview フォローリクエスト管理ページ
- *
- * 非公開アカウントへのフォローリクエストを管理するページです。
- *
- * 主な機能:
- * - 受信したフォローリクエスト一覧の表示
- * - フォローリクエストの承認/拒否
- * - 送信したフォローリクエスト一覧の表示
- * - 送信したリクエストのキャンセル
- *
+ * @module app/(main)/settings/follow-requests/page
+ * 非公開アカウントへのフォローリクエスト管理ページ。
  */
 
 import { auth } from '@/lib/auth'
@@ -23,9 +15,6 @@ import {
   getSentFollowRequests,
 } from '@/lib/actions/follow-request'
 
-/**
- * ページのメタデータ
- */
 export const metadata: Metadata = {
   title: 'フォローリクエスト',
   description: 'フォローリクエストの管理',
@@ -33,11 +22,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-/**
- * フォローリクエスト管理ページ
- */
 export default async function FollowRequestsPage() {
-  // 認証チェック
   const session = await auth()
   if (!session?.user?.id) {
     redirect(ROUTE_LOGIN)
@@ -47,7 +32,6 @@ export default async function FollowRequestsPage() {
     return <SettingsGuestRestriction title="フォローリクエスト" />
   }
 
-  // 受信・送信したフォローリクエストを取得
   const [receivedResult, sentResult] = await Promise.all([
     getReceivedFollowRequests(),
     getSentFollowRequests(),

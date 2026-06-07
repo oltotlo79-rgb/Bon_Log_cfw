@@ -29,6 +29,7 @@ import {
   ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
 import { ROUTE_FEED, ROUTE_ADMIN_PREMIUM } from '@/lib/constants/routes'
+import { ACTION_GRANT_PREMIUM, ACTION_REVOKE_PREMIUM, ACTION_EXTEND_PREMIUM } from '@/lib/constants/admin-actions'
 import { logger } from '@/lib/logger'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
 import { adminIdSchema, premiumDurationDaysSchema } from './_schemas'
@@ -72,7 +73,7 @@ export async function grantPremium(targetUserId: string, durationDays: number = 
     await prisma.adminLog.create({
       data: {
         adminId: adminId,
-        action: 'grant_premium',
+        action: ACTION_GRANT_PREMIUM,
         targetType: 'user',
         targetId: idParsed.data,
         details: { durationDays: daysParsed.data, expiresAt: expiresAt.toISOString() },
@@ -124,7 +125,7 @@ export async function revokePremium(targetUserId: string) {
     await prisma.adminLog.create({
       data: {
         adminId: adminId,
-        action: 'revoke_premium',
+        action: ACTION_REVOKE_PREMIUM,
         targetType: 'user',
         targetId: idParsed.data,
       },
@@ -180,7 +181,7 @@ export async function extendPremium(targetUserId: string, additionalDays: number
     await prisma.adminLog.create({
       data: {
         adminId: adminId,
-        action: 'extend_premium',
+        action: ACTION_EXTEND_PREMIUM,
         targetType: 'user',
         targetId: idParsed.data,
         details: { additionalDays: daysParsed.data, newExpiresAt: newExpiresAt.toISOString() },
@@ -370,7 +371,7 @@ export async function toggleAdminPremium() {
     await prisma.adminLog.create({
       data: {
         adminId: adminId,
-        action: newIsPremium ? 'grant_premium' : 'revoke_premium',
+        action: newIsPremium ? ACTION_GRANT_PREMIUM : ACTION_REVOKE_PREMIUM,
         targetType: 'user',
         targetId: adminId,
         details: { selfToggle: true, newState: newIsPremium },

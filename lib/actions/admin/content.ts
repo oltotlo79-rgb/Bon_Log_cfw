@@ -9,6 +9,7 @@ import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { ERR_EVENT_NOT_FOUND, ERR_SHOP_NOT_FOUND, ERR_REVIEW_NOT_FOUND, ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_EVENTS, ROUTE_ADMIN_SHOPS, ROUTE_ADMIN_REVIEWS } from '@/lib/constants/routes'
+import { ACTION_DELETE_EVENT, ACTION_DELETE_SHOP, ACTION_DELETE_REVIEW } from '@/lib/constants/admin-actions'
 import { logger } from '@/lib/logger'
 import { adminIdSchema, adminReasonSchema } from './_schemas'
 
@@ -38,7 +39,7 @@ export async function deleteEventByAdmin(eventId: string, reason: string) {
       prisma.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'delete_event',
+          action: ACTION_DELETE_EVENT,
           targetType: 'event',
           targetId: idParsed.data,
           details: JSON.stringify({ reason: reasonParsed.data }),
@@ -80,7 +81,7 @@ export async function deleteShopByAdmin(shopId: string, reason: string) {
       prisma.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'delete_shop',
+          action: ACTION_DELETE_SHOP,
           targetType: 'shop',
           targetId: idParsed.data,
           details: JSON.stringify({ reason: reasonParsed.data }),
@@ -217,7 +218,7 @@ export async function deleteReviewByAdmin(reviewId: string, reason: string) {
       prisma.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'delete_review',
+          action: ACTION_DELETE_REVIEW,
           targetType: 'review',
           targetId: idParsed.data,
           details: JSON.stringify({ reason: reasonParsed.data }),

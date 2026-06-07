@@ -26,6 +26,7 @@ const BACKUP_CODE_LENGTH = LIMITS_BACKUP_CODE_LENGTH
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16 // AES-GCM の初期化ベクトル長
 const AUTH_TAG_LENGTH = 16 // AES-GCM の認証タグ長
+const KEY_BYTE_LENGTH = 32 // AES-256 の鍵長（256ビット）
 
 /**
  * 鍵バージョン識別子の検証用パターン。整数のみ許容（`v1`, `v2`, ...）。
@@ -70,7 +71,13 @@ function getEncryptionKey(version: string): Buffer {
   }
 
   // hex文字列をBufferに変換（32バイト = 256ビット）
-  return Buffer.from(key, 'hex')
+  const keyBuffer = Buffer.from(key, 'hex')
+  if (keyBuffer.length !== KEY_BYTE_LENGTH) {
+    throw new Error(
+      `TWO_FACTOR_ENCRYPTION_KEY for ${version} must decode to ${KEY_BYTE_LENGTH} bytes (AES-256-GCM); got ${keyBuffer.length}`
+    )
+  }
+  return keyBuffer
 }
 
 /**

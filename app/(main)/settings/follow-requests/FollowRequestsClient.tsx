@@ -1,9 +1,3 @@
-/**
- * @fileoverview フォローリクエスト管理のクライアントコンポーネント
- *
- * フォローリクエストの一覧表示と承認/拒否/キャンセル操作を行います。
- */
-
 'use client'
 
 import { useState } from 'react'
@@ -50,9 +44,6 @@ export function FollowRequestsClient({
   const { toast } = useToast()
   const router = useRouter()
 
-  /**
-   * ローディング状態を設定
-   */
   const setLoading = (id: string, loading: boolean) => {
     setLoadingIds((prev) => {
       const next = new Set(prev)
@@ -65,9 +56,6 @@ export function FollowRequestsClient({
     })
   }
 
-  /**
-   * フォローリクエストを承認
-   */
   async function handleApprove(requestId: string) {
     setLoading(requestId, true)
 
@@ -91,9 +79,6 @@ export function FollowRequestsClient({
     router.refresh()
   }
 
-  /**
-   * フォローリクエストを拒否
-   */
   async function handleReject(requestId: string) {
     setLoading(requestId, true)
 
@@ -116,9 +101,6 @@ export function FollowRequestsClient({
     router.refresh()
   }
 
-  /**
-   * 送信したフォローリクエストをキャンセル
-   */
   async function handleCancel(userId: string, requestId: string) {
     setLoading(requestId, true)
 
@@ -141,9 +123,6 @@ export function FollowRequestsClient({
     router.refresh()
   }
 
-  /**
-   * 日付をフォーマット
-   */
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('ja-JP', {
       year: 'numeric',
@@ -189,7 +168,6 @@ export function FollowRequestsClient({
 
       <div>
         {activeTab === 'received' ? (
-          // 受信したリクエスト
           receivedRequests.length > 0 ? (
             <div className="divide-y">
               {receivedRequests.map((request) => (
@@ -256,7 +234,6 @@ export function FollowRequestsClient({
             </div>
           )
         ) : (
-          // 送信したリクエスト
           sentRequests.length > 0 ? (
             <div className="divide-y">
               {sentRequests.map((request) => (

@@ -24,7 +24,7 @@ export async function publishScheduledPosts(
   cronSecret?: string,
 ): Promise<ActionResult<{ published: number; failed: number }>> {
   const expectedSecret = getCronSecret()
-  if (expectedSecret && cronSecret !== expectedSecret) {
+  if (!expectedSecret || cronSecret !== expectedSecret) {
     return actionError(ERR_AUTH_ERROR)
   }
 

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Calendar, ChevronRight, Mail, User } from 'lucide-react'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getAdminUserDetail } from '@/lib/actions/admin/users'
@@ -8,58 +8,11 @@ import { UserDetailActions } from './UserDetailActions'
 import { ADMIN_USER_RECENT_POSTS_LIMIT, ADMIN_USER_RECENT_ACTIVITY_LIMIT } from '@/lib/constants/limits'
 import { buildPostPath, buildUserPath } from '@/lib/constants/path-builders'
 
-function ArrowLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
-    </svg>
-  )
-}
-
-function UserIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-    </svg>
-  )
-}
-
-function MailIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-    </svg>
-  )
-}
-
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>
-    </svg>
-  )
-}
-
-function AlertTriangleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>
-    </svg>
-  )
-}
-
 type Props = {
   /** URLパラメータ（ユーザーID） */
   params: Promise<{ id: string }>
 }
 
-/**
- * 動的メタデータ生成関数
- * ユーザーのニックネームをページタイトルに含める
- *
- * @param params - URLパラメータ
- * @returns ページメタデータ
- */
 export async function generateMetadata({ params }: Props) {
   const { id } = await params
   const result = await getAdminUserDetail(id)
@@ -77,19 +30,6 @@ export async function generateMetadata({ params }: Props) {
   }
 }
 
-/**
- * 管理者用ユーザー詳細ページコンポーネント
- * ユーザーの基本情報、統計、最近の投稿、通報履歴を表示する
- *
- * @param params - URLパラメータ（ユーザーID）
- * @returns ユーザー詳細ページのJSX要素
- *
- * 処理内容:
- * 1. ユーザー詳細情報を取得（存在しない場合は404）
- * 2. 最近の投稿5件を取得
- * 3. このユーザーに対する通報履歴を取得
- * 4. 基本情報、統計、投稿、通報を2カラムレイアウトで表示
- */
 export default async function AdminUserDetailPage({ params }: Props) {
   const { id } = await params
   const result = await getAdminUserDetail(id)
@@ -149,7 +89,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
           href="/admin/users"
           className="p-2 hover:bg-muted rounded-lg"
         >
-          <ArrowLeftIcon className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-2xl font-bold">ユーザー詳細</h1>
       </div>
@@ -168,7 +108,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                 />
               ) : (
                 <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
-                  <UserIcon className="w-10 h-10 text-muted-foreground" />
+                  <User className="w-10 h-10 text-muted-foreground" />
                 </div>
               )}
 
@@ -188,16 +128,16 @@ export default async function AdminUserDetailPage({ params }: Props) {
 
                 <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
-                    <MailIcon className="w-4 h-4" />
+                    <Mail className="w-4 h-4" />
                     <span>{user.email}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4" />
+                    <Calendar className="w-4 h-4" />
                     <span>登録日: {new Date(user.createdAt).toLocaleDateString('ja-JP')}</span>
                   </div>
                   {user.isSuspended && user.suspendedAt && (
                     <div className="flex items-center gap-2 text-destructive">
-                      <AlertTriangleIcon className="w-4 h-4" />
+                      <AlertTriangle className="w-4 h-4" />
                       <span>停止日: {new Date(user.suspendedAt).toLocaleDateString('ja-JP')}</span>
                     </div>
                   )}
@@ -258,7 +198,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
           {reportsAgainstUser.length > 0 && (
             <div className="bg-card rounded-lg border">
               <h3 className="px-4 py-3 font-semibold border-b flex items-center gap-2">
-                <AlertTriangleIcon className="w-4 h-4 text-muted-foreground" />
+                <AlertTriangle className="w-4 h-4 text-muted-foreground" />
                 このユーザーへの通報 ({reportCount}件)
               </h3>
               <div className="divide-y">

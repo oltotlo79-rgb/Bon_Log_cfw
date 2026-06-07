@@ -606,6 +606,16 @@ describe('Scheduled Post Actions', async () => {
   // ============================================================
 
   describe('publishScheduledPosts', async () => {
+    // publishScheduledPosts は fail-closed。公開ロジックのテストでは正規のシークレットで認証する。
+    const originalCronSecret = process.env.CRON_SECRET
+    beforeEach(() => {
+      process.env.CRON_SECRET = 'test-secret'
+    })
+    afterEach(() => {
+      if (originalCronSecret === undefined) delete process.env.CRON_SECRET
+      else process.env.CRON_SECRET = originalCronSecret
+    })
+
     it('予約投稿を公開できる', async () => {
       const now = new Date()
       const pastDate = new Date(now.getTime() - 60000) // 1分前
@@ -626,7 +636,7 @@ describe('Scheduled Post Actions', async () => {
       })
 
       const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts()
+      const result = await publishScheduledPosts('test-secret')
 
       expect(result.success).toBe(true)
       if (result.success) {
@@ -639,7 +649,7 @@ describe('Scheduled Post Actions', async () => {
       mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([])
 
       const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts()
+      const result = await publishScheduledPosts('test-secret')
 
       expect(result).toMatchObject({ success: true, data: { published: 0, failed: 0 } })
     })
@@ -665,7 +675,7 @@ describe('Scheduled Post Actions', async () => {
       })
 
       const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts()
+      const result = await publishScheduledPosts('test-secret')
 
       expect(result.success).toBe(true)
       if (result.success) {
@@ -728,7 +738,7 @@ describe('Scheduled Post Actions', async () => {
       })
 
       const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts()
+      const result = await publishScheduledPosts('test-secret')
 
       expect(result.success).toBe(true)
       if (result.success) {
@@ -932,6 +942,20 @@ describe('Scheduled Post Actions', async () => {
       expect(result).toMatchObject({ error: '認証エラー' })
 
       process.env.CRON_SECRET = originalEnv
+    })
+
+    it('CRON_SECRETが未設定の場合、fail-closed で拒否し公開処理を実行しない', async () => {
+      const originalEnv = process.env.CRON_SECRET
+      delete process.env.CRON_SECRET
+
+      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
+      const result = await publishScheduledPosts('any-secret')
+
+      expect(result).toMatchObject({ error: '認証エラー' })
+      expect(mockPrisma.scheduledPost.findMany).not.toHaveBeenCalled()
+
+      if (originalEnv === undefined) delete process.env.CRON_SECRET
+      else process.env.CRON_SECRET = originalEnv
     })
 
     it('CRON_SECRETが設定されている場合、正しいシークレットで実行できる', async () => {

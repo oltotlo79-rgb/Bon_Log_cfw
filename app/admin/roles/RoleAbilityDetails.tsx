@@ -3,6 +3,7 @@ import {
   CATEGORY_LABELS,
   ROLE_LABELS,
   ROLE_PRIORITY,
+  ROLE_PRIORITY_ADMIN_THRESHOLD,
   getRoleCapabilities,
   type AdminActionCategory,
 } from '@/lib/admin-permissions'
@@ -122,7 +123,7 @@ export function RoleAbilityDetails() {
                       key={category}
                       className="group rounded-md border bg-background"
                       // 上位ロールでは初期展開、下位ロールでは折りたたみ
-                      open={ROLE_PRIORITY[role] >= 80}
+                      open={ROLE_PRIORITY[role] >= ROLE_PRIORITY_ADMIN_THRESHOLD}
                     >
                       <summary className="flex items-center justify-between cursor-pointer px-3 py-2 text-sm font-medium hover:bg-muted/50 rounded-md list-none">
                         <span>{CATEGORY_LABELS[category]}</span>

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { Search, Star } from 'lucide-react'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getAdminReviews } from '@/lib/actions/admin/content'
 import { ReviewActionsDropdown } from './ReviewActionsDropdown'
@@ -9,38 +10,10 @@ import { buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * 検索アイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="11" cy="11" r="8"/>
-      <path d="m21 21-4.3-4.3"/>
-    </svg>
-  )
-}
-
-function StarIcon({ className, filled }: { className?: string; filled?: boolean }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-    </svg>
-  )
-}
-
-/**
- * ブラウザのタイトルバーに表示される
- */
 export const metadata = {
   title: 'レビュー管理 - BON-LOG 管理',
 }
 
-/**
- * URLのクエリパラメータを受け取る
- */
 interface PageProps {
   searchParams: Promise<{
     /** レビュー内容の検索キーワード */
@@ -54,19 +27,6 @@ interface PageProps {
   }>
 }
 
-/**
- * 管理者用レビュー管理ページコンポーネント
- * レビュー一覧をテーブル形式で表示し、検索・フィルタリング機能を提供する
- *
- * @param searchParams - URLのクエリパラメータ
- * @returns レビュー管理ページのJSX要素
- *
- * 処理内容:
- * 1. クエリパラメータから検索条件を取得
- * 2. ページネーション設定（1ページ20件）
- * 3. getAdminReviewsでレビュー一覧を取得
- * 4. 検索フォーム、レビューテーブル、ページネーションを表示
- */
 export default async function AdminReviewsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const search = params.search || ''
@@ -96,7 +56,7 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
         <form className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 name="search"
@@ -173,10 +133,10 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((star) => (
-                      <StarIcon
+                      <Star
                         key={star}
                         className={`w-4 h-4 ${star <= review.rating ? 'text-foreground' : 'text-muted-foreground'}`}
-                        filled={star <= review.rating}
+                        fill={star <= review.rating ? 'currentColor' : 'none'}
                       />
                     ))}
                   </div>

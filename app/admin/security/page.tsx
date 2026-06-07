@@ -9,7 +9,11 @@ import {
 } from 'lucide-react'
 import { getSecurityDashboard, getSecurityEvents } from '@/lib/actions/admin/security'
 import { SecurityEventList } from './SecurityEventList'
-import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
+import {
+  DEFAULT_PAGE_LIMIT,
+  FAILED_IP_ALERT_HIGH,
+  FAILED_IP_ALERT_MEDIUM,
+} from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { toJsonObject } from '@/lib/utils/json'
 import { CursorPagination } from '@/components/admin/CursorPagination'
@@ -18,9 +22,6 @@ export const metadata = {
   title: 'セキュリティダッシュボード - BON-LOG 管理',
 }
 
-/**
- * 静的生成を無効化
- */
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
@@ -42,12 +43,6 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   email_change: 'メール変更',
 }
 
-/**
- * セキュリティダッシュボードページコンポーネント
- *
- * @param searchParams - URLのクエリパラメータ
- * @returns セキュリティダッシュボードのJSX要素
- */
 export default async function SecurityDashboardPage({ searchParams }: PageProps) {
   const params = await searchParams
   const eventType = params.eventType || ''
@@ -56,7 +51,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
   const dateTo = params.dateTo || ''
   const { cursor, trail } = parseAdminCursor(params)
 
-  // ダッシュボードサマリーとイベント一覧を並列取得
   const [dashboardResult, eventsResult] = await Promise.all([
     getSecurityDashboard(),
     getSecurityEvents({
@@ -69,7 +63,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
     }),
   ])
 
-  // 権限エラー時はリダイレクト
   if ('error' in dashboardResult) {
     redirect(ROUTE_LOGIN)
   }
@@ -81,7 +74,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
   const dashboard = dashboardResult
   const { events, total, nextCursor } = eventsResult
 
-  // バーチャート用の最大値を算出
   const maxEventCount = dashboard.eventsByType.length > 0
     ? Math.max(...dashboard.eventsByType.map(e => e.count))
     : 1
@@ -168,9 +160,9 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
                       <td className="py-2 px-3 font-mono text-sm">{ip.ipAddress}</td>
                       <td className="py-2 px-3 text-right">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          ip.count >= 10
+                          ip.count >= FAILED_IP_ALERT_HIGH
                             ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                            : ip.count >= 5
+                            : ip.count >= FAILED_IP_ALERT_MEDIUM
                               ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
                               : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                         }`}>
@@ -215,7 +207,6 @@ export default async function SecurityDashboardPage({ searchParams }: PageProps)
         </div>
       </div>
 
-      {/* セキュリティイベント一覧（Client Component） */}
       <Suspense fallback={<div className="text-sm text-muted-foreground">イベントログを読み込み中...</div>}>
         <SecurityEventList
           events={events.map(e => ({

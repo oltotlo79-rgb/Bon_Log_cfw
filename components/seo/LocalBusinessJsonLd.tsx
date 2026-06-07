@@ -27,7 +27,7 @@ export function LocalBusinessJsonLd({
 }: LocalBusinessJsonLdProps) {
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'LocalBusiness',
+    '@type': 'Store',
     '@id': url,
     name,
     address: {

@@ -32,6 +32,26 @@ export const ACTION_UPDATE_ADMIN_ROLE = 'update_admin_role'
 export const ACTION_ADD_ADMIN = 'add_admin'
 export const ACTION_REMOVE_ADMIN = 'remove_admin'
 
+// ユーザー管理
+export const ACTION_SUSPEND_USER = 'suspend_user'
+export const ACTION_ACTIVATE_USER = 'activate_user'
+export const ACTION_DELETE_USER = 'delete_user'
+
+// プレミアム管理
+export const ACTION_GRANT_PREMIUM = 'grant_premium'
+export const ACTION_REVOKE_PREMIUM = 'revoke_premium'
+export const ACTION_EXTEND_PREMIUM = 'extend_premium'
+
+// コンテンツ削除
+export const ACTION_DELETE_POST = 'delete_post'
+export const ACTION_DELETE_EVENT = 'delete_event'
+export const ACTION_DELETE_SHOP = 'delete_shop'
+export const ACTION_DELETE_REVIEW = 'delete_review'
+
+// 非表示コンテンツ
+export const ACTION_RESTORE_CONTENT = 'restore_content'
+export const ACTION_DELETE_HIDDEN_CONTENT = 'delete_hidden_content'
+
 // 農薬データ
 export const ACTION_CREATE_PESTICIDE = 'create_pesticide'
 export const ACTION_UPDATE_PESTICIDE = 'update_pesticide'

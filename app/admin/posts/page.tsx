@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { Search } from 'lucide-react'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { buildPostPath, buildUserPath } from '@/lib/constants/path-builders'
 import { getAdminPosts } from '@/lib/actions/admin/posts'
@@ -9,30 +10,10 @@ import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * 検索アイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="11" cy="11" r="8"/>
-      <path d="m21 21-4.3-4.3"/>
-    </svg>
-  )
-}
-
-/**
- * ブラウザのタイトルバーに表示される
- */
 export const metadata = {
   title: '投稿管理 - BON-LOG 管理',
 }
 
-/**
- * URLのクエリパラメータを受け取る
- */
 interface PageProps {
   searchParams: Promise<{
     /** 投稿内容の検索キーワード */
@@ -46,19 +27,6 @@ interface PageProps {
   }>
 }
 
-/**
- * 管理者用投稿管理ページコンポーネント
- * 投稿一覧をテーブル形式で表示し、検索・フィルタリング機能を提供する
- *
- * @param searchParams - URLのクエリパラメータ
- * @returns 投稿管理ページのJSX要素
- *
- * 処理内容:
- * 1. クエリパラメータから検索条件を取得
- * 2. ページネーション設定（1ページ20件）
- * 3. getAdminPostsで投稿一覧を取得
- * 4. 検索フォーム、投稿テーブル、ページネーションを表示
- */
 export default async function AdminPostsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const search = params.search || ''
@@ -88,7 +56,7 @@ export default async function AdminPostsPage({ searchParams }: PageProps) {
         <form className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 name="search"

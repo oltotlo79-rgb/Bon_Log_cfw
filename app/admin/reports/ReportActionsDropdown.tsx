@@ -3,25 +3,11 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { MoreVertical } from 'lucide-react'
 import { updateReportStatus, deleteReportedContent, deleteReport } from '@/lib/actions/report'
 import { REPORT_DROPDOWN_DIRECTION_THRESHOLD } from '@/lib/constants/limits'
 import { buildPostPath, buildEventPath, buildShopPath, buildUserPath } from '@/lib/constants/path-builders'
 import { useToast } from '@/hooks/use-toast'
-
-/**
- * 縦三点メニューアイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function MoreVerticalIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="12" cy="12" r="1"/>
-      <circle cx="12" cy="5" r="1"/>
-      <circle cx="12" cy="19" r="1"/>
-    </svg>
-  )
-}
 
 interface ReportActionsDropdownProps {
   /** 操作対象の通報ID */
@@ -46,23 +32,6 @@ const targetTypeLabels: Record<string, string> = {
   user: 'ユーザー',
 }
 
-/**
- * 通報アクションドロップダウンコンポーネント
- * 通報に対する管理操作を提供するドロップダウンメニュー
- *
- * @param reportId - 操作対象の通報ID
- * @param currentStatus - 現在のステータス
- * @param targetType - 通報対象の種類
- * @param targetId - 通報対象のID
- * @returns ドロップダウンメニューのJSX要素
- *
- * 機能:
- * - 対象コンテンツへのリンク
- * - ステータス変更（確認中/対応完了/却下/未対応に戻す）
- * - 通報対象の削除/停止（確認ダイアログ付き）
- * - 通報レコードのみ削除
- * - メニュー位置の自動調整（画面端対応）
- */
 export function ReportActionsDropdown({
   reportId,
   currentStatus,
@@ -166,7 +135,7 @@ export function ReportActionsDropdown({
         className="p-2 hover:bg-muted rounded-lg"
         disabled={isSubmitting}
       >
-        <MoreVerticalIcon className="w-4 h-4" />
+        <MoreVertical className="w-4 h-4" />
       </button>
 
       {isOpen && (

@@ -178,6 +178,9 @@ export const ROLE_PRIORITY: Record<AdminRole, number> = {
   readonly: 20,
 }
 
+/** admin 相当（admin / super_admin）とみなす優先度の下限。UI の初期展開などの分岐で使う */
+export const ROLE_PRIORITY_ADMIN_THRESHOLD = 80
+
 /** 自分より低いロールのみ変更可能 */
 export function canManageRole(myRole: AdminRole, targetRole: AdminRole): boolean {
   return ROLE_PRIORITY[myRole] > ROLE_PRIORITY[targetRole]

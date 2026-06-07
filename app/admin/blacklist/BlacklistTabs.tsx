@@ -1,16 +1,10 @@
 'use client'
 
-// Reactのフック（状態管理用）
 import { useState } from 'react'
-// Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
-// Next.jsのLinkコンポーネント（クライアントサイドナビゲーション用）
 import Link from 'next/link'
-// UIコンポーネント
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-// アイコン: lucide-react は依存に含まれており、admin 配下の他ページと同じ取り回しに統一する。
-// next.config.ts の experimental.optimizePackageImports に指定済みのため tree-shake が効く。
 import {
   Mail as MailIcon,
   Monitor as MonitorIcon,
@@ -18,7 +12,6 @@ import {
   Search as SearchIcon,
   Trash2 as TrashIcon,
 } from 'lucide-react'
-// ブラックリスト管理用のServer Actions
 import {
   addEmailToBlacklist,
   removeEmailFromBlacklist,
@@ -81,24 +74,8 @@ interface BlacklistTabsProps {
 }
 
 /**
- * ブラックリストタブコンポーネント
- * メールアドレスとデバイスのブラックリストをタブで切り替えて表示・管理する
- *
- * @param props - BlacklistTabsPropsオブジェクト
- * @returns ブラックリストタブのJSX要素
- *
- * 機能:
- * - タブ切り替え（メールアドレス/デバイス）
- * - 検索機能
- * - 新規追加（モーダルフォーム）
- * - 削除（確認ダイアログ付き）
- * - ページネーション
- *
- * なぜこの機能が必要か:
- * スパムアカウントや悪質なユーザーが異なるメールアドレスで再登録したり、
- * 同じデバイスから複数アカウントを作成することを防ぐため。
- * メールアドレスとデバイスフィンガープリント両方をブロックすることで、
- * より確実な再登録防止が可能になる。
+ * スパムアカウントの再登録対策。メールと device fingerprint の両方をブロックすることで、
+ * 別メールでの再登録・同一端末からの複数アカウント作成を抑止する。
  */
 export function BlacklistTabs({
   tab,
@@ -132,11 +109,6 @@ export function BlacklistTabs({
   const currentNextCursor = tab === 'email' ? emailNextCursor : deviceNextCursor
   const isFirstPage = !cursor
 
-  /**
-   * タブを切り替える関数
-   * URLクエリパラメータを更新してページを再読み込み
-   * @param newTab - 切り替え先のタブ
-   */
   const handleTabChange = (newTab: 'email' | 'device') => {
     router.push(`/admin/blacklist?tab=${newTab}`)
   }
@@ -207,11 +179,6 @@ export function BlacklistTabs({
     router.refresh()
   }
 
-  /**
-   * メールアドレスをブラックリストから削除する関数
-   * 誤ってブロックした場合の復旧用
-   * @param id - ブラックリストレコードID
-   */
   const handleRemoveEmail = async (id: string) => {
     // 確認ダイアログで削除を確認（誤操作防止）
     if (!confirm('このメールアドレスをブラックリストから削除しますか？')) return
@@ -227,11 +194,6 @@ export function BlacklistTabs({
     router.refresh()
   }
 
-  /**
-   * デバイスをブラックリストから削除する関数
-   * 誤ってブロックした場合の復旧用
-   * @param id - ブラックリストレコードID
-   */
   const handleRemoveDevice = async (id: string) => {
     // 確認ダイアログで削除を確認（誤操作防止）
     if (!confirm('このデバイスをブラックリストから削除しますか？')) return

@@ -1,103 +1,18 @@
 'use client'
 
-// ReactのuseStateとuseEffectフック（状態管理と副作用用）
 import { useState, useEffect } from 'react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  RefreshCw,
+  Settings,
+  XCircle,
+} from 'lucide-react'
 import type { ServiceUsage } from '@/lib/services/usage'
 import { USAGE_DANGER_THRESHOLD, USAGE_WARNING_THRESHOLD } from '@/lib/constants/limits'
 
-/**
- * 更新/リフレッシュアイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function RefreshIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-      <path d="M21 3v5h-5"/>
-      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-      <path d="M8 16H3v5"/>
-    </svg>
-  )
-}
-
-/**
- * 外部リンクアイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function ExternalLinkIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-      <polyline points="15 3 21 3 21 9"/>
-      <line x1="10" x2="21" y1="14" y2="3"/>
-    </svg>
-  )
-}
-
-/**
- * チェック/成功アイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function CheckCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-      <polyline points="22 4 12 14.01 9 11.01"/>
-    </svg>
-  )
-}
-
-/**
- * 警告/アラートアイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function AlertTriangleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-      <line x1="12" x2="12" y1="9" y2="13"/>
-      <line x1="12" x2="12.01" y1="17" y2="17"/>
-    </svg>
-  )
-}
-
-/**
- * エラー/Xアイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function XCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="12" cy="12" r="10"/>
-      <path d="m15 9-6 6"/>
-      <path d="m9 9 6 6"/>
-    </svg>
-  )
-}
-
-/**
- * 設定/歯車アイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function SettingsIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  )
-}
-
-/**
- * 各サービスのロゴアイコン定義
- * サービス名をキーとしてSVGアイコンを格納
- */
+/** サービス名をキーにしたブランドロゴ。lucide に無い独自ロゴのため生 SVG を保持する */
 const serviceIcons: Record<string, React.ReactNode> = {
   Vercel: (
     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
@@ -133,10 +48,6 @@ const serviceIcons: Record<string, React.ReactNode> = {
   ),
 }
 
-/**
- * 各サービスのブランドカラー定義
- * サービス名をキーとしてTailwind CSSクラスを格納
- */
 const serviceColors: Record<string, string> = {
   Vercel: 'bg-black text-white',
   Supabase: 'bg-emerald-600 text-white',
@@ -144,26 +55,12 @@ const serviceColors: Record<string, string> = {
   Resend: 'bg-black text-white',
 }
 
-/**
- * 個別サービス使用量カードコンポーネント
- * 1つのサービスの使用状況を表示するカード
- *
- * @param service - サービス使用量データ
- * @returns サービスカードのJSX要素
- *
- * 表示内容:
- * - サービス名とロゴ
- * - ステータス（正常/警告/エラー/未設定）
- * - 使用量プログレスバー
- * - ダッシュボードへのリンク
- * - エラーメッセージ・ヘルプテキスト
- */
 function UsageCard({ service }: { service: ServiceUsage }) {
   const statusIcon = {
-    ok: <CheckCircleIcon className="w-5 h-5 text-foreground" />,
-    warning: <AlertTriangleIcon className="w-5 h-5 text-muted-foreground" />,
-    error: <XCircleIcon className="w-5 h-5 text-destructive" />,
-    unconfigured: <SettingsIcon className="w-5 h-5 text-muted-foreground" />,
+    ok: <CheckCircle2 className="w-5 h-5 text-foreground" />,
+    warning: <AlertTriangle className="w-5 h-5 text-muted-foreground" />,
+    error: <XCircle className="w-5 h-5 text-destructive" />,
+    unconfigured: <Settings className="w-5 h-5 text-muted-foreground" />,
   }
 
   const statusLabel = {
@@ -207,7 +104,7 @@ function UsageCard({ service }: { service: ServiceUsage }) {
           className="p-2 hover:bg-muted rounded-lg transition-colors"
           title="ダッシュボードを開く"
         >
-          <ExternalLinkIcon className="w-4 h-4 text-muted-foreground" />
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
         </a>
       </div>
 
@@ -228,7 +125,7 @@ function UsageCard({ service }: { service: ServiceUsage }) {
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
             >
               トークンを作成
-              <ExternalLinkIcon className="w-3 h-3" />
+              <ExternalLink className="w-3 h-3" />
             </a>
           )}
         </div>
@@ -283,7 +180,7 @@ function UsageCard({ service }: { service: ServiceUsage }) {
             className="inline-flex items-center gap-1 text-muted-foreground hover:underline font-medium"
           >
             Vercel Usage ダッシュボード
-            <ExternalLinkIcon className="w-3 h-3" />
+            <ExternalLink className="w-3 h-3" />
           </a>
         </div>
       )}
@@ -299,19 +196,6 @@ function UsageCard({ service }: { service: ServiceUsage }) {
   )
 }
 
-/**
- * サービス使用量カード一覧コンポーネント
- * 全サービスの使用量カードを表示し、データ取得・更新機能を提供する
- *
- * @returns サービス使用量カード一覧のJSX要素
- *
- * 機能:
- * - 初回マウント時に使用量データを取得
- * - 手動更新ボタン
- * - ローディング状態のスケルトン表示
- * - エラー表示
- * - 未設定サービスの環境変数設定ガイド
- */
 export function UsageCards() {
   const [services, setServices] = useState<ServiceUsage[]>([])
   const [loading, setLoading] = useState(true)
@@ -375,7 +259,7 @@ export function UsageCards() {
           disabled={loading}
           className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          <RefreshIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           更新
         </button>
       </div>

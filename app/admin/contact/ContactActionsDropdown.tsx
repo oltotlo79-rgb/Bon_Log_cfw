@@ -1,12 +1,8 @@
 'use client'
 
-// Reactのフック（状態管理、DOM参照、副作用処理用）
 import { useState, useRef, useEffect, useCallback } from 'react'
-// React DOMのcreatePortal（ドロップダウンメニューをbody直下に配置するため）
 import { createPortal } from 'react-dom'
-// Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
-// お問い合わせ管理用のServer Actions
 import { updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { useToast } from '@/hooks/use-toast'
 
@@ -18,22 +14,8 @@ interface ContactActionsDropdownProps {
 }
 
 /**
- * お問い合わせアクションドロップダウンコンポーネント
- * ステータス変更と削除の操作を提供するドロップダウンメニュー
- *
- * @param inquiryId - お問い合わせID
- * @param currentStatus - 現在のステータス
- * @returns ドロップダウンメニューのJSX要素
- *
- * 機能:
- * - ステータス変更（現在のステータス以外の選択肢を表示）
- * - お問い合わせの削除
- * - メニュー位置の自動調整（画面端対応）
- * - 外部クリックで自動的にメニューを閉じる
- *
- * なぜcreatePortalを使うか:
- * テーブル内のz-indexやoverflowの制約を回避し、
- * メニューが常に最前面に表示されるようにするため。
+ * createPortal でメニューを body 直下に出す: テーブル内の z-index / overflow 制約を回避し
+ * 常に最前面へ表示するため。
  */
 export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActionsDropdownProps) {
   const { toast } = useToast()

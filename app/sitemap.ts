@@ -205,47 +205,47 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: { startDate: 'asc' },
     }),
     prisma.bonsaiTerm.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_DICTIONARY_LIMIT,
     }),
     prisma.pesticide.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_PESTICIDES_LIMIT,
     }),
     prisma.diseasePest.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_DISEASE_PESTS_LIMIT,
     }),
     prisma.pesticideColumn.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_PESTICIDE_COLUMNS_LIMIT,
     }),
     prisma.activeIngredient.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_ACTIVE_INGREDIENTS_LIMIT,
     }),
     prisma.spreaderType.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_SPREADER_TYPES_LIMIT,
     }),
     prisma.fertilizerColumn.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_FERTILIZER_COLUMNS_LIMIT,
     }),
     prisma.fertilizerNutrient.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_FERTILIZER_NUTRIENTS_LIMIT,
     }),
     prisma.treeSpecies.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_TREE_SPECIES_LIMIT,
     }),
     prisma.hormoneType.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_HORMONE_TYPES_LIMIT,
     }),
     prisma.hormoneColumn.findMany({
-      select: { slug: true },
+      select: { slug: true, updatedAt: true },
       take: SITEMAP_HORMONE_COLUMNS_LIMIT,
     }),
   ])
@@ -281,56 +281,67 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const referencePages: MetadataRoute.Sitemap = [
     ...terms.map((term: typeof terms[number]) => ({
       url: `${baseUrl}${ROUTE_DICTIONARY}/${term.slug}`,
+      lastModified: term.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...pesticides.map((p: typeof pesticides[number]) => ({
       url: `${baseUrl}${ROUTE_PESTICIDES}/products/${p.slug}`,
+      lastModified: p.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...diseasePests.map((dp: typeof diseasePests[number]) => ({
       url: `${baseUrl}${ROUTE_PESTICIDES_DISEASES_PESTS}/${dp.slug}`,
+      lastModified: dp.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...pesticideColumns.map((c: typeof pesticideColumns[number]) => ({
       url: `${baseUrl}${ROUTE_PESTICIDES_COLUMNS}/${c.slug}`,
+      lastModified: c.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...activeIngredients.map((i: typeof activeIngredients[number]) => ({
       url: `${baseUrl}${ROUTE_PESTICIDES_INGREDIENTS}/${i.slug}`,
+      lastModified: i.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...spreaderTypes.map((s: typeof spreaderTypes[number]) => ({
       url: `${baseUrl}${ROUTE_PESTICIDES_SPREADERS}/${s.slug}`,
+      lastModified: s.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...fertilizerColumns.map((c: typeof fertilizerColumns[number]) => ({
       url: `${baseUrl}${ROUTE_FERTILIZERS_COLUMNS}/${c.slug}`,
+      lastModified: c.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...fertilizerNutrients.map((n: typeof fertilizerNutrients[number]) => ({
       url: `${baseUrl}${ROUTE_FERTILIZERS_NUTRIENTS}/${n.slug}`,
+      lastModified: n.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...treeSpecies.map((t: typeof treeSpecies[number]) => ({
       url: `${baseUrl}${ROUTE_FERTILIZERS_SCHEDULES}/${t.slug}`,
+      lastModified: t.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...hormoneTypes.map((h: typeof hormoneTypes[number]) => ({
       url: `${baseUrl}${ROUTE_HORMONES}/${h.slug}`,
+      lastModified: h.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),
     ...hormoneColumns.map((c: typeof hormoneColumns[number]) => ({
       url: `${baseUrl}${ROUTE_HORMONE_COLUMNS}/${c.slug}`,
+      lastModified: c.updatedAt,
       changeFrequency: REFERENCE_CHANGE_FREQUENCY,
       priority: REFERENCE_PRIORITY,
     })),

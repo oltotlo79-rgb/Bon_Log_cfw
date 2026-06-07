@@ -70,9 +70,10 @@ const nextConfig: NextConfig = {
     unoptimized: process.env.NODE_ENV === 'development',
   },
   experimental: {
-    // lucide-react (1000+ アイコン) / date-fns を optimizePackageImports で
-    // ツリーシェイキング強化。cold start とバンドルサイズを削減する。
-    optimizePackageImports: ['lucide-react', 'date-fns'],
+    // lucide-react (1000+ アイコン) / date-fns / @tanstack/react-query を
+    // optimizePackageImports でツリーシェイキング強化。barrel import を直接モジュール
+    // パスに解決し、cold start とバンドルサイズを削減する。
+    optimizePackageImports: ['lucide-react', 'date-fns', '@tanstack/react-query'],
     serverActions: {
       bodySizeLimit: SERVER_ACTION_BODY_SIZE_LIMIT,
     },

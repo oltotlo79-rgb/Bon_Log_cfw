@@ -1,14 +1,11 @@
 'use client'
 
-// ReactのuseStateフック（状態管理用）
 import { useState, useTransition } from 'react'
-// Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
 import {
   updateMaintenanceSettings,
   type MaintenanceSettings,
 } from '@/lib/actions/maintenance'
-// UIコンポーネント（ボタン）
 import { Button } from '@/components/ui/button'
 import { TIMEOUT_TOAST } from '@/lib/constants/limits'
 
@@ -49,19 +46,6 @@ function toISOString(localDateTime: string): string | null {
   return new Date(localDateTime).toISOString()
 }
 
-/**
- * メンテナンス設定フォームコンポーネント
- * メンテナンスモードのオン/オフ、期間設定、メッセージ編集を行うフォーム
- *
- * @param settings - 現在のメンテナンス設定
- * @returns メンテナンス設定フォームのJSX要素
- *
- * 機能:
- * - クイックアクション（即座にメンテナンス開始/終了）
- * - 期間設定（開始日時・終了日時の指定）
- * - カスタムメッセージの設定
- * - フォーム送信時のバリデーションとエラー表示
- */
 export function MaintenanceForm({ settings }: MaintenanceFormProps) {
   const router = useRouter()
   // useTransition: 非同期処理中の状態を管理（isPendingがtrueの間、ボタンを無効化できる）
@@ -81,12 +65,6 @@ export function MaintenanceForm({ settings }: MaintenanceFormProps) {
   )
   const [message, setMessage] = useState(settings.message)
 
-  /**
-   * フォーム送信ハンドラ
-   * メンテナンス設定をServer Actionで更新し、結果に応じてUIを更新する
-   *
-   * @param e - フォーム送信イベント
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)

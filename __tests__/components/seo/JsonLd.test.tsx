@@ -86,7 +86,7 @@ describe('LocalBusinessJsonLd', () => {
 
     const jsonLd = JSON.parse(script?.textContent || '{}')
     expect(jsonLd['@context']).toBe('https://schema.org')
-    expect(jsonLd['@type']).toBe('LocalBusiness')
+    expect(jsonLd['@type']).toBe('Store')
     expect(jsonLd.name).toBe('○○盆栽園')
     expect(jsonLd.url).toBe('https://bon-log.com/shops/xxx')
   })

@@ -58,6 +58,12 @@ export const MULTI_ACCOUNT_MIN_THRESHOLD = 2
 /** セキュリティダッシュボードの失敗IPトップ件数 */
 export const TOP_FAILED_IPS_LIMIT = 10
 
+/** 失敗IPバッジを「高（赤）」と表示するログイン失敗回数の閾値 */
+export const FAILED_IP_ALERT_HIGH = 10
+
+/** 失敗IPバッジを「中（橙）」と表示するログイン失敗回数の閾値 */
+export const FAILED_IP_ALERT_MEDIUM = 5
+
 /** CSVエクスポートの最大行数 */
 export const CSV_EXPORT_MAX_ROWS = 5000
 

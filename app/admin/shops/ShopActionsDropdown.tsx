@@ -1,45 +1,17 @@
 'use client'
 
-// ReactのuseStateとuseRefフック（状態管理とDOM参照用）
 import { useState, useRef } from 'react'
-// Next.jsのルーター（ページ更新用）
 import { useRouter } from 'next/navigation'
-// 盆栽園削除用のServer Action
+import { MoreVertical } from 'lucide-react'
 import { deleteShopByAdmin } from '@/lib/actions/admin/content'
 import { DROPDOWN_DIRECTION_THRESHOLD } from '@/lib/constants/limits'
 import { useToast } from '@/hooks/use-toast'
-
-/**
- * 縦三点メニューアイコンコンポーネント
- * @param className - CSSクラス名
- * @returns SVGアイコン要素
- */
-function MoreVerticalIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="12" cy="12" r="1"/>
-      <circle cx="12" cy="5" r="1"/>
-      <circle cx="12" cy="19" r="1"/>
-    </svg>
-  )
-}
 
 interface ShopActionsDropdownProps {
   /** 操作対象の盆栽園ID */
   shopId: string
 }
 
-/**
- * 盆栽園アクションドロップダウンコンポーネント
- * 盆栽園に対する管理操作（削除）を提供するドロップダウンメニュー
- *
- * @param shopId - 操作対象の盆栽園ID
- * @returns ドロップダウンメニューのJSX要素
- *
- * 機能:
- * - 盆栽園削除（理由入力モーダル付き）
- * - メニュー位置の自動調整（画面端対応）
- */
 export function ShopActionsDropdown({ shopId }: ShopActionsDropdownProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -99,7 +71,7 @@ export function ShopActionsDropdown({ shopId }: ShopActionsDropdownProps) {
           onClick={handleToggle}
           className="p-2 hover:bg-muted rounded-lg"
         >
-          <MoreVerticalIcon className="w-4 h-4" />
+          <MoreVertical className="w-4 h-4" />
         </button>
 
         {isOpen && (

@@ -430,6 +430,29 @@ describe('two-factor', () => {
   })
 
   // ============================================================
+  // 暗号化キーの長さが不正な場合（AES-256-GCM は 32 バイト必須）
+  // ============================================================
+
+  describe('暗号化キーの長さが不正な場合', () => {
+    const originalKey = process.env.TWO_FACTOR_ENCRYPTION_KEY
+
+    afterEach(() => {
+      if (originalKey === undefined) delete process.env.TWO_FACTOR_ENCRYPTION_KEY
+      else process.env.TWO_FACTOR_ENCRYPTION_KEY = originalKey
+    })
+
+    it('32バイトにデコードされない鍵だと encryptSecret が明確なエラーを投げる', () => {
+      process.env.TWO_FACTOR_ENCRYPTION_KEY = 'abcdef' // 3 バイト（32 未満）
+      expect(() => encryptSecret('test')).toThrow(/must decode to 32 bytes/)
+    })
+
+    it('32バイトにデコードされない鍵だと decryptSecret も明確なエラーを投げる', () => {
+      process.env.TWO_FACTOR_ENCRYPTION_KEY = 'abcdef'
+      expect(() => decryptSecret('dGVzdA==')).toThrow(/must decode to 32 bytes/)
+    })
+  })
+
+  // ============================================================
   // 鍵バージョン管理（無停止ローテーション対応）
   // ============================================================
 

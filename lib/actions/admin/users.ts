@@ -7,6 +7,7 @@ import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
 import { ERR_USER_NOT_FOUND, ERR_USER_ALREADY_SUSPENDED, ERR_USER_NOT_SUSPENDED, ERR_CANNOT_DELETE_SELF, ERR_CANNOT_DELETE_ADMIN, ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_USERS } from '@/lib/constants/routes'
+import { ACTION_SUSPEND_USER, ACTION_ACTIVATE_USER, ACTION_DELETE_USER } from '@/lib/constants/admin-actions'
 import { logger } from '@/lib/logger'
 import { ReportTargetType } from '@prisma/client'
 import { recalculateHashtagCountsCore } from '@/lib/services/hashtag-recount'
@@ -168,7 +169,7 @@ export async function suspendUser(userId: string, reason: string) {
       prisma.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'suspend_user',
+          action: ACTION_SUSPEND_USER,
           targetType: 'user',
           targetId: idParsed.data,
           details: JSON.stringify({ reason: reasonParsed.data }),
@@ -216,7 +217,7 @@ export async function activateUser(userId: string) {
       prisma.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'activate_user',
+          action: ACTION_ACTIVATE_USER,
           targetType: 'user',
           targetId: idParsed.data,
           details: JSON.stringify({}),
@@ -282,7 +283,7 @@ export async function deleteUserByAdmin(userId: string, reason: string) {
       prisma.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'delete_user',
+          action: ACTION_DELETE_USER,
           targetType: 'user',
           targetId: idParsed.data,
           details: JSON.stringify({ reason: reasonParsed.data, deletedEmail: user.email, deletedNickname: user.nickname }),

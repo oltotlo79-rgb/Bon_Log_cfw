@@ -10,6 +10,7 @@ import { detachHashtagsFromPost } from '@/lib/services/hashtag-sync'
 import { revalidatePopularTagsCache, revalidateTrendingGenresCache } from '@/lib/cache'
 import { ERR_POST_NOT_FOUND, ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_POSTS } from '@/lib/constants/routes'
+import { ACTION_DELETE_POST } from '@/lib/constants/admin-actions'
 import { logger } from '@/lib/logger'
 import { adminIdSchema, adminReasonSchema } from './_schemas'
 
@@ -134,7 +135,7 @@ export async function deletePostByAdmin(postId: string, reason: string) {
       await tx.adminLog.create({
         data: {
           adminId: adminUserId,
-          action: 'delete_post',
+          action: ACTION_DELETE_POST,
           targetType: 'post',
           targetId: idParsed.data,
           details: JSON.stringify({ reason: reasonParsed.data }),

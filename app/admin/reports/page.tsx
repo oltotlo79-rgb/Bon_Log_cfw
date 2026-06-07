@@ -8,16 +8,10 @@ import { buildUserPath } from '@/lib/constants/path-builders'
 import { parseAdminCursor } from '@/lib/utils/admin-cursor'
 import { CursorPagination } from '@/components/admin/CursorPagination'
 
-/**
- * ブラウザのタイトルバーに表示される
- */
 export const metadata = {
   title: '通報管理 - BON-LOG 管理',
 }
 
-/**
- * URLのクエリパラメータを受け取る
- */
 interface PageProps {
   searchParams: Promise<{
     /** 通報ステータスフィルター */
@@ -62,18 +56,6 @@ const targetTypeLabels = {
   user: 'ユーザー',
 }
 
-/**
- * 管理者用通報管理ページコンポーネント
- * 通報一覧をテーブル形式で表示し、フィルタリング・対応操作機能を提供する
- *
- * @param searchParams - URLのクエリパラメータ
- * @returns 通報管理ページのJSX要素
- *
- * 処理内容:
- * 1. クエリパラメータからフィルター条件を取得
- * 2. getReportsで通報一覧を取得
- * 3. フィルターフォーム、通報テーブル、ページネーションを表示
- */
 export default async function AdminReportsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const status = params.status

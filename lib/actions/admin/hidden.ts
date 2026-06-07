@@ -18,6 +18,7 @@ import { clampLimit } from '@/lib/actions/pagination'
 import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_HIDDEN } from '@/lib/constants/routes'
+import { ACTION_RESTORE_CONTENT, ACTION_DELETE_HIDDEN_CONTENT } from '@/lib/constants/admin-actions'
 import { logger } from '@/lib/logger'
 import { adminIdSchema, contentTypeSchema } from './_schemas'
 
@@ -205,7 +206,7 @@ export async function restoreContent(type: ContentType, id: string) {
     await prisma.adminLog.create({
       data: {
         adminId: adminId,
-        action: 'restore_content',
+        action: ACTION_RESTORE_CONTENT,
         targetType: parsedType,
         targetId: parsedId,
       },
@@ -275,7 +276,7 @@ export async function deleteHiddenContent(type: ContentType, id: string) {
     await prisma.adminLog.create({
       data: {
         adminId: adminId,
-        action: 'delete_hidden_content',
+        action: ACTION_DELETE_HIDDEN_CONTENT,
         targetType: parsedType,
         targetId: parsedId,
       },

@@ -7,19 +7,23 @@
  * @module lib/fingerprint
  */
 
-import FingerprintJS from '@fingerprintjs/fingerprintjs'
 import { clientLogger } from '@/lib/client-logger'
 import { ONE_DAY_MS } from '@/lib/constants/limits'
 
+type FingerprintAgent = { get: () => Promise<{ visitorId: string }> }
+
 // シングルトンのFingerprintJSインスタンス
-let fpPromise: ReturnType<typeof FingerprintJS.load> | null = null
+let fpPromise: Promise<FingerprintAgent> | null = null
 
 /**
- * FingerprintJSインスタンスを取得する（シングルトン）
+ * FingerprintJSインスタンスを取得する（シングルトン）。
+ * ライブラリは login/register の初期バンドルから外すため動的 import する。
  */
-function getFingerprintJS() {
+function getFingerprintJS(): Promise<FingerprintAgent> {
   if (!fpPromise) {
-    fpPromise = FingerprintJS.load()
+    fpPromise = import('@fingerprintjs/fingerprintjs').then(({ default: FingerprintJS }) =>
+      FingerprintJS.load()
+    )
   }
   return fpPromise
 }

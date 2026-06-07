@@ -1,10 +1,7 @@
 'use client'
 
-// Reactのフック（状態管理用）
 import { useState } from 'react'
-// Next.jsのルーター（ページ遷移・更新用）
 import { useRouter } from 'next/navigation'
-// お問い合わせ管理用のServer Actions
 import { updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { useToast } from '@/hooks/use-toast'
 import { ROUTE_ADMIN_CONTACT } from '@/lib/constants/routes'
@@ -18,20 +15,6 @@ interface ContactDetailActionsProps {
   currentNote: string
 }
 
-/**
- * お問い合わせ詳細アクションコンポーネント
- * ステータス変更、メモ編集、削除機能を提供する
- *
- * @param inquiryId - お問い合わせID
- * @param currentStatus - 現在のステータス
- * @param currentNote - 現在の管理者メモ
- * @returns アクションパネルのJSX要素
- *
- * 機能:
- * - ステータス変更（未対応/対応中/解決済/クローズ）
- * - 管理者メモの編集（対応内容の記録用）
- * - お問い合わせの削除（スパム対策など）
- */
 export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: ContactDetailActionsProps) {
   const { toast } = useToast()
   // フォームの入力値の状態管理

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { requireAdmin } from '@/lib/actions/utils'
 import {
   API_ERR_UNAUTHORIZED,
@@ -30,6 +31,15 @@ import {
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+// Supabase Platform API は内部APIで契約外のため、レスポンス形状を信頼せず
+// 実際に消費する数値フィールドのみ検証する。欠落・型不一致は undefined に倒し、
+// 後段の「usage 0 件なら throw → pg_database_size() フォールバック」で吸収する。
+const supabasePlatformUsageSchema = z.object({
+  db_size: z.number().optional(),
+  disk_usage: z.number().optional(),
+  storage_size: z.number().optional(),
+})
 
 // Cloudflare R2使用量をS3 APIで正確に取得
 async function getCloudflareR2UsageWithS3(): Promise<ServiceUsage> {
@@ -207,8 +217,14 @@ async function getSupabaseUsageFromPlatformAPI(
     throw new Error(`Platform API: ${response.status}`)
   }
 
-  const data = await response.json()
-  logger.info('Platform API response:', JSON.stringify(data, null, 2))
+  const raw: unknown = await response.json()
+  logger.info('Platform API response:', JSON.stringify(raw, null, 2))
+
+  const parsed = supabasePlatformUsageSchema.safeParse(raw)
+  const data = parsed.success ? parsed.data : {}
+  if (!parsed.success) {
+    logger.info('Platform API: 想定外のレスポンス形状のため pg_database_size() にフォールバック')
+  }
 
   const usage: ServiceUsage['usage'] = []
 
