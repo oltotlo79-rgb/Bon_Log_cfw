@@ -34,9 +34,9 @@ export async function GET(
 ## Cronジョブ
 
 - `verifyCronAuth()` で認証。以下の 2 方式を受け付ける:
-  - Bearer: `Authorization: Bearer <CRON_SECRET>` — Vercel Cron の標準仕様（GET のみ）
+  - Bearer: `Authorization: Bearer <CRON_SECRET>` — GitHub Actions cron / Vercel Cron 互換（GET のみ）
   - HMAC: `Authorization: HMAC <sig>` + `X-Cron-Timestamp` — 外部スケジューラ用、リプレイ攻撃耐性あり
-- `vercel.json` でスケジュール定義
+- スケジュールは `.github/workflows/cron.yml`（fly.io 本番の実駆動）/ `vercel.json` で定義
 - HMAC を強制したい場合は `DISABLE_LEGACY_CRON_AUTH=true` を設定して Bearer を無効化する
 
 ## Webhook

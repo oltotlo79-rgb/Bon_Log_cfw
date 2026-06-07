@@ -50,6 +50,7 @@ npm run test:all      # 全テスト実行
 - **ストレージ**: Cloudflare R2 / **キャッシュ**: Upstash Redis
 - **メール**: Resend / **決済**: Stripe / **監視**: Sentry
 - **地図**: Leaflet + OpenStreetMap / **画像処理**: Sharp
+- **デプロイ**: fly.io (Docker standalone / Tokyo nrt、コンピュートのみ) / **Cron**: GitHub Actions (`.github/workflows/cron.yml`) / **ドメイン**: www.bon-log.com
 
 ## 核心ルール
 
