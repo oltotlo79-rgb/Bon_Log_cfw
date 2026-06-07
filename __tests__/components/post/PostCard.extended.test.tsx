@@ -5,7 +5,7 @@ import { vi } from 'vitest'
  * 非表示機能、メニュー操作、コンテンツなし、リポスト詳細のテスト
  */
 
-import { render, screen, waitFor, fireEvent } from '../../utils/test-utils'
+import { render, screen, waitFor } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { PostCard } from '@/components/post/PostCard'
 import { mockPost, mockUser } from '../../utils/test-utils'
@@ -221,6 +221,7 @@ describe('PostCard - extended coverage', () => {
   })
 
   it('自分のリポスト投稿には削除ボタンが表示される（編集・固定は出ない）', async () => {
+    const user = userEvent.setup()
     const props = {
       ...defaultProps,
       currentUserId: 'user-1',
@@ -237,12 +238,15 @@ describe('PostCard - extended coverage', () => {
     }
     render(<PostCard {...props} />)
 
-    fireEvent.click(screen.getByTestId('post-menu-button'))
+    const buttons = screen.getAllByRole('button')
+    const menuButton = buttons.find(btn => {
+      const svg = btn.querySelector('svg')
+      return svg && svg.querySelectorAll('circle').length === 3
+    })
+    await user.click(menuButton!)
 
     // 自分のリポストは削除できる。編集・固定は元投稿用なので出さない。
-    await waitFor(() => {
-      expect(screen.getByTestId('delete-post-button')).toBeInTheDocument()
-    })
+    expect(screen.getByTestId('delete-post-button')).toBeInTheDocument()
     expect(screen.queryByTestId('edit-post-link')).not.toBeInTheDocument()
     expect(screen.queryByTestId('pin-post-button')).not.toBeInTheDocument()
   })
