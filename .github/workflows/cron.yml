@@ -5,7 +5,7 @@ name: Scheduled Jobs (cron)
 #
 # 必要な設定:
 #   - Repository secret: CRON_SECRET  （fly secrets の CRON_SECRET と同値）
-#   - Repository variable: APP_URL    （例 https://bon-log.fly.dev / 独自ドメイン）
+#   - Repository variable: APP_URL    （例 https://www.bon-log.com / fly.dev サブドメイン）
 #
 # 注意: GitHub Actions の schedule は高負荷時に数分遅延し得る。
 #       厳密な */5 精度が必要なら fly scheduled machines / 外部 cron を検討。
@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  APP_URL: ${{ vars.APP_URL || 'https://bon-log.fly.dev' }}
+  APP_URL: ${{ vars.APP_URL || 'https://www.bon-log.com' }}
 
 jobs:
   publish-scheduled:

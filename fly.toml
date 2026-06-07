@@ -16,7 +16,7 @@ primary_region = "nrt"
   # ブラウザに露出する公開値のみ。デプロイ前に実値へ書き換えること。
   # 秘匿値（DATABASE_URL 等）はここではなく fly secrets で投入する。
   [build.args]
-    NEXT_PUBLIC_APP_URL = "https://bon-log.fly.dev"
+    NEXT_PUBLIC_APP_URL = "https://www.bon-log.com"
     NEXT_PUBLIC_SUPABASE_URL = "https://yxwmnimyzcmseshtittp.supabase.co"
     NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BK_pgnzMZs8UWZVHMddwzPdXISoyggBLJUbomRQvfg3Pqc46OraLpj1lND4h-jD7Zh3ItDLpQoS5BjPjqO8DKRI"
     NEXT_PUBLIC_SENTRY_DSN = "https://3177513f591ed7e067e19a0a74c47915@o4510731524440064.ingest.us.sentry.io/4510731541020672"
