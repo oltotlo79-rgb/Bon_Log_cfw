@@ -15,11 +15,11 @@ export const SEARCH_AD_INTERVAL = 5
 /** プロフィール投稿タブの広告挿入間隔 */
 export const PROFILE_POSTS_AD_INTERVAL = 10
 
-/** イベント一覧の広告挿入間隔 */
-export const EVENTS_AD_INTERVAL = 5
+/** イベント一覧の広告挿入間隔（項目数の少ない一覧のため低頻度にする） */
+export const EVENTS_AD_INTERVAL = 20
 
-/** ショップ一覧の広告挿入間隔 */
-export const SHOPS_AD_INTERVAL = 5
+/** 盆栽園一覧の広告挿入間隔（項目数の少ない一覧のため低頻度にする） */
+export const SHOPS_AD_INTERVAL = 20
 
 /**
  * 1 ページあたりの In-feed 広告最大本数。
