@@ -14,7 +14,6 @@
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { sendVerificationEmail } from '@/lib/email'
-import logger from '@/lib/logger'
 import { sanitizeInput } from '@/lib/sanitize'
 import { getAppUrl } from '@/lib/env'
 import { rateLimit } from '@/lib/rate-limit'
@@ -128,25 +127,4 @@ export async function resendVerificationEmail(email: string) {
   }
 
   return actionSuccess()
-}
-
-/**
- * ログイン失敗時の「未確認ヒント表示」用にメール確認状態を取得する。
- * DB 障害時は `{ verified: true }` を返してログインフォームを壊さない (E2E 安定化)。
- */
-export async function getEmailVerificationStatus(email: string) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email: sanitizeInput(email) },
-      select: { emailVerified: true },
-    })
-    // ユーザーが存在しない場合はメール未確認エラーにしない（通常のログインエラーに流す）
-    if (!user) return { verified: true }
-    return { verified: !!user.emailVerified }
-  } catch (error) {
-    logger.warn('getEmailVerificationStatus: DB error, assuming verified', {
-      cause: error instanceof Error ? error.message : undefined,
-    })
-    return { verified: true }
-  }
 }

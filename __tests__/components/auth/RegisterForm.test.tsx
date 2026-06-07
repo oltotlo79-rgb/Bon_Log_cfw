@@ -152,7 +152,7 @@ describe('RegisterForm', () => {
     await user.click(getSubmitButton())
 
     await waitFor(() => {
-      expect(screen.getByText(/パスワードはアルファベットと数字を両方含めてください/i)).toBeInTheDocument()
+      expect(screen.getByText(/パスワードはアルファベットを含めてください/i)).toBeInTheDocument()
     })
     expect(mockRegisterUser).not.toHaveBeenCalled()
   })
@@ -169,7 +169,7 @@ describe('RegisterForm', () => {
     await user.click(getSubmitButton())
 
     await waitFor(() => {
-      expect(screen.getByText(/パスワードはアルファベットと数字を両方含めてください/i)).toBeInTheDocument()
+      expect(screen.getByText(/パスワードは数字を含めてください/i)).toBeInTheDocument()
     })
     expect(mockRegisterUser).not.toHaveBeenCalled()
   })

@@ -10,7 +10,6 @@
 
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
-import { headers } from 'next/headers'
 import { auth as rawAuth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { checkUserRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -24,7 +23,6 @@ import logger from '@/lib/logger'
 import { REDIS_RELATIONS_TTL_SECONDS, ONE_SECOND_MS, MIDNIGHT_BUFFER_SECONDS, GUEST_USER_CACHE_REVALIDATE_SECONDS, MAX_RELATION_FETCH, RELATION_FETCH_WARN_THRESHOLD } from '@/lib/constants/limits'
 import { z } from 'zod'
 import { parseCachedWithSchema } from '@/lib/utils/json'
-import { extractClientIp } from '@/lib/utils/client-ip'
 
 export type ActionResult<T = void> = ActionResultType<T>
 export const actionSuccess = actionSuccessHelper
@@ -177,17 +175,9 @@ export async function requireAdmin(requiredAction?: import('@/lib/admin-permissi
   return { userId, role: adminUser.role }
 }
 
-/**
- * Server Action のリクエストヘッダーからクライアント IP を取得する。
- *
- * 実体は `lib/utils/client-ip.ts` の `extractClientIp` に委譲し、
- * rate-limit / seed-auth と同じ信頼モデル (X-Forwarded-For は偽装耐性のある末尾優先)
- * を共有する。先頭採用はクライアントによる偽装を許してしまうため使用しない。
- */
-export async function getClientIp(): Promise<string> {
-  const headersList = await headers()
-  return extractClientIp((name) => headersList.get(name))
-}
+// クライアント IP 解決は依存方向を中立化するため `lib/utils/request-ip` に集約し、
+// 既存 import 互換のためここから re-export する（`lib/services/*` でも同一ロジックを共有）。
+export { getClientIp } from '@/lib/utils/request-ip'
 
 /**
  * 1 日の投稿上限チェック。Redis INCR + EXPIRE でアトミックにカウントし、

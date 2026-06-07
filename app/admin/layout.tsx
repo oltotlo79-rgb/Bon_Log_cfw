@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { auth, signOut } from '@/lib/auth'
 import { isAdmin } from '@/lib/actions/admin'
 import { prisma } from '@/lib/db'
+import { Toaster } from '@/components/ui/toaster'
 import {
   ROUTE_ADMIN,
   ROUTE_ADMIN_ANALYTICS_COHORT,
@@ -211,6 +212,10 @@ export default async function AdminLayout({
           {children}
         </div>
       </main>
+
+      {/* 管理画面の Client Action 結果（toast）をレンダリングする。
+          (main) 配下にしか Toaster が無く、admin の toast が表示されなかった問題も解消する。 */}
+      <Toaster />
     </div>
   )
 }

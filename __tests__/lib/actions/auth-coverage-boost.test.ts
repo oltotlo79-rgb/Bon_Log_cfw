@@ -84,7 +84,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: {},
 }))
 
-vi.mock('@/lib/actions/blacklist', () => ({
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: vi.fn().mockResolvedValue(false),
   isDeviceBlacklisted: vi.fn().mockResolvedValue(false),
 }))
@@ -197,7 +197,7 @@ describe('Auth Actions - Coverage Boost', () => {
       expect('error' in result && result.error).toBe(ERR_EMAIL_NOT_VERIFIED)
     })
 
-    it('パスワードが一致しない場合はエラーを返す', async () => {
+    it('パスワードが一致しない場合はエラーを返し、ログイン失敗をサーバー側で記録する（P0 回帰）', async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({
         id: 'user-1',
         password: 'hashed-password',
@@ -206,11 +206,14 @@ describe('Auth Actions - Coverage Boost', () => {
       })
       mockBcrypt.compare.mockResolvedValueOnce(false)
 
+      const { recordFailedLogin } = await import('@/lib/login-tracker')
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('user@example.com', 'WrongPassword123')
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('メールアドレスまたはパスワードが間違っています')
+      // 2FA 有無に依らず、通常ログイン失敗がサーバー側で必ず記録されること（旧バグの回帰防止）
+      expect(recordFailedLogin).toHaveBeenCalled()
     })
 
     it('パスワードが正しい場合は成功を返す', async () => {

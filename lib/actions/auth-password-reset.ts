@@ -36,11 +36,11 @@ import {
 import {
   ERR_EMAIL_SEND_FAILED,
   ERR_INVALID_TOKEN,
-  ERR_PASSWORD_ALPHANUMERIC,
   ERR_PASSWORD_MIN_LENGTH,
   ERR_RESET_LINK_INVALID,
   ERR_RESET_TOO_MANY,
 } from '@/lib/constants/errors/auth'
+import { validatePassword } from '@/lib/validations/password'
 import {
   ERR_EMAIL_INVALID,
   ERR_EMAIL_TOO_LONG,
@@ -158,11 +158,10 @@ export async function resetPassword(data: {
   }
   const { email, token, newPassword } = parsed.data
 
-  // password の英数字混在チェックは Zod では補えないため後段で実施
-  const hasLetter = /[a-zA-Z]/.test(newPassword)
-  const hasNumber = /[0-9]/.test(newPassword)
-  if (!hasLetter || !hasNumber) {
-    return actionError(ERR_PASSWORD_ALPHANUMERIC)
+  // パスワード強度は client/server 共有の validatePassword に委譲（最小長/最大長/英数字混在）。
+  const passwordCheck = validatePassword(newPassword)
+  if (!passwordCheck.valid) {
+    return actionError(passwordCheck.error)
   }
 
   // 2. レート制限 (IP + email)。token 自体が十分長くても他の auth action と防御を統一

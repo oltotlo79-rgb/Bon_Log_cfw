@@ -4,6 +4,7 @@
 
 import {
   PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
   PASSWORD_ERRORS,
   passwordSchema,
   validatePassword,
@@ -20,8 +21,13 @@ describe('password validation', () => {
       expect(PASSWORD_MIN_LENGTH).toBe(8)
     })
 
+    it('PASSWORD_MAX_LENGTHは72（bcryptの72バイト上限に整合）', () => {
+      expect(PASSWORD_MAX_LENGTH).toBe(72)
+    })
+
     it('PASSWORD_ERRORSが定義されている', () => {
       expect(PASSWORD_ERRORS.MIN_LENGTH).toContain('8文字以上')
+      expect(PASSWORD_ERRORS.MAX_LENGTH).toContain('72文字以下')
       expect(PASSWORD_ERRORS.REQUIRE_LETTER).toContain('アルファベット')
       expect(PASSWORD_ERRORS.REQUIRE_NUMBER).toContain('数字')
       expect(PASSWORD_ERRORS.REQUIRE_BOTH).toContain('両方')
@@ -104,6 +110,27 @@ describe('password validation', () => {
         // 日本語4文字 + A1 = 6文字(UTF-16)だが、length的には十分
         const result = validatePassword('パスワードAbc1')
         expect(result.valid).toBe(true)
+      })
+    })
+
+    describe('無効なパスワード - 長さ超過', () => {
+      it('72文字ちょうどは有効', () => {
+        const pw = 'A1' + 'a'.repeat(70) // 72 文字、英字 + 数字を含む
+        expect(pw.length).toBe(PASSWORD_MAX_LENGTH)
+        expect(validatePassword(pw).valid).toBe(true)
+      })
+
+      it('73文字は無効（最大長エラー）', () => {
+        const pw = 'A1' + 'a'.repeat(71) // 73 文字
+        const result = validatePassword(pw)
+        expect(result.valid).toBe(false)
+        if (!result.valid) {
+          expect(result.error).toBe(PASSWORD_ERRORS.MAX_LENGTH)
+        }
+      })
+
+      it('passwordSchemaも73文字を拒否する', () => {
+        expect(passwordSchema.safeParse('A1' + 'a'.repeat(71)).success).toBe(false)
       })
     })
 

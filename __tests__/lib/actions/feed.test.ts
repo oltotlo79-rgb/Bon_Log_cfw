@@ -133,14 +133,13 @@ describe('Feed Actions', async () => {
       expect(result.isGuest).toBe(false)
     })
 
-    it('ブロック/ミュートユーザーの投稿を除外する', async () => {
+    it('ブロック/ミュートした著者を relational filter で除外する（大配列 notIn を使わない）', async () => {
       mockGetUserRelationSets.mockResolvedValueOnce({
         followingUserIds: ['following-user-1', 'blocked-user'],
         blockedUserIds: [],
         mutedUserIds: [],
         hiddenPostIds: [],
       })
-      mockGetExcludedUserIds.mockResolvedValueOnce(['blocked-user', 'muted-user'])
       mockPrisma.post.findMany.mockResolvedValueOnce([])
       mockPrisma.like.findMany.mockResolvedValueOnce([])
       mockPrisma.bookmark.findMany.mockResolvedValueOnce([])
@@ -148,15 +147,14 @@ describe('Feed Actions', async () => {
       const { getTimeline } = await import('@/lib/actions/feed')
       await getTimeline()
 
-      expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            userId: expect.objectContaining({
-              notIn: ['blocked-user', 'muted-user'],
-            }),
-          }),
-        })
-      )
+      const call = mockPrisma.post.findMany.mock.calls.at(-1)?.[0]
+      // 安全性に関わる除外は DB 側 relational filter で行う（上限到達による silent truncation を排除）
+      expect(call?.where?.user).toMatchObject({
+        blockedBy: { none: { blockerId: mockUser.id } },
+        mutedBy: { none: { muterId: mockUser.id } },
+      })
+      // 大配列 notIn による除外には依存しない
+      expect(call?.where?.userId).not.toHaveProperty('notIn')
     })
 
     it('カーソルを使用してページネーションできる', async () => {

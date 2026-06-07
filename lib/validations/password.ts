@@ -1,99 +1,78 @@
 /**
- * パスワードバリデーション
+ * パスワードバリデーション（client / server 共有の単一ソース）。
+ *
+ * 文言は `lib/constants/errors/auth` に集約し、RegisterForm / PasswordResetConfirmForm /
+ * registerUser / resetPassword すべてが本モジュールの {@link validatePassword} を使うことで
+ * 検証ロジックとエラーメッセージの重複を排除する。
  *
  * @module lib/validations/password
  */
 
 import { z } from 'zod'
-import { PASSWORD_MIN_LENGTH } from '@/lib/constants/limits'
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '@/lib/constants/limits'
+import {
+  ERR_PASSWORD_MIN_LENGTH,
+  ERR_PASSWORD_MAX_LENGTH,
+  ERR_PASSWORD_ALPHANUMERIC,
+  ERR_PASSWORD_REQUIRE_LETTER,
+  ERR_PASSWORD_REQUIRE_NUMBER,
+} from '@/lib/constants/errors/auth'
 
-export { PASSWORD_MIN_LENGTH }
+export { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH }
 
 /**
- * エラーメッセージ
+ * パスワード関連のエラーメッセージ。値は `lib/constants/errors/auth` の `ERR_PASSWORD_*` を
+ * 参照し、UI 文言を一箇所に寄せる。
  */
 export const PASSWORD_ERRORS = {
-  MIN_LENGTH: `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください`,
-  REQUIRE_LETTER: 'パスワードはアルファベットを含めてください',
-  REQUIRE_NUMBER: 'パスワードは数字を含めてください',
-  REQUIRE_BOTH: 'パスワードはアルファベットと数字を両方含めてください',
+  MIN_LENGTH: ERR_PASSWORD_MIN_LENGTH,
+  MAX_LENGTH: ERR_PASSWORD_MAX_LENGTH,
+  REQUIRE_LETTER: ERR_PASSWORD_REQUIRE_LETTER,
+  REQUIRE_NUMBER: ERR_PASSWORD_REQUIRE_NUMBER,
+  REQUIRE_BOTH: ERR_PASSWORD_ALPHANUMERIC,
 } as const
 
 /**
- * パスワードバリデーションスキーマ
- *
- * Zodを使用したパスワードのバリデーションスキーマ。
- * 以下の要件を検証します:
- * - 8文字以上
- * - アルファベットを1文字以上含む
- * - 数字を1文字以上含む
- *
- * @example
- * ```typescript
- * const result = passwordSchema.safeParse('MyPassword123')
- * if (result.success) {
- *   console.log('Valid password:', result.data)
- * } else {
- *   console.log('Errors:', result.error.errors)
- * }
- * ```
+ * パスワードバリデーションスキーマ。
+ * 8〜72 文字 + アルファベット 1 文字以上 + 数字 1 文字以上。
  */
 export const passwordSchema = z
   .string()
   .min(PASSWORD_MIN_LENGTH, PASSWORD_ERRORS.MIN_LENGTH)
+  .max(PASSWORD_MAX_LENGTH, PASSWORD_ERRORS.MAX_LENGTH)
   .regex(/[a-zA-Z]/, PASSWORD_ERRORS.REQUIRE_LETTER)
   .regex(/[0-9]/, PASSWORD_ERRORS.REQUIRE_NUMBER)
 
-/**
- * パスワードバリデーション結果の型
- */
+/** パスワードバリデーション結果の型 */
 export type PasswordValidationResult =
   | { valid: true }
   | { valid: false; error: string }
 
 /**
- * パスワードを検証する
+ * パスワードを検証する。
  *
- * パスワードが要件を満たしているかチェックし、
- * 結果とエラーメッセージを返します。
+ * 要件: {@link PASSWORD_MIN_LENGTH}〜{@link PASSWORD_MAX_LENGTH} 文字、
+ * アルファベット（a-z, A-Z）1 文字以上、数字（0-9）1 文字以上。
  *
- * ## パスワード要件
- * - 8文字以上
- * - アルファベット（a-z, A-Z）を1文字以上含む
- * - 数字（0-9）を1文字以上含む
- *
- * @param password - 検証するパスワード
- * @returns バリデーション結果
- *
- * @example
- * ```typescript
- * const result = validatePassword('abc12345')
- * if (result.valid) {
- *   // パスワードは有効
- * } else {
- *   console.log(result.error) // エラーメッセージ
- * }
- * ```
+ * @returns 充足時は `{ valid: true }`、不足時は `{ valid: false, error }`
  */
 export function validatePassword(password: string): PasswordValidationResult {
-  // 長さチェック
   if (password.length < PASSWORD_MIN_LENGTH) {
     return { valid: false, error: PASSWORD_ERRORS.MIN_LENGTH }
   }
+  if (password.length > PASSWORD_MAX_LENGTH) {
+    return { valid: false, error: PASSWORD_ERRORS.MAX_LENGTH }
+  }
 
-  // アルファベットチェック
   const hasLetter = /[a-zA-Z]/.test(password)
-  // 数字チェック
   const hasNumber = /[0-9]/.test(password)
 
   if (!hasLetter && !hasNumber) {
     return { valid: false, error: PASSWORD_ERRORS.REQUIRE_BOTH }
   }
-
   if (!hasLetter) {
     return { valid: false, error: PASSWORD_ERRORS.REQUIRE_LETTER }
   }
-
   if (!hasNumber) {
     return { valid: false, error: PASSWORD_ERRORS.REQUIRE_NUMBER }
   }
@@ -101,19 +80,7 @@ export function validatePassword(password: string): PasswordValidationResult {
   return { valid: true }
 }
 
-/**
- * パスワードが有効かどうかをチェックする（簡易版）
- *
- * @param password - 検証するパスワード
- * @returns パスワードが有効な場合はtrue
- *
- * @example
- * ```typescript
- * if (isValidPassword('MyPassword123')) {
- *   // パスワードは有効
- * }
- * ```
- */
+/** パスワードが有効かどうかだけを返す簡易版。 */
 export function isValidPassword(password: string): boolean {
   return validatePassword(password).valid
 }

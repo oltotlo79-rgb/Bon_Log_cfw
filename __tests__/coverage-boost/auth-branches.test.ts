@@ -76,6 +76,16 @@ vi.mock('@/lib/auth.config', () => ({
   authConfig: { pages: { signIn: '/login' }, callbacks: {} },
 }))
 
+// authorize() のサーバー側ロックアウト記録/リセットを mock する（既定は許可）。
+const mockCheckLoginThrottle = vi.fn().mockResolvedValue({ allowed: true, remainingAttempts: 5 })
+const mockRecordLoginFailure = vi.fn().mockResolvedValue({ allowed: true, remainingAttempts: 4 })
+const mockResetLoginThrottle = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/lib/services/login-throttle', () => ({
+  checkLoginThrottleForRequest: (...args: unknown[]) => mockCheckLoginThrottle(...args),
+  recordLoginFailureForRequest: (...args: unknown[]) => mockRecordLoginFailure(...args),
+  resetLoginThrottleForRequest: (...args: unknown[]) => mockResetLoginThrottle(...args),
+}))
+
 // ============================================================
 // テスト
 // ============================================================

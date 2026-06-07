@@ -102,6 +102,17 @@ vi.mock('@/lib/two-factor-login-ticket', () => ({
   consumeTwoFactorLoginTicket: (...args: unknown[]) => mockConsumeTwoFactorLoginTicket(...args),
 }))
 
+// authorize() がサーバー側でロックアウト記録/リセットを行うため login-throttle を mock する。
+// 既定は「許可」。実際のスロットルロジックは login-throttle.test.ts 側で検証する。
+const mockCheckLoginThrottle = vi.fn().mockResolvedValue({ allowed: true, remainingAttempts: 5 })
+const mockRecordLoginFailure = vi.fn().mockResolvedValue({ allowed: true, remainingAttempts: 4 })
+const mockResetLoginThrottle = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/lib/services/login-throttle', () => ({
+  checkLoginThrottleForRequest: (...args: unknown[]) => mockCheckLoginThrottle(...args),
+  recordLoginFailureForRequest: (...args: unknown[]) => mockRecordLoginFailure(...args),
+  resetLoginThrottleForRequest: (...args: unknown[]) => mockResetLoginThrottle(...args),
+}))
+
 // ============================================================
 // テスト
 // ============================================================
@@ -380,6 +391,62 @@ describe('auth.ts 完全カバレッジ', () => {
 
       expect(result).toMatchObject({ id: 'u-2fa' })
       expect(mockConsumeTwoFactorLoginTicket).not.toHaveBeenCalled()
+    })
+  })
+
+  // ============================================================
+  // authorize - ロックアウト記録（P0 回帰: 通常ログイン失敗もサーバー側で必ず記録される）
+  // ============================================================
+  describe('authorize - ロックアウト記録/リセット', () => {
+    const verifiedUser = {
+      id: 'u-lock',
+      email: 'lock@example.com',
+      password: '$2a$12$hash',
+      nickname: 'Lock',
+      avatarUrl: null,
+      isSuspended: false,
+      emailVerified: new Date(),
+      twoFactorEnabled: false,
+    }
+
+    it('ロック中（throttle 不許可）は DB を引かず null を返す', async () => {
+      mockCheckLoginThrottle.mockResolvedValueOnce({ allowed: false, remainingAttempts: 0 })
+
+      const result = await capturedAuthorize({ email: 'lock@example.com', password: 'password123' })
+
+      expect(result).toBeNull()
+      expect(mockUserFindUnique).not.toHaveBeenCalled()
+    })
+
+    it('パスワード不一致でログイン失敗を記録し null を返す（2FA 有無に依らず）', async () => {
+      mockUserFindUnique.mockResolvedValueOnce(verifiedUser)
+      mockBcryptCompare.mockResolvedValueOnce(false)
+
+      const result = await capturedAuthorize({ email: 'lock@example.com', password: 'wrongpassword' })
+
+      expect(result).toBeNull()
+      expect(mockRecordLoginFailure).toHaveBeenCalledWith('lock@example.com')
+      expect(mockResetLoginThrottle).not.toHaveBeenCalled()
+    })
+
+    it('存在しないユーザーでもログイン失敗を記録する', async () => {
+      mockUserFindUnique.mockResolvedValueOnce(null)
+
+      const result = await capturedAuthorize({ email: 'nobody@example.com', password: 'password123' })
+
+      expect(result).toBeNull()
+      expect(mockRecordLoginFailure).toHaveBeenCalledWith('nobody@example.com')
+    })
+
+    it('ログイン成功時は失敗カウンタをリセットする', async () => {
+      mockUserFindUnique.mockResolvedValueOnce(verifiedUser)
+      mockBcryptCompare.mockResolvedValueOnce(true)
+
+      const result = await capturedAuthorize({ email: 'lock@example.com', password: 'password123' })
+
+      expect(result).toMatchObject({ id: 'u-lock' })
+      expect(mockResetLoginThrottle).toHaveBeenCalledWith('lock@example.com')
+      expect(mockRecordLoginFailure).not.toHaveBeenCalled()
     })
   })
 

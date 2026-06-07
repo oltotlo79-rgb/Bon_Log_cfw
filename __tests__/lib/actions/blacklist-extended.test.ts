@@ -104,30 +104,8 @@ describe('getDeviceBlacklist', async () => {
   })
 })
 
-describe('isDeviceBlacklisted', async () => {
-  it('returns true for blacklisted device', async () => {
-    const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-    ;(mockPrisma.deviceBlacklist.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'd1' })
-    expect(await isDeviceBlacklisted('fp1')).toBe(true)
-  })
-
-  it('returns false for non-blacklisted device', async () => {
-    const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-    ;(mockPrisma.deviceBlacklist.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    expect(await isDeviceBlacklisted('fp2')).toBe(false)
-  })
-
-  it('returns false for empty fingerprint', async () => {
-    const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-    expect(await isDeviceBlacklisted('')).toBe(false)
-  })
-
-  it('returns false on error', async () => {
-    const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-    ;(mockPrisma.deviceBlacklist.findUnique as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'))
-    expect(await isDeviceBlacklisted('fp1')).toBe(false)
-  })
-})
+// isDeviceBlacklisted は server-only サービス `lib/services/blacklist-check` へ移設したため
+// `__tests__/lib/services/blacklist-check.test.ts` で検証する。
 
 describe('recordUserDevice', async () => {
   it('records device with upsert', async () => {

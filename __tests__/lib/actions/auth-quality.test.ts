@@ -84,7 +84,7 @@ vi.mock('@/lib/rate-limit', () => ({
 
 const mockIsEmailBlacklisted = vi.fn().mockResolvedValue(false)
 const mockIsDeviceBlacklisted = vi.fn().mockResolvedValue(false)
-vi.mock('@/lib/actions/blacklist', () => ({
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: (...args: unknown[]) => mockIsEmailBlacklisted(...args),
   isDeviceBlacklisted: (...args: unknown[]) => mockIsDeviceBlacklisted(...args),
 }))
@@ -291,19 +291,7 @@ describe('Auth Actions - Quality Tests', () => {
     })
   })
 
-  // ============================================================
-  // getEmailVerificationStatus - DB error path
-  // ============================================================
-  describe('getEmailVerificationStatus', () => {
-    it('returns verified: true when DB throws (graceful fallback)', async () => {
-      mockPrisma.user.findUnique.mockRejectedValueOnce(new Error('Connection refused'))
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('user@example.com')
-
-      expect(result).toEqual({ verified: true })
-    })
-  })
+  // getEmailVerificationStatus は撤去済み（verifyCredentials に統合）。
 
   // ============================================================
   // signInAsGuestFormAction - success path redirects to /feed

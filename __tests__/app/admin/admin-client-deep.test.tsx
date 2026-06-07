@@ -793,39 +793,47 @@ describe('NgWordList', () => {
     })
   })
 
-  it('shows alert on toggle error', async () => {
+  it('shows toast on toggle error', async () => {
     mockToggleNgWord.mockResolvedValue({ error: 'Toggle failed' })
     render(<NgWordList {...baseProps} />)
     const toggleBtns = screen.getAllByTitle(/にする/)
     fireEvent.click(toggleBtns[0])
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith('Toggle failed')
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Toggle failed', variant: 'destructive' })
+      )
     })
   })
 
-  it('deletes a word with confirmation', async () => {
+  it('deletes a word after confirming in the dialog', async () => {
     mockDeleteNgWord.mockResolvedValue({ success: true })
     render(<NgWordList {...baseProps} />)
-    const deleteButtons = screen.getAllByTitle('削除')
-    fireEvent.click(deleteButtons[0])
+    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const confirmBtn = await screen.findByRole('button', { name: '削除する' })
+    fireEvent.click(confirmBtn)
     await waitFor(() => {
       expect(mockDeleteNgWord).toHaveBeenCalledWith('nw1')
     })
   })
 
-  it('cancels deletion when confirm returns false', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('cancels deletion via the dialog cancel button', async () => {
     render(<NgWordList {...baseProps} />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    const cancelBtn = await screen.findByRole('button', { name: 'キャンセル' })
+    fireEvent.click(cancelBtn)
     expect(mockDeleteNgWord).not.toHaveBeenCalled()
   })
 
-  it('shows delete error alert', async () => {
+  it('shows toast on delete error', async () => {
     mockDeleteNgWord.mockResolvedValue({ error: 'Delete failed' })
     render(<NgWordList {...baseProps} />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    const confirmBtn = await screen.findByRole('button', { name: '削除する' })
+    fireEvent.click(confirmBtn)
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith('Delete failed')
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Delete failed', variant: 'destructive' })
+      )
     })
   })
 
@@ -1488,28 +1496,35 @@ describe('PesticideTable', () => {
     expect(mockPush).toHaveBeenCalledWith('/admin/pesticide-data')
   })
 
-  it('deletes pesticide with confirmation', async () => {
+  it('deletes pesticide after confirming in the dialog', async () => {
     mockDeletePesticide.mockResolvedValue({ success: true })
     render(<PesticideTable {...baseProps} />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    const confirmBtn = await screen.findByRole('button', { name: '削除する' })
+    fireEvent.click(confirmBtn)
     await waitFor(() => {
       expect(mockDeletePesticide).toHaveBeenCalledWith('pest1')
     })
   })
 
-  it('cancels pesticide deletion', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('cancels pesticide deletion via the dialog cancel button', async () => {
     render(<PesticideTable {...baseProps} />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    const cancelBtn = await screen.findByRole('button', { name: 'キャンセル' })
+    fireEvent.click(cancelBtn)
     expect(mockDeletePesticide).not.toHaveBeenCalled()
   })
 
-  it('shows alert on delete error', async () => {
+  it('shows toast on delete error', async () => {
     mockDeletePesticide.mockResolvedValue({ error: 'Delete error' })
     render(<PesticideTable {...baseProps} />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    const confirmBtn = await screen.findByRole('button', { name: '削除する' })
+    fireEvent.click(confirmBtn)
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith('Delete error')
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Delete error', variant: 'destructive' })
+      )
     })
   })
 

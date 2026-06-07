@@ -162,7 +162,7 @@ describe('PasswordResetConfirmForm', () => {
     await user.click(screen.getByRole('button', { name: /パスワードを更新/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/パスワードはアルファベットと数字を両方含めてください/i)).toBeInTheDocument()
+      expect(screen.getByText(/パスワードはアルファベットを含めてください/i)).toBeInTheDocument()
     })
     expect(mockResetPassword).not.toHaveBeenCalled()
   })
@@ -182,7 +182,7 @@ describe('PasswordResetConfirmForm', () => {
     await user.click(screen.getByRole('button', { name: /パスワードを更新/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/パスワードはアルファベットと数字を両方含めてください/i)).toBeInTheDocument()
+      expect(screen.getByText(/パスワードは数字を含めてください/i)).toBeInTheDocument()
     })
     expect(mockResetPassword).not.toHaveBeenCalled()
   })

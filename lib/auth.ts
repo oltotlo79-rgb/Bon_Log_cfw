@@ -33,6 +33,11 @@ import { ERR_EMAIL_ALREADY_IN_USE } from '@/lib/constants/errors'
 import { assertSafeOAuthLinking } from '@/lib/security/oauth-guard'
 import { getGoogleOAuthConfig, getGuestPassword } from '@/lib/env'
 import { consumeTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
+import {
+  checkLoginThrottleForRequest,
+  recordLoginFailureForRequest,
+  resetLoginThrottleForRequest,
+} from '@/lib/services/login-throttle'
 
 /**
  * ログイン入力スキーマ。
@@ -137,6 +142,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
+        // ブルートフォース対策: ロック中なら即拒否する。
+        // signIn('credentials') を直叩きする経路もここを通るため、ロックアウトの最終強制点になる。
+        const throttle = await checkLoginThrottleForRequest(email)
+        if (!throttle.allowed) return null
+
         const user = await prisma.user.findUnique({
           where: { email },
           select: {
@@ -151,22 +161,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           },
         })
 
+        // 認証失敗は 2FA 有無に依らずサーバー側で必ず記録する（ロックアウトの一元化）。
         // password == null は OAuth 経由のユーザー（メール/パスワード未設定）。
-        if (!user || !user.password) return null
-        if (!user.emailVerified) return null
-        if (user.isSuspended) return null
+        if (!user || !user.password) {
+          await recordLoginFailureForRequest(email)
+          return null
+        }
+        if (!user.emailVerified) {
+          await recordLoginFailureForRequest(email)
+          return null
+        }
+        if (user.isSuspended) {
+          await recordLoginFailureForRequest(email)
+          return null
+        }
 
         const passwordMatch = await bcrypt.compare(password, user.password)
-        if (!passwordMatch) return null
+        if (!passwordMatch) {
+          await recordLoginFailureForRequest(email)
+          return null
+        }
 
         // 2FA 有効ユーザーはセッション発行前にサーバー側で第二要素を強制する。
         // クライアントの LoginForm だけに依存すると、signIn('credentials') を直接呼ぶことで
         // TOTP 提示なしにセッションを取得できてしまう（バイパス）。verify2FAToken 成功時に
         // 発行された単回使用チケットの消費を必須化し、fail-closed で塞ぐ。
+        // 第二要素の失敗はログイン失敗カウンタではなく verify2FAToken 側のレート制限で扱う。
         if (user.twoFactorEnabled) {
           const ticketValid = await consumeTwoFactorLoginTicket(email, twoFactorTicket ?? '')
           if (!ticketValid) return null
         }
+
+        // 認証成功: 失敗カウンタをリセットする（成功時リセットを公開 RPC ではなく内部処理へ集約）。
+        await resetLoginThrottleForRequest(email)
 
         return {
           id: user.id,

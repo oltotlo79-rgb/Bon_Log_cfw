@@ -1,14 +1,19 @@
- 
 import { vi } from 'vitest'
 /**
- * ログインフォームコンポーネントのテスト
+ * ログインフォームコンポーネントのテスト。
+ *
+ * 統合後のフロー: クライアントは `verifyCredentials(email, password, fingerprint)` を 1 回呼ぶだけで
+ * ロックアウト/デバイス/パスワード/2FA 判定を受け取る。2FA 不要時のみ `signIn` でセッションを発行する。
  */
 
 import { render, screen, waitFor } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { LoginForm } from '@/components/auth/LoginForm'
+import {
+  ERR_EMAIL_NOT_VERIFIED,
+  ERR_LOGIN_INVALID_CREDENTIALS,
+} from '@/lib/constants/errors'
 
-// モックのセットアップ
 const mockSignIn = vi.fn()
 vi.mock('next-auth/react', () => ({
   signIn: (...args: unknown[]) => mockSignIn(...args),
@@ -19,30 +24,19 @@ vi.mock('next-auth/react', () => ({
 const mockPush = vi.fn()
 const mockRefresh = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-    refresh: mockRefresh,
-  }),
+  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
   useSearchParams: () => new URLSearchParams(),
 }))
 
-const mockCheckLoginAllowed = vi.fn().mockResolvedValue({ allowed: true })
-const mockGetEmailVerificationStatus = vi.fn().mockResolvedValue({ verified: true })
 const mockResendVerificationEmail = vi.fn().mockResolvedValue({ success: true })
-const mockVerifyCredentials = vi.fn().mockResolvedValue({ success: true })
+const mockVerifyCredentials = vi.fn()
 vi.mock('@/lib/actions/auth', () => ({
-  checkLoginAllowed: (...args: unknown[]) => mockCheckLoginAllowed(...args),
-  recordLoginFailure: vi.fn().mockResolvedValue(undefined),
-  clearLoginAttempts: vi.fn().mockResolvedValue(undefined),
-  getEmailVerificationStatus: (...args: unknown[]) => mockGetEmailVerificationStatus(...args),
   resendVerificationEmail: (...args: unknown[]) => mockResendVerificationEmail(...args),
   verifyCredentials: (...args: unknown[]) => mockVerifyCredentials(...args),
 }))
 
-const mockCheck2FARequired = vi.fn().mockResolvedValue({ required: false })
-const mockVerify2FAToken = vi.fn().mockResolvedValue({ success: true })
+const mockVerify2FAToken = vi.fn().mockResolvedValue({ success: true, data: { ticket: 'ticket-1' } })
 vi.mock('@/lib/actions/two-factor', () => ({
-  check2FARequired: (...args: unknown[]) => mockCheck2FARequired(...args),
   verify2FAToken: (...args: unknown[]) => mockVerify2FAToken(...args),
 }))
 
@@ -50,42 +44,46 @@ vi.mock('@/lib/fingerprint', () => ({
   getFingerprintWithCache: vi.fn().mockResolvedValue('mock-fingerprint-123'),
 }))
 
-const mockIsDeviceBlacklisted = vi.fn().mockResolvedValue(false)
-vi.mock('@/lib/actions/blacklist', () => ({
-  isDeviceBlacklisted: (...args: unknown[]) => mockIsDeviceBlacklisted(...args),
-}))
+const ok2FA = { success: true, data: { twoFactorRequired: true } }
+const okNo2FA = { success: true, data: { twoFactorRequired: false } }
 
 describe('LoginForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCheckLoginAllowed.mockResolvedValue({ allowed: true })
-    mockCheck2FARequired.mockResolvedValue({ required: false })
-    mockIsDeviceBlacklisted.mockResolvedValue(false)
+    mockVerifyCredentials.mockResolvedValue(okNo2FA)
+    mockVerify2FAToken.mockResolvedValue({ success: true, data: { ticket: 'ticket-1' } })
     mockSignIn.mockResolvedValue({ ok: true })
+    mockResendVerificationEmail.mockResolvedValue({ success: true })
   })
 
   const getPasswordInput = () => screen.getByPlaceholderText('8文字以上（英字・数字を含む）')
   const getEmailInput = () => screen.getByPlaceholderText('mail@example.com')
 
-  // 1
+  async function submitLogin(email = 'test@example.com', password = 'password123') {
+    const user = userEvent.setup()
+    render(<LoginForm />)
+    await user.type(getEmailInput(), email)
+    await user.type(getPasswordInput(), password)
+    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
+    return user
+  }
+
+  // --- 描画 ---
   it('メールアドレス入力欄を表示する', () => {
     render(<LoginForm />)
     expect(getEmailInput()).toBeInTheDocument()
   })
 
-  // 2
   it('パスワード入力欄を表示する', () => {
     render(<LoginForm />)
     expect(getPasswordInput()).toBeInTheDocument()
   })
 
-  // 3
   it('ログインボタンを表示する', () => {
     render(<LoginForm />)
     expect(screen.getByRole('button', { name: /^ログイン$/i })).toBeInTheDocument()
   })
 
-  // 4
   it('メールアドレスを入力できる', async () => {
     const user = userEvent.setup()
     render(<LoginForm />)
@@ -93,7 +91,6 @@ describe('LoginForm', () => {
     expect(getEmailInput()).toHaveValue('test@example.com')
   })
 
-  // 5
   it('パスワードを入力できる', async () => {
     const user = userEvent.setup()
     render(<LoginForm />)
@@ -101,524 +98,201 @@ describe('LoginForm', () => {
     expect(getPasswordInput()).toHaveValue('password123')
   })
 
-  // 6
   it('パスワード表示/非表示を切り替えられる', async () => {
     const user = userEvent.setup()
     render(<LoginForm />)
     const passwordInput = getPasswordInput()
-
     expect(passwordInput).toHaveAttribute('type', 'password')
-
-    const toggleButton = screen.getByRole('button', { name: /パスワードを表示/i })
-    await user.click(toggleButton)
+    await user.click(screen.getByRole('button', { name: /パスワードを表示/i }))
     expect(passwordInput).toHaveAttribute('type', 'text')
-
-    const hideButton = screen.getByRole('button', { name: /パスワードを隠す/i })
-    await user.click(hideButton)
+    await user.click(screen.getByRole('button', { name: /パスワードを隠す/i }))
     expect(passwordInput).toHaveAttribute('type', 'password')
   })
 
-  // 7
-  it('ログインボタンをクリックするとsignInが呼ばれる', async () => {
-    const user = userEvent.setup()
+  it('required属性で空送信を防止する', () => {
     render(<LoginForm />)
+    expect(getEmailInput()).toBeRequired()
+    expect(getPasswordInput()).toBeRequired()
+  })
 
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
+  it('新規登録 / パスワードリセットリンクを表示する', () => {
+    render(<LoginForm />)
+    expect(screen.getByRole('link', { name: /新規登録/i })).toHaveAttribute('href', '/register')
+    expect(screen.getByRole('link', { name: /パスワードをお忘れですか/i })).toHaveAttribute('href', '/password-reset')
+  })
 
+  // --- 認証フロー ---
+  it('送信時に verifyCredentials が email/password で呼ばれる', async () => {
+    await submitLogin()
+    await waitFor(() => {
+      expect(mockVerifyCredentials).toHaveBeenCalledWith('test@example.com', 'password123', expect.anything())
+    })
+  })
+
+  it('2FA 不要で成功するとフィードへ遷移する', async () => {
+    await submitLogin()
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith('credentials', expect.objectContaining({
         email: 'test@example.com',
         password: 'password123',
         redirect: false,
       }))
-    })
-  })
-
-  // 8
-  it('ログイン成功時にフィードページへリダイレクトする', async () => {
-    mockSignIn.mockResolvedValue({ ok: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/feed')
       expect(mockRefresh).toHaveBeenCalled()
     })
   })
 
-  // 9
-  it('ログイン失敗時にエラーメッセージを表示する', async () => {
-    mockSignIn.mockResolvedValue({ ok: false, error: 'CredentialsSignin' })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'wrongpassword')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+  it('verifyCredentials が無効資格情報を返すとエラーを表示し signIn を呼ばない', async () => {
+    mockVerifyCredentials.mockResolvedValue({ success: false, error: ERR_LOGIN_INVALID_CREDENTIALS })
+    await submitLogin('test@example.com', 'wrongpassword')
     await waitFor(() => {
       expect(screen.getByText(/メールアドレスまたはパスワードが間違っています/i)).toBeInTheDocument()
     })
+    expect(mockSignIn).not.toHaveBeenCalled()
   })
 
-  // 10
-  it('メールアドレスが空の場合はrequired属性で送信を防止する', () => {
-    render(<LoginForm />)
-    const emailInput = getEmailInput()
-    expect(emailInput).toBeRequired()
-  })
-
-  // 11
-  it('パスワードが空の場合はrequired属性で送信を防止する', () => {
-    render(<LoginForm />)
-    const passwordInput = getPasswordInput()
-    expect(passwordInput).toBeRequired()
-  })
-
-  // 12
-  it('ログイン中はローディング状態を表示する', async () => {
-    mockSignIn.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true }), 200)))
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    expect(screen.getByRole('button', { name: /ログイン中/i })).toBeInTheDocument()
-  })
-
-  // 13
-  it('ログイン中はボタンが無効化される', async () => {
-    mockSignIn.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true }), 200)))
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    expect(screen.getByRole('button', { name: /ログイン中/i })).toBeDisabled()
-  })
-
-  // 14
-  it('新規登録リンクを表示する', () => {
-    render(<LoginForm />)
-    expect(screen.getByRole('link', { name: /新規登録/i })).toHaveAttribute('href', '/register')
-  })
-
-  // 15
-  it('パスワードリセットリンクを表示する', () => {
-    render(<LoginForm />)
-    expect(screen.getByRole('link', { name: /パスワードをお忘れですか/i })).toHaveAttribute('href', '/password-reset')
-  })
-
-  // 16
-  it('ログイン前にレート制限チェックが呼ばれる', async () => {
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(mockCheckLoginAllowed).toHaveBeenCalledWith('test@example.com')
+  it('ロックアウト時はサーバーのメッセージを表示し signIn を呼ばない', async () => {
+    mockVerifyCredentials.mockResolvedValue({
+      success: false,
+      error: 'ログイン試行回数の上限に達しました。30分後に再試行してください。',
     })
-  })
-
-  // 17
-  it('レート制限に達した場合はエラーメッセージを表示する', async () => {
-    mockCheckLoginAllowed.mockResolvedValue({ allowed: false, message: 'ログイン試行回数の上限に達しました。しばらく待ってから再試行してください。' })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+    await submitLogin()
     await waitFor(() => {
       expect(screen.getByText(/ログイン試行回数の上限に達しました/i)).toBeInTheDocument()
     })
     expect(mockSignIn).not.toHaveBeenCalled()
   })
 
-  // 18
-  it('デバイスブラックリストチェックが呼ばれる', async () => {
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    // フィンガープリントが設定されるまで待つ
-    await waitFor(() => {})
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(mockIsDeviceBlacklisted).toHaveBeenCalled()
+  it('デバイスブロック時はサーバーのメッセージを表示する', async () => {
+    mockVerifyCredentials.mockResolvedValue({
+      success: false,
+      error: 'このデバイスからのログインは許可されていません',
     })
-  })
-
-  // 19
-  it('ブラックリストに登録されたデバイスはエラーを表示する', async () => {
-    mockIsDeviceBlacklisted.mockResolvedValue(true)
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await waitFor(() => {})
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+    await submitLogin()
     await waitFor(() => {
       expect(screen.getByText(/このデバイスからのログインは許可されていません/i)).toBeInTheDocument()
     })
   })
 
-  // 20
-  it('2FA必要時に2FA入力フォームを表示する', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+  it('メール未確認時はエラーと再送ボタンを表示する', async () => {
+    mockVerifyCredentials.mockResolvedValue({ success: false, error: ERR_EMAIL_NOT_VERIFIED })
+    await submitLogin()
     await waitFor(() => {
-      expect(screen.getByText(/2段階認証/i)).toBeInTheDocument()
+      expect(screen.getByText(/メールアドレスがまだ確認されていません/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /確認メールを再送する/i })).toBeInTheDocument()
     })
   })
 
-  // 21
-  it('2FAコードを入力できる', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+  it('確認メール再送ボタンで resendVerificationEmail を呼ぶ', async () => {
+    mockVerifyCredentials.mockResolvedValue({ success: false, error: ERR_EMAIL_NOT_VERIFIED })
+    const user = await submitLogin()
+    const resendButton = await screen.findByRole('button', { name: /確認メールを再送する/i })
+    await user.click(resendButton)
     await waitFor(() => {
-      expect(screen.getByLabelText(/認証コード/i)).toBeInTheDocument()
-    })
-
-    await user.type(screen.getByLabelText(/認証コード/i), '123456')
-    expect(screen.getByLabelText(/認証コード/i)).toHaveValue('123456')
-  })
-
-  // 22
-  it('2FA検証時にverify2FATokenが呼ばれる', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    mockSignIn.mockResolvedValue({ ok: true })
-    mockVerify2FAToken.mockResolvedValue({ success: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/認証コード/i)).toBeInTheDocument()
-    })
-
-    await user.type(screen.getByLabelText(/認証コード/i), '123456')
-    await user.click(screen.getByRole('button', { name: /確認$/i }))
-
-    await waitFor(() => {
-      expect(mockVerify2FAToken).toHaveBeenCalledWith('test@example.com', '123456')
+      expect(mockResendVerificationEmail).toHaveBeenCalledWith('test@example.com')
     })
   })
 
-  // 23
-  it('無効な2FAコードでエラーを表示する', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    mockVerify2FAToken.mockResolvedValue({ error: '認証コードが無効です' })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/認証コード/i)).toBeInTheDocument()
-    })
-
-    await user.type(screen.getByLabelText(/認証コード/i), '000000')
-    await user.click(screen.getByRole('button', { name: /確認$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/認証コードが無効です/i)).toBeInTheDocument()
-    })
-  })
-
-  // 24
-  it('ローディング中はボタンテキストが「ログイン中...」に変わる', async () => {
-    mockSignIn.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true }), 200)))
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-
-    expect(screen.getByRole('button', { name: 'ログイン' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'ログイン' }))
-
-    expect(screen.getByRole('button', { name: /ログイン中/i })).toBeInTheDocument()
-  })
-
-  // 25
-  it('再試行時にエラーメッセージがクリアされる', async () => {
-    mockSignIn.mockResolvedValueOnce({ ok: false, error: 'CredentialsSignin' })
-    mockSignIn.mockResolvedValueOnce({ ok: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'wrongpassword')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+  it('signIn がエラーを返すと無効資格情報メッセージを表示する', async () => {
+    mockSignIn.mockResolvedValue({ ok: false, error: 'CredentialsSignin' })
+    await submitLogin()
     await waitFor(() => {
       expect(screen.getByText(/メールアドレスまたはパスワードが間違っています/i)).toBeInTheDocument()
     })
-
-    // 再送信（新しい試行でエラーがクリアされる）
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    // 送信中のタイミングではエラーがクリアされている
-    await waitFor(() => {
-      expect(mockSignIn).toHaveBeenCalledTimes(2)
-    })
   })
 
-  // 26
-  it('メールアドレスのプレースホルダーが表示される', () => {
-    render(<LoginForm />)
-    expect(screen.getByPlaceholderText('mail@example.com')).toBeInTheDocument()
-  })
-
-  // 27
-  it('パスワードのプレースホルダーが表示される', () => {
-    render(<LoginForm />)
-    expect(screen.getByPlaceholderText('8文字以上（英字・数字を含む）')).toBeInTheDocument()
-  })
-
-  // 28
-  it('2FAキャンセルでログインフォームに戻る', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/2段階認証/i)).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByRole('button', { name: /キャンセル/i }))
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('mail@example.com')).toBeInTheDocument()
-    })
-  })
-
-  // 29
-  it('2FA検証で例外が発生した場合にエラーを表示する', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    mockVerify2FAToken.mockRejectedValue(new Error('Network error'))
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/認証コード/i)).toBeInTheDocument()
-    })
-
-    await user.type(screen.getByLabelText(/認証コード/i), '123456')
-    await user.click(screen.getByRole('button', { name: /確認$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/認証中にエラーが発生しました/i)).toBeInTheDocument()
-    })
-  })
-
-  // 30
-  it('ログイン処理で例外が発生した場合にエラーを表示する', async () => {
-    mockSignIn.mockRejectedValue(new Error('Network error'))
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+  it('verifyCredentials が例外を投げるとログインエラーを表示する', async () => {
+    mockVerifyCredentials.mockRejectedValue(new Error('Network error'))
+    await submitLogin()
     await waitFor(() => {
       expect(screen.getByText(/ログイン中にエラーが発生しました/i)).toBeInTheDocument()
     })
   })
 
-  // 31
-  it('レート制限チェックで例外が発生してもログインは続行する', async () => {
-    mockCheckLoginAllowed.mockRejectedValue(new Error('Redis error'))
-    mockSignIn.mockResolvedValue({ ok: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
+  // --- 2FA ---
+  it('2FA 必要時に2FA入力フォームを表示する', async () => {
+    mockVerifyCredentials.mockResolvedValue(ok2FA)
+    await submitLogin()
     await waitFor(() => {
-      expect(mockSignIn).toHaveBeenCalled()
+      expect(screen.getByText(/2段階認証/i)).toBeInTheDocument()
     })
   })
 
-  // 32
-  it('デバイスチェックで例外が発生してもログインは続行する', async () => {
-    mockIsDeviceBlacklisted.mockRejectedValue(new Error('Check error'))
-    mockSignIn.mockResolvedValue({ ok: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await waitFor(() => {})
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(mockSignIn).toHaveBeenCalled()
-    })
+  it('2FAコードを入力できる', async () => {
+    mockVerifyCredentials.mockResolvedValue(ok2FA)
+    const user = await submitLogin()
+    const codeInput = await screen.findByLabelText(/認証コード/i)
+    await user.type(codeInput, '123456')
+    expect(codeInput).toHaveValue('123456')
   })
 
-  // 33
-  it('2FA必要時にパスワードが間違っている場合エラーを表示する', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: false, error: 'メールアドレスまたはパスワードが間違っています' })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'wrongpassword')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/メールアドレスまたはパスワードが間違っています/i)).toBeInTheDocument()
-    })
-  })
-
-  // 34
-  it('レート制限メッセージがない場合のデフォルトメッセージを表示する', async () => {
-    mockCheckLoginAllowed.mockResolvedValue({ allowed: false })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/ログイン試行回数の上限に達しました/i)).toBeInTheDocument()
-    })
-  })
-
-  // 35
-  it('2FA検証成功でフィードページへリダイレクトする', async () => {
-    mockCheck2FARequired.mockResolvedValue({ required: true })
-    mockVerifyCredentials.mockResolvedValue({ success: true })
-    mockSignIn.mockResolvedValue({ ok: true })
-    mockVerify2FAToken.mockResolvedValue({ success: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/認証コード/i)).toBeInTheDocument()
-    })
-
-    await user.type(screen.getByLabelText(/認証コード/i), '123456')
+  it('2FA検証時にverify2FATokenが呼ばれ、成功でフィードへ遷移する', async () => {
+    mockVerifyCredentials.mockResolvedValue(ok2FA)
+    const user = await submitLogin()
+    const codeInput = await screen.findByLabelText(/認証コード/i)
+    await user.type(codeInput, '123456')
     await user.click(screen.getByRole('button', { name: /確認$/i }))
-
     await waitFor(() => {
+      expect(mockVerify2FAToken).toHaveBeenCalledWith('test@example.com', '123456')
       expect(mockPush).toHaveBeenCalledWith('/feed')
-      expect(mockRefresh).toHaveBeenCalled()
     })
   })
 
-  // 36 - Google OAuth
-  it('Googleでログインボタンを表示する', () => {
-    render(<LoginForm />)
-    expect(screen.getByRole('button', { name: /Googleでログイン/i })).toBeInTheDocument()
+  it('無効な2FAコードでエラーを表示する', async () => {
+    mockVerifyCredentials.mockResolvedValue(ok2FA)
+    mockVerify2FAToken.mockResolvedValue({ error: '認証コードが無効です' })
+    const user = await submitLogin()
+    const codeInput = await screen.findByLabelText(/認証コード/i)
+    await user.type(codeInput, '000000')
+    await user.click(screen.getByRole('button', { name: /確認$/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/認証コードが無効です/i)).toBeInTheDocument()
+    })
   })
 
-  // 37
-  it('GoogleでログインボタンをクリックするとsignIn("google")が呼ばれる', async () => {
+  it('2FAキャンセルでログインフォームに戻る', async () => {
+    mockVerifyCredentials.mockResolvedValue(ok2FA)
+    const user = await submitLogin()
+    await screen.findByLabelText(/認証コード/i)
+    await user.click(screen.getByRole('button', { name: /キャンセル/i }))
+    await waitFor(() => {
+      expect(getEmailInput()).toBeInTheDocument()
+    })
+  })
+
+  it('2FA検証で例外が発生した場合にエラーを表示する', async () => {
+    mockVerifyCredentials.mockResolvedValue(ok2FA)
+    mockVerify2FAToken.mockRejectedValue(new Error('Network error'))
+    const user = await submitLogin()
+    const codeInput = await screen.findByLabelText(/認証コード/i)
+    await user.type(codeInput, '123456')
+    await user.click(screen.getByRole('button', { name: /確認$/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/認証中にエラーが発生しました/i)).toBeInTheDocument()
+    })
+  })
+
+  // --- ローディング ---
+  it('ログイン中はボタンが「ログイン中...」になり無効化される', async () => {
+    mockVerifyCredentials.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(okNo2FA), 200)))
+    await submitLogin()
+    const loadingButton = screen.getByRole('button', { name: /ログイン中/i })
+    expect(loadingButton).toBeInTheDocument()
+    expect(loadingButton).toBeDisabled()
+  })
+
+  // --- Google OAuth ---
+  it('Googleでログインボタンを表示しクリックでsignIn("google")を呼ぶ', async () => {
     const user = userEvent.setup()
     render(<LoginForm />)
-
-    await user.click(screen.getByRole('button', { name: /Googleでログイン/i }))
-
+    const googleButton = screen.getByRole('button', { name: /Googleでログイン/i })
+    expect(googleButton).toBeInTheDocument()
+    await user.click(googleButton)
     expect(mockSignIn).toHaveBeenCalledWith('google', { callbackUrl: '/feed' })
   })
 
-  // 38
-  it('ローディング中はGoogleログインボタンが無効化される', async () => {
-    mockSignIn.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ ok: true }), 200)))
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    expect(screen.getByRole('button', { name: /Googleでログイン/i })).toBeDisabled()
-  })
-
-  // 39
   it('「または」区切り線を表示する', () => {
     render(<LoginForm />)
     expect(screen.getByText('または')).toBeInTheDocument()
-  })
-
-  // 40
-  it('2FAチェックで例外が発生してもログインは続行する', async () => {
-    mockCheck2FARequired.mockRejectedValue(new Error('2FA check error'))
-    mockSignIn.mockResolvedValue({ ok: true })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(getEmailInput(), 'test@example.com')
-    await user.type(getPasswordInput(), 'password123')
-    await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/feed')
-    })
   })
 })

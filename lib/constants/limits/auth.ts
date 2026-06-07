@@ -7,6 +7,15 @@
 /** パスワードの最小文字数 */
 export const PASSWORD_MIN_LENGTH = 8
 
+/**
+ * パスワードの最大文字数。
+ * bcrypt(bcryptjs) は入力の先頭 72 バイトのみをハッシュ対象とするため、それを超える長さは
+ * 静かに切り詰められ「異なる長い文字列が同一ハッシュになる」誤りや、巨大入力による
+ * ハッシュ計算 DoS の余地を生む。登録/リセット時の新規パスワードに上限を設けて塞ぐ
+ * （ログインの既存パスワード比較には上限を課さない＝既存ユーザーを締め出さない）。
+ */
+export const PASSWORD_MAX_LENGTH = 72
+
 /** 2FAコードの桁数 */
 export const TWO_FACTOR_CODE_LENGTH = 6
 

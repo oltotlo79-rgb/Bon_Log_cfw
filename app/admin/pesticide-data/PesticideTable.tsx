@@ -15,6 +15,18 @@ import {
 } from 'lucide-react'
 import { deletePesticide } from '@/lib/actions/admin/pesticide-data'
 import { ROUTE_ADMIN_PESTICIDE_DATA } from '@/lib/constants/routes'
+import { useToast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { MSG_ERROR_TITLE } from '@/lib/constants/messages'
 
 interface PesticideItem {
   id: string
@@ -65,10 +77,13 @@ export function PesticideTable({
 }: PesticideTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const { toast } = useToast()
 
   const [searchInput, setSearchInput] = useState(search)
   const [typeFilter, setTypeFilter] = useState(pesticideType)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // 削除確認ダイアログの対象（null のとき閉じている）
+  const [deleteTarget, setDeleteTarget] = useState<PesticideItem | null>(null)
 
   /** URLパラメータを更新してページ遷移（フィルター変更時は先頭ページへ） */
   function applyFilters() {
@@ -90,20 +105,21 @@ export function PesticideTable({
     })
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`「${name}」を削除してもよろしいですか？この操作は取り消せません。`)) {
-      return
-    }
-    setDeletingId(id)
+  /** 削除確認ダイアログでの確定。失敗時は toast でエラーを表示する。 */
+  async function handleConfirmDelete() {
+    const target = deleteTarget
+    if (!target) return
+    setDeletingId(target.id)
     try {
-      const result = await deletePesticide(id)
+      const result = await deletePesticide(target.id)
       if (result && 'error' in result) {
-        alert(result.error)
-      } else {
-        startTransition(() => {
-          router.refresh()
-        })
+        toast({ title: MSG_ERROR_TITLE, description: result.error, variant: 'destructive' })
+        return
       }
+      setDeleteTarget(null)
+      startTransition(() => {
+        router.refresh()
+      })
     } finally {
       setDeletingId(null)
     }
@@ -237,7 +253,7 @@ export function PesticideTable({
                         <Pencil className="w-4 h-4 text-muted-foreground" />
                       </Link>
                       <button
-                        onClick={() => handleDelete(pesticide.id, pesticide.name)}
+                        onClick={() => setDeleteTarget(pesticide)}
                         disabled={deletingId === pesticide.id}
                         className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50"
                         title="削除"
@@ -257,6 +273,31 @@ export function PesticideTable({
         </table>
       </div>
 
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>農薬データを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{deleteTarget?.name}」を削除します。この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId !== null}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deletingId !== null}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingId !== null ? '削除中...' : '削除する'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

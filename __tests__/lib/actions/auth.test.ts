@@ -171,7 +171,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: {},
 }))
 
-vi.mock('@/lib/actions/blacklist', () => ({
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: vi.fn().mockResolvedValue(false),
   isDeviceBlacklisted: vi.fn().mockResolvedValue(false),
 }))
@@ -228,174 +228,9 @@ describe('Auth Actions', async () => {
     vi.clearAllMocks()
   })
 
-  // ============================================================
-  // checkLoginAllowed（ログイン許可チェック）
-  // ============================================================
-  /**
-   * checkLoginAllowed関数のテスト
-   *
-   * この関数は、指定されたメールアドレスでのログイン試行が
-   * 許可されているかどうかをチェックします。
-   *
-   * ブルートフォース攻撃対策として、一定回数以上の
-   * ログイン失敗があった場合はログインをブロックします。
-   */
-  describe('checkLoginAllowed', async () => {
-    /**
-     * テストケース1: 正常系 - ログインが許可されている場合
-     *
-     * シナリオ：
-     * - ユーザーがまだログイン失敗していない、または
-     * - 失敗回数が上限未満の場合
-     *
-     * 期待結果：
-     * - allowed: true（ログイン試行を許可）
-     * - remainingAttempts: 残りの試行回数
-     */
-    it('ログインが許可されている場合、allowed: trueを返す', async () => {
-      // このテストでのみ使用するモック値を設定
-      // mockResolvedValueOnce: 1回だけこの値を返す
-      mockLoginTracker.checkLoginAttempt.mockResolvedValueOnce({
-        allowed: true,
-        message: '',
-        remainingAttempts: 5,
-      })
-
-      // 動的インポートを使用してテスト対象の関数を取得
-      // なぜ動的インポート？
-      // vi.mock()の後にインポートする必要があるため
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-      const result = await checkLoginAllowed('test@example.com')
-
-      // アサーション（検証）
-      // expect(値).toBe(期待値): 値が期待値と等しいことを確認
-      expect(result.allowed).toBe(true)
-      expect(result.remainingAttempts).toBe(5)
-    })
-
-    /**
-     * テストケース2: 異常系 - アカウントがロックされている場合
-     *
-     * シナリオ：
-     * - ログイン失敗回数が上限に達した
-     * - アカウントが一時的にロックされている
-     *
-     * 期待結果：
-     * - allowed: false（ログイン試行を拒否）
-     * - message: ロックされていることを示すメッセージ
-     */
-    it('ログインがロックされている場合、allowed: falseを返す', async () => {
-      mockLoginTracker.checkLoginAttempt.mockResolvedValueOnce({
-        allowed: false,
-        message: 'アカウントがロックされています',
-        remainingAttempts: 0,
-      })
-
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-      const result = await checkLoginAllowed('test@example.com')
-
-      expect(result.allowed).toBe(false)
-      expect(result.message).toBe('アカウントがロックされています')
-    })
-  })
-
-  // ============================================================
-  // recordLoginFailure（ログイン失敗の記録）
-  // ============================================================
-  /**
-   * recordLoginFailure関数のテスト
-   *
-   * この関数は、ログイン失敗を記録し、
-   * 残りの試行回数やロックアウト状態を返します。
-   *
-   * 使用タイミング：
-   * - ユーザーが間違ったパスワードでログインを試みた時
-   */
-  describe('recordLoginFailure', async () => {
-    /**
-     * テストケース1: ログイン失敗を記録（まだロックされていない）
-     *
-     * シナリオ：
-     * - ユーザーがログインに失敗した
-     * - まだ失敗回数が上限に達していない
-     *
-     * 期待結果：
-     * - locked: false（まだロックされていない）
-     * - remainingAttempts: 残りの試行回数（減少している）
-     */
-    it('ログイン失敗を記録し、残り回数を返す', async () => {
-      mockLoginTracker.recordFailedLogin.mockResolvedValueOnce({
-        allowed: true,
-        message: '',
-        remainingAttempts: 4, // 5回 → 4回に減少
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      const result = await recordLoginFailure('test@example.com')
-
-      expect(result.locked).toBe(false)
-      expect(result.remainingAttempts).toBe(4)
-    })
-
-    /**
-     * テストケース2: ロックアウトになった場合
-     *
-     * シナリオ：
-     * - ログイン失敗が上限回数に達した
-     * - アカウントがロックされた
-     *
-     * 期待結果：
-     * - locked: true（ロックされた）
-     * - message: ロックされたことを示すメッセージ
-     */
-    it('ロックアウトになった場合、locked: trueを返す', async () => {
-      mockLoginTracker.recordFailedLogin.mockResolvedValueOnce({
-        allowed: false,
-        message: 'アカウントがロックされました',
-        remainingAttempts: 0,
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      const result = await recordLoginFailure('test@example.com')
-
-      expect(result.locked).toBe(true)
-      expect(result.message).toBe('アカウントがロックされました')
-    })
-  })
-
-  // ============================================================
-  // clearLoginAttempts（ログイン試行回数のリセット）
-  // ============================================================
-  /**
-   * clearLoginAttempts関数のテスト
-   *
-   * この関数は、ログイン成功時に試行回数をリセットします。
-   *
-   * 使用タイミング：
-   * - ユーザーが正常にログインした時
-   */
-  describe('clearLoginAttempts', async () => {
-    /**
-     * テストケース: 試行回数をリセット
-     *
-     * シナリオ：
-     * - ユーザーがログインに成功した
-     * - 失敗カウンターをリセットする
-     *
-     * 期待結果：
-     * - resetLoginAttempts関数が呼ばれる
-     *
-     * toHaveBeenCalled()について：
-     * モック関数が呼ばれたことを確認するマッチャー。
-     * 戻り値は検証せず、呼ばれたかどうかだけをチェック。
-     */
-    it('ログイン試行回数をリセットする', async () => {
-      const { clearLoginAttempts } = await import('@/lib/actions/auth')
-      await clearLoginAttempts('test@example.com')
-
-      expect(mockLoginTracker.resetLoginAttempts).toHaveBeenCalled()
-    })
-  })
+  // checkLoginAllowed / recordLoginFailure / clearLoginAttempts は server-only サービス
+  // `lib/services/login-throttle` へ移設した（公開 RPC 露出の排除）。
+  // ロジック検証は `__tests__/lib/services/login-throttle.test.ts` 側で行う。
 
   // ============================================================
   // registerUser（新規ユーザー登録）
@@ -793,7 +628,8 @@ describe('Auth Actions', async () => {
       })
 
       expect(result.success).toBe(false)
-      expect('error' in result && result.error).toBe('パスワードはアルファベットと数字を両方含めてください')
+      // 共有 validatePassword は不足要素を個別に通知する（より具体的な UX）
+      expect('error' in result && result.error).toBe('パスワードは数字を含めてください')
     })
 
     /**
@@ -811,7 +647,8 @@ describe('Auth Actions', async () => {
       })
 
       expect(result.success).toBe(false)
-      expect('error' in result && result.error).toBe('パスワードはアルファベットと数字を両方含めてください')
+      // 共有 validatePassword は不足要素を個別に通知する（より具体的な UX）
+      expect('error' in result && result.error).toBe('パスワードはアルファベットを含めてください')
     })
 
     /**
@@ -1033,41 +870,8 @@ describe('Auth Actions', async () => {
     })
   })
 
-  // ============================================================
-  // getEmailVerificationStatus（メール確認状態取得）
-  // ============================================================
-  describe('getEmailVerificationStatus', () => {
-    it('確認済みメールの場合は verified: true を返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        emailVerified: new Date(),
-      })
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('verified@example.com')
-
-      expect(result).toEqual({ verified: true })
-    })
-
-    it('未確認メールの場合は verified: false を返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        emailVerified: null,
-      })
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('unverified@example.com')
-
-      expect(result).toEqual({ verified: false })
-    })
-
-    it('ユーザーが存在しない場合は verified: true を返す（ログインエラーに流すため）', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce(null)
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('nonexistent@example.com')
-
-      expect(result).toEqual({ verified: true })
-    })
-  })
+  // getEmailVerificationStatus は列挙耐性のため撤去し、メール未確認の判定は
+  // verifyCredentials（パスワード一致後のみ ERR_EMAIL_NOT_VERIFIED を返す）に統合した。
 })
 
 // ============================================================================

@@ -440,34 +440,3 @@ export async function get2FAStatus(): Promise<ActionResult<{ enabled: boolean; b
   return actionSuccess({ enabled: false })
 }
 
-/**
- * ユーザーに2FAが必要かどうかをチェックする
- *
- * ログイン処理中に呼び出し、2FAが有効なユーザーかを確認します。
- *
- * @param email - ユーザーのメールアドレス
- * @returns 2FAが必要かどうか（ユーザー存在の漏洩を防ぐためuserIdは返さない）
- */
-export async function check2FARequired(
-  email: string
-): Promise<{ required: boolean }> {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { twoFactorEnabled: true },
-    })
-
-    if (!user) {
-      return { required: false }
-    }
-
-    if (user.twoFactorEnabled) {
-      return { required: true }
-    }
-
-    return { required: false }
-  } catch {
-    // DB接続エラー等の一時的な障害時は2FA不要として続行（500を防ぐ）
-    return { required: false }
-  }
-}

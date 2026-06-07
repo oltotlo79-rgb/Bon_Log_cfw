@@ -13,6 +13,18 @@ import {
   Loader2,
 } from 'lucide-react'
 import { createNgWord, deleteNgWord, toggleNgWord } from '@/lib/actions/admin/moderation'
+import { useToast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { MSG_ERROR_TITLE } from '@/lib/constants/messages'
 
 interface NgWord {
   id: string
@@ -54,6 +66,7 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const { toast } = useToast()
 
   // 新規追加フォームの状態
   const [newWord, setNewWord] = useState('')
@@ -61,6 +74,10 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
   const [newIsRegex, setNewIsRegex] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+
+  // 削除確認ダイアログの対象（null のとき閉じている）
+  const [deleteTarget, setDeleteTarget] = useState<NgWord | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // 検索フォームの状態
   const [searchInput, setSearchInput] = useState(search)
@@ -135,17 +152,22 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
   }
 
   /**
-   * NGワード削除
+   * 削除確認ダイアログでの確定。失敗時は toast でエラーを表示する。
    */
-  async function handleDelete(id: string, word: string) {
-    if (!confirm(`「${word}」を削除してよろしいですか？`)) return
+  async function handleConfirmDelete() {
+    const target = deleteTarget
+    if (!target) return
 
-    const result = await deleteNgWord(id)
+    setIsDeleting(true)
+    const result = await deleteNgWord(target.id)
+    setIsDeleting(false)
+
     if (result && 'error' in result) {
-      alert(result.error)
+      toast({ title: MSG_ERROR_TITLE, description: result.error, variant: 'destructive' })
       return
     }
 
+    setDeleteTarget(null)
     startTransition(() => {
       router.refresh()
     })
@@ -157,7 +179,7 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
   async function handleToggle(id: string) {
     const result = await toggleNgWord(id)
     if (result && 'error' in result) {
-      alert(result.error)
+      toast({ title: MSG_ERROR_TITLE, description: result.error, variant: 'destructive' })
       return
     }
 
@@ -337,7 +359,7 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
                       )}
                     </button>
                     <button
-                      onClick={() => handleDelete(word.id, word.word)}
+                      onClick={() => setDeleteTarget(word)}
                       className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
                       title="削除"
                     >
@@ -359,6 +381,31 @@ export function NgWordList({ words, search, category }: NgWordListProps) {
         </table>
       </div>
 
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>NGワードを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{deleteTarget?.word}」を削除します。この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? '削除中...' : '削除する'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

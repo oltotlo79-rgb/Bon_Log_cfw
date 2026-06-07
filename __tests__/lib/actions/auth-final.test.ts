@@ -94,7 +94,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: {},
 }))
 
-vi.mock('@/lib/actions/blacklist', () => ({
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: vi.fn().mockResolvedValue(false),
   isDeviceBlacklisted: vi.fn().mockResolvedValue(false),
 }))
@@ -328,6 +328,11 @@ describe('Auth Actions - Final Coverage', () => {
   // ============================================================
   describe('resetPassword - password validation branches', () => {
     it('rejects password with only letters (no numbers)', async () => {
+      const { validatePassword } = await import('@/lib/validations/password')
+      ;(validatePassword as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+        valid: false,
+        error: 'パスワードは数字を含めてください',
+      })
       const { resetPassword } = await import('@/lib/actions/auth')
       const result = await resetPassword({
         email: 'user@example.com',
@@ -336,10 +341,16 @@ describe('Auth Actions - Final Coverage', () => {
       })
 
       expect(result.success).toBe(false)
-      expect('error' in result && result.error).toContain('アルファベットと数字を両方含めてください')
+      // 共有 validatePassword のエラーがそのまま返る（数字欠落の個別メッセージ）
+      expect('error' in result && result.error).toContain('数字を含めてください')
     })
 
     it('rejects password with only numbers (no letters)', async () => {
+      const { validatePassword } = await import('@/lib/validations/password')
+      ;(validatePassword as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+        valid: false,
+        error: 'パスワードはアルファベットを含めてください',
+      })
       const { resetPassword } = await import('@/lib/actions/auth')
       const result = await resetPassword({
         email: 'user@example.com',
@@ -348,7 +359,8 @@ describe('Auth Actions - Final Coverage', () => {
       })
 
       expect(result.success).toBe(false)
-      expect('error' in result && result.error).toContain('アルファベットと数字を両方含めてください')
+      // 共有 validatePassword のエラーがそのまま返る（アルファベット欠落の個別メッセージ）
+      expect('error' in result && result.error).toContain('アルファベットを含めてください')
     })
 
     it('succeeds with valid token and properly formed password', async () => {
@@ -419,42 +431,4 @@ describe('Auth Actions - Final Coverage', () => {
     })
   })
 
-  // ============================================================
-  // recordLoginFailure: lockout triggers logLoginLockout
-  // ============================================================
-  describe('recordLoginFailure - lockout logging', () => {
-    it('calls logLoginLockout when account gets locked', async () => {
-      const { recordFailedLogin } = await import('@/lib/login-tracker')
-      const { logLoginLockout } = await import('@/lib/security-logger')
-
-      ;(recordFailedLogin as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        allowed: false,
-        message: 'Account locked',
-        remainingAttempts: 0,
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      const result = await recordLoginFailure('user@example.com')
-
-      expect(result.locked).toBe(true)
-      expect(logLoginLockout).toHaveBeenCalled()
-    })
-
-    it('does not call logLoginLockout when still allowed', async () => {
-      const { recordFailedLogin } = await import('@/lib/login-tracker')
-      const { logLoginLockout } = await import('@/lib/security-logger')
-
-      ;(recordFailedLogin as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        allowed: true,
-        message: '',
-        remainingAttempts: 3,
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      const result = await recordLoginFailure('user@example.com')
-
-      expect(result.locked).toBe(false)
-      expect(logLoginLockout).not.toHaveBeenCalled()
-    })
-  })
 })

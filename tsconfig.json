@@ -11,7 +11,7 @@
       "vitest/globals",
       "@testing-library/jest-dom"
     ],
-    "allowJs": true,
+    "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,

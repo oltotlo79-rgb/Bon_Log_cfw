@@ -16,7 +16,9 @@ import { getFormString } from '@/lib/utils/form-data'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { PasswordVisibilityToggle } from './PasswordVisibilityToggle'
 import { VerifyingState, TokenInvalidState, ResetSuccessState } from './PasswordResetStates'
-import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { MSG_ERROR_FALLBACK, MSG_PASSWORD_MISMATCH } from '@/lib/constants/messages'
+import { ERR_RESET_LINK_INVALID } from '@/lib/constants/errors'
+import { validatePassword } from '@/lib/validations/password'
 
 export function PasswordResetConfirmForm() {
 
@@ -60,27 +62,20 @@ export function PasswordResetConfirmForm() {
     const confirmPassword = getFormString(formData, 'confirmPassword') ?? ''
 
     if (password !== confirmPassword) {
-      setError('パスワードが一致しません')
+      setError(MSG_PASSWORD_MISMATCH)
       setLoading(false)
       return
     }
 
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      setError('パスワードは8文字以上で入力してください')
-      setLoading(false)
-      return
-    }
-
-    const hasLetter = /[a-zA-Z]/.test(password)
-    const hasNumber = /[0-9]/.test(password)
-    if (!hasLetter || !hasNumber) {
-      setError('パスワードはアルファベットと数字を両方含めてください')
+    const passwordCheck = validatePassword(password)
+    if (!passwordCheck.valid) {
+      setError(passwordCheck.error)
       setLoading(false)
       return
     }
 
     if (!token || !email) {
-      setError('無効なリセットリンクです')
+      setError(ERR_RESET_LINK_INVALID)
       setLoading(false)
       return
     }

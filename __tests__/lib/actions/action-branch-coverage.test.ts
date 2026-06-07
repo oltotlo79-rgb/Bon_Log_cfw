@@ -150,7 +150,7 @@ vi.mock('@/lib/email', () => ({
 
 const mockIsEmailBlacklisted = vi.fn().mockResolvedValue(false)
 const mockIsDeviceBlacklisted = vi.fn().mockResolvedValue(false)
-vi.mock('@/lib/actions/blacklist', () => ({
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: (...args: unknown[]) => mockIsEmailBlacklisted(...args),
   isDeviceBlacklisted: (...args: unknown[]) => mockIsDeviceBlacklisted(...args),
 }))

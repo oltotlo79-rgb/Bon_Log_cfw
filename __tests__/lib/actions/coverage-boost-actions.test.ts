@@ -348,9 +348,9 @@ describe('Coverage Boost - Action Files', async () => {
   })
 
   // ============================================================
-  // 6. auth.ts lines 163-169 - IP extraction (x-real-ip and 'unknown')
+  // 6. lib/utils/request-ip - getClientIp の IP 抽出（x-real-ip と 'unknown'）
   // ============================================================
-  describe('auth.ts - getClientIp IP extraction', async () => {
+  describe('request-ip - getClientIp IP extraction', async () => {
     it('x-real-ipヘッダーがある場合はそのIPを使用する', async () => {
       // Return null for cf-connecting-ip and x-forwarded-for, but return IP for x-real-ip
       mockHeadersGet.mockImplementation((header: string) => {
@@ -358,24 +358,20 @@ describe('Coverage Boost - Action Files', async () => {
         return null
       })
 
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-      const result = await checkLoginAllowed('test@example.com')
+      const { getClientIp } = await import('@/lib/utils/request-ip')
+      const ip = await getClientIp()
 
-      // The function should work (IP extracted from x-real-ip)
-      expect(mockLoginTracker.getLoginKey).toHaveBeenCalledWith('10.0.0.1', 'test@example.com')
-      expect(result).toHaveProperty('allowed')
+      expect(ip).toBe('10.0.0.1')
     })
 
     it('IPヘッダーが全くない場合は"unknown"を使用する', async () => {
       // Return null for all headers
       mockHeadersGet.mockReturnValue(null)
 
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-      const result = await checkLoginAllowed('test@example.com')
+      const { getClientIp } = await import('@/lib/utils/request-ip')
+      const ip = await getClientIp()
 
-      // The function should work with 'unknown' IP
-      expect(mockLoginTracker.getLoginKey).toHaveBeenCalledWith('unknown', 'test@example.com')
-      expect(result).toHaveProperty('allowed')
+      expect(ip).toBe('unknown')
     })
   })
 

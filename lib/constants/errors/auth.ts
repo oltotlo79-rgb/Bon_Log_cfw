@@ -24,6 +24,8 @@ export const ERR_EMAIL_ALREADY_IN_USE = 'このメールアドレスは既に使
 export const ERR_NICKNAME_RESERVED = 'このユーザー名は利用できません。別のユーザー名をご利用ください。'
 export const ERR_EMAIL_BLACKLISTED = 'このメールアドレスは利用できません'
 export const ERR_DEVICE_BLACKLISTED = 'このデバイスからの登録は許可されていません'
+/** ログイン時にデバイスがブラックリスト登録されている場合のエラー（登録時とは文言を分ける） */
+export const ERR_DEVICE_LOGIN_NOT_ALLOWED = 'このデバイスからのログインは許可されていません'
 export const ERR_VERIFICATION_EMAIL_FAILED = '確認メールの送信に失敗しました。しばらく経ってからお試しください。'
 export const ERR_EMAIL_SEND_FAILED = 'メールの送信に失敗しました。しばらく経ってからお試しください。'
 export const ERR_INVALID_TOKEN = '無効なトークンです。'
@@ -33,7 +35,10 @@ export const ERR_RESEND_TOO_MANY = '再送の要求が多すぎます。1時間�
 export const ERR_RESET_TOO_MANY = 'パスワードリセットの要求が多すぎます。しばらく経ってからお試しください。'
 export const ERR_RESET_LINK_INVALID = 'リセットリンクが無効または期限切れです。もう一度お試しください。'
 export const ERR_PASSWORD_MIN_LENGTH = 'パスワードは8文字以上で入力してください'
+export const ERR_PASSWORD_MAX_LENGTH = 'パスワードは72文字以下で入力してください'
 export const ERR_PASSWORD_ALPHANUMERIC = 'パスワードはアルファベットと数字を両方含めてください'
+export const ERR_PASSWORD_REQUIRE_LETTER = 'パスワードはアルファベットを含めてください'
+export const ERR_PASSWORD_REQUIRE_NUMBER = 'パスワードは数字を含めてください'
 export const ERR_NOT_AUTHORIZED = '権限がありません'
 export const ERR_NOT_FOUND = '見つかりません'
 

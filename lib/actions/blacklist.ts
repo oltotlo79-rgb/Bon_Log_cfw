@@ -149,25 +149,6 @@ export async function getEmailBlacklist(options?: {
 }
 
 /**
- * メールアドレスがブラックリストに登録されているかチェックする
- * （登録時のチェック用 - 管理者権限不要）
- */
-export async function isEmailBlacklisted(email: string): Promise<boolean> {
-  const normalizedEmail = email.toLowerCase().trim()
-
-  try {
-    const entry = await prisma.emailBlacklist.findUnique({
-      where: { email: normalizedEmail },
-    })
-
-    return !!entry
-  } catch (error) {
-    logger.error('Failed to check email blacklist:', error)
-    return false
-  }
-}
-
-/**
  * デバイスをブラックリストに追加する
  */
 export async function addDeviceToBlacklist(
@@ -270,25 +251,6 @@ export async function getDeviceBlacklist(options?: {
   } catch (error) {
     logger.error('Failed to get device blacklist:', error)
     return actionError(ERR_BLACKLIST_FETCH_FAILED)
-  }
-}
-
-/**
- * デバイスがブラックリストに登録されているかチェックする
- * （登録・ログイン時のチェック用 - 管理者権限不要）
- */
-export async function isDeviceBlacklisted(fingerprint: string): Promise<boolean> {
-  if (!fingerprint) return false
-
-  try {
-    const entry = await prisma.deviceBlacklist.findUnique({
-      where: { fingerprint },
-    })
-
-    return !!entry
-  } catch (error) {
-    logger.error('Failed to check device blacklist:', error)
-    return false
   }
 }
 

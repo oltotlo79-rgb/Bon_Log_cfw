@@ -10,19 +10,13 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { sendVerificationEmail } from '@/lib/email'
 import logger from '@/lib/logger'
-import {
-  checkLoginAttempt,
-  recordFailedLogin,
-  resetLoginAttempts,
-  getLoginKey,
-} from '@/lib/login-tracker'
 import { validatePassword } from '@/lib/validations/password'
 import { sanitizeInput } from '@/lib/sanitize'
+import { logRegisterSuccess } from '@/lib/security-logger'
 import {
-  logLoginFailure,
-  logLoginLockout,
-  logRegisterSuccess,
-} from '@/lib/security-logger'
+  checkLoginThrottleForRequest,
+  recordLoginFailureForRequest,
+} from '@/lib/services/login-throttle'
 import { getAppUrl } from '@/lib/env'
 import { ROUTE_FEED, ROUTE_HOME } from '@/lib/constants/routes'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -33,6 +27,7 @@ import { BCRYPT_SALT_ROUNDS, ONE_DAY_MS, FIFTEEN_MINUTES_MS, TOKEN_RANDOM_BYTES,
 import {
   ERR_ACCOUNT_SUSPENDED,
   ERR_DEVICE_BLACKLISTED,
+  ERR_DEVICE_LOGIN_NOT_ALLOWED,
   ERR_EMAIL_ALREADY_REGISTERED,
   ERR_EMAIL_BLACKLISTED,
   ERR_EMAIL_NOT_VERIFIED,
@@ -53,109 +48,9 @@ import {
   ERR_RATE_LIMIT_OPERATION,
 } from '@/lib/constants/errors/content'
 import { isReservedNickname } from '@/lib/constants/reserved'
-import { isEmailBlacklisted, isDeviceBlacklisted } from '@/lib/actions/blacklist'
+import { isEmailBlacklisted, isDeviceBlacklisted } from '@/lib/services/blacklist-check'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
 import type { ActionResult } from '@/types/action-result'
-
-/**
- * `checkLoginAllowed` の戻り値。
- * 失敗パスを持たない rate-limit クエリのため `ActionResult` ではなく状態オブジェクトを返す。
- *
- * `message` は拒否時のみ値が入り許可時は undefined となるため optional。
- * 元の `LoginCheckResult.message` の optionality をそのまま伝搬する。
- */
-export type LoginAllowedResult = {
-  /** 直近の連続失敗回数がロック閾値未満なら true */
-  allowed: boolean
-  /** 利用者表示用メッセージ（拒否時のみ。許可時は undefined） */
-  message?: string
-  /** ロック前に残されている試行回数 */
-  remainingAttempts: number
-}
-
-/**
- * `recordLoginFailure` の戻り値。
- * 失敗パスを持たない監査記録系のため `ActionResult` ではなく状態オブジェクトを返す。
- *
- * `message` は新規ロック時のみ値が入る。
- */
-export type LoginFailureResult = {
-  /** 今回の失敗で新たにロック状態に入ったかどうか */
-  locked: boolean
-  /** 利用者表示用メッセージ（ロック発動時のみ。それ以外は undefined） */
-  message?: string
-  /** ロック前に残されている試行回数 */
-  remainingAttempts: number
-}
-
-/**
- * ログインがブルートフォースレートリミットの観点で許可されるかを判定する。
- *
- * IP + email の組合せをキーに使い、同一 IP から複数アカウントを狙う攻撃も検知する。
- *
- * 戻り値が `ActionResult` ではなく `LoginAllowedResult` なのは、これが
- * 「失敗しうる書き込み Action」ではなく「Redis のレート状態を返す純粋なクエリ」
- * であるため。`hashtag.ts` の `getTrendingHashtags` 等と同じく、
- * 読み取り系で素直なドメインオブジェクトを返す既存パターンに合わせている。
- */
-export async function checkLoginAllowed(email: string): Promise<LoginAllowedResult> {
-  const ip = await getClientIp()
-  const key = getLoginKey(ip, sanitizeInput(email))
-  const result = await checkLoginAttempt(key)
-
-  return {
-    allowed: result.allowed,
-    message: result.message,
-    remainingAttempts: result.remainingAttempts,
-  }
-}
-
-/**
- * ログイン失敗を記録しセキュリティイベントを発火する。
- *
- * 戻り値が `ActionResult` ではない理由は `checkLoginAllowed` と同様
- * （観測可能な状態を返すクエリ系で、失敗パスを持たない）。
- */
-export async function recordLoginFailure(email: string): Promise<LoginFailureResult> {
-  const ip = await getClientIp()
-  const sanitizedEmail = sanitizeInput(email)
-  const key = getLoginKey(ip, sanitizedEmail)
-
-  const result = await recordFailedLogin(key)
-
-  logLoginFailure(sanitizedEmail, ip, 'invalid_credentials')
-
-  if (!result.allowed) {
-    logLoginLockout(sanitizedEmail, ip)
-  }
-
-  return {
-    locked: !result.allowed,
-    message: result.message,
-    remainingAttempts: result.remainingAttempts,
-  }
-}
-
-/**
- * ログイン成功時に試行カウンタをリセットする。
- *
- * Why email shape validation: `'use server'` ファイルから export しているため
- * 任意クライアントから呼ばれうる公開 RPC である。形が不正な値で
- * カウンタリセットが走らないよう、email shape を Zod で検証する。
- *
- * 失敗パスを持たないため戻り値なし（Promise<void>）。
- */
-export async function clearLoginAttempts(email: string): Promise<void> {
-  const parsed = z
-    .string()
-    .email()
-    .max(MAX_EMAIL_LENGTH)
-    .safeParse(email)
-  if (!parsed.success) return
-  const ip = await getClientIp()
-  const key = getLoginKey(ip, sanitizeInput(parsed.data))
-  await resetLoginAttempts(key)
-}
 
 // auth public action 用のスキーマ群。
 // rate limit を消費する前に入力境界で正規化・検証することで、不正形状の入力で quota を
@@ -169,17 +64,27 @@ const credentialsSchema = z.object({
 })
 
 /**
- * セッション作成なしでパスワードのみ検証する。
- * 2FA有効ユーザーのログインフロー前段で使用。
- * signIn()を呼ばないため、この時点ではセッションは作成されない。
+ * ログイン前段のサーバーサイド検証を単一境界に集約する。
  *
- * メール未確認の場合は `error === ERR_EMAIL_NOT_VERIFIED` を返す。
- * 呼び出し側はこれを識別子として「確認メール再送」ボタンを表示する。
+ * ロックアウト判定 → レート制限 → デバイス検査 → パスワード検証（成功後に状態開示）の順で実施し、
+ * 結果として 2FA が必要かどうかを返す。`signIn()` を呼ばないため、この時点ではセッションは
+ * 作成されない（2FA バイパス防止）。クライアントは本 Action 1 回で 2FA 有無まで判定でき、
+ * 旧 `checkLoginAllowed` / `check2FARequired` / `getEmailVerificationStatus` の
+ * 個別呼び出し（パスワード検証前に状態を返す列挙面）を不要にする。
+ *
+ * 列挙耐性: パスワード不一致・存在しないユーザー・パスワード未設定（OAuth のみ）は
+ * すべて同一の `ERR_LOGIN_INVALID_CREDENTIALS` を返す。停止/未確認の区別は
+ * **パスワード一致後のみ** 開示するため、正規の所有者以外はアカウント状態を推測できない。
+ * メール未確認時は `error === ERR_EMAIL_NOT_VERIFIED` を返し、呼び出し側が「確認メール再送」
+ * ボタンの識別子に使う。失敗は 2FA 有無に依らずサーバー側で記録される。
+ *
+ * @param fingerprint 任意。渡された場合はデバイスブラックリストをサーバー側で検査する。
  */
 export async function verifyCredentials(
   email: string,
-  password: string
-): Promise<ActionResult<void>> {
+  password: string,
+  fingerprint?: string,
+): Promise<ActionResult<{ twoFactorRequired: boolean }>> {
   // 1. 入力検証 (rate limit 前に行うことで、不正形状入力で quota を消費しない)
   const parsed = credentialsSchema.safeParse({ email, password })
   if (!parsed.success) {
@@ -187,7 +92,13 @@ export async function verifyCredentials(
   }
   const { email: validEmail, password: validPassword } = parsed.data
 
-  // 2. レート制限 (IP + 正規化済み email で同一アカウントを狙う攻撃も検知)
+  // 2. ロックアウト判定 (サーバー側で一元化。fail-closed: Redis 障害時も拒否)
+  const throttle = await checkLoginThrottleForRequest(validEmail)
+  if (!throttle.allowed) {
+    return actionError(throttle.message ?? ERR_RATE_LIMIT_OPERATION)
+  }
+
+  // 3. レート制限 (IP + 正規化済み email で同一アカウントを狙う攻撃も検知)
   const ip = await getClientIp()
   const rateLimitResult = await rateLimit(
     `verify-credentials:${ip}:${sanitizeInput(validEmail)}`,
@@ -201,30 +112,43 @@ export async function verifyCredentials(
     return actionError(ERR_RATE_LIMIT_OPERATION)
   }
 
+  // 4. デバイスブラックリスト (公開ログインフォーム由来のチェックをサーバー側で実施)
+  if (fingerprint) {
+    const deviceBlocked = await isDeviceBlacklisted(fingerprint)
+    if (deviceBlocked) {
+      return actionError(ERR_DEVICE_LOGIN_NOT_ALLOWED)
+    }
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { email: validEmail },
-      select: { id: true, password: true, emailVerified: true, isSuspended: true },
+      select: {
+        password: true,
+        emailVerified: true,
+        isSuspended: true,
+        twoFactorEnabled: true,
+      },
     })
 
-    if (!user || !user.password) {
+    // パスワードを先に検証する。存在しない・パスワード未設定（OAuth のみ）・不一致は
+    // すべて同一の汎用エラーで返し、失敗をサーバー側で記録する（2FA 有無に依らず記録される）。
+    const passwordValid =
+      !!user?.password && (await bcrypt.compare(validPassword, user.password))
+    if (!user || !passwordValid) {
+      await recordLoginFailureForRequest(validEmail)
       return actionError(ERR_LOGIN_INVALID_CREDENTIALS)
     }
 
+    // ここから先はパスワード一致済み = 正規の所有者のみ到達。アカウント状態を開示してよい。
     if (user.isSuspended) {
       return actionError(ERR_ACCOUNT_SUSPENDED)
     }
-
     if (!user.emailVerified) {
       return actionError(ERR_EMAIL_NOT_VERIFIED)
     }
 
-    const isValid = await bcrypt.compare(validPassword, user.password)
-    if (!isValid) {
-      return actionError(ERR_LOGIN_INVALID_CREDENTIALS)
-    }
-
-    return actionSuccess()
+    return actionSuccess({ twoFactorRequired: user.twoFactorEnabled })
   } catch (error) {
     logger.error('verifyCredentials error:', error)
     return actionError(ERR_LOGIN_ERROR)
@@ -389,7 +313,6 @@ export async function registerUser(data: {
 import {
   verifyEmailToken as _verifyEmailToken,
   resendVerificationEmail as _resendVerificationEmail,
-  getEmailVerificationStatus as _getEmailVerificationStatus,
 } from './auth-email-verify'
 import {
   requestPasswordReset as _requestPasswordReset,
@@ -403,10 +326,6 @@ export async function verifyEmailToken(token: string) {
 
 export async function resendVerificationEmail(email: string) {
   return _resendVerificationEmail(email)
-}
-
-export async function getEmailVerificationStatus(email: string) {
-  return _getEmailVerificationStatus(email)
 }
 
 export async function requestPasswordReset(email: string) {

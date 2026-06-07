@@ -11,8 +11,8 @@ import { getFingerprintWithCache } from '@/lib/fingerprint'
 import { Eye, EyeOff } from 'lucide-react'
 import { PASSWORD_MIN_LENGTH, MAX_NICKNAME_LENGTH } from '@/lib/constants/limits'
 import { ROUTE_VERIFY_EMAIL_SENT, ROUTE_LOGIN, ROUTE_FEED, ROUTE_TERMS, ROUTE_PRIVACY } from '@/lib/constants/routes'
-import { ERR_PASSWORD_ALPHANUMERIC, ERR_PASSWORD_MIN_LENGTH } from '@/lib/constants/errors'
 import { MSG_ERROR_FALLBACK, MSG_PASSWORD_MISMATCH, MSG_TERMS_AGREEMENT_REQUIRED } from '@/lib/constants/messages'
+import { validatePassword } from '@/lib/validations/password'
 import { getFormString } from '@/lib/utils/form-data'
 
 export function RegisterForm() {
@@ -56,17 +56,9 @@ export function RegisterForm() {
       return
     }
 
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      setError(ERR_PASSWORD_MIN_LENGTH)
-      setLoading(false)
-      return
-    }
-
-    const hasLetter = /[a-zA-Z]/.test(password)
-    const hasNumber = /[0-9]/.test(password)
-
-    if (!hasLetter || !hasNumber) {
-      setError(ERR_PASSWORD_ALPHANUMERIC)
+    const passwordCheck = validatePassword(password)
+    if (!passwordCheck.valid) {
+      setError(passwordCheck.error)
       setLoading(false)
       return
     }

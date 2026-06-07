@@ -91,7 +91,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: {},
 }))
 
-vi.mock('@/lib/actions/blacklist', () => ({
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: vi.fn().mockResolvedValue(false),
   isDeviceBlacklisted: vi.fn().mockResolvedValue(false),
 }))
@@ -238,30 +238,5 @@ describe('Auth Actions - Remaining Branch Coverage', () => {
     })
   })
 
-  // ============================================================
-  // Line 377: getEmailVerificationStatus non-Error exception
-  // The catch block does `e instanceof Error ? e.message : undefined`
-  // When a non-Error is thrown, the branch yields undefined for cause.
-  // ============================================================
-  describe('getEmailVerificationStatus - non-Error thrown from DB', () => {
-    it('handles non-Error exception with undefined cause', async () => {
-      // Throw a string instead of an Error object
-      mockPrisma.user.findUnique.mockRejectedValueOnce('string-db-error')
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('user@example.com')
-
-      // Should gracefully return verified: true (fallback behavior)
-      expect(result).toEqual({ verified: true })
-    })
-
-    it('handles null thrown from DB', async () => {
-      mockPrisma.user.findUnique.mockRejectedValueOnce(null)
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('user@example.com')
-
-      expect(result).toEqual({ verified: true })
-    })
-  })
+  // getEmailVerificationStatus は列挙耐性のため撤去済み（verifyCredentials へ統合）。
 })

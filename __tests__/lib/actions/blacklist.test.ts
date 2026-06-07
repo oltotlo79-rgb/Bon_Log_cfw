@@ -247,44 +247,8 @@ describe('Blacklist Actions', async () => {
     })
   })
 
-  // ============================================================
-  // isEmailBlacklisted
-  // ============================================================
-
-  describe('isEmailBlacklisted', async () => {
-    it('ブラックリストに登録されている場合はtrueを返す', async () => {
-      blMockPrisma.emailBlacklist.findUnique.mockResolvedValueOnce({
-        id: 'bl-1',
-        email: 'spam@example.com',
-      })
-
-      const { isEmailBlacklisted } = await import('@/lib/actions/blacklist')
-      const result = await isEmailBlacklisted('Spam@Example.com')
-
-      expect(result).toBe(true)
-      expect(blMockPrisma.emailBlacklist.findUnique).toHaveBeenCalledWith({
-        where: { email: 'spam@example.com' },
-      })
-    })
-
-    it('ブラックリストに登録されていない場合はfalseを返す', async () => {
-      blMockPrisma.emailBlacklist.findUnique.mockResolvedValueOnce(null)
-
-      const { isEmailBlacklisted } = await import('@/lib/actions/blacklist')
-      const result = await isEmailBlacklisted('clean@example.com')
-
-      expect(result).toBe(false)
-    })
-
-    it('DBエラーの場合はfalseを返す', async () => {
-      blMockPrisma.emailBlacklist.findUnique.mockRejectedValueOnce(new Error('DB error'))
-
-      const { isEmailBlacklisted } = await import('@/lib/actions/blacklist')
-      const result = await isEmailBlacklisted('test@example.com')
-
-      expect(result).toBe(false)
-    })
-  })
+  // isEmailBlacklisted は server-only サービス `lib/services/blacklist-check` へ移設したため
+  // `__tests__/lib/services/blacklist-check.test.ts` で検証する。
 
   // ============================================================
   // addDeviceToBlacklist
@@ -411,39 +375,8 @@ describe('Blacklist Actions', async () => {
     })
   })
 
-  // ============================================================
-  // isDeviceBlacklisted
-  // ============================================================
-
-  describe('isDeviceBlacklisted', async () => {
-    it('空のフィンガープリントはfalseを返す', async () => {
-      const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-      const result = await isDeviceBlacklisted('')
-
-      expect(result).toBe(false)
-    })
-
-    it('ブラックリストに登録されている場合はtrueを返す', async () => {
-      blMockPrisma.deviceBlacklist.findUnique.mockResolvedValueOnce({
-        id: 'dbl-1',
-        fingerprint: 'bad-device',
-      })
-
-      const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-      const result = await isDeviceBlacklisted('bad-device')
-
-      expect(result).toBe(true)
-    })
-
-    it('ブラックリストに登録されていない場合はfalseを返す', async () => {
-      blMockPrisma.deviceBlacklist.findUnique.mockResolvedValueOnce(null)
-
-      const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
-      const result = await isDeviceBlacklisted('clean-device')
-
-      expect(result).toBe(false)
-    })
-  })
+  // isDeviceBlacklisted は server-only サービス `lib/services/blacklist-check` へ移設したため
+  // `__tests__/lib/services/blacklist-check.test.ts` で検証する。
 
   // ============================================================
   // recordUserDevice

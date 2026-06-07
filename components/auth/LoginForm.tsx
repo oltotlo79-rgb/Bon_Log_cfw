@@ -9,15 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import {
-  checkLoginAllowed,
-  getEmailVerificationStatus,
-  recordLoginFailure,
-  resendVerificationEmail,
-  verifyCredentials,
-} from '@/lib/actions/auth'
-import { check2FARequired, verify2FAToken } from '@/lib/actions/two-factor'
-import { isDeviceBlacklisted } from '@/lib/actions/blacklist'
+import { resendVerificationEmail, verifyCredentials } from '@/lib/actions/auth'
+import { verify2FAToken } from '@/lib/actions/two-factor'
 import { Eye, EyeOff } from 'lucide-react'
 import { PASSWORD_MIN_LENGTH } from '@/lib/constants/limits'
 import { ERR_EMAIL_NOT_VERIFIED, ERR_LOGIN_INVALID_CREDENTIALS } from '@/lib/constants/errors'
@@ -26,10 +19,8 @@ import {
   MSG_2FA_AUTH_ERROR,
   MSG_AUTH_NOT_FOUND,
   MSG_ERROR_FALLBACK,
-  MSG_LOGIN_DEVICE_NOT_ALLOWED,
   MSG_LOGIN_ERROR,
   MSG_LOGIN_FAILED_RETRY,
-  MSG_LOGIN_RATE_LIMITED,
   MSG_VERIFICATION_EMAIL_RESENT,
 } from '@/lib/constants/messages'
 import { ROUTE_FEED, ROUTE_PASSWORD_RESET, ROUTE_REGISTER } from '@/lib/constants/routes'
@@ -71,71 +62,35 @@ export function LoginForm() {
     const password = getFormString(formData, 'password') ?? ''
 
     try {
-      // Rate limit check (fail-open)
-      try {
-        const checkResult = await checkLoginAllowed(email)
-        if (!checkResult.allowed) {
-          setError(checkResult.message || MSG_LOGIN_RATE_LIMITED)
-          setLoading(false)
-          return
+      // サーバー側の単一境界でロックアウト・デバイス検査・パスワード検証・2FA 判定を行う。
+      // パスワード検証より前にアカウント状態（2FA 有無/メール確認）を返さないため、列挙を防ぐ。
+      // 失敗記録・ロックアウトもサーバー側で完結する。
+      const result = await verifyCredentials(email, password, fingerprint ?? undefined)
+
+      if (!result.success) {
+        const message = 'error' in result ? result.error : null
+        // ERR_EMAIL_NOT_VERIFIED は「確認メール再送」UI を出すための識別子として扱う。
+        if (message === ERR_EMAIL_NOT_VERIFIED) {
+          setError(ERR_EMAIL_NOT_VERIFIED)
+          setUnverifiedEmail(email)
+        } else {
+          setError(message ?? MSG_LOGIN_ERROR)
         }
-      } catch (checkError) {
-        clientLogger.error('Login check error:', checkError)
+        setLoading(false)
+        return
       }
 
-      // Device blacklist check (fail-open)
-      if (fingerprint) {
-        try {
-          const deviceBlocked = await isDeviceBlacklisted(fingerprint)
-          if (deviceBlocked) {
-            setError(MSG_LOGIN_DEVICE_NOT_ALLOWED)
-            setLoading(false)
-            return
-          }
-        } catch (deviceCheckError) {
-          clientLogger.error('Device blacklist check error:', deviceCheckError)
-        }
-      }
-
-      // 2FA check (fail-open)
-      let twoFactorCheck: { required: boolean } = { required: false }
-      try {
-        twoFactorCheck = await check2FARequired(email)
-      } catch (twoFactorCheckError) {
-        clientLogger.error('2FA check error:', twoFactorCheckError)
-      }
-
-      if (twoFactorCheck.required) {
-        // セッション作成なしでパスワードのみ検証（2FAバイパス防止）
-        const credentialResult = await verifyCredentials(email, password)
-        if (!credentialResult.success) {
-          await recordLoginFailure(email)
-          if (credentialResult.error === ERR_EMAIL_NOT_VERIFIED) {
-            setError(ERR_EMAIL_NOT_VERIFIED)
-            setUnverifiedEmail(email)
-          } else {
-            setError(credentialResult.error || ERR_LOGIN_INVALID_CREDENTIALS)
-          }
-          setLoading(false)
-          return
-        }
-
+      if (result.data?.twoFactorRequired) {
         // パスワード検証OK → 2FA入力ステップ（この時点ではセッション未作成）
         setPendingCredentials({ email, password })
         setLoading(false)
         return
       }
 
-      const result = await signIn('credentials', { email, password, redirect: false })
-
-      if (result?.error) {
-        const status = await getEmailVerificationStatus(email)
-        if (!status.verified) {
-          setError(ERR_EMAIL_NOT_VERIFIED)
-          setUnverifiedEmail(email)
-        } else {
-          setError(ERR_LOGIN_INVALID_CREDENTIALS)
-        }
+      // 2FA 不要: セッションを発行する。authorize() が成功時にロックアウトをリセットする。
+      const signInResult = await signIn('credentials', { email, password, redirect: false })
+      if (signInResult?.error) {
+        setError(ERR_LOGIN_INVALID_CREDENTIALS)
         setLoading(false)
         return
       }

@@ -598,44 +598,6 @@ describe('Two-Factor Actions', async () => {
     })
   })
 
-  // ============================================================
-  // check2FARequired
-  // ============================================================
-
-  describe('check2FARequired', async () => {
-    it('ユーザーが存在しない場合はrequired: falseを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce(null)
-
-      const { check2FARequired } = await import('@/lib/actions/two-factor')
-      const result = await check2FARequired('nonexistent@example.com')
-
-      expect(result).toEqual({ required: false })
-    })
-
-    it('2FAが有効な場合はrequired: trueを返す（userIdは漏洩防止のため返さない）', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        id: 'user-123',
-        twoFactorEnabled: true,
-      })
-
-      const { check2FARequired } = await import('@/lib/actions/two-factor')
-      const result = await check2FARequired('user@example.com')
-
-      expect(result).toEqual({
-        required: true,
-      })
-    })
-
-    it('2FAが無効な場合はrequired: falseを返す', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        id: 'user-123',
-        twoFactorEnabled: false,
-      })
-
-      const { check2FARequired } = await import('@/lib/actions/two-factor')
-      const result = await check2FARequired('user@example.com')
-
-      expect(result).toEqual({ required: false })
-    })
-  })
+  // check2FARequired は列挙耐性のため撤去し、2FA 要否判定は verifyCredentials
+  // （パスワード一致後にのみ twoFactorRequired を返す）へ統合した。
 })

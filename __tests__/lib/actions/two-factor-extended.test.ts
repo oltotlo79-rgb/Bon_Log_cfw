@@ -376,29 +376,5 @@ describe('two-factor actions', async () => {
     })
   })
 
-  // ============================================================
-  // check2FARequired
-  // ============================================================
-  describe('check2FARequired', async () => {
-    it('returns required true for 2FA-enabled user (without leaking userId)', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', twoFactorEnabled: true })
-      const { check2FARequired } = await import('@/lib/actions/two-factor')
-      const result = await check2FARequired('test@example.com')
-      expect(result).toEqual({ required: true })
-    })
-
-    it('returns required false for user without 2FA', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', twoFactorEnabled: false })
-      const { check2FARequired } = await import('@/lib/actions/two-factor')
-      const result = await check2FARequired('test@example.com')
-      expect(result).toEqual({ required: false })
-    })
-
-    it('returns required false for non-existent user', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null)
-      const { check2FARequired } = await import('@/lib/actions/two-factor')
-      const result = await check2FARequired('nobody@example.com')
-      expect(result).toEqual({ required: false })
-    })
-  })
+  // check2FARequired は撤去済み（verifyCredentials へ統合）。
 })

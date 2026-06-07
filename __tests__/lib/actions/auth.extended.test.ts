@@ -96,8 +96,8 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: {},
 }))
 
-// ブラックリストモック
-vi.mock('@/lib/actions/blacklist', () => ({
+// ブラックリストモック（server-only サービスへ移設済み）
+vi.mock('@/lib/services/blacklist-check', () => ({
   isEmailBlacklisted: vi.fn(() => false),
   isDeviceBlacklisted: vi.fn(() => false),
 }))
@@ -108,204 +108,10 @@ describe('auth actions extended tests', async () => {
     vi.resetModules()
   })
 
-  // ============================================================
-  // checkLoginAllowed
-  // ============================================================
-
-  describe('checkLoginAllowed', async () => {
-    it('ログインが許可されている場合', async () => {
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-
-      const result = await checkLoginAllowed('test@example.com')
-
-      expect(result.allowed).toBe(true)
-      expect(result.remainingAttempts).toBe(5)
-    })
-
-    it('メールアドレスをサニタイズする', async () => {
-      const { sanitizeInput } = await import('@/lib/sanitize')
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-
-      await checkLoginAllowed('<script>test@example.com</script>')
-
-      expect(sanitizeInput).toHaveBeenCalled()
-    })
-
-    it('IPアドレスとメールでキーを生成する', async () => {
-      const { getLoginKey } = await import('@/lib/login-tracker')
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-
-      await checkLoginAllowed('test@example.com')
-
-      expect(getLoginKey).toHaveBeenCalledWith('192.168.1.1', 'test@example.com')
-    })
-  })
-
-  // ============================================================
-  // recordLoginFailure
-  // ============================================================
-
-  describe('recordLoginFailure', async () => {
-    it('ログイン失敗を記録する', async () => {
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-
-      const result = await recordLoginFailure('test@example.com')
-
-      expect(result.locked).toBe(false)
-      expect(result.remainingAttempts).toBe(4)
-    })
-
-    it('セキュリティログに記録する', async () => {
-      const { logLoginFailure } = await import('@/lib/security-logger')
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-
-      await recordLoginFailure('test@example.com')
-
-      expect(logLoginFailure).toHaveBeenCalledWith(
-        'test@example.com',
-        '192.168.1.1',
-        'invalid_credentials'
-      )
-    })
-
-    it('ロックアウト時に追加ログを記録する', async () => {
-      const { recordFailedLogin } = await import('@/lib/login-tracker')
-      const { logLoginLockout } = await import('@/lib/security-logger')
-      ;(recordFailedLogin as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        allowed: false,
-        remainingAttempts: 0,
-        message: 'Account locked',
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-
-      const result = await recordLoginFailure('test@example.com')
-
-      expect(result.locked).toBe(true)
-      expect(logLoginLockout).toHaveBeenCalledWith('test@example.com', '192.168.1.1')
-    })
-  })
-
-  // ============================================================
-  // clearLoginAttempts
-  // ============================================================
-
-  describe('clearLoginAttempts', async () => {
-    it('ログイン試行回数をリセットする', async () => {
-      const { resetLoginAttempts } = await import('@/lib/login-tracker')
-      const { clearLoginAttempts } = await import('@/lib/actions/auth')
-
-      await clearLoginAttempts('test@example.com')
-
-      expect(resetLoginAttempts).toHaveBeenCalled()
-    })
-
-    it('returns void (no value to await on)', async () => {
-      const { clearLoginAttempts } = await import('@/lib/actions/auth')
-      const result = await clearLoginAttempts('test@example.com')
-      // 戻り値の型が void なので undefined であること
-      expect(result).toBeUndefined()
-    })
-  })
-
-  // ============================================================
-  // 型契約: LoginAllowedResult / LoginFailureResult
-  // ----------------------------------------------------------------
-  // 元の login-tracker の戻り値（allowed/message?/remainingAttempts）が
-  // checkLoginAllowed/recordLoginFailure を通じて忠実に伝搬し、
-  // かつ recordLoginFailure では allowed が反転して `locked` に対応していること
-  // ============================================================
-
-  describe('LoginAllowedResult / LoginFailureResult contract', async () => {
-    it('checkLoginAllowed: tracker からの message を素通しで渡す（許可時に message 無し）', async () => {
-      const { checkLoginAttempt } = await import('@/lib/login-tracker')
-      ;(checkLoginAttempt as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        allowed: true,
-        remainingAttempts: 3,
-      })
-
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-      const result = await checkLoginAllowed('user@example.com')
-
-      expect(result).toEqual({
-        allowed: true,
-        message: undefined,
-        remainingAttempts: 3,
-      })
-    })
-
-    it('checkLoginAllowed: ロック時には message が伝搬される', async () => {
-      const { checkLoginAttempt } = await import('@/lib/login-tracker')
-      ;(checkLoginAttempt as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        allowed: false,
-        remainingAttempts: 0,
-        message: 'ロック中',
-      })
-
-      const { checkLoginAllowed } = await import('@/lib/actions/auth')
-      const result = await checkLoginAllowed('user@example.com')
-
-      expect(result).toEqual({
-        allowed: false,
-        message: 'ロック中',
-        remainingAttempts: 0,
-      })
-    })
-
-    it('recordLoginFailure: allowed=true のとき locked=false を返す', async () => {
-      const { recordFailedLogin } = await import('@/lib/login-tracker')
-      ;(recordFailedLogin as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        allowed: true,
-        remainingAttempts: 3,
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      const result = await recordLoginFailure('user@example.com')
-
-      expect(result).toEqual({
-        locked: false,
-        message: undefined,
-        remainingAttempts: 3,
-      })
-    })
-
-    it('recordLoginFailure: 直近のロックでは locked=true、message 付き、ロックアウトログが書かれる', async () => {
-      const { recordFailedLogin } = await import('@/lib/login-tracker')
-      const { logLoginLockout, logLoginFailure } = await import('@/lib/security-logger')
-      ;(recordFailedLogin as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        allowed: false,
-        remainingAttempts: 0,
-        message: 'アカウントがロックされました',
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      const result = await recordLoginFailure('user@example.com')
-
-      expect(result).toEqual({
-        locked: true,
-        message: 'アカウントがロックされました',
-        remainingAttempts: 0,
-      })
-      // 失敗とロックアウトのログがどちらも書かれること
-      expect(logLoginFailure).toHaveBeenCalledTimes(1)
-      expect(logLoginLockout).toHaveBeenCalledTimes(1)
-    })
-
-    it('recordLoginFailure: allowed=true でもログイン失敗ログだけは必ず書かれる（ロックアウトログは書かれない）', async () => {
-      const { recordFailedLogin } = await import('@/lib/login-tracker')
-      const { logLoginLockout, logLoginFailure } = await import('@/lib/security-logger')
-      ;(recordFailedLogin as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        allowed: true,
-        remainingAttempts: 4,
-      })
-
-      const { recordLoginFailure } = await import('@/lib/actions/auth')
-      await recordLoginFailure('user@example.com')
-
-      expect(logLoginFailure).toHaveBeenCalledTimes(1)
-      expect(logLoginLockout).not.toHaveBeenCalled()
-    })
-  })
+  // checkLoginAllowed / recordLoginFailure / clearLoginAttempts と、その
+  // LoginAllowedResult / LoginFailureResult 契約テストは server-only サービス
+  // `lib/services/login-throttle` へ移設したため
+  // `__tests__/lib/services/login-throttle.test.ts` で検証する。
 
   // ============================================================
   // registerUser
@@ -364,7 +170,7 @@ describe('auth actions extended tests', async () => {
     })
 
     it('メールがブラックリストに登録されている場合はエラー', async () => {
-      const { isEmailBlacklisted } = await import('@/lib/actions/blacklist')
+      const { isEmailBlacklisted } = await import('@/lib/services/blacklist-check')
       ;(isEmailBlacklisted as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true)
 
       const { registerUser } = await import('@/lib/actions/auth')
@@ -379,7 +185,7 @@ describe('auth actions extended tests', async () => {
     })
 
     it('デバイスがブラックリストに登録されている場合はエラー', async () => {
-      const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
+      const { isDeviceBlacklisted } = await import('@/lib/services/blacklist-check')
       ;(isDeviceBlacklisted as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true)
 
       const { registerUser } = await import('@/lib/actions/auth')
@@ -510,37 +316,8 @@ describe('auth actions extended tests', async () => {
     })
   })
 
-  // ============================================================
-  // getEmailVerificationStatus
-  // ============================================================
-  describe('getEmailVerificationStatus', () => {
-    it('確認済みの場合は verified: true を返す', async () => {
-      authExtMockPrisma.user.findUnique.mockResolvedValue({ emailVerified: new Date() })
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('user@example.com')
-
-      expect(result).toEqual({ verified: true })
-    })
-
-    it('未確認の場合は verified: false を返す', async () => {
-      authExtMockPrisma.user.findUnique.mockResolvedValue({ emailVerified: null })
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('user@example.com')
-
-      expect(result).toEqual({ verified: false })
-    })
-
-    it('DBエラー時は verified: true を返してログインフォームを壊さない', async () => {
-      authExtMockPrisma.user.findUnique.mockRejectedValue(new Error('DB error'))
-
-      const { getEmailVerificationStatus } = await import('@/lib/actions/auth')
-      const result = await getEmailVerificationStatus('user@example.com')
-
-      expect(result).toEqual({ verified: true })
-    })
-  })
+  // getEmailVerificationStatus は列挙耐性のため撤去。メール未確認の判定は
+  // verifyCredentials（パスワード一致後にのみ ERR_EMAIL_NOT_VERIFIED を返す）へ統合した。
 
   // ============================================================
   // requestPasswordReset
@@ -681,7 +458,12 @@ describe('auth actions extended tests', async () => {
       expect(result.error).toContain('8文字以上')
     })
 
-    it('パスワードにアルファベットがない場合はエラー', async () => {
+    it('パスワード強度不足時は共有 validatePassword のエラーをそのまま返す（アルファベットなし）', async () => {
+      const { validatePassword } = await import('@/lib/validations/password')
+      ;(validatePassword as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+        valid: false,
+        error: 'パスワードはアルファベットを含めてください',
+      })
       const { resetPassword } = await import('@/lib/actions/auth')
 
       const result = await resetPassword({
@@ -690,10 +472,15 @@ describe('auth actions extended tests', async () => {
         newPassword: '12345678',
       })
 
-      expect(result.error).toContain('アルファベットと数字を両方含めて')
+      expect(result.error).toContain('アルファベットを含めて')
     })
 
-    it('パスワードに数字がない場合はエラー', async () => {
+    it('パスワード強度不足時は共有 validatePassword のエラーをそのまま返す（数字なし）', async () => {
+      const { validatePassword } = await import('@/lib/validations/password')
+      ;(validatePassword as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+        valid: false,
+        error: 'パスワードは数字を含めてください',
+      })
       const { resetPassword } = await import('@/lib/actions/auth')
 
       const result = await resetPassword({
@@ -702,7 +489,7 @@ describe('auth actions extended tests', async () => {
         newPassword: 'abcdefgh',
       })
 
-      expect(result.error).toContain('アルファベットと数字を両方含めて')
+      expect(result.error).toContain('数字を含めて')
     })
 
     it('トークンが無効または期限切れの場合はエラー', async () => {

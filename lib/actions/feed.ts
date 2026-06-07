@@ -85,10 +85,7 @@ export async function getTimeline(
   }
 
   // getUserRelationSets はRedisキャッシュ（5分TTL）＋React cache() でメモ化済み。
-  const [relationSets, excludeIds] = await Promise.all([
-    getUserRelationSets(currentUserId),
-    getExcludedUserIds(currentUserId, { blocked: true, muted: true }),
-  ])
+  const relationSets = await getUserRelationSets(currentUserId)
 
   const hiddenPostIds = relationSets.hiddenPostIds
 
@@ -100,9 +97,14 @@ export async function getTimeline(
   const rawPosts = await prisma.post.findMany({
     where: {
       isHidden: false,
-      userId: {
-        in: followingIds,
-        notIn: excludeIds.length > 0 ? excludeIds : undefined,
+      userId: { in: followingIds },
+      // ブロック/ミュートは大配列 notIn ではなく relational filter で除外する。
+      // 安全性に関わる除外を MAX_RELATION_FETCH 上限による silent truncation から守るため、
+      // 取得した ID 配列ではなく DB 側の NOT EXISTS 相当で評価する
+      // （Block: blocker_id / Mute: muter_id は索引済み）。自分自身はブロック/ミュート不可のため自投稿は通過する。
+      user: {
+        blockedBy: { none: { blockerId: currentUserId } },
+        mutedBy: { none: { muterId: currentUserId } },
       },
       // フォロー後に停止された著者の投稿は除外する。ただし自分の投稿は停止中でも表示する。
       OR: [{ userId: currentUserId }, { user: { isSuspended: false } }],

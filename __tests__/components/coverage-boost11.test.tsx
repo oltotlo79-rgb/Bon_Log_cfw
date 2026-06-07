@@ -1164,7 +1164,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
     })
   })
 
-  it('shows error for password without letter or number', async () => {
+  it('shows error for password without a letter (numbers only)', async () => {
     mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
 
     await act(async () => {
@@ -1183,7 +1183,8 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('パスワードはアルファベットと数字を両方含めてください')).toBeInTheDocument()
+      // 数字のみ → アルファベット欠落を個別に通知（共有 validatePassword）
+      expect(screen.getByText('パスワードはアルファベットを含めてください')).toBeInTheDocument()
     })
   })
 

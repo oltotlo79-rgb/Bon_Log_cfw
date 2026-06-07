@@ -52,16 +52,11 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/lib/actions/auth', () => ({
-  checkLoginAllowed: vi.fn(),
-  recordLoginFailure: vi.fn().mockResolvedValue(undefined),
-  clearLoginAttempts: vi.fn().mockResolvedValue(undefined),
-  getEmailVerificationStatus: vi.fn().mockResolvedValue({ verified: true }),
   resendVerificationEmail: vi.fn().mockResolvedValue({ success: true }),
-  verifyCredentials: vi.fn().mockResolvedValue({ success: true }),
+  verifyCredentials: vi.fn().mockResolvedValue({ success: true, data: { twoFactorRequired: false } }),
 }))
 
 vi.mock('@/lib/actions/two-factor', () => ({
-  check2FARequired: vi.fn(),
   verify2FAToken: vi.fn(),
 }))
 
@@ -69,17 +64,15 @@ vi.mock('@/lib/fingerprint', () => ({
   getFingerprintWithCache: vi.fn(),
 }))
 
-vi.mock('@/lib/actions/blacklist', () => ({
-  isDeviceBlacklisted: vi.fn(),
-}))
-
 describe('LoginForm', async () => {
   let LoginForm: typeof import('@/components/auth/LoginForm').LoginForm
   const signIn = _mockSignIn as unknown as ReturnType<typeof vi.fn>
-  const { checkLoginAllowed, verifyCredentials } = await import('@/lib/actions/auth')
-  const { check2FARequired, verify2FAToken } = await import('@/lib/actions/two-factor')
+  const { verifyCredentials } = await import('@/lib/actions/auth')
+  const { verify2FAToken } = await import('@/lib/actions/two-factor')
   const { getFingerprintWithCache } = await import('@/lib/fingerprint')
-  const { isDeviceBlacklisted } = await import('@/lib/actions/blacklist')
+
+  const ok2FA = { success: true, data: { twoFactorRequired: true } }
+  const okNo2FA = { success: true, data: { twoFactorRequired: false } }
 
   // Create a wrapper that provides router context
   function renderWithRouter(ui: React.ReactElement) {
@@ -99,6 +92,12 @@ describe('LoginForm', async () => {
     )
   }
 
+  async function submit() {
+    await userEvent.type(screen.getByLabelText('メールアドレス'), 'test@example.com')
+    await userEvent.type(screen.getByLabelText('パスワード'), 'password123')
+    await userEvent.click(screen.getByRole('button', { name: /^ログイン$/ }))
+  }
+
   beforeAll(async () => {
     // Import after mocks are set up
     const mod = await import('@/components/auth/LoginForm')
@@ -110,221 +109,92 @@ describe('LoginForm', async () => {
     mockPush.mockClear()
     mockRefresh.mockClear()
     getFingerprintWithCache.mockResolvedValue('test-fingerprint')
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(okNo2FA)
+    signIn.mockResolvedValue({ ok: true })
   })
 
-  test('レート制限エラーパス', async () => {
-    checkLoginAllowed.mockResolvedValue({
-      allowed: false,
-      message: 'ログイン試行回数の上限に達しました',
+  test('ロックアウト時はサーバーのメッセージを表示する', async () => {
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: 'ログイン試行回数の上限に達しました',
     })
 
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
       expect(screen.getByText(/ログイン試行回数の上限に達しました/)).toBeInTheDocument()
     })
+    expect(signIn).not.toHaveBeenCalled()
   })
 
-  test('レート制限チェック自体がエラーの場合はログイン処理を続行（フェイルオープン）', async () => {
-    checkLoginAllowed.mockRejectedValue(new Error('Network error'))
-    check2FARequired.mockResolvedValue({ required: false })
-    signIn.mockResolvedValue({ ok: true })
-
-    mockClientLoggerError.mockClear()
+  test('verifyCredentials が例外を投げた場合はログインエラーを表示する', async () => {
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
 
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
-      expect(mockClientLoggerError).toHaveBeenCalledWith('Login check error:', expect.any(Error))
+      expect(screen.getByText('ログイン中にエラーが発生しました。再度お試しください。')).toBeInTheDocument()
     })
-
-    // cleanup handled by vi.clearAllMocks
   })
 
-  test('デバイスブラックリストエラーパス', async () => {
-    
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(true)
+  test('デバイスブロックのエラーメッセージを表示する', async () => {
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: 'このデバイスからのログインは許可されていません',
+    })
 
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
       expect(screen.getByText('このデバイスからのログインは許可されていません')).toBeInTheDocument()
     })
   })
 
-  test('デバイスブラックリストチェックがエラーの場合は続行（フェイルオープン）', async () => {
-    
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockRejectedValue(new Error('Redis error'))
-    check2FARequired.mockResolvedValue({ required: false })
-    signIn.mockResolvedValue({ ok: true })
-
-    mockClientLoggerError.mockClear()
-
-    renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
-
-    await waitFor(() => {
-      expect(mockClientLoggerError).toHaveBeenCalledWith('Device blacklist check error:', expect.any(Error))
+  test('パスワード認証エラーパス', async () => {
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: 'メールアドレスまたはパスワードが間違っています',
     })
 
-    // cleanup handled by vi.clearAllMocks
-  })
-
-  test('2FAチェックがエラーの場合はスキップして続行', async () => {
-    
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockRejectedValue(new Error('Server error'))
-    signIn.mockResolvedValue({ ok: true })
-
-    mockClientLoggerError.mockClear()
-
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
-
-    await waitFor(() => {
-      expect(mockClientLoggerError).toHaveBeenCalledWith('2FA check error:', expect.any(Error))
-    })
-
-    // cleanup handled by vi.clearAllMocks
-  })
-
-  test('2FA必須ユーザーのパスワード認証エラーパス', async () => {
-
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: true })
-    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({ success: false, error: 'メールアドレスまたはパスワードが間違っています' })
-
-    renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'wrongpassword')
-    await userEvent.click(submitButton)
+    await userEvent.type(screen.getByLabelText('メールアドレス'), 'test@example.com')
+    await userEvent.type(screen.getByLabelText('パスワード'), 'wrongpassword')
+    await userEvent.click(screen.getByRole('button', { name: /^ログイン$/ }))
 
     await waitFor(() => {
       expect(screen.getByText('メールアドレスまたはパスワードが間違っています')).toBeInTheDocument()
     })
+    expect(signIn).not.toHaveBeenCalled()
   })
 
   test('2FA必須ユーザーは認証フォームに遷移', async () => {
-    
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: true })
-    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true })
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(ok2FA)
 
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
       expect(screen.getByText('2段階認証')).toBeInTheDocument()
     })
-  })
-
-  test('2FA検証で正常な2FA遷移確認', async () => {
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: true })
-    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true })
-
-    renderWithRouter(<LoginForm />)
-
-    // 2FAフォームに移行
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
-
-    await waitFor(() => {
-      expect(screen.getByText('2段階認証')).toBeInTheDocument()
-    })
-
-    // 正常に2FAフォームに遷移できたことを確認（pendingCredentialsが設定されている）
     expect(screen.getByLabelText('認証コード')).toBeInTheDocument()
   })
 
   test('2FA検証エラー', async () => {
-
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: true })
-    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true })
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(ok2FA)
     verify2FAToken.mockResolvedValue({ error: '認証コードが正しくありません' })
 
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    let submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
       expect(screen.getByText('2段階認証')).toBeInTheDocument()
     })
 
-    const codeInput = screen.getByLabelText('認証コード')
-    submitButton = screen.getByRole('button', { name: '確認' })
-
-    await userEvent.type(codeInput, '123456')
-    await userEvent.click(submitButton)
+    await userEvent.type(screen.getByLabelText('認証コード'), '123456')
+    await userEvent.click(screen.getByRole('button', { name: '確認' }))
 
     await waitFor(() => {
       expect(screen.getByText('認証コードが正しくありません')).toBeInTheDocument()
@@ -332,28 +202,16 @@ describe('LoginForm', async () => {
   })
 
   test('2FAキャンセルボタン', async () => {
-
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: true })
-    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true })
+    ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(ok2FA)
 
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
       expect(screen.getByText('2段階認証')).toBeInTheDocument()
     })
 
-    const cancelButton = screen.getByRole('button', { name: 'キャンセル' })
-    await userEvent.click(cancelButton)
+    await userEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
 
     await waitFor(() => {
       expect(screen.queryByText('2段階認証')).not.toBeInTheDocument()
@@ -362,66 +220,37 @@ describe('LoginForm', async () => {
   })
 
   test('パスワード表示/非表示トグル', async () => {
-    
     renderWithRouter(<LoginForm />)
 
     const passwordInput = screen.getByLabelText('パスワード') as HTMLInputElement
     const toggleButton = screen.getByLabelText('パスワードを表示')
 
     expect(passwordInput.type).toBe('password')
-
     await userEvent.click(toggleButton)
-
     expect(passwordInput.type).toBe('text')
     expect(screen.getByLabelText('パスワードを隠す')).toBeInTheDocument()
   })
 
-  test('signInがnullを返す場合', async () => {
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: false })
+  test('signInがnullを返す場合もフィードへ遷移する', async () => {
     signIn.mockResolvedValue(null)
 
     renderWithRouter(<LoginForm />)
+    await submit()
 
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
-
-    // nullの場合はエラーにならずに処理が完了（pushが呼ばれる）
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/feed')
     })
   })
 
-  test('ネットワークエラー時のcatchブロック', async () => {
-    
-    checkLoginAllowed.mockResolvedValue({ allowed: true })
-    isDeviceBlacklisted.mockResolvedValue(false)
-    check2FARequired.mockResolvedValue({ required: false })
+  test('signIn が例外を投げた場合の catch ブロック', async () => {
     signIn.mockRejectedValue(new Error('Network error'))
 
-    mockClientLoggerError.mockClear()
-
     renderWithRouter(<LoginForm />)
-
-    const emailInput = screen.getByLabelText('メールアドレス')
-    const passwordInput = screen.getByLabelText('パスワード')
-    const submitButton = screen.getByRole('button', { name: /^ログイン$/ })
-
-    await userEvent.type(emailInput, 'test@example.com')
-    await userEvent.type(passwordInput, 'password123')
-    await userEvent.click(submitButton)
+    await submit()
 
     await waitFor(() => {
       expect(screen.getByText('ログイン中にエラーが発生しました。再度お試しください。')).toBeInTheDocument()
     })
-
-    // cleanup handled by vi.clearAllMocks
   })
 })
 
