@@ -220,7 +220,7 @@ describe('PostCard - extended coverage', () => {
     expect(mockPush).toHaveBeenCalledWith('/posts/original-post')
   })
 
-  it('自分のリポスト投稿には削除ボタンが表示されない（リポストの場合）', async () => {
+  it('自分のリポスト投稿には削除ボタンが表示される（編集・固定は出ない）', async () => {
     const user = userEvent.setup()
     const props = {
       ...defaultProps,
@@ -242,10 +242,12 @@ describe('PostCard - extended coverage', () => {
     const menuButton = menuButtons.find(btn => btn.querySelector('svg'))
     await user.click(menuButton!)
 
+    // 自分のリポストは削除できる。編集・固定は元投稿用なので出さない。
     await waitFor(() => {
-      // リポストの場合、isOwner && !isRepost なので削除は表示されない
-      expect(screen.queryByText(/削除/)).not.toBeInTheDocument()
+      expect(screen.getByTestId('delete-post-button')).toBeInTheDocument()
     })
+    expect(screen.queryByTestId('edit-post-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pin-post-button')).not.toBeInTheDocument()
   })
 
   it('リポスト元にメディアがある場合でもレンダリングされる', () => {
