@@ -334,7 +334,7 @@ docker compose --profile prod up -d
 | [`CLAUDE.md`](CLAUDE.md) + [`.claude/rules/`](.claude/rules/) | Claude Code向けプロジェクト指示書（機能別ルール分割） |
 | [`docs/requirements.md`](docs/requirements.md) | 要件定義書 |
 | [`docs/project-structure.md`](docs/project-structure.md) | ファイル構成詳細 |
-| [`docs/api-spec.md`](docs/api-spec.md) | Route Handler仕様（`app/api/` 24ルート + `/feed.xml` + `/auth/callback`） + Server Actions一覧（87ファイル） |
+| [`docs/api-spec.md`](docs/api-spec.md) | Route Handler仕様（`app/api/` 24ルート + `/feed.xml` + `/auth/callback`） + Server Actions一覧（90ファイル） |
 | [`docs/TESTING.md`](docs/TESTING.md) | テスト戦略・パターン集 |
 | [`docs/tutorial/`](docs/tutorial/) | 開発チュートリアル |
 | [`docs/code-reference/`](docs/code-reference/) | コードリファレンス |
