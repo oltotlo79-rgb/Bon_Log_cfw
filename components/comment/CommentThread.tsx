@@ -42,6 +42,15 @@ export function CommentThread({
   const router = useRouter()
   const [optimisticComments, setOptimisticComments] = useState<Comment[]>([])
 
+  // router.refresh() でサーバーから最新コメントが届いたら楽観表示を破棄する
+  // (これが無いと実コメント反映後も「送信中...」プレースホルダが残り続ける)。
+  // prop 変化時の state リセットは effect ではなく描画中調整で行う (React 公式パターン)。
+  const [prevComments, setPrevComments] = useState(comments)
+  if (comments !== prevComments) {
+    setPrevComments(comments)
+    setOptimisticComments([])
+  }
+
   function handleCommentSuccess(content: string) {
     if (!currentUserId) return
     const optimistic: Comment = {

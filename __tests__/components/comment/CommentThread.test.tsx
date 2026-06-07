@@ -172,6 +172,47 @@ describe('CommentThread', () => {
     expect(screen.getByText('送信中...')).toBeInTheDocument()
   })
 
+  it('refresh 後に最新 comments が届くと Optimistic コメント(送信中...)を破棄する', async () => {
+    const { rerender } = render(
+      <CommentThread
+        postId="post-1"
+        comments={mockComments}
+        currentUserId="user-123"
+        commentCount={10}
+      />
+    )
+
+    screen.getByRole('button', { name: '送信成功' }).click()
+    await waitFor(() => {
+      expect(screen.getByText('送信中...')).toBeInTheDocument()
+    })
+
+    // router.refresh() でサーバーから最新コメントが届いた状況を再現する
+    const refreshed = [
+      {
+        id: 'comment-3',
+        content: 'テストコメント',
+        createdAt: '2024-01-03T00:00:00.000Z',
+        parentId: null,
+        user: { id: 'user-123', nickname: 'ユーザー3', avatarUrl: null },
+        likeCount: 0,
+      },
+      ...mockComments,
+    ]
+    rerender(
+      <CommentThread
+        postId="post-1"
+        comments={refreshed}
+        currentUserId="user-123"
+        commentCount={11}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('送信中...')).not.toBeInTheDocument()
+    })
+  })
+
   it('nextCursorが渡される場合はCommentListに渡す', () => {
     render(
       <CommentThread
