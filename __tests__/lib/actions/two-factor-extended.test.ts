@@ -264,7 +264,7 @@ describe('two-factor actions', async () => {
       expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
 
-    it('rejects invalid backup code', async () => {
+    it('rejects invalid backup code with the unified generic error (enumeration-resistant)', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: 'u1',
         twoFactorEnabled: true,
@@ -276,7 +276,8 @@ describe('two-factor actions', async () => {
       verifyBackupCode.mockReturnValue(-1)
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('u1@example.com', 'wrong-code')
-      expect(result).toMatchObject({ error: 'バックアップコードが正しくありません' })
+      // Unified with TOTP/user-state failures so the code type can't be distinguished.
+      expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
 
     // ユーザー列挙対策: 該当ユーザーなし / 2FA 未設定 / コード不一致を区別できないよう

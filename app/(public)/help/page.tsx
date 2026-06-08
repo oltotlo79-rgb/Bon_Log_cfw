@@ -9,6 +9,9 @@ import Link from 'next/link'
 import { ROUTE_TERMS, ROUTE_PRIVACY, ROUTE_SETTINGS_NOTIFICATIONS, ROUTE_HELP } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
 import { FaqPageJsonLd } from '@/components/seo'
+import { ContactForm } from '@/components/contact/ContactForm'
+import { ChevronRightIcon } from '@/components/help/HelpIcons'
+import { HelpFaqSearch, type HelpSection } from '@/components/help/HelpFaqSearch'
 import {
   MAX_POST_CONTENT_FREE,
   MAX_POST_CONTENT_PREMIUM,
@@ -25,28 +28,6 @@ export const metadata: Metadata = {
   title: 'ヘルプ',
   description: 'BON-LOG（ボンログ）のヘルプページです。',
   alternates: { canonical: pageCanonical(ROUTE_HELP) },
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m9 18 6-6-6-6"/>
-    </svg>
-  )
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="11" cy="11" r="8"/>
-      <path d="m21 21-4.3-4.3"/>
-    </svg>
-  )
-}
-
-interface HelpSection {
-  title: string
-  items: { question: string; answer: string }[]
 }
 
 const helpSections: HelpSection[] = [
@@ -278,15 +259,6 @@ export default function HelpPage() {
           BON-LOGの使い方や、よくあるご質問についてご案内します。
         </p>
       </div>
-      <div className="relative">
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="キーワードで検索..."
-          className="w-full pl-10 pr-4 py-3 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-          disabled
-        />
-      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link
           href="#premium"
@@ -317,33 +289,7 @@ export default function HelpPage() {
           <ChevronRightIcon className="w-5 h-5 text-muted-foreground" />
         </Link>
       </div>
-      <div className="space-y-8">
-        {helpSections.map((section, sectionIndex) => (
-          <section
-            key={sectionIndex}
-            id={section.title === 'プレミアム会員' ? 'premium' : section.title === '通知について' ? 'notifications' : undefined}
-            className="scroll-mt-8"
-          >
-            <h2 className="text-xl font-bold mb-4 pb-2 border-b">{section.title}</h2>
-            <div className="space-y-4">
-              {section.items.map((item, itemIndex) => (
-                <details
-                  key={itemIndex}
-                  className="group bg-card border rounded-lg"
-                >
-                  <summary className="flex items-center justify-between p-4 cursor-pointer list-none hover:bg-muted/50 rounded-lg">
-                    <span className="font-medium pr-4">{item.question}</span>
-                    <ChevronRightIcon className="w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform group-open:rotate-90" />
-                  </summary>
-                  <div className="px-4 pb-4 text-muted-foreground whitespace-pre-line">
-                    {item.answer}
-                  </div>
-                </details>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <HelpFaqSearch sections={helpSections} />
       <section className="bg-muted/50 rounded-lg p-6">
         <h2 className="text-xl font-bold mb-2">お探しの答えが見つかりませんか？</h2>
         <p className="text-muted-foreground mb-4">
@@ -351,62 +297,7 @@ export default function HelpPage() {
         </p>
         <div className="bg-card border rounded-lg p-6">
           <h3 className="font-semibold mb-4">お問い合わせフォーム</h3>
-          <form className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-1">
-                メールアドレス
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                required
-                className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="your@email.com"
-              />
-            </div>
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium mb-1">
-                お問い合わせ種類
-              </label>
-              <select
-                id="category"
-                name="category"
-                required
-                className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">選択してください</option>
-                <option value="account">アカウントについて</option>
-                <option value="premium">プレミアム会員・決済について</option>
-                <option value="feature">機能の使い方</option>
-                <option value="bug">不具合の報告</option>
-                <option value="report">不適切なコンテンツの報告</option>
-                <option value="other">その他</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium mb-1">
-                お問い合わせ内容
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                required
-                rows={5}
-                className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                placeholder="お問い合わせ内容を詳しくご記入ください..."
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              送信する
-            </button>
-          </form>
-          <p className="text-xs text-muted-foreground mt-4">
-            ※ 通常、3営業日以内にご返信いたします。
-          </p>
+          <ContactForm />
         </div>
       </section>
     </div>

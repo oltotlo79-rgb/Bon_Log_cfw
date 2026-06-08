@@ -267,7 +267,7 @@ describe('contact actions', () => {
 
 
     it('accepts all valid categories', async () => {
-      const categories = ['general', 'account', 'bug', 'feature', 'premium', 'other']
+      const categories = ['general', 'account', 'bug', 'feature', 'premium', 'report', 'other']
 
       for (const category of categories) {
         vi.clearAllMocks()

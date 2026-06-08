@@ -30,7 +30,7 @@ import {
 import { getClientIp } from '@/lib/actions/utils'
 import { issueTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
 
-import { ERR_USER_NOT_FOUND, ERR_2FA_ALREADY_ENABLED, ERR_2FA_INVALID_CODE, ERR_2FA_NOT_ENABLED, ERR_2FA_SETUP_EXPIRED, ERR_NO_PASSWORD_SET, ERR_INCORRECT_PASSWORD, ERR_INVALID_BACKUP_CODE, ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ERR_USER_NOT_FOUND, ERR_2FA_ALREADY_ENABLED, ERR_2FA_INVALID_CODE, ERR_2FA_NOT_ENABLED, ERR_2FA_SETUP_EXPIRED, ERR_NO_PASSWORD_SET, ERR_INCORRECT_PASSWORD, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_SETTINGS_SECURITY } from '@/lib/constants/routes'
 
 /** Redis キーのプレフィックス */
@@ -335,7 +335,9 @@ export async function verify2FAToken(
     const backupCodeIndex = verifyBackupCode(code, user.twoFactorBackupCodes)
 
     if (backupCodeIndex === -1) {
-      return actionError(ERR_INVALID_BACKUP_CODE)
+      // TOTP 不一致・ユーザー状態の各失敗と同一の汎用エラーに統一する。
+      // 失敗理由（コード種別）を揃え、ログイン経路での列挙・推測耐性を高める。
+      return actionError(ERR_2FA_INVALID_CODE)
     }
 
     // 使用されたバックアップコードを削除

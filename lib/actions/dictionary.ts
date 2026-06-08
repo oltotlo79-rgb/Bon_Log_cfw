@@ -17,7 +17,7 @@ import 'server-only'
 import { cache } from 'react'
 import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
-import { MAX_DICTIONARY_TERMS_LIMIT } from '@/lib/constants/limits'
+import { MAX_DICTIONARY_TERMS_LIMIT, DICTIONARY_RELATED_TERMS_LIMIT } from '@/lib/constants/limits'
 
 
 export type BonsaiTermSummary = {
@@ -122,5 +122,28 @@ export async function getAdjacentTerms(
   } catch (error) {
     logger.error('getAdjacentTerms failed', { error: error instanceof Error ? error.message : String(error) })
     return { prev: null, next: null }
+  }
+}
+
+/**
+ * 同カテゴリの関連用語を取得する（自分自身を除く）。用語詳細ページの内部リンク・回遊性向上用。
+ * 取得失敗時は空配列を返し、ページ本体の描画を妨げない。
+ */
+export async function getRelatedTerms(
+  slug: string,
+  category: string,
+  limit: number = DICTIONARY_RELATED_TERMS_LIMIT
+): Promise<{ terms: BonsaiTermSummary[] }> {
+  try {
+    const terms = await prisma.bonsaiTerm.findMany({
+      where: { category, slug: { not: slug } },
+      select: { id: true, slug: true, term: true, reading: true, category: true, description: true },
+      orderBy: [{ reading: 'asc' }, { sortOrder: 'asc' }],
+      take: limit,
+    })
+    return { terms }
+  } catch (error) {
+    logger.error('getRelatedTerms failed', { error: error instanceof Error ? error.message : String(error) })
+    return { terms: [] }
   }
 }

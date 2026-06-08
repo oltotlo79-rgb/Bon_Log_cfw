@@ -5,8 +5,32 @@ import { notFound } from 'next/navigation'
 import { getActiveIngredientBySlug } from '@/lib/actions/pesticide'
 import { getResistanceRiskLabel } from '@/lib/utils/pesticide'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
-import { ROUTE_PESTICIDES_INGREDIENTS } from '@/lib/constants/routes'
+import { ROUTE_PESTICIDES_INGREDIENTS, ROUTE_PESTICIDES, BASE_URL } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
+import { META_DESCRIPTION_PREVIEW_LENGTH } from '@/lib/constants/limits'
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
+import { DefinedTermJsonLd } from '@/components/seo/DefinedTermJsonLd'
+
+type ActiveIngredient = NonNullable<Awaited<ReturnType<typeof getActiveIngredientBySlug>>>
+
+/**
+ * 原体の meta description / 構造化データ用の説明文を組み立てる。
+ * description があれば優先し、無ければ分類情報と収載薬剤数から生成する（事実情報のみ）。
+ */
+function buildIngredientDescription(ing: ActiveIngredient): string {
+  const summary = ing.description?.trim()
+  if (summary) return summary.slice(0, META_DESCRIPTION_PREVIEW_LENGTH)
+
+  const classification = [
+    ing.fracCode && `FRAC ${ing.fracCode}`,
+    ing.iracCode && `IRAC ${ing.iracCode}`,
+    ing.ingredientGroup,
+  ]
+    .filter(Boolean)
+    .join('・')
+  const nameWithEn = ing.nameEn ? `${ing.name}（${ing.nameEn}）` : ing.name
+  return `${nameWithEn}の${classification || '分類情報'}など。この原体を含む薬剤${ing.pesticides.length}件を掲載。`
+}
 
 export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
@@ -16,9 +40,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const ing = await getActiveIngredientBySlug(slug)
   if (!ing) return { title: '原体が見つかりません' }
+
+  const title = `${ing.name} - 原体詳細`
+  const description = buildIngredientDescription(ing)
+  const canonical = pageCanonical(`${ROUTE_PESTICIDES_INGREDIENTS}/${slug}`)
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(ing.name)}`
+
   return {
-    title: `${ing.name} - 原体詳細`,
-    alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES_INGREDIENTS}/${slug}`) },
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: ing.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   }
 }
 
@@ -30,8 +74,24 @@ export default async function IngredientDetailPage({ params }: Props) {
     notFound()
   }
 
+  const ingredientUrl = `${BASE_URL}${ROUTE_PESTICIDES_INGREDIENTS}/${slug}`
+
   return (
     <div className="space-y-6">
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'BON-LOG', url: BASE_URL },
+          { name: '農薬・病害虫', url: `${BASE_URL}${ROUTE_PESTICIDES}` },
+          { name: '有効成分（原体）一覧', url: `${BASE_URL}${ROUTE_PESTICIDES_INGREDIENTS}` },
+          { name: ing.name, url: ingredientUrl },
+        ]}
+      />
+      <DefinedTermJsonLd
+        name={ing.name}
+        description={buildIngredientDescription(ing)}
+        category="有効成分（原体）"
+        url={ingredientUrl}
+      />
       <Link href="/pesticides/ingredients" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
       <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden /> 原体一覧
     </Link>

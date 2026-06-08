@@ -4,11 +4,13 @@ import { render, screen } from '@testing-library/react'
 
 const mockGetTermBySlug = vi.fn()
 const mockGetAdjacentTerms = vi.fn()
+const mockGetRelatedTerms = vi.fn()
 const mockNotFound = vi.fn(() => { throw new Error('NOT_FOUND') })
 
 vi.mock('@/lib/actions/dictionary', () => ({
   getTermBySlug: (slug: string) => mockGetTermBySlug(slug),
   getAdjacentTerms: (slug: string, category: string) => mockGetAdjacentTerms(slug, category),
+  getRelatedTerms: (slug: string, category: string) => mockGetRelatedTerms(slug, category),
 }))
 vi.mock('next/link', () => ({
   __esModule: true,
@@ -51,6 +53,7 @@ describe('DictionaryDetailPage', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     mockGetAdjacentTerms.mockResolvedValue({ prev: null, next: null })
+    mockGetRelatedTerms.mockResolvedValue({ terms: [] })
     const mod = await import('@/app/(main)/dictionary/[slug]/page')
     Page = mod.default
     generateMetadata = mod.generateMetadata
@@ -141,6 +144,32 @@ describe('DictionaryDetailPage', () => {
       render(result)
       expect(screen.queryByText('前の用語')).not.toBeInTheDocument()
       expect(screen.queryByText('次の用語')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('関連用語', () => {
+    const relatedTerms = [
+      { id: 'r1', slug: 'moyogi', term: '模様木', reading: 'もようぎ', category: '樹形', description: '幹が曲線を描く樹形。' },
+      { id: 'r2', slug: 'shakan', term: '斜幹', reading: 'しゃかん', category: '樹形', description: '幹が斜めに立ち上がる樹形。' },
+    ]
+
+    it('同カテゴリの関連用語がリンク付きで表示される', async () => {
+      mockGetTermBySlug.mockResolvedValue({ term: makeTerm() })
+      mockGetRelatedTerms.mockResolvedValue({ terms: relatedTerms })
+      const result = await Page({ params: Promise.resolve({ slug: 'chokkan' }) })
+      render(result)
+      expect(screen.getByRole('heading', { name: '関連用語' })).toBeInTheDocument()
+      const link = screen.getByRole('link', { name: /模様木/ })
+      expect(link).toHaveAttribute('href', '/dictionary/moyogi')
+      expect(screen.getByText('斜幹')).toBeInTheDocument()
+    })
+
+    it('関連用語が無い場合はセクションを表示しない', async () => {
+      mockGetTermBySlug.mockResolvedValue({ term: makeTerm() })
+      mockGetRelatedTerms.mockResolvedValue({ terms: [] })
+      const result = await Page({ params: Promise.resolve({ slug: 'chokkan' }) })
+      render(result)
+      expect(screen.queryByRole('heading', { name: '関連用語' })).not.toBeInTheDocument()
     })
   })
 

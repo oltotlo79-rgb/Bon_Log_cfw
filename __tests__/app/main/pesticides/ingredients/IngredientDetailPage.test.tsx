@@ -69,6 +69,49 @@ describe('IngredientDetailPage', () => {
     expect(meta.title).toBe('原体が見つかりません')
   })
 
+  it('generateMetadata: description が無い場合は分類と収載薬剤数から description を生成する', async () => {
+    mockGetActiveIngredientBySlug.mockResolvedValue(
+      makeIngredient({
+        description: null,
+        fracCode: 'G1',
+        ingredientGroup: 'DMI系',
+        pesticides: [{ contentLabel: null, pesticide: { id: 'p1', name: '薬剤A', slug: 'a', formulationType: null } }],
+      })
+    )
+    const meta = await generateMetadata({ params: Promise.resolve({ slug: 'triflumizole' }) })
+    expect(meta.description).toContain('FRAC G1')
+    expect(meta.description).toContain('1件')
+  })
+
+  it('generateMetadata: description があればそれを優先して使う', async () => {
+    mockGetActiveIngredientBySlug.mockResolvedValue(
+      makeIngredient({ description: 'DMI系の殺菌剤で予防効果が高い。' })
+    )
+    const meta = await generateMetadata({ params: Promise.resolve({ slug: 'triflumizole' }) })
+    expect(meta.description).toContain('DMI系の殺菌剤')
+  })
+
+  it('generateMetadata: OpenGraph と Twitter カードを設定する', async () => {
+    mockGetActiveIngredientBySlug.mockResolvedValue(makeIngredient())
+    const meta = await generateMetadata({ params: Promise.resolve({ slug: 'triflumizole' }) })
+    expect(meta.openGraph?.title).toBe('トリフルミゾール - 原体詳細')
+    expect(meta.openGraph).toHaveProperty('images')
+    expect(meta.twitter?.card).toBe('summary_large_image')
+  })
+
+  it('パンくず・DefinedTerm の構造化データを出力する', async () => {
+    mockGetActiveIngredientBySlug.mockResolvedValue(makeIngredient())
+    const result = await Page({ params: Promise.resolve({ slug: 'triflumizole' }) })
+    const { container } = render(result)
+    const scripts = container.querySelectorAll('script[type="application/ld+json"]')
+    expect(scripts.length).toBeGreaterThanOrEqual(2)
+    const json = Array.from(scripts).map((s) => s.innerHTML).join('')
+    expect(json).toContain('BreadcrumbList')
+    expect(json).toContain('DefinedTerm')
+    // 末尾要素の URL に slug が含まれる（ASCII なので unicode エスケープの影響を受けない）。
+    expect(json).toContain('triflumizole')
+  })
+
   // --- notFound ---
   it('原体が見つからない場合はnotFoundを呼ぶ', async () => {
     mockGetActiveIngredientBySlug.mockResolvedValue(null)

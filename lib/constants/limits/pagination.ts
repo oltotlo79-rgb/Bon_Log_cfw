@@ -219,6 +219,9 @@ export const MAX_MENTION_FOLLOWERS_FETCH = 5000
 /** 辞書用語一覧の最大取得件数 */
 export const MAX_DICTIONARY_TERMS_LIMIT = 500
 
+/** 用語詳細ページに表示する同カテゴリ関連用語の件数 */
+export const DICTIONARY_RELATED_TERMS_LIMIT = 6
+
 /** 盆栽タイムラインの取得件数 */
 export const BONSAI_TIMELINE_LIMIT = 50
 

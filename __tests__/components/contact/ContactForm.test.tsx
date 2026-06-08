@@ -45,6 +45,7 @@ describe('ContactForm', () => {
       expect(screen.getByText('不具合の報告')).toBeInTheDocument()
       expect(screen.getByText('機能のリクエスト')).toBeInTheDocument()
       expect(screen.getByText('プレミアム会員について')).toBeInTheDocument()
+      expect(screen.getByText('不適切なコンテンツの報告')).toBeInTheDocument()
       expect(screen.getByText('その他')).toBeInTheDocument()
     })
 

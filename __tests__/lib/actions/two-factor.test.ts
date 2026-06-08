@@ -442,7 +442,7 @@ describe('Two-Factor Actions', async () => {
       })
     })
 
-    it('無効なバックアップコードの場合はエラーを返す', async () => {
+    it('無効なバックアップコードでも汎用の認証コードエラーに統一して返す（列挙対策）', async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({
         id: 'user-123',
         twoFactorEnabled: true,
@@ -455,7 +455,8 @@ describe('Two-Factor Actions', async () => {
       const { verify2FAToken } = await import('@/lib/actions/two-factor')
       const result = await verify2FAToken('user@example.com', 'INVALIDCODE')
 
-      expect(result).toMatchObject({ error: 'バックアップコードが正しくありません' })
+      // TOTP 不一致・ユーザー状態と同一文言（バックアップ固有メッセージは出さない）。
+      expect(result).toMatchObject({ error: '認証コードが正しくありません' })
     })
   })
 

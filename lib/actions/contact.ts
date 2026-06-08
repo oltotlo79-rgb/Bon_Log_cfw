@@ -41,8 +41,8 @@ import { getAppUrl, getAdminEmail } from '@/lib/env'
 import { escapeHtml } from '@/lib/sanitize'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { CONTACT_STATUS } from '@/lib/constants/status'
+import { CONTACT_CATEGORY_VALUES, CONTACT_CATEGORY_LABELS } from '@/lib/constants/contact-categories'
 
-const VALID_CATEGORIES = ['general', 'account', 'bug', 'feature', 'premium', 'other'] as const
 const VALID_STATUSES: readonly string[] = Object.values(CONTACT_STATUS)
 
 /**
@@ -64,7 +64,7 @@ const submitContactSchema = z.object({
     .email(ERR_CONTACT_EMAIL_INVALID),
   category: z
     .string()
-    .refine((v) => (VALID_CATEGORIES as readonly string[]).includes(v), {
+    .refine((v) => (CONTACT_CATEGORY_VALUES as readonly string[]).includes(v), {
       message: ERR_CONTACT_CATEGORY_REQUIRED,
     }),
   subject: z
@@ -76,15 +76,6 @@ const submitContactSchema = z.object({
     .min(MIN_CONTACT_MESSAGE_LENGTH, ERR_CONTACT_MESSAGE_TOO_SHORT(MIN_CONTACT_MESSAGE_LENGTH))
     .max(MAX_CONTACT_MESSAGE_LENGTH, ERR_CONTACT_MESSAGE_TOO_LONG(MAX_CONTACT_MESSAGE_LENGTH)),
 })
-
-const CATEGORY_LABELS: Record<string, string> = {
-  general: '一般的なお問い合わせ',
-  account: 'アカウントについて',
-  bug: '不具合の報告',
-  feature: '機能のリクエスト',
-  premium: 'プレミアム会員について',
-  other: 'その他',
-}
 
 export async function submitContactInquiry(data: {
   name: string
@@ -129,7 +120,7 @@ export async function submitContactInquiry(data: {
     const safeEmail = escapeHtml(email)
     const safeSubject = escapeHtml(subject)
     const safeMessage = escapeHtml(message)
-    const safeCategoryLabel = escapeHtml(CATEGORY_LABELS[category] ?? category)
+    const safeCategoryLabel = escapeHtml(CONTACT_CATEGORY_LABELS[category] ?? category)
 
     // 送信者へ確認メール
     const appUrl = getAppUrl()
@@ -147,7 +138,7 @@ export async function submitContactInquiry(data: {
     </div>
     <p>回答まで${CONTACT_RESPONSE_MIN_DAYS}〜${CONTACT_RESPONSE_MAX_DAYS}営業日程度お時間をいただく場合がございます。</p>`)
       ),
-      text: `${name} 様\n\nお問い合わせを受け付けました。\nカテゴリ: ${CATEGORY_LABELS[category] ?? category}\n件名: ${subject}\n\n回答まで${CONTACT_RESPONSE_MIN_DAYS}〜${CONTACT_RESPONSE_MAX_DAYS}営業日程度お時間をいただく場合がございます。`,
+      text: `${name} 様\n\nお問い合わせを受け付けました。\nカテゴリ: ${CONTACT_CATEGORY_LABELS[category] ?? category}\n件名: ${subject}\n\n回答まで${CONTACT_RESPONSE_MIN_DAYS}〜${CONTACT_RESPONSE_MAX_DAYS}営業日程度お時間をいただく場合がございます。`,
     })
 
     // 管理者へ通知メール
@@ -169,7 +160,7 @@ export async function submitContactInquiry(data: {
     </div>
     <p><a href="${appUrl}${buildAdminContactPath(inquiry.id)}" style="color: ${EMAIL_BRAND.primary};">管理画面で確認する</a></p>`)
         ),
-        text: `新規お問い合わせ\n\n名前: ${name}\nメール: ${email}\nカテゴリ: ${CATEGORY_LABELS[category] ?? category}\n件名: ${subject}\n\n${message}`,
+        text: `新規お問い合わせ\n\n名前: ${name}\nメール: ${email}\nカテゴリ: ${CONTACT_CATEGORY_LABELS[category] ?? category}\n件名: ${subject}\n\n${message}`,
       })
     }
 

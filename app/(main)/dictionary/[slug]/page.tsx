@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { getTermBySlug, getAdjacentTerms } from '@/lib/actions/dictionary'
+import { getTermBySlug, getAdjacentTerms, getRelatedTerms } from '@/lib/actions/dictionary'
 import { DefinedTermJsonLd } from '@/components/seo/JsonLd'
 import { BASE_URL, ROUTE_DICTIONARY } from '@/lib/constants/routes'
 import { buildDictionaryPath } from '@/lib/constants/path-builders'
@@ -59,7 +59,10 @@ export default async function DictionaryTermPage({ params }: Props) {
 
   if (!term) notFound()
 
-  const { prev, next } = await getAdjacentTerms(slug, term.category)
+  const [{ prev, next }, { terms: relatedTerms }] = await Promise.all([
+    getAdjacentTerms(slug, term.category),
+    getRelatedTerms(slug, term.category),
+  ])
 
   const colorClass =
     CATEGORY_COLORS[term.category] ??
@@ -96,6 +99,32 @@ export default async function DictionaryTermPage({ params }: Props) {
 
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{term.description}</p>
       </article>
+
+      {relatedTerms.length > 0 && (
+        <section aria-labelledby="related-terms-heading" className="space-y-3">
+          <h2 id="related-terms-heading" className="text-lg font-semibold">
+            関連用語
+          </h2>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {relatedTerms.map((related) => (
+              <li key={related.id}>
+                <Link
+                  href={buildDictionaryPath(related.slug)}
+                  className="group flex items-center gap-2 rounded-lg border border-border p-3 hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">
+                      {related.term}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{related.reading}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground ml-auto" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <nav className="flex items-center justify-between gap-4 pt-2" aria-label="用語ナビゲーション">
         {prev ? (

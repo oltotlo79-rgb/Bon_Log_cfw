@@ -276,6 +276,56 @@ describe('getAdjacentTerms', async () => {
   })
 })
 
+describe('getRelatedTerms', async () => {
+  const { getRelatedTerms } = await import('@/lib/actions/dictionary')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('同カテゴリで自分自身を除外して取得する', async () => {
+    const terms = [
+      { id: '1', slug: 'beta', term: 'b', reading: 'b', category: '樹形', description: '' },
+      { id: '2', slug: 'gamma', term: 'g', reading: 'g', category: '樹形', description: '' },
+    ]
+    mockPrisma.bonsaiTerm.findMany.mockResolvedValue(terms)
+
+    const result = await getRelatedTerms('alpha', '樹形')
+    expect(result).toEqual({ terms })
+    expect(mockPrisma.bonsaiTerm.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { category: '樹形', slug: { not: 'alpha' } },
+      })
+    )
+  })
+
+  it('取得件数を limit で制限する', async () => {
+    mockPrisma.bonsaiTerm.findMany.mockResolvedValue([])
+    await getRelatedTerms('alpha', '樹形', 3)
+    expect(mockPrisma.bonsaiTerm.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 3 })
+    )
+  })
+
+  it('reading→sortOrder 順で取得する', async () => {
+    mockPrisma.bonsaiTerm.findMany.mockResolvedValue([])
+    await getRelatedTerms('alpha', '樹形')
+    expect(mockPrisma.bonsaiTerm.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ reading: 'asc' }, { sortOrder: 'asc' }] })
+    )
+  })
+
+  it('例外時は空配列を返し logger.error が呼ばれる', async () => {
+    mockPrisma.bonsaiTerm.findMany.mockRejectedValueOnce(new Error('rel-boom'))
+    const result = await getRelatedTerms('s', 'c')
+    expect(result).toEqual({ terms: [] })
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getRelatedTerms failed',
+      expect.objectContaining({ error: 'rel-boom' }),
+    )
+  })
+})
+
 // ============================================================
 // エラーハンドリング（catch ブランチ）
 // ============================================================

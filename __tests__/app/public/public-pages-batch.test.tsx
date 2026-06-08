@@ -196,6 +196,20 @@ describe('HelpPage', async () => {
     const { metadata } = await import('@/app/(public)/help/page')
     expect(metadata?.title).toBeDefined()
   })
+
+  it('renders a functional (not disabled) FAQ search input', async () => {
+    const { default: Page } = await import('@/app/(public)/help/page')
+    render(Page())
+    const search = screen.getByLabelText('ヘルプ内をキーワードで検索')
+    expect(search).toBeInTheDocument()
+    expect(search).not.toBeDisabled()
+  })
+
+  it('renders the shared ContactForm instead of a dead inline form', async () => {
+    const { default: Page } = await import('@/app/(public)/help/page')
+    render(Page())
+    expect(screen.getByTestId('contact-form')).toBeInTheDocument()
+  })
 })
 
 // ============================================================

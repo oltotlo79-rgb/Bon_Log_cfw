@@ -22,15 +22,7 @@ import {
   MSG_CONTACT_SUBJECT_REQUIRED,
   MSG_ERROR_FALLBACK,
 } from '@/lib/constants/messages'
-
-const CONTACT_CATEGORIES = [
-  { value: 'general', label: '一般的なお問い合わせ' },
-  { value: 'account', label: 'アカウントについて' },
-  { value: 'bug', label: '不具合の報告' },
-  { value: 'feature', label: '機能のリクエスト' },
-  { value: 'premium', label: 'プレミアム会員について' },
-  { value: 'other', label: 'その他' },
-]
+import { CONTACT_CATEGORIES } from '@/lib/constants/contact-categories'
 
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
