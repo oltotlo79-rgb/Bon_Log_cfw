@@ -22,61 +22,101 @@ describe('usage service', async () => {
   // getFlyioUsage
   // ============================================================
   describe('getFlyioUsage', async () => {
-    it('returns unconfigured when no token and not on fly.io', async () => {
+    const machine = (state: string, cpus = 1, memory_mb = 1024) => ({
+      state,
+      config: { guest: { cpus, memory_mb } },
+    })
+
+    it('returns unconfigured when no token (even on fly.io)', async () => {
       delete process.env.FLY_API_TOKEN
       delete process.env.FLY_ACCESS_TOKEN
-      delete process.env.FLY_APP_NAME
+      process.env.FLY_APP_NAME = 'bon-log'
       const { getFlyioUsage } = await import('@/lib/services/usage')
       const result = await getFlyioUsage()
       expect(result.status).toBe('unconfigured')
       expect(result.name).toBe('fly.io')
     })
 
-    it('returns usage data (app count) on GraphQL success', async () => {
-      delete process.env.FLY_APP_NAME
+    it('returns unconfigured when app name is missing (even with token)', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { apps: { nodes: [{ name: 'bon-log' }] } } }),
-      })
+      delete process.env.FLY_APP_NAME
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
+      expect(result.status).toBe('unconfigured')
+    })
+
+    it('returns machine / vCPU / memory usage rows from the Machines API', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => [machine('started'), machine('stopped')] })
+        .mockResolvedValueOnce({ ok: true, json: async () => [] })
       const { getFlyioUsage } = await import('@/lib/services/usage')
       const result = await getFlyioUsage()
       expect(result.status).toBe('ok')
-      expect(result.name).toBe('fly.io')
+      expect(result.usage).toBeDefined()
+
+      const machineRow = result.usage!.find((u) => u.unit === '稼働マシン')!
+      expect(machineRow.current).toBe(1)
+      expect(machineRow.limit).toBe(2)
+      expect(result.usage!.find((u) => u.unit === 'vCPU 合計')!.current).toBe(2)
+      expect(result.usage!.find((u) => u.unit === 'メモリ合計 (MB)')!.current).toBe(2048)
     })
 
-    it('returns error on fetch failure when not on fly.io', async () => {
-      delete process.env.FLY_APP_NAME
+    it('includes a volume row (summed GB) when volumes exist', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
-      mockFetch.mockRejectedValue(new Error('Network error'))
+      process.env.FLY_APP_NAME = 'bon-log'
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => [machine('started', 1, 256)] })
+        .mockResolvedValueOnce({ ok: true, json: async () => [{ size_gb: 3 }, { size_gb: 1 }] })
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
+      expect(result.usage!.find((u) => u.unit === 'ボリューム (GB)')!.current).toBe(4)
+    })
+
+    it('keeps machine rows when the volumes request fails (best-effort)', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => [machine('started', 1, 256)] })
+        .mockRejectedValueOnce(new Error('volumes down'))
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
+      expect(result.status).toBe('ok')
+      expect(result.usage!.some((u) => u.unit === '稼働マシン')).toBe(true)
+      expect(result.usage!.some((u) => u.unit === 'ボリューム (GB)')).toBe(false)
+    })
+
+    it('returns error when the Machines API responds non-200', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 401 })
+      const { getFlyioUsage } = await import('@/lib/services/usage')
+      const result = await getFlyioUsage()
+      expect(result.status).toBe('error')
+      expect(result.error).toContain('401')
+    })
+
+    it('returns error when the Machines API fetch rejects', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+      mockFetch.mockRejectedValueOnce(new Error('Network error'))
       const { getFlyioUsage } = await import('@/lib/services/usage')
       const result = await getFlyioUsage()
       expect(result.status).toBe('error')
       expect(result.error).toBe('Network error')
     })
 
-    it('returns error when GraphQL returns errors array', async () => {
-      delete process.env.FLY_APP_NAME
+    it('links to the upcoming invoice when FLY_ORG_SLUG is set', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ errors: [{ message: 'unauthorized' }] }),
-      })
-      const { getFlyioUsage } = await import('@/lib/services/usage')
-      const result = await getFlyioUsage()
-      expect(result.status).toBe('error')
-      expect(result.error).toBe('unauthorized')
-    })
-
-    it('returns ok with runtime info when FLY_APP_NAME is set (no token)', async () => {
-      delete process.env.FLY_API_TOKEN
-      delete process.env.FLY_ACCESS_TOKEN
       process.env.FLY_APP_NAME = 'bon-log'
-      process.env.FLY_REGION = 'nrt'
+      process.env.FLY_ORG_SLUG = 'acme-123'
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => [machine('started', 1, 256)] })
+        .mockResolvedValueOnce({ ok: true, json: async () => [] })
       const { getFlyioUsage } = await import('@/lib/services/usage')
       const result = await getFlyioUsage()
-      expect(result.status).toBe('ok')
-      expect(result.helpText).toContain('bon-log')
+      expect(result.dashboardUrl).toBe('https://fly.io/dashboard/acme-123/billing/invoices/upcoming')
     })
   })
 

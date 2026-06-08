@@ -391,8 +391,8 @@ describe('lib/services/usage - uncovered branches', async () => {
     process.env = originalEnv
   })
 
-  it('fly.io: GraphQL HTTP エラー(!ok)は error を返す（FLY_APP_NAME なし）', async () => {
-    delete process.env.FLY_APP_NAME
+  it('fly.io: Machines API が non-200 を返すと error', async () => {
+    process.env.FLY_APP_NAME = 'bon-log'
     process.env.FLY_API_TOKEN = 'token'
 
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 })
@@ -400,23 +400,24 @@ describe('lib/services/usage - uncovered branches', async () => {
     const { getFlyioUsage } = await import('@/lib/services/usage')
     const result = await getFlyioUsage()
     expect(result.status).toBe('error')
-    expect(result.error).toBe('HTTP 500')
+    expect(result.error).toBe('Machines API HTTP 500')
   })
 
-  it('fly.io: GraphQL でアプリ一覧を取得し usage に件数を入れる', async () => {
-    delete process.env.FLY_APP_NAME
+  it('fly.io: guest 情報が無いマシンは vCPU/メモリ行を出さない', async () => {
+    process.env.FLY_APP_NAME = 'bon-log'
     process.env.FLY_API_TOKEN = 'token'
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ data: { apps: { nodes: [{ name: 'bon-log' }, { name: 'x' }] } } }),
-    })
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ state: 'started' }]) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })
 
     const { getFlyioUsage } = await import('@/lib/services/usage')
     const result = await getFlyioUsage()
     expect(result.status).toBe('ok')
-    expect(result.usage?.[0].current).toBe(2)
-    expect(result.usage?.[0].unit).toBe('アプリ')
+    const units = result.usage!.map((u) => u.unit)
+    expect(units).toContain('稼働マシン')
+    expect(units).not.toContain('vCPU 合計')
+    expect(units).not.toContain('メモリ合計 (MB)')
   })
 
   it('Cloudflare R2: bucketsRes.json() throws -> error with HTTP status', async () => {
@@ -508,15 +509,15 @@ describe('lib/services/usage - uncovered branches', async () => {
     expect(result.error).toBe('取得に失敗')
   })
 
-  it('fly.io: non-Error 例外は汎用エラーメッセージを返す（FLY_APP_NAME なし）', async () => {
-    delete process.env.FLY_APP_NAME
+  it('fly.io: 非Error 例外でも汎用エラーメッセージを返す', async () => {
+    process.env.FLY_APP_NAME = 'bon-log'
     process.env.FLY_API_TOKEN = 'token'
     mockFetch.mockRejectedValue(42)
 
     const { getFlyioUsage } = await import('@/lib/services/usage')
     const result = await getFlyioUsage()
     expect(result.status).toBe('error')
-    expect(result.error).toBe('取得に失敗')
+    expect(result.error).toBe('取得に失敗しました')
   })
 
   it('Cloudflare R2: non-Error in catch', async () => {
@@ -556,12 +557,12 @@ describe('lib/services/usage - uncovered branches', async () => {
     process.env.FLY_API_TOKEN = 'token'
     process.env.FLY_APP_NAME = 'bon-log'
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        data: { app: { machines: { nodes: [{ state: 'started' }, { state: 'started' }, { state: 'stopped' }] } } },
-      }),
-    })
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ state: 'started' }, { state: 'started' }, { state: 'stopped' }]),
+      })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })
 
     const { getFlyioUsage } = await import('@/lib/services/usage')
     const result = await getFlyioUsage()

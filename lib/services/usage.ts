@@ -34,99 +34,130 @@ export interface ServiceUsage {
   lastUpdated: string
 }
 
+/** fly.io Machines REST API のベース URL（GraphQL より machines/volumes 取得が安定） */
+const FLYIO_MACHINES_API_BASE = 'https://api.machines.dev/v1'
+
+interface FlyioMachine {
+  state?: string
+  config?: { guest?: { cpus?: number; memory_mb?: number } }
+}
+
+interface FlyioVolume {
+  size_gb?: number
+}
+
+/**
+ * fly.io Machines API からマシン/ボリュームの使用量行を組み立てる。
+ * machines は必須（取得失敗で throw し呼び出し側で error 扱い）。
+ * volumes は補助情報のため取得失敗しても無視してマシン情報だけ返す。
+ */
+async function fetchFlyioUsageRows(
+  appName: string,
+  token: string
+): Promise<NonNullable<ServiceUsage['usage']>> {
+  const headers = { Authorization: `Bearer ${token}` }
+  const rows: NonNullable<ServiceUsage['usage']> = []
+
+  const machinesRes = await fetch(`${FLYIO_MACHINES_API_BASE}/apps/${appName}/machines`, {
+    headers,
+    next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
+  })
+  if (!machinesRes.ok) throw new Error(`Machines API HTTP ${machinesRes.status}`)
+  const machines = (await machinesRes.json()) as FlyioMachine[]
+
+  const started = machines.filter((m) => m.state === 'started').length
+  rows.push({
+    current: started,
+    limit: machines.length,
+    unit: '稼働マシン',
+    percentage: machines.length > 0 ? Math.round((started / machines.length) * 100) : 0,
+  })
+
+  const totalCpus = machines.reduce((sum, m) => sum + (m.config?.guest?.cpus ?? 0), 0)
+  if (totalCpus > 0) {
+    rows.push({ current: totalCpus, limit: 0, unit: 'vCPU 合計', percentage: 0 })
+  }
+
+  const totalMemoryMb = machines.reduce((sum, m) => sum + (m.config?.guest?.memory_mb ?? 0), 0)
+  if (totalMemoryMb > 0) {
+    rows.push({ current: totalMemoryMb, limit: 0, unit: 'メモリ合計 (MB)', percentage: 0 })
+  }
+
+  try {
+    const volumesRes = await fetch(`${FLYIO_MACHINES_API_BASE}/apps/${appName}/volumes`, {
+      headers,
+      next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
+    })
+    if (volumesRes.ok) {
+      const volumes = (await volumesRes.json()) as FlyioVolume[]
+      if (volumes.length > 0) {
+        const totalGb = volumes.reduce((sum, v) => sum + (v.size_gb ?? 0), 0)
+        rows.push({ current: totalGb, limit: 0, unit: 'ボリューム (GB)', percentage: 0 })
+      }
+    }
+  } catch {
+    // volumes は補助情報のため握りつぶす
+  }
+
+  return rows
+}
+
 /**
  * fly.io の使用状況を取得する。
  *
- * fly.io は本番ランタイムで `FLY_APP_NAME` / `FLY_REGION` 等を自動注入するため、
- * トークンが無くても fly.io 上であればアプリ名・リージョンを表示できる。
- * `FLY_API_TOKEN` がある場合は GraphQL API でマシン数を補足する（best-effort、
- * 失敗してもランタイム情報で 'ok' を維持し、ページを壊さない）。請求やコンピュート/
- * 帯域の詳細はダッシュボードで確認する前提とする。
+ * Machines REST API（`api.machines.dev`）でマシン・CPU・メモリ・ボリュームの実数を取得する。
+ * 取得には `FLY_API_TOKEN` と `FLY_APP_NAME`（fly.io 上では自動注入）の双方が必要で、
+ * 欠ける場合は未設定として設定方法を案内する。請求の詳細は API では取れないためダッシュボード前提。
  */
 export async function getFlyioUsage(): Promise<ServiceUsage> {
   const token = process.env.FLY_API_TOKEN || process.env.FLY_ACCESS_TOKEN
   const appName = process.env.FLY_APP_NAME
   const region = process.env.FLY_REGION
-  const dashboardUrl = appName ? `https://fly.io/apps/${appName}` : 'https://fly.io/dashboard'
+  const orgSlug = process.env.FLY_ORG_SLUG
+  // 次回請求額の金額は安定した公開 API が無いため、FLY_ORG_SLUG があれば
+  // 「次回請求額」ページへ、無ければアプリのダッシュボードへ誘導する。
+  const dashboardUrl = orgSlug
+    ? `https://fly.io/dashboard/${orgSlug}/billing/invoices/upcoming`
+    : appName
+      ? `https://fly.io/apps/${appName}`
+      : 'https://fly.io/dashboard'
+  const lastUpdated = new Date().toISOString()
 
-  // トークンも無く fly.io ランタイムでもない（ローカル等）場合のみ未設定扱い。
-  if (!token && !appName) {
+  if (!token || !appName) {
     return {
       name: 'fly.io',
       status: 'unconfigured',
-      error: ERR_USAGE_FLYIO_TOKEN_MISSING,
-      helpText: '`fly tokens create org` で作成し FLY_API_TOKEN に設定（fly.io 上では基本情報を自動表示）',
+      error: !token ? ERR_USAGE_FLYIO_TOKEN_MISSING : 'FLY_APP_NAME が未設定',
+      helpText: !token
+        ? '`fly tokens create org` で作成し `fly secrets set FLY_API_TOKEN=…` で設定すると、マシン・CPU・メモリ・ボリュームの使用量を表示します'
+        : 'FLY_APP_NAME が未設定です（fly.io 上では自動注入されます）',
       helpUrl: 'https://fly.io/dashboard/personal/tokens',
       dashboardUrl,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated,
     }
   }
 
-  const usage: ServiceUsage['usage'] = []
-
-  if (token) {
-    try {
-      const res = await fetch('https://api.fly.io/graphql', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: appName
-            ? 'query($name: String!) { app(name: $name) { machines { nodes { state } } } }'
-            : 'query { apps { nodes { name } } }',
-          variables: appName ? { name: appName } : {},
-        }),
-        next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
-      })
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
-      if (Array.isArray(json.errors) && json.errors.length > 0) {
-        throw new Error(json.errors[0]?.message || 'GraphQL error')
-      }
-
-      if (appName) {
-        const machines: { state?: string }[] = json.data?.app?.machines?.nodes ?? []
-        const running = machines.filter((m) => m.state === 'started').length
-        usage.push({
-          current: running,
-          limit: machines.length,
-          unit: '稼働中マシン / 総数',
-          percentage: machines.length > 0 ? Math.round((running / machines.length) * 100) : 0,
-        })
-      } else {
-        const apps: unknown[] = json.data?.apps?.nodes ?? []
-        usage.push({ current: apps.length, limit: 0, unit: 'アプリ', percentage: 0 })
-      }
-    } catch (error) {
-      // fly.io 上(FLY_APP_NAME あり)ならランタイム情報で 'ok' を維持。
-      // そうでなければ取得失敗を error として表示する。
-      if (!appName) {
-        return {
-          name: 'fly.io',
-          status: 'error',
-          error: error instanceof Error ? error.message : '取得に失敗',
-          dashboardUrl,
-          lastUpdated: new Date().toISOString(),
-        }
-      }
+  try {
+    const usage = await fetchFlyioUsageRows(appName, token)
+    const helpParts: string[] = []
+    if (region) helpParts.push(`リージョン: ${region}`)
+    helpParts.push('請求の詳細はダッシュボードで確認')
+    return {
+      name: 'fly.io',
+      status: 'ok',
+      usage: usage.length > 0 ? usage : undefined,
+      helpText: helpParts.join(' / '),
+      dashboardUrl,
+      lastUpdated,
     }
-  }
-
-  const helpParts: string[] = []
-  if (appName) helpParts.push(`アプリ: ${appName}`)
-  if (region) helpParts.push(`リージョン: ${region}`)
-  helpParts.push('請求・コンピュート/帯域の詳細はダッシュボードで確認')
-
-  return {
-    name: 'fly.io',
-    status: 'ok',
-    usage: usage.length > 0 ? usage : undefined,
-    helpText: helpParts.join(' / '),
-    dashboardUrl,
-    lastUpdated: new Date().toISOString(),
+  } catch (error) {
+    return {
+      name: 'fly.io',
+      status: 'error',
+      error: error instanceof Error ? error.message : '取得に失敗しました',
+      dashboardUrl,
+      lastUpdated,
+    }
   }
 }
 

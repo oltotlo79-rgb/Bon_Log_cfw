@@ -19,6 +19,7 @@ describe('Usage Service', () => {
     delete process.env.FLY_ACCESS_TOKEN
     delete process.env.FLY_APP_NAME
     delete process.env.FLY_REGION
+    delete process.env.FLY_ORG_SLUG
     delete process.env.CLOUDFLARE_API_TOKEN
     delete process.env.R2_ACCOUNT_ID
     delete process.env.CLOUDFLARE_ACCOUNT_ID
@@ -26,34 +27,52 @@ describe('Usage Service', () => {
   })
 
   describe('getFlyioUsage', () => {
-    it('トークンも fly.io ランタイムも無い場合は unconfigured を返す', async () => {
+    const machine = (state: string, cpus = 1, memory_mb = 1024) => ({
+      state,
+      config: { guest: { cpus, memory_mb } },
+    })
+
+    it('トークンが無い場合は unconfigured を返す', async () => {
       const result = await getFlyioUsage()
 
       expect(result.name).toBe('fly.io')
       expect(result.status).toBe('unconfigured')
       expect(result.error).toBe('FLY_API_TOKEN が未設定')
+      expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it('トークン設定時は GraphQL でアプリ数を取得する', async () => {
+    it('FLY_APP_NAME が無い場合は unconfigured を返す（トークンのみ）', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          data: { apps: { nodes: [{ name: 'bon-log' }, { name: 'other' }] } },
-        }),
-      })
 
       const result = await getFlyioUsage()
 
-      expect(result.name).toBe('fly.io')
-      expect(result.status).toBe('ok')
-      expect(result.usage).toBeDefined()
-      expect(result.usage![0].current).toBe(2)
+      expect(result.status).toBe('unconfigured')
+      expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it('トークンあり・FLY_APP_NAMEなしで API 失敗時は error を返す', async () => {
+    it('Machines API から稼働マシン・vCPU・メモリの使用量を取得する', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+      process.env.FLY_REGION = 'nrt'
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([machine('started'), machine('stopped')]) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })
+
+      const result = await getFlyioUsage()
+
+      expect(result.status).toBe('ok')
+      const machineRow = result.usage!.find((u) => u.unit === '稼働マシン')!
+      expect(machineRow.current).toBe(1) // started のみ
+      expect(machineRow.limit).toBe(2) // 総数
+      expect(result.usage!.find((u) => u.unit === 'vCPU 合計')!.current).toBe(2)
+      expect(result.usage!.find((u) => u.unit === 'メモリ合計 (MB)')!.current).toBe(2048)
+      expect(result.helpText).toContain('nrt')
+    })
+
+    it('Machines API が失敗した場合は error を返す', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
 
       mockFetch.mockRejectedValue(new Error('Network error'))
 
@@ -64,49 +83,18 @@ describe('Usage Service', () => {
       expect(result.error).toBe('Network error')
     })
 
-    it('fly.io ランタイム(FLY_APP_NAME)があればトークン無しでも ok で基本情報を返す', async () => {
-      process.env.FLY_APP_NAME = 'bon-log'
-      process.env.FLY_REGION = 'nrt'
-
-      const result = await getFlyioUsage()
-
-      expect(result.name).toBe('fly.io')
-      expect(result.status).toBe('ok')
-      expect(result.helpText).toContain('bon-log')
-      expect(result.helpText).toContain('nrt')
-      expect(result.dashboardUrl).toBe('https://fly.io/apps/bon-log')
-      // トークン無しのため GraphQL は呼ばれない
-      expect(mockFetch).not.toHaveBeenCalled()
-    })
-
-    it('FLY_APP_NAME あり・トークンありで GraphQL 失敗時もランタイム情報で ok を維持する', async () => {
+    it('FLY_ORG_SLUG があれば次回請求額ページを dashboardUrl にする', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
       process.env.FLY_APP_NAME = 'bon-log'
+      process.env.FLY_ORG_SLUG = 'acme-123'
 
-      mockFetch.mockRejectedValue(new Error('Network error'))
-
-      const result = await getFlyioUsage()
-
-      expect(result.status).toBe('ok')
-      expect(result.helpText).toContain('bon-log')
-    })
-
-    it('トークンあり・FLY_APP_NAMEありで稼働マシン数を取得する', async () => {
-      process.env.FLY_API_TOKEN = 'test-token'
-      process.env.FLY_APP_NAME = 'bon-log'
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          data: { app: { machines: { nodes: [{ state: 'started' }, { state: 'stopped' }] } } },
-        }),
-      })
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([machine('started', 1, 256)]) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })
 
       const result = await getFlyioUsage()
 
-      expect(result.status).toBe('ok')
-      expect(result.usage![0].current).toBe(1) // started のみ
-      expect(result.usage![0].limit).toBe(2) // 総数
+      expect(result.dashboardUrl).toBe('https://fly.io/dashboard/acme-123/billing/invoices/upcoming')
     })
   })
 

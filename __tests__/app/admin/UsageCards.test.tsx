@@ -143,6 +143,31 @@ describe('UsageCards', () => {
     })
   })
 
+  it('fly.ioのok時にマシン使用量と次回請求額への導線を表示する', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        data: [{
+          name: 'fly.io',
+          status: 'ok',
+          dashboardUrl: 'https://fly.io/dashboard/acme-123/billing/invoices/upcoming',
+          lastUpdated: '2025-01-01T00:00:00Z',
+          usage: [{ unit: '稼働マシン', current: 1, limit: 1, percentage: 100 }],
+        }],
+        fetchedAt: '2025-01-01T00:00:00Z',
+      }),
+    })
+    render(<UsageCards />)
+    await waitFor(() => {
+      expect(screen.getByText('稼働マシン')).toBeInTheDocument()
+    })
+    const link = screen.getByText('使用料金・次回請求額を確認')
+    expect(link.closest('a')).toHaveAttribute(
+      'href',
+      'https://fly.io/dashboard/acme-123/billing/invoices/upcoming'
+    )
+  })
+
   it('limitが0の場合にcurrentのみ表示する', async () => {
     mockFetch.mockResolvedValue({
       ok: true,

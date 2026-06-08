@@ -171,7 +171,7 @@ function UsageCard({ service }: { service: ServiceUsage }) {
       {service.name === 'fly.io' && service.status === 'ok' && (
         <div className="mt-3 p-2 bg-muted/50 border border-border rounded text-xs">
           <p className="text-muted-foreground mb-1">
-            請求・コンピュート/帯域などの詳細はダッシュボードで確認してください
+            上記はコンピュート使用量です。次回請求額（使用料金）はダッシュボードで確認してください
           </p>
           <a
             href={service.dashboardUrl}
@@ -179,7 +179,7 @@ function UsageCard({ service }: { service: ServiceUsage }) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-muted-foreground hover:underline font-medium"
           >
-            fly.io ダッシュボード
+            使用料金・次回請求額を確認
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
@@ -283,8 +283,9 @@ export function UsageCards() {
             使用量を取得するには、各サービスの管理用APIトークンを環境変数に設定してください。
           </p>
           <pre className="bg-card border rounded-lg p-3 text-xs overflow-x-auto">
-{`# fly.io（fly.io 上では FLY_APP_NAME 等が自動注入され基本情報を表示）
+{`# fly.io（FLY_APP_NAME は fly.io 上で自動注入。使用量表示には FLY_API_TOKEN が必須）
 FLY_API_TOKEN=your_fly_token  # \`fly tokens create org\` で作成
+FLY_ORG_SLUG=your_org_slug    # 次回請求額ページへの導線に使用（任意）
 
 # Supabase
 SUPABASE_ACCESS_TOKEN=sbp_xxx
