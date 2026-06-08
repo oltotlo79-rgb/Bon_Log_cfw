@@ -20,7 +20,7 @@ dithane-wp,youen-hanten-byo,excellent,none,good,good,data
 dithane-wp,susuhan-byo,excellent,none,good,good,data
 dithane-wp,akayake-byo,excellent,none,good,good,data
 dithane-wp,edafukure-byo,excellent,none,good,good,data
-dithane-wp,hanyou-byo,fair,none,fair,good,data
+dithane-wp,hanten-byo,excellent,none,good,good,data
 dithane-wp,hakuhan-byo,excellent,none,good,good,data
 dithane-wp,hagusare-byo,excellent,none,good,good,data
 dithane-wp,mikusare-byo,fair,none,fair,fair,data
@@ -647,7 +647,7 @@ sankei-copper-wp,hayake-byo,excellent,none,good,fair,data
 sankei-copper-wp,susuhan-byo,excellent,none,good,fair,data
 sankei-copper-wp,akayake-byo,excellent,none,good,fair,data
 sankei-copper-wp,edafukure-byo,excellent,none,good,fair,data
-sankei-copper-wp,hanyou-byo,excellent,none,good,fair,data
+sankei-copper-wp,hanten-byo,excellent,none,good,fair,data
 sankei-copper-wp,hakuhan-byo,excellent,none,good,fair,data
 sankei-copper-wp,kappan-saikin-byo,excellent,none,good,fair,data
 sankei-copper-wp,hagusare-byo,excellent,none,good,fair,data
@@ -798,7 +798,7 @@ topjin-m-wp,hayake-byo,good,good,good,good,data
 topjin-m-wp,susuhan-byo,good,good,good,good,data
 topjin-m-wp,akayake-byo,good,good,good,good,data
 topjin-m-wp,edafukure-byo,good,good,good,good,data
-topjin-m-wp,hanyou-byo,good,good,good,good,data
+topjin-m-wp,hanten-byo,good,good,good,good,data
 topjin-m-wp,hakuhan-byo,good,good,good,good,data
 topjin-m-wp,hagusare-byo,good,good,good,good,data
 topjin-m-wp,mikusare-byo,good,good,good,good,data
@@ -996,7 +996,6 @@ daconil-1000,eki-byo,good,none,good,good,data
 daconil-1000,kasshoku-hanten-byo,good,none,good,good,data
 daconil-1000,kokutou-byo,good,none,good,good,data
 daconil-1000,kougare-byo,good,none,good,good,data
-daconil-1000,hanyou-byo,good,none,good,good,data
 daconil-1000,youen-hanten-byo,good,none,good,good,data
 daconil-1000,tachigare-byo,good,none,good,good,data
 daconil-1000,shukuyo-byo,good,none,fair,good,data
