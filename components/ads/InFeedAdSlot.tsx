@@ -63,3 +63,35 @@ export function InFeedAdSlot({
     </aside>
   )
 }
+
+/**
+ * 一覧が短く `total <= interval` で in-feed 広告が 1 枠も挿入されない場合に、
+ * 一覧末尾へ広告を 1 枠だけ表示するフォールバック。
+ *
+ * `null` を返す条件:
+ * - プレミアム会員
+ * - `interval` が 1 未満
+ * - 空一覧 (`total <= 0`)
+ * - in-feed 広告が出る件数 (`total > interval`) ＝ 末尾フォールバック不要
+ */
+export function InFeedAdTailFallback({
+  total,
+  interval,
+  className = DEFAULT_CONTAINER_CLASSNAME,
+}: {
+  total: number
+  interval: number
+  className?: string
+}) {
+  const isPremium = usePremium()
+  if (isPremium) return null
+  if (interval < 1) return null
+  if (total <= 0) return null
+  if (total > interval) return null
+
+  return (
+    <aside aria-label="広告" className={className}>
+      <InFeedAdUnit />
+    </aside>
+  )
+}

@@ -230,9 +230,13 @@ export default async function PesticideTopPage({ searchParams }: Props) {
         )}
       </div>
 
-      <aside aria-label="広告">
-        <PostDetailAdUnit />
-      </aside>
+      {/* 既定の「あいうえお順」一覧は PesticideAllList 内に 20 件ごとの in-feed 広告を挿入するため、
+          末尾広告は絞り込み/検索結果ビュー（DiseasePestGrid / PesticideResults / SpreaderResults）に限定する。 */}
+      {(showResults || categoryParam) && (
+        <aside aria-label="広告">
+          <PostDetailAdUnit />
+        </aside>
+      )}
     </div>
   )
 }

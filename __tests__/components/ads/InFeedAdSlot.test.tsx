@@ -6,7 +6,7 @@ vi.mock('@/components/ads/AdProvider', () => ({
   ),
 }))
 
-import { InFeedAdSlot } from '@/components/ads/InFeedAdSlot'
+import { InFeedAdSlot, InFeedAdTailFallback } from '@/components/ads/InFeedAdSlot'
 import { MAX_IN_FEED_ADS_PER_PAGE } from '@/lib/constants/limits/ads'
 
 const getAds = (container: HTMLElement) =>
@@ -97,5 +97,37 @@ describe('InFeedAdSlot', () => {
       />,
     )
     expect(container.querySelector('aside')).toHaveClass('col-span-full')
+  })
+})
+
+describe('InFeedAdTailFallback', () => {
+  it('renders a bottom ad when the list is short (total < interval)', () => {
+    const { container } = render(<InFeedAdTailFallback total={5} interval={20} />)
+    expect(getAds(container)).toHaveLength(1)
+  })
+
+  it('renders a bottom ad at the interval boundary (total === interval, where no in-feed ad appears)', () => {
+    const { container } = render(<InFeedAdTailFallback total={20} interval={20} />)
+    expect(getAds(container)).toHaveLength(1)
+  })
+
+  it('renders nothing when the list is long enough for an in-feed ad (total > interval)', () => {
+    const { container } = render(<InFeedAdTailFallback total={21} interval={20} />)
+    expect(getAds(container)).toHaveLength(0)
+  })
+
+  it('renders nothing for an empty list', () => {
+    const { container } = render(<InFeedAdTailFallback total={0} interval={20} />)
+    expect(getAds(container)).toHaveLength(0)
+  })
+
+  it('renders nothing for invalid interval (< 1)', () => {
+    const { container } = render(<InFeedAdTailFallback total={5} interval={0} />)
+    expect(getAds(container)).toHaveLength(0)
+  })
+
+  it('wraps the fallback ad in an aside with an accessible label', () => {
+    const { container } = render(<InFeedAdTailFallback total={5} interval={20} />)
+    expect(container.querySelector('aside')?.getAttribute('aria-label')).toBe('広告')
   })
 })

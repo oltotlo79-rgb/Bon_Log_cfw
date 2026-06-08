@@ -21,6 +21,9 @@ export const EVENTS_AD_INTERVAL = 20
 /** 盆栽園一覧の広告挿入間隔（項目数の少ない一覧のため低頻度にする） */
 export const SHOPS_AD_INTERVAL = 20
 
+/** 農薬・病害虫の図鑑/一覧の広告挿入間隔（末尾単発ではなく一覧内に低頻度で挿入） */
+export const PESTICIDES_AD_INTERVAL = 20
+
 /**
  * 1 ページあたりの In-feed 広告最大本数。
  * UX・CLS・CWV 悪化防止と AdSense ポリシー配慮のため上限を設ける。

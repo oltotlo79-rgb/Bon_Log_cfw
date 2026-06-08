@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getDiseasePests } from '@/lib/actions/pesticide'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
-import { PostDetailAdUnit } from '@/components/ads'
 import { DiseasePestList } from './DiseasePestList'
 import { ROUTE_PESTICIDES_DISEASES_PESTS } from '@/lib/constants/routes'
 import { pageCanonical } from '@/lib/utils/seo'
@@ -53,10 +52,6 @@ export default async function DiseasePestsPage({ searchParams }: Props) {
         defaultSearch={params.search}
         defaultBodySizeMm={params.bodySizeMm}
       />
-
-      <aside aria-label="広告">
-        <PostDetailAdUnit />
-      </aside>
     </div>
   )
 }

@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { Fragment, useState, useTransition } from 'react'
 
 import { CATEGORY_BADGE } from '@/lib/utils/pesticide-badge'
 import type { DiseasePestCategory } from '@/lib/utils/pesticide-badge'
 import { ROUTE_PESTICIDES_DISEASES_PESTS } from '@/lib/constants/routes'
 import { buildPesticideDiseasePestPath } from '@/lib/constants/path-builders'
+import { InFeedAdSlot, InFeedAdTailFallback } from '@/components/ads'
+import { PESTICIDES_AD_INTERVAL } from '@/lib/constants/limits'
 
 type Item = {
   id: string
@@ -130,10 +132,11 @@ export function DiseasePestList({ diseasePests, defaultCategory, defaultSearch, 
           該当するデータが見つかりませんでした
         </p>
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {diseasePests.map((dp) => (
+          {diseasePests.map((dp, index) => (
+            <Fragment key={dp.id}>
             <Link
-              key={dp.id}
               href={buildPesticideDiseasePestPath(dp.slug)}
               className="group flex gap-3 rounded-lg border border-border/40 p-3 hover:border-primary/40 hover:bg-muted/20 transition-all"
             >
@@ -170,8 +173,21 @@ export function DiseasePestList({ diseasePests, defaultCategory, defaultSearch, 
                 )}
               </div>
             </Link>
+            <InFeedAdSlot
+              index={index}
+              total={diseasePests.length}
+              interval={PESTICIDES_AD_INTERVAL}
+              className="col-span-full my-2"
+            />
+            </Fragment>
           ))}
         </div>
+        <InFeedAdTailFallback
+          total={diseasePests.length}
+          interval={PESTICIDES_AD_INTERVAL}
+          className="my-4"
+        />
+        </>
       )}
     </div>
   )

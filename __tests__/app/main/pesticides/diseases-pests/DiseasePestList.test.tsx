@@ -18,6 +18,12 @@ vi.mock('next/image', () => ({
   },
 }))
 
+// 実広告ユニットはテスト環境で描画しない。InFeedAdSlot の挿入判定は実物を使い、
+// 中身のユニットだけ data-testid 付きの軽量スタブに差し替えて件数を検証可能にする。
+vi.mock('@/components/ads/AdProvider', () => ({
+  InFeedAdUnit: () => <div data-testid="in-feed-ad-unit" />,
+}))
+
 const makeItem = (overrides: Partial<Parameters<typeof DiseasePestList>[0]['diseasePests'][number]> = {}) => ({
   id: 'dp-1',
   name: 'うどんこ病',
@@ -49,6 +55,29 @@ describe('DiseasePestList', () => {
   it('データがない場合に空メッセージを表示する', () => {
     render(<DiseasePestList diseasePests={[]} />)
     expect(screen.getByText('該当するデータが見つかりませんでした')).toBeInTheDocument()
+  })
+
+  it('21件以上は一覧内に in-feed 広告を 20 件ごとに挿入する（末尾フォールバックは出さない）', () => {
+    const items = Array.from({ length: 21 }, (_, i) =>
+      makeItem({ id: `dp-${i}`, name: `病害虫${i}`, slug: `slug-${i}`, description: null }),
+    )
+    render(<DiseasePestList diseasePests={items} />)
+    // 20件目(index 19)の直後に1枠のみ。21件目は末尾のため出さず、末尾フォールバックも出さない。
+    expect(screen.getAllByTestId('in-feed-ad-unit')).toHaveLength(1)
+  })
+
+  it('20件以下（in-feed が出ない件数）は末尾に広告を1枠表示する', () => {
+    const items = Array.from({ length: 5 }, (_, i) =>
+      makeItem({ id: `dp-${i}`, name: `病害虫${i}`, slug: `slug-${i}`, description: null }),
+    )
+    render(<DiseasePestList diseasePests={items} />)
+    // in-feed は1枠も出ないが、末尾フォールバックで1枠表示する。
+    expect(screen.getAllByTestId('in-feed-ad-unit')).toHaveLength(1)
+  })
+
+  it('データがない場合は広告を表示しない', () => {
+    render(<DiseasePestList diseasePests={[]} />)
+    expect(screen.queryByTestId('in-feed-ad-unit')).not.toBeInTheDocument()
   })
 
   it('説明文がある場合に表示する', () => {
