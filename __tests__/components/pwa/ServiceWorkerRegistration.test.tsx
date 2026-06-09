@@ -100,6 +100,28 @@ describe('ServiceWorkerRegistration', () => {
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
+    // Replace window.location to intercept reload() which triggers jsdom navigation warnings.
+    // jsdom's window.location.reload is non-configurable so we must replace the whole object.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: 'http://localhost/',
+        pathname: '/',
+        search: '',
+        hash: '',
+        hostname: 'localhost',
+        host: 'localhost',
+        port: '',
+        protocol: 'http:',
+        origin: 'http://localhost',
+        ancestorOrigins: window.location.ancestorOrigins,
+        reload: vi.fn(),
+        assign: vi.fn(),
+        replace: vi.fn(),
+        toString: () => 'http://localhost/',
+      },
+    })
+
     // Default: online
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true, writable: true })
   })

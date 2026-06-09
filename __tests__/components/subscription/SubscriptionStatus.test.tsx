@@ -29,8 +29,34 @@ const defaultProps = {
 }
 
 describe('SubscriptionStatus', () => {
+  let locationHrefSetter: ReturnType<typeof vi.fn>
+
   beforeEach(() => {
     vi.clearAllMocks()
+    locationHrefSetter = vi.fn()
+    // Replace window.location so we can intercept the href setter that SubscriptionStatus.tsx uses
+    // to redirect to Stripe portal. jsdom's location.href is non-configurable, so replace whole object.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: 'http://localhost/',
+        pathname: '/',
+        search: '',
+        hash: '',
+        hostname: 'localhost',
+        host: 'localhost',
+        port: '',
+        protocol: 'http:',
+        origin: 'http://localhost',
+        ancestorOrigins: window.location.ancestorOrigins,
+        get href() { return 'http://localhost/' },
+        set href(url: string) { locationHrefSetter(url) },
+        reload: vi.fn(),
+        assign: vi.fn(),
+        replace: vi.fn(),
+        toString: () => 'http://localhost/',
+      },
+    })
   })
 
   it('プレミアム会員でない場合は何も表示しない', () => {
@@ -99,9 +125,8 @@ describe('SubscriptionStatus', () => {
 
     await user.click(screen.getByRole('button', { name: /プラン管理/ }))
 
-    // Server Actionが呼ばれてURLが返されることを確認
     await waitFor(() => {
-      expect(mockCreateCustomerPortalSession).toHaveBeenCalled()
+      expect(locationHrefSetter).toHaveBeenCalledWith('https://billing.stripe.com/xxx')
     })
   })
 

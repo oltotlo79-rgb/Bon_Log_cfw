@@ -262,7 +262,7 @@ beforeEach(() => {
   mockIsVideoFile.mockReturnValue(false)
   mockPrepareFileForUpload.mockImplementation((file: File) => Promise.resolve(file))
   // Set up global XHR mock
-   
+
   ;(global as any).XMLHttpRequest = MockXHR
 })
 
@@ -1420,10 +1420,12 @@ describe('PostCard - Coverage Boost', async () => {
 
     render(<PostCard post={postWithGenres} currentUserId="current-user" />)
 
-    // Click on genre tag link (should not navigate to post detail)
+    // Click on genre tag link (should not navigate to post detail).
+    // cancelable:true is required so that the global click listener in vitest.setup.tsx
+    // can call preventDefault() and prevent jsdom from attempting navigation.
     mockPush.mockClear()
     const genreLink = screen.getByText('黒松')
-    const stopEvent = new MouseEvent('click', { bubbles: true })
+    const stopEvent = new MouseEvent('click', { bubbles: true, cancelable: true })
     Object.defineProperty(stopEvent, 'stopPropagation', { value: vi.fn() })
     genreLink.dispatchEvent(stopEvent)
   })

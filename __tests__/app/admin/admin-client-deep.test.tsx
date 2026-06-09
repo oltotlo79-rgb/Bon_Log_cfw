@@ -148,6 +148,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(window, 'confirm').mockReturnValue(true)
   vi.spyOn(window, 'alert').mockImplementation(() => {})
+  // Prevent jsdom "Not implemented: navigation" when CSV export calls a.click()
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
 })
 
 // =====================================================================

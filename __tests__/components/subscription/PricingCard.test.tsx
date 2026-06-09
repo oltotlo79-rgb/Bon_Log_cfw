@@ -28,8 +28,34 @@ const defaultProps = {
 }
 
 describe('PricingCard', () => {
+  let locationHrefSetter: ReturnType<typeof vi.fn>
+
   beforeEach(() => {
     vi.clearAllMocks()
+    locationHrefSetter = vi.fn()
+    // Replace window.location so we can intercept the href setter that PricingCard.tsx uses to
+    // redirect to Stripe. jsdom's location.href is non-configurable so we replace the whole object.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: 'http://localhost/',
+        pathname: '/',
+        search: '',
+        hash: '',
+        hostname: 'localhost',
+        host: 'localhost',
+        port: '',
+        protocol: 'http:',
+        origin: 'http://localhost',
+        ancestorOrigins: window.location.ancestorOrigins,
+        get href() { return 'http://localhost/' },
+        set href(url: string) { locationHrefSetter(url) },
+        reload: vi.fn(),
+        assign: vi.fn(),
+        replace: vi.fn(),
+        toString: () => 'http://localhost/',
+      },
+    })
   })
 
   it('料金カードを表示する', () => {
@@ -107,9 +133,8 @@ describe('PricingCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'プレミアムに登録' }))
 
-    // Server Actionが呼ばれてURLが返されることを確認
     await waitFor(() => {
-      expect(mockCreateCheckoutSession).toHaveBeenCalledWith('monthly')
+      expect(locationHrefSetter).toHaveBeenCalledWith('https://checkout.stripe.com/xxx')
     })
   })
 

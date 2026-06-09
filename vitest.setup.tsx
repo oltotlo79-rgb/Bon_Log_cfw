@@ -306,6 +306,26 @@ if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'localStorage', {
     value: localStorageMock,
   })
+
+  // Prevent jsdom "Not implemented: navigation to another Document" warnings.
+  // jsdom does not implement real browser navigation. When tests click <a href>
+  // links (rendered via next/link mock), jsdom attempts to navigate and emits
+  // this warning via its virtualConsole. Because next/link is mocked to a plain
+  // <a>, and navigation itself is already mocked via useRouter, we cancel the
+  // DOM-level navigation before jsdom can attempt it. This does NOT suppress any
+  // console output — it prevents the navigation from starting.
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null
+    const anchor = target?.closest('a')
+    if (anchor && !e.defaultPrevented) {
+      const href = anchor.getAttribute('href') ?? ''
+      // Only cancel navigation for internal paths that jsdom cannot handle.
+      // External http(s) URLs and javascript: hrefs are left unchanged.
+      if (href && !href.startsWith('http') && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+        e.preventDefault()
+      }
+    }
+  }, true)
 }
 
 /**
