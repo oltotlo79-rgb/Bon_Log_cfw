@@ -7,15 +7,28 @@
  * @example
  * ```ts
  * 'use server'
+ * import { z } from 'zod'
  * import { actionSuccess, actionError, type ActionResult } from '@/types/action-result'
+ * import { requireActiveNonGuestUser, enforceUserRateLimit } from '@/lib/actions/utils'
+ * import { ERR_AUTH_REQUIRED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
  *
- * export async function updateName(formData: FormData): Promise<ActionResult<{ id: string }>> {
- *   const session = await auth()
- *   if (!session?.user?.id) return actionError('認証が必要です')
- *   const name = formData.get('name') as string
- *   if (!name?.trim()) return actionError('名前を入力してください')
- *   await prisma.user.update({ where: { id: session.user.id }, data: { nickname: name } })
- *   return actionSuccess({ id: session.user.id })
+ * const updateNameSchema = z.object({ name: z.string().min(1).max(50) })
+ *
+ * export async function updateName(input: unknown): Promise<ActionResult<{ id: string }>> {
+ *   // 1. 認証
+ *   const auth = await requireActiveNonGuestUser()
+ *   if ('error' in auth) return actionError(auth.error)
+ *
+ *   // 2. Zod バリデーション
+ *   const parsed = updateNameSchema.safeParse(input)
+ *   if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+ *
+ *   // 3. レート制限
+ *   const rl = await enforceUserRateLimit(auth.userId, 'update_name')
+ *   if (rl) return actionError(rl.error)
+ *
+ *   await prisma.user.update({ where: { id: auth.userId }, data: { nickname: parsed.data.name } })
+ *   return actionSuccess({ id: auth.userId })
  * }
  * ```
  */

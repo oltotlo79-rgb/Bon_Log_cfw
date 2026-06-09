@@ -5,6 +5,7 @@ import { vi } from 'vitest'
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 // ============================================================
 // Bonsai Detail Page Tests
@@ -625,12 +626,13 @@ describe('DraftEditForm - 未カバー分岐テスト', () => {
 
   it('handlePublish内でsaveDraft.errorが返された場合、エラーを表示し投稿を中断', async () => {
     ;(saveDraft as ReturnType<typeof vi.fn>).mockResolvedValue({ error: '保存に失敗しました' })
-    window.confirm = vi.fn(() => true)
+    const user = userEvent.setup()
 
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    const publishButton = screen.getByRole('button', { name: /投稿/ })
-    fireEvent.click(publishButton)
+    await user.click(screen.getByRole('button', { name: /投稿/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(screen.getByText('保存に失敗しました')).toBeInTheDocument()

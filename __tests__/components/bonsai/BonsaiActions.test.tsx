@@ -25,10 +25,6 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast, toasts: [] }),
 }))
 
-// window.confirm モック
-const originalConfirm = window.confirm
-const mockConfirm = vi.fn()
-
 describe('BonsaiActions', () => {
   const defaultProps = {
     bonsaiId: 'bonsai-123',
@@ -37,11 +33,7 @@ describe('BonsaiActions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    window.confirm = mockConfirm
-  })
-
-  afterEach(() => {
-    window.confirm = originalConfirm
+    mockDeleteBonsai.mockResolvedValue({ success: true })
   })
 
   it('メニューボタンを表示する', () => {
@@ -53,7 +45,7 @@ describe('BonsaiActions', () => {
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
 
     expect(screen.getByText('編集')).toBeInTheDocument()
     expect(screen.getByText('削除')).toBeInTheDocument()
@@ -63,7 +55,7 @@ describe('BonsaiActions', () => {
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
 
     expect(screen.getByRole('link', { name: /編集/i })).toHaveAttribute(
       'href',
@@ -76,7 +68,7 @@ describe('BonsaiActions', () => {
     render(<BonsaiActions {...defaultProps} />)
 
     // メニューを開く
-    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
     expect(screen.getByText('編集')).toBeInTheDocument()
 
     // オーバーレイをクリック（メニュー外）
@@ -92,37 +84,50 @@ describe('BonsaiActions', () => {
   })
 
   it('削除ボタンクリックで確認ダイアログを表示する', async () => {
-    mockConfirm.mockReturnValue(false)
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
 
-    expect(mockConfirm).toHaveBeenCalledWith(
-      expect.stringContaining('黒松一号')
-    )
+    // ConfirmDialog の AlertDialog が開く
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+    // タイトルに盆栽名が含まれる
+    expect(screen.getByText(/黒松一号/)).toBeInTheDocument()
   })
 
   it('確認ダイアログでキャンセル時は削除されない', async () => {
-    mockConfirm.mockReturnValue(false)
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    // キャンセルボタンをクリック
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
 
     expect(mockDeleteBonsai).not.toHaveBeenCalled()
   })
 
   it('確認ダイアログでOK時に削除が実行される', async () => {
-    mockConfirm.mockReturnValue(true)
-    mockDeleteBonsai.mockResolvedValue({ success: true })
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    // 「削除する」ボタンをクリック（aria-label で特定）
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockDeleteBonsai).toHaveBeenCalledWith('bonsai-123')
@@ -130,13 +135,17 @@ describe('BonsaiActions', () => {
   })
 
   it('削除成功時に盆栽一覧にリダイレクトする', async () => {
-    mockConfirm.mockReturnValue(true)
-    mockDeleteBonsai.mockResolvedValue({ success: true })
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/bonsai')
@@ -145,35 +154,44 @@ describe('BonsaiActions', () => {
   })
 
   it('削除エラー時にトーストを表示する', async () => {
-    mockConfirm.mockReturnValue(true)
-    mockDeleteBonsai.mockResolvedValue({ error: '削除に失敗しました' })
+    mockDeleteBonsai.mockResolvedValue({ success: false, error: '削除に失敗しました' })
 
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' }))
     })
   })
 
-  it('削除中は削除ボタンが無効化される', async () => {
-    mockConfirm.mockReturnValue(true)
-    // 削除処理を遅延させる
+  it('削除中は「処理中...」が表示される', async () => {
     mockDeleteBonsai.mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve({ success: true }), 100))
     )
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     // 削除中のテキストが表示される
     await waitFor(() => {
-      expect(screen.getByText('削除中...')).toBeInTheDocument()
+      expect(screen.getByText('処理中...')).toBeInTheDocument()
     })
   })
 })

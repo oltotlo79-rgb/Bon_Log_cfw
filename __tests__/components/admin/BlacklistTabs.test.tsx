@@ -152,7 +152,7 @@ describe('BlacklistTabs', () => {
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
-    expect(window.confirm).toHaveBeenCalledWith('このメールアドレスをブラックリストから削除しますか？')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
   })
 
   it('メール削除を確認するとサーバーアクションが呼ばれる', async () => {
@@ -160,15 +160,18 @@ describe('BlacklistTabs', () => {
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
-    expect(mockRemoveEmail).toHaveBeenCalledWith('e1')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => { expect(mockRemoveEmail).toHaveBeenCalledWith('e1') })
   })
 
   it('メール削除をキャンセルするとサーバーアクションが呼ばれない', async () => {
-    ;(window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(false)
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRemoveEmail).not.toHaveBeenCalled()
   })
 
@@ -206,7 +209,7 @@ describe('BlacklistTabs', () => {
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
-    expect(window.confirm).toHaveBeenCalledWith('このデバイスをブラックリストから削除しますか？')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
   })
 
   it('デバイス削除を確認するとサーバーアクションが呼ばれる', async () => {
@@ -214,7 +217,9 @@ describe('BlacklistTabs', () => {
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
-    expect(mockRemoveDevice).toHaveBeenCalledWith('d1')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => { expect(mockRemoveDevice).toHaveBeenCalledWith('d1') })
   })
 
   it('メールリストが空の場合に適切なメッセージを表示する', () => {
@@ -247,6 +252,8 @@ describe('BlacklistTabs', () => {
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' }))
@@ -274,6 +281,8 @@ describe('BlacklistTabs', () => {
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'デバイス削除に失敗しました', variant: 'destructive' }))
@@ -333,11 +342,12 @@ describe('BlacklistTabs', () => {
   })
 
   it('デバイス削除をキャンセルするとサーバーアクションが呼ばれない', async () => {
-    ;(window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(false)
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
     await user.click(deleteButtons[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRemoveDevice).not.toHaveBeenCalled()
   })
 })

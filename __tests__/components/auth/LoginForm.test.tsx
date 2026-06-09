@@ -23,9 +23,10 @@ vi.mock('next-auth/react', () => ({
 
 const mockPush = vi.fn()
 const mockRefresh = vi.fn()
+let mockSearchParamsValue = new URLSearchParams()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParamsValue,
 }))
 
 const mockResendVerificationEmail = vi.fn().mockResolvedValue({ success: true })
@@ -294,5 +295,68 @@ describe('LoginForm', () => {
   it('「または」区切り線を表示する', () => {
     render(<LoginForm />)
     expect(screen.getByText('または')).toBeInTheDocument()
+  })
+
+  // --- callbackUrl セキュリティ ---
+  describe('callbackUrl の open redirect 防止', () => {
+    beforeEach(() => {
+      mockSearchParamsValue = new URLSearchParams()
+    })
+
+    it('callbackUrl が内部相対パス（/feed）の場合はそこへ遷移する', async () => {
+      mockSearchParamsValue = new URLSearchParams('callbackUrl=/feed')
+
+      const user = userEvent.setup()
+      render(<LoginForm />)
+      await user.type(getEmailInput(), 'test@example.com')
+      await user.type(getPasswordInput(), 'password123')
+      await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/feed')
+      })
+    })
+
+    it('callbackUrl が // で始まる場合は ROUTE_FEED へフォールバックする', async () => {
+      mockSearchParamsValue = new URLSearchParams('callbackUrl=//evil.com')
+
+      const user = userEvent.setup()
+      render(<LoginForm />)
+      await user.type(getEmailInput(), 'test@example.com')
+      await user.type(getPasswordInput(), 'password123')
+      await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/feed')
+      })
+    })
+
+    it('callbackUrl が https:// から始まる外部 URL の場合は ROUTE_FEED へフォールバックする', async () => {
+      mockSearchParamsValue = new URLSearchParams('callbackUrl=https://evil.com')
+
+      const user = userEvent.setup()
+      render(<LoginForm />)
+      await user.type(getEmailInput(), 'test@example.com')
+      await user.type(getPasswordInput(), 'password123')
+      await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/feed')
+      })
+    })
+
+    it('callbackUrl がない場合は ROUTE_FEED へ遷移する', async () => {
+      mockSearchParamsValue = new URLSearchParams()
+
+      const user = userEvent.setup()
+      render(<LoginForm />)
+      await user.type(getEmailInput(), 'test@example.com')
+      await user.type(getPasswordInput(), 'password123')
+      await user.click(screen.getByRole('button', { name: /^ログイン$/i }))
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/feed')
+      })
+    })
   })
 })

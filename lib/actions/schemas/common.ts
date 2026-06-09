@@ -9,6 +9,7 @@
 import { z, type ZodError } from 'zod'
 import { MAX_EMAIL_LENGTH, MAX_REPORT_DETAIL_LENGTH, MIN_FINGERPRINT_LENGTH, MAX_FINGERPRINT_LENGTH, MAX_PAGE_LIMIT } from '@/lib/constants/limits'
 import { ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ERR_EMAIL_INVALID, ERR_EMAIL_TOO_LONG } from '@/lib/constants/errors/content'
 import { actionError } from '@/types/action-result'
 
 /**
@@ -26,8 +27,20 @@ export function actionZodError(error: ZodError) {
 /** CUID形式のID */
 export const cuidSchema = z.string().min(1).max(30)
 
-/** メールアドレス */
+/** メールアドレス（正規化のみ、ERR_* なし。既存コードとの互換用） */
 export const emailSchema = z.string().email().max(MAX_EMAIL_LENGTH).transform((v) => v.toLowerCase().trim())
+
+/**
+ * 認証フロー向けの正規化 email schema。
+ * ERR_EMAIL_INVALID / ERR_EMAIL_TOO_LONG を Zod メッセージに組み込み、
+ * lowercase + trim で canonical form に変換する。
+ * auth.ts / auth-password-reset.ts / auth-email-verify.ts / two-factor.ts で共用。
+ */
+export const normalizedEmailSchema = z
+  .string()
+  .email(ERR_EMAIL_INVALID)
+  .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH))
+  .transform((v) => v.toLowerCase().trim())
 
 /** デバイスフィンガープリント */
 export const fingerprintSchema = z.string().min(MIN_FINGERPRINT_LENGTH).max(MAX_FINGERPRINT_LENGTH)

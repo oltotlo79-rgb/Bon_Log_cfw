@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { requestPasswordReset } from '@/lib/actions/auth'
 import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getFormString } from '@/lib/utils/form-data'
-import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { MSG_EMAIL_REQUIRED, MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
 export function PasswordResetForm() {
 
@@ -29,7 +29,7 @@ export function PasswordResetForm() {
     const email = getFormString(formData, 'email') ?? ''
 
     if (!email) {
-      setError('メールアドレスを入力してください')
+      setError(MSG_EMAIL_REQUIRED)
       setLoading(false)
       return
     }

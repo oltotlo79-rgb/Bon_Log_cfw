@@ -13,6 +13,7 @@
 
 import { vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
+import userEvent from '@testing-library/user-event'
 import { DraftEditForm } from '@/components/draft/DraftEditForm'
 
 const mockPush = vi.fn()
@@ -63,9 +64,6 @@ vi.mock('@/lib/client-image-compression', () => ({
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
-const mockConfirm = vi.fn()
-window.confirm = mockConfirm
-
 describe('DraftEditForm - 残り分岐カバレッジ', () => {
   const mockDraft = {
     id: 'draft-1',
@@ -82,7 +80,6 @@ describe('DraftEditForm - 残り分岐カバレッジ', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockConfirm.mockReturnValue(true)
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ success: true })
     mockDeleteDraft.mockResolvedValue({ success: true })
@@ -154,9 +151,12 @@ describe('DraftEditForm - 残り分岐カバレッジ', () => {
 
   it('投稿でsaveDraftがエラー文字列を返した場合に投稿せずエラーを表示する', async () => {
     mockSaveDraft.mockResolvedValue({ error: '認証エラー' })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(screen.getByText('認証エラー')).toBeInTheDocument()
@@ -186,9 +186,12 @@ describe('DraftEditForm - 残り分岐カバレッジ', () => {
 
   it('削除でdeleteDraftがerrorフィールドなしのsuccess:falseを返す場合にフォールバックエラーを表示する', async () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(screen.getByText('エラー')).toBeInTheDocument()

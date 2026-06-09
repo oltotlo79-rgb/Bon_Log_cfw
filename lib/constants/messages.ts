@@ -147,8 +147,55 @@ export const MSG_VERIFICATION_EMAIL_RESENT = '確認メールを再送しまし�
 // 画像アップロード
 export const MSG_IMAGE_ONLY = '画像ファイルを選択してください'
 
+// 汎用フォーム入力必須
+export const MSG_EMAIL_REQUIRED = 'メールアドレスを入力してください'
+
 // 投稿フォーム固有
 export const MSG_POST_CONTENT_REQUIRED = 'テキストまたは画像を入力してください'
 export const MSG_DRAFT_PUBLISH_CONFIRM = 'この下書きを投稿しますか？'
+
+// お問い合わせフォーム追加
+export const MSG_CONTACT_NAME_REQUIRED = 'お名前を入力してください'
+
+// ConfirmDialog 用確認文言
+// ---- 下書き ----
+export const MSG_DRAFT_DELETE_CONFIRM_TITLE = 'この下書きを削除しますか？'
+export const MSG_DRAFT_DELETE_CONFIRM_DESC = '削除した下書きは復元できません。'
+export const MSG_DRAFT_PUBLISH_CONFIRM_TITLE = 'この下書きを投稿しますか？'
+export const MSG_DRAFT_PUBLISH_CONFIRM_DESC = '下書きが投稿として公開されます。'
+
+// ---- 盆栽 ----
+export const MSG_BONSAI_RECORD_DELETE_CONFIRM_TITLE = 'この記録を削除しますか？'
+export const MSG_BONSAI_RECORD_DELETE_CONFIRM_DESC = '削除した記録は復元できません。'
+export const MSG_BONSAI_DELETE_CONFIRM_TITLE = (name: string) => `「${name}」を削除しますか？`
+export const MSG_BONSAI_DELETE_CONFIRM_DESC = '盆栽に紐づく成長記録もすべて削除されます。この操作は取り消せません。'
+
+// ---- 投稿フォーム（MSG_POST_CONFIRM_DISCARD を title/desc に分割） ----
+// MSG_POST_CONFIRM_DISCARD は description として引き続き流用可
+export const MSG_POST_CONFIRM_DISCARD_TITLE = '入力内容を破棄しますか？'
+export const MSG_POST_UPLOAD_CANCEL_TITLE = 'アップロードをキャンセルしますか？'
+export const MSG_POST_UPLOAD_CANCEL_DESC = 'アップロード中のメディアはすべて破棄されます。'
+
+// ---- admin ----
+export const MSG_ADMIN_USER_ACTIVATE_CONFIRM_TITLE = 'このユーザーのアカウントを復帰させますか？'
+export const MSG_ADMIN_USER_ACTIVATE_CONFIRM_DESC = 'ユーザーは再度ログイン・投稿できるようになります。'
+export const MSG_ADMIN_BLACKLIST_EMAIL_REMOVE_TITLE = 'ブラックリストから削除しますか？'
+export const MSG_ADMIN_BLACKLIST_EMAIL_REMOVE_DESC = (email: string) => `${email} をブラックリストから削除します。`
+export const MSG_ADMIN_BLACKLIST_DEVICE_REMOVE_TITLE = 'デバイスをブラックリストから削除しますか？'
+export const MSG_ADMIN_BLACKLIST_DEVICE_REMOVE_DESC = 'このデバイスの制限が解除されます。'
+export const MSG_ADMIN_SEGMENT_DELETE_CONFIRM_TITLE = 'このセグメントを削除しますか？'
+export const MSG_ADMIN_SEGMENT_DELETE_CONFIRM_DESC = 'セグメントに紐づく配信設定に影響が出る場合があります。'
+export const MSG_ADMIN_ROLE_REMOVE_CONFIRM_TITLE = 'この管理者の権限を削除しますか？'
+export const MSG_ADMIN_ROLE_REMOVE_CONFIRM_DESC = '権限を削除すると、管理機能へのアクセスが失われます。'
+export const MSG_ADMIN_HIDDEN_RESTORE_TITLE = 'コンテンツを再表示しますか？'
+export const MSG_ADMIN_HIDDEN_RESTORE_DESC = 'ユーザーに再びコンテンツが表示されるようになります。'
+export const MSG_ADMIN_HIDDEN_DELETE_TITLE = 'コンテンツを完全に削除しますか？'
+export const MSG_ADMIN_HIDDEN_DELETE_DESC = 'この操作は取り消せません。'
+export const MSG_ADMIN_CMS_DELETE_TITLE = 'このページを削除しますか？'
+export const MSG_ADMIN_CMS_DELETE_DESC = '削除したページは復元できません。'
+export const MSG_ADMIN_CONTACT_DELETE_TITLE = 'このお問い合わせを削除しますか？'
+export const MSG_ADMIN_CONTACT_DELETE_DESC = 'この操作は元に戻せません。'
+export const MSG_ADMIN_ANNOUNCEMENT_DELETE_TITLE = 'このお知らせを削除しますか？'
+export const MSG_ADMIN_ANNOUNCEMENT_DELETE_DESC = '削除したお知らせは復元できません。'
 
 

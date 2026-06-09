@@ -34,6 +34,13 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const isVerified = searchParams?.get('verified') === '1'
 
+  // open redirect 防止のため、内部相対パスのみ許可する（// や https:// を弾く）
+  const rawCallbackUrl = searchParams?.get('callbackUrl') ?? ''
+  const safeCallbackUrl =
+    rawCallbackUrl.startsWith('/') && !rawCallbackUrl.startsWith('//')
+      ? rawCallbackUrl
+      : ROUTE_FEED
+
   const fingerprint = useFingerprint()
 
   const [error, setError] = useState<string | null>(null)
@@ -95,7 +102,7 @@ export function LoginForm() {
         return
       }
 
-      router.push(ROUTE_FEED)
+      router.push(safeCallbackUrl)
       router.refresh()
     } catch (err) {
       clientLogger.error('Login error:', err)
@@ -137,7 +144,7 @@ export function LoginForm() {
         return
       }
 
-      router.push(ROUTE_FEED)
+      router.push(safeCallbackUrl)
       router.refresh()
     } catch (err) {
       clientLogger.error('2FA verification error:', err)

@@ -305,9 +305,8 @@ describe('PostFormModal - 追加カバレッジテスト', () => {
 
   describe('入力内容破棄の確認', () => {
     it('メディアがある状態で閉じようとすると確認ダイアログが表示される', async () => {
-      const mockConfirm = vi.fn().mockReturnValue(true)
-      window.confirm = mockConfirm
       const onClose = vi.fn()
+      const user = userEvent.setup()
 
       const { container } = render(<PostFormModal {...defaultProps} onClose={onClose} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
@@ -323,9 +322,11 @@ describe('PostFormModal - 追加カバレッジテスト', () => {
 
       // 閉じるボタンをクリック
       const closeButton = screen.getAllByRole('button')[0]
-      fireEvent.click(closeButton)
+      await user.click(closeButton)
 
-      expect(mockConfirm).toHaveBeenCalledWith('入力内容が破棄されます。閉じてもよろしいですか？')
+      // ConfirmDialog (discard variant) should appear
+      await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+      expect(screen.getByText('入力内容を破棄しますか？')).toBeInTheDocument()
     })
   })
 

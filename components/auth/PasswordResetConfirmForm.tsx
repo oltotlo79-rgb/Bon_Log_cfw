@@ -45,7 +45,12 @@ export function PasswordResetConfirmForm() {
       }
 
       const result = await verifyPasswordResetToken(email, token)
-      setTokenValid(result.valid)
+      // open redirect 防止と同様の理由: 失敗時（レート超過含む）は一律 invalid 扱いにして情報漏洩を防ぐ
+      if (result.success) {
+        setTokenValid(result.data?.valid ?? false)
+      } else {
+        setTokenValid(false)
+      }
       setVerifying(false)
     }
 

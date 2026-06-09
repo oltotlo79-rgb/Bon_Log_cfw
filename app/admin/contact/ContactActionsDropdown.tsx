@@ -5,6 +5,11 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { useToast } from '@/hooks/use-toast'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_CONTACT_DELETE_DESC,
+  MSG_ADMIN_CONTACT_DELETE_TITLE,
+} from '@/lib/constants/messages'
 
 interface ContactActionsDropdownProps {
   /** お問い合わせID */
@@ -25,6 +30,7 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
   const [isSubmitting, setIsSubmitting] = useState(false)
   // ドロップダウンメニューの表示位置
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   // ボタンとメニューのDOM参照
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -111,24 +117,17 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
     }
   }
 
-  /**
-   * お問い合わせ削除ハンドラ
-   * 確認ダイアログを表示してから削除を実行
-   */
-  const handleDelete = async () => {
-    // 確認ダイアログで削除を確認（誤操作防止）
-    if (!confirm('このお問い合わせを削除しますか？この操作は元に戻せません。')) return
+  const handleDeleteConfirm = async () => {
     setIsSubmitting(true)
     try {
-      // Server Actionで削除
       const result = await deleteInquiry(inquiryId)
       if ('error' in result) {
         toast({ title: result.error, variant: 'destructive' })
+        throw new Error(result.error)
       }
     } finally {
       setIsSubmitting(false)
       setIsOpen(false)
-      // ページを再読み込み
       router.refresh()
     }
   }
@@ -175,7 +174,7 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
             ))}
             <hr className="my-1" />
             <button
-              onClick={handleDelete}
+              onClick={() => { setIsOpen(false); setShowDeleteConfirm(true) }}
               className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
             >
               削除
@@ -184,6 +183,16 @@ export function ContactActionsDropdown({ inquiryId, currentStatus }: ContactActi
         </div>,
         document.body
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        variant="destructive"
+        title={MSG_ADMIN_CONTACT_DELETE_TITLE}
+        description={MSG_ADMIN_CONTACT_DELETE_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

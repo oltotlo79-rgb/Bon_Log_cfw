@@ -13,6 +13,7 @@ import { vi } from 'vitest'
  */
 
 import { render, screen, fireEvent, waitFor, act } from '../utils/test-utils'
+import userEvent from '@testing-library/user-event'
 
 const mockUseInfiniteQuery = vi.fn().mockReturnValue({
   data: undefined,
@@ -283,14 +284,13 @@ describe('DraftEditForm', () => {
 
   it('handles delete (handleDelete) with confirm', async () => {
     mockDeleteDraft.mockResolvedValue({ success: true })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
 
     render(<DraftEditForm draft={defaultDraft} genres={defaultGenres} />)
 
-    const deleteButton = screen.getByRole('button', { name: /削除/ })
-    await act(async () => {
-      fireEvent.click(deleteButton)
-    })
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockDeleteDraft).toHaveBeenCalledWith('draft-1')
@@ -298,26 +298,26 @@ describe('DraftEditForm', () => {
   })
 
   it('cancels delete when confirm returns false', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
 
     render(<DraftEditForm draft={defaultDraft} genres={defaultGenres} />)
 
-    const deleteButton = screen.getByRole('button', { name: /削除/ })
-    fireEvent.click(deleteButton)
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
 
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
 
   it('handles delete error', async () => {
     mockDeleteDraft.mockResolvedValue({ error: 'Delete failed' })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
 
     render(<DraftEditForm draft={defaultDraft} genres={defaultGenres} />)
 
-    const deleteButton = screen.getByRole('button', { name: /削除/ })
-    await act(async () => {
-      fireEvent.click(deleteButton)
-    })
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(screen.getByText('Delete failed')).toBeInTheDocument()
@@ -326,17 +326,16 @@ describe('DraftEditForm', () => {
 
   it('handles delete exception', async () => {
     mockDeleteDraft.mockRejectedValue(new Error('Network error'))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
 
     render(<DraftEditForm draft={defaultDraft} genres={defaultGenres} />)
 
-    const deleteButton = screen.getByRole('button', { name: /削除/ })
-    await act(async () => {
-      fireEvent.click(deleteButton)
-    })
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
-      expect(screen.getByText('削除に失敗しました')).toBeInTheDocument()
+      expect(screen.getByText('Network error')).toBeInTheDocument()
     })
   })
 

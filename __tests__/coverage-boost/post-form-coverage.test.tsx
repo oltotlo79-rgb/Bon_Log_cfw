@@ -747,9 +747,8 @@ describe('PostFormModal - coverage boost', () => {
 
   describe('handleClose - アップロード中にconfirmダイアログ', () => {
     it('アップロード中に閉じようとすると確認ダイアログが表示され、確認後にキャンセルされる', async () => {
-      const mockConfirm = vi.fn().mockReturnValue(true)
-      window.confirm = mockConfirm
       const onClose = vi.fn()
+      const user = userEvent.setup()
 
       // 長時間かかるアップロードをシミュレート
       mockPrepareFileForUpload.mockImplementation(
@@ -765,27 +764,26 @@ describe('PostFormModal - coverage boost', () => {
       Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] })
       fireEvent.change(fileInput)
 
-      // uploading状態になるのを待つ
+      // uploading状態になるのを待つ (圧縮中)
       await waitFor(() => {
-        const progressBar = container.querySelector('.bg-bonsai-green')
-        // アップロード中であることを確認
-        expect(progressBar || screen.queryByText('0%')).toBeTruthy()
+        expect(screen.queryByText(/圧縮中/i)).toBeInTheDocument()
       })
 
-      // 閉じるボタンをクリック
+      // 閉じるボタンをクリック → ConfirmDialog (upload variant) が開く
       const closeButton = screen.getAllByRole('button')[0]
-      fireEvent.click(closeButton)
+      await user.click(closeButton)
 
-      expect(mockConfirm).toHaveBeenCalledWith(
-        'アップロード中です。キャンセルしてもよろしいですか？'
-      )
-      expect(onClose).toHaveBeenCalled()
+      await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+
+      // "キャンセルする" をクリックして upload を abort し onClose を呼ぶ
+      await user.click(screen.getByRole('button', { name: 'キャンセルする' }))
+
+      await waitFor(() => { expect(onClose).toHaveBeenCalled() })
     })
 
     it('アップロード中にconfirmでキャンセルした場合はonCloseが呼ばれない', async () => {
-      const mockConfirm = vi.fn().mockReturnValue(false)
-      window.confirm = mockConfirm
       const onClose = vi.fn()
+      const user = userEvent.setup()
 
       mockPrepareFileForUpload.mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve(new File(['test'], 'test.jpg', { type: 'image/jpeg' })), 5000))
@@ -801,15 +799,17 @@ describe('PostFormModal - coverage boost', () => {
       fireEvent.change(fileInput)
 
       await waitFor(() => {
-        expect(container.querySelector('.bg-bonsai-green') || screen.queryByText('0%')).toBeTruthy()
+        expect(screen.queryByText(/圧縮中/i)).toBeInTheDocument()
       })
 
       const closeButton = screen.getAllByRole('button')[0]
-      fireEvent.click(closeButton)
+      await user.click(closeButton)
 
-      expect(mockConfirm).toHaveBeenCalledWith(
-        'アップロード中です。キャンセルしてもよろしいですか？'
-      )
+      await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+
+      // "キャンセル" (cancel の方) をクリックして dialog を閉じる — onClose は呼ばれない
+      await user.click(screen.getByRole('button', { name: 'キャンセル' }))
+
       expect(onClose).not.toHaveBeenCalled()
     })
   })

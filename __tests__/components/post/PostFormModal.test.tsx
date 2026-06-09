@@ -482,8 +482,6 @@ describe('PostFormModal', () => {
   })
 
   it('閉じるボタンで入力内容がある場合confirmが呼ばれる', async () => {
-    const mockConfirm = vi.fn().mockReturnValue(true)
-    window.confirm = mockConfirm
     const onClose = vi.fn()
     const user = userEvent.setup()
     render(<PostFormModal {...defaultProps} onClose={onClose} />)
@@ -492,13 +490,15 @@ describe('PostFormModal', () => {
     const closeButton = screen.getAllByRole('button')[0]
     await user.click(closeButton)
 
-    expect(mockConfirm).toHaveBeenCalledWith('入力内容が破棄されます。閉じてもよろしいですか？')
-    expect(onClose).toHaveBeenCalled()
+    // ConfirmDialog should appear (discard variant)
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    // Click "破棄する" to confirm discard
+    await user.click(screen.getByRole('button', { name: '破棄する' }))
+
+    await waitFor(() => { expect(onClose).toHaveBeenCalled() })
   })
 
   it('閉じるボタンでconfirmキャンセル時はonCloseが呼ばれない', async () => {
-    const mockConfirm = vi.fn().mockReturnValue(false)
-    window.confirm = mockConfirm
     const onClose = vi.fn()
     const user = userEvent.setup()
     render(<PostFormModal {...defaultProps} onClose={onClose} />)
@@ -506,6 +506,11 @@ describe('PostFormModal', () => {
     await user.type(screen.getByPlaceholderText('いまどうしてる？'), 'テスト')
     const closeButton = screen.getAllByRole('button')[0]
     await user.click(closeButton)
+
+    // ConfirmDialog should appear (discard variant)
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    // Click "続けて編集" to cancel discard
+    await user.click(screen.getByRole('button', { name: '続けて編集' }))
 
     expect(onClose).not.toHaveBeenCalled()
   })

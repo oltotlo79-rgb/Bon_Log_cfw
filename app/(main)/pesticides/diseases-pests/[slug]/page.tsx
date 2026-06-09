@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { getDiseasePestBySlug } from '@/lib/actions/pesticide'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
 import { EffectRatingBadge } from '@/components/pesticide/EffectRatingBadge'
+import { BodySizeDisplay } from '@/components/pesticide/BodySizeDisplay'
 import { CATEGORY_BADGE } from '@/lib/utils/pesticide-badge'
 import type { EffectRating, PesticideType } from '@prisma/client'
 import { DiseasePestImageLightbox } from '@/components/pesticide/DiseasePestImageLightbox'
@@ -26,10 +27,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!dp) return { title: '病害虫が見つかりません' }
   const description = dp.description?.slice(0, META_DESCRIPTION_PREVIEW_LENGTH)
     || `${dp.name}の症状・発生時期・対策薬剤など、病害虫対策の詳細情報`
+  const title = `${dp.name} - 病害虫・益虫図鑑`
+  const canonical = pageCanonical(`${ROUTE_PESTICIDES_DISEASES_PESTS}/${slug}`)
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(dp.name)}`
   return {
-    title: `${dp.name} - 病害虫・益虫図鑑`,
+    title,
     description,
-    alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES_DISEASES_PESTS}/${slug}`) },
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: dp.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   }
 }
 
@@ -82,6 +99,9 @@ export default async function DiseasePestDetailPage({ params }: Props) {
           {dp.nameKana && (
             <p className="text-sm text-muted-foreground mt-1">{dp.nameKana}</p>
           )}
+          {(dp.category === 'pest' || dp.category === 'beneficial_insect') && (
+            <BodySizeDisplay minMm={dp.bodySizeMinMm} maxMm={dp.bodySizeMaxMm} />
+          )}
         </div>
       </div>
 
@@ -110,6 +130,12 @@ export default async function DiseasePestDetailPage({ params }: Props) {
             </h2>
             <span className="text-sm text-muted-foreground">({dp.effects.length}件)</span>
           </div>
+          <Link
+            href={`${ROUTE_PESTICIDES_DISEASES_PESTS}?category=${encodeURIComponent(dp.category)}`}
+            className="text-sm text-primary hover:underline"
+          >
+            同じカテゴリの病害虫を見る
+          </Link>
 
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground px-1">
             <span className="font-medium text-foreground">効果評価:</span>

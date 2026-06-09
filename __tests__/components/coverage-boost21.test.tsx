@@ -510,9 +510,6 @@ describe('PostFormModal', () => {
     })
 
     it('コンテンツありの場合は確認ダイアログが表示される（キャンセル）', async () => {
-      // Mock window.confirm to return false (cancel)
-      const mockConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-
       render(
         <PostFormModal
           isOpen={true}
@@ -529,22 +526,19 @@ describe('PostFormModal', () => {
 
       // Try to close (first button in header)
       const buttons = screen.getAllByRole('button')
-      const closeButton = buttons[0] // First button is the close button
+      const closeButton = buttons[0]
       await userEvent.click(closeButton)
 
-      // Confirm should be called
-      expect(mockConfirm).toHaveBeenCalled()
+      // ConfirmDialog should appear (discard variant uses "続けて編集" as cancel)
+      await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
 
-      // Should NOT close
+      // Click cancel in the dialog ("続けて編集" for discard variant) — should NOT close
+      await userEvent.click(screen.getByRole('button', { name: '続けて編集' }))
+
       expect(mockOnClose).not.toHaveBeenCalled()
-
-      mockConfirm.mockRestore()
     })
 
     it('コンテンツありの場合は確認ダイアログが表示される（OK）', async () => {
-      // Mock window.confirm to return true (OK)
-      const mockConfirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
       render(
         <PostFormModal
           isOpen={true}
@@ -561,16 +555,16 @@ describe('PostFormModal', () => {
 
       // Try to close (first button in header)
       const buttons = screen.getAllByRole('button')
-      const closeButton = buttons[0] // First button is the close button
+      const closeButton = buttons[0]
       await userEvent.click(closeButton)
 
-      // Confirm should be called
-      expect(mockConfirm).toHaveBeenCalled()
+      // ConfirmDialog should appear
+      await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
 
-      // Should close
-      expect(mockOnClose).toHaveBeenCalled()
+      // Click confirm ("破棄する") — should close
+      await userEvent.click(screen.getByRole('button', { name: '破棄する' }))
 
-      mockConfirm.mockRestore()
+      await waitFor(() => { expect(mockOnClose).toHaveBeenCalled() })
     })
   })
 })

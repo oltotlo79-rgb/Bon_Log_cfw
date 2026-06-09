@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db'
 import { requireAuth, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit, type ActionResult } from '@/lib/actions/utils'
 import bcrypt from 'bcryptjs'
 import { getRedisClient } from '@/lib/redis'
-import { TWO_FACTOR_SETUP_TTL_SECONDS } from '@/lib/constants/limits'
+import { TWO_FACTOR_CODE_LENGTH, TWO_FACTOR_SETUP_TTL_SECONDS } from '@/lib/constants/limits'
 import {
   generateSecret,
   generateTOTPUri,
@@ -29,6 +29,7 @@ import {
 
 import { getClientIp } from '@/lib/actions/utils'
 import { issueTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
+import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 
 import { ERR_USER_NOT_FOUND, ERR_2FA_ALREADY_ENABLED, ERR_2FA_INVALID_CODE, ERR_2FA_NOT_ENABLED, ERR_2FA_SETUP_EXPIRED, ERR_NO_PASSWORD_SET, ERR_INCORRECT_PASSWORD, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_SETTINGS_SECURITY } from '@/lib/constants/routes'
@@ -280,16 +281,29 @@ export async function disable2FA(password: string): Promise<ActionResult> {
  * @param code - TOTPコードまたはバックアップコード
  * @returns 検証結果（成功時は `{ ticket }` を含む）
  */
+const verify2FASchema = z.object({
+  email: normalizedEmailSchema,
+  // TOTP(6桁)またはバックアップコード(8文字)の両形式を許容する最小チェック
+  code: z.string().min(TWO_FACTOR_CODE_LENGTH),
+})
+
 export async function verify2FAToken(
   email: string,
   code: string
 ): Promise<ActionResult<{ ticket: string }>> {
-  // レート制限チェック（ブルートフォース対策）
+  // 1. Zod バリデーション + email 正規化 — 不正入力はレート制限を消費しない
+  const parsed = verify2FASchema.safeParse({ email, code })
+  if (!parsed.success) {
+    return actionError(ERR_2FA_INVALID_CODE)
+  }
+  const { email: validEmail, code: validCode } = parsed.data
+
+  // 2. レート制限チェック（ブルートフォース対策）
   // Security note: This function accepts an email without session auth
   // (called during the login flow before session creation). Both email-
   // and IP-based rate limits are enforced to mitigate unauthenticated
   // brute-force attempts.
-  const emailRl = await enforceUserRateLimit(`email:${email}`, 'verify_2fa')
+  const emailRl = await enforceUserRateLimit(`email:${validEmail}`, 'verify_2fa')
   if (emailRl) return actionError(emailRl.error)
 
   // IP-based rate limit to prevent distributed attacks across emails
@@ -297,9 +311,9 @@ export async function verify2FAToken(
   const ipRl = await enforceUserRateLimit(`ip:${ip}`, 'verify_2fa')
   if (ipRl) return actionError(ipRl.error)
 
-  // ユーザー情報をメールアドレスで取得
+  // ユーザー情報をメールアドレスで取得（正規化済み email を使用）
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: validEmail },
     select: {
       id: true,
       twoFactorEnabled: true,
@@ -317,22 +331,22 @@ export async function verify2FAToken(
   }
 
   // コードの種類を判定
-  const codeType = detectCodeType(code)
+  const codeType = detectCodeType(validCode)
 
   if (codeType === 'totp') {
     // TOTPコードの検証
     const secret = decryptSecret(user.twoFactorSecret)
-    const formattedCode = formatTOTPCode(code)
+    const formattedCode = formatTOTPCode(validCode)
     const isValid = await verifyTOTP(formattedCode, secret)
 
     if (!isValid) {
       return actionError(ERR_2FA_INVALID_CODE)
     }
 
-    return actionSuccess({ ticket: await issueTwoFactorLoginTicket(email) })
+    return actionSuccess({ ticket: await issueTwoFactorLoginTicket(validEmail) })
   } else {
     // バックアップコードの検証
-    const backupCodeIndex = verifyBackupCode(code, user.twoFactorBackupCodes)
+    const backupCodeIndex = verifyBackupCode(validCode, user.twoFactorBackupCodes)
 
     if (backupCodeIndex === -1) {
       // TOTP 不一致・ユーザー状態の各失敗と同一の汎用エラーに統一する。
@@ -349,7 +363,7 @@ export async function verify2FAToken(
       data: { twoFactorBackupCodes: updatedBackupCodes },
     })
 
-    return actionSuccess({ ticket: await issueTwoFactorLoginTicket(email) })
+    return actionSuccess({ ticket: await issueTwoFactorLoginTicket(validEmail) })
   }
 }
 

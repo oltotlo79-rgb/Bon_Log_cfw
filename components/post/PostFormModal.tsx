@@ -24,7 +24,14 @@ import {
   MAX_POST_VIDEOS_FREE,
 } from '@/lib/constants/limits'
 import { ROUTE_DRAFTS } from '@/lib/constants/routes'
-import { MSG_POST_CHARACTER_OVERFLOW, MSG_POST_CONFIRM_DISCARD } from '@/lib/constants/messages'
+import {
+  MSG_POST_CHARACTER_OVERFLOW,
+  MSG_POST_CONFIRM_DISCARD,
+  MSG_POST_CONFIRM_DISCARD_TITLE,
+  MSG_POST_UPLOAD_CANCEL_DESC,
+  MSG_POST_UPLOAD_CANCEL_TITLE,
+} from '@/lib/constants/messages'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { ImageIcon, X as XIcon, FileText as FileTextIcon } from 'lucide-react'
 
 type Genre = {
@@ -69,6 +76,7 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
   const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
   const [pollDuration, setPollDuration] = useState(DEFAULT_POLL_DURATION_SECONDS)
   const [inkDropActive, setInkDropActive] = useState(false)
+  const [confirmType, setConfirmType] = useState<'upload' | 'discard' | null>(null)
 
   const { loading, savingDraft, error, setError, submitPost, saveAsDraft } = usePostSubmit()
 
@@ -128,19 +136,7 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
     )
   }
 
-  // モーダルを閉じるハンドラ
-  function handleClose() {
-    if (uploading) {
-      if (!confirm('アップロード中です。キャンセルしてもよろしいですか？')) {
-        return
-      }
-      abortControllerRef.current?.abort()
-    } else if (content.length > 0 || mediaFiles.length > 0) {
-      if (!confirm(MSG_POST_CONFIRM_DISCARD)) {
-        return
-      }
-    }
-
+  function resetForm() {
     setContent('')
     setSelectedGenres([])
     setMediaFiles([])
@@ -153,6 +149,25 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
     setUploadProgress(0)
     abortControllerRef.current = null
     onClose()
+  }
+
+  // モーダルを閉じるハンドラ
+  function handleClose() {
+    if (uploading) {
+      setConfirmType('upload')
+    } else if (content.length > 0 || mediaFiles.length > 0) {
+      setConfirmType('discard')
+    } else {
+      resetForm()
+    }
+  }
+
+  function handleConfirmClose() {
+    if (confirmType === 'upload') {
+      abortControllerRef.current?.abort()
+    }
+    setConfirmType(null)
+    resetForm()
   }
 
   function handleMediaButtonClick() {
@@ -177,6 +192,15 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
   return (
     <>
     <InkDropOverlay active={inkDropActive} />
+    <ConfirmDialog
+      open={confirmType !== null}
+      onOpenChange={(v) => { if (!v) setConfirmType(null) }}
+      variant={confirmType === 'discard' ? 'discard' : 'warning'}
+      title={confirmType === 'upload' ? MSG_POST_UPLOAD_CANCEL_TITLE : MSG_POST_CONFIRM_DISCARD_TITLE}
+      description={confirmType === 'upload' ? MSG_POST_UPLOAD_CANCEL_DESC : MSG_POST_CONFIRM_DISCARD}
+      confirmLabel={confirmType === 'upload' ? 'キャンセルする' : '破棄する'}
+      onConfirm={handleConfirmClose}
+    />
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
       <div className="shrink-0 bg-background border-b">
         <div className="flex items-center justify-between px-4 py-3">

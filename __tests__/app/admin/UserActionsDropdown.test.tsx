@@ -2,6 +2,7 @@
 
 import { vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
+import userEvent from '@testing-library/user-event'
 import { UserActionsDropdown } from '@/app/admin/users/UserActionsDropdown'
 
 const mockRefresh = vi.fn()
@@ -102,30 +103,36 @@ describe('UserActionsDropdown', () => {
   })
 
   it('アカウント復帰でconfirm→実行する', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
     render(<UserActionsDropdown userId="u1" isSuspended={true} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByText('アカウント復帰'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '復帰させる' }))
     await waitFor(() => {
       expect(mockActivateUser).toHaveBeenCalledWith('u1')
     })
     expect(mockRefresh).toHaveBeenCalled()
   })
 
-  it('アカウント復帰でconfirmキャンセル', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('アカウント復帰でconfirmキャンセル', async () => {
+    const user = userEvent.setup()
     render(<UserActionsDropdown userId="u1" isSuspended={true} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByText('アカウント復帰'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockActivateUser).not.toHaveBeenCalled()
   })
 
   it('アカウント復帰エラーでtoastを表示する', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     mockActivateUser.mockResolvedValue({ error: '復帰エラー' })
+    const user = userEvent.setup()
     render(<UserActionsDropdown userId="u1" isSuspended={true} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByText('アカウント復帰'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '復帰させる' }))
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '復帰エラー', variant: 'destructive' }))
     })

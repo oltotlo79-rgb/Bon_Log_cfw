@@ -586,4 +586,31 @@ describe('DefinedTermJsonLd', () => {
     const script = container.querySelector('script[type="application/ld+json"]')
     expect(script?.textContent).not.toContain('</script>')
   })
+
+  it('alternateName が指定された場合は JSON-LD に含まれる', () => {
+    const { container } = render(
+      <DefinedTermJsonLd
+        name="取り木"
+        description="枝の途中から根を出させる技法"
+        alternateName="とりき"
+      />
+    )
+
+    const script = container.querySelector('script[type="application/ld+json"]')
+    const jsonLd = JSON.parse(script?.textContent || '{}')
+    expect(jsonLd.alternateName).toBe('とりき')
+  })
+
+  it('alternateName が undefined の場合は JSON-LD に含まれない', () => {
+    const { container } = render(
+      <DefinedTermJsonLd
+        name="取り木"
+        description="枝の途中から根を出させる技法"
+      />
+    )
+
+    const script = container.querySelector('script[type="application/ld+json"]')
+    const jsonLd = JSON.parse(script?.textContent || '{}')
+    expect(jsonLd.alternateName).toBeUndefined()
+  })
 })

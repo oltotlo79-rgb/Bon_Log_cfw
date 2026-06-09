@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 // ---------- Mock setup ----------
 
@@ -337,18 +338,23 @@ describe('SegmentBuilder', () => {
 
   it('deletes a segment with confirmation', async () => {
     mockDeleteSegment.mockResolvedValue({})
+    const user = userEvent.setup()
     render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
     const deleteButtons = screen.getAllByText('削除')
     fireEvent.click(deleteButtons[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
       expect(mockDeleteSegment).toHaveBeenCalledWith('seg-1')
     })
   })
 
   it('cancels segment deletion when confirm is false', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
     render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
     fireEvent.click(screen.getAllByText('削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDeleteSegment).not.toHaveBeenCalled()
   })
 
@@ -961,19 +967,39 @@ describe('CmsPageList', () => {
 
   it('deletes a page with confirmation', async () => {
     mockDeleteCmsPage.mockResolvedValue({})
+    const user = userEvent.setup()
     render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
     const deleteBtns = screen.getAllByTitle('削除')
     fireEvent.click(deleteBtns[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
       expect(mockDeleteCmsPage).toHaveBeenCalledWith('help-page')
     })
   })
 
-  it('cancels page deletion', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('cancels page deletion', async () => {
+    const user = userEvent.setup()
     render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDeleteCmsPage).not.toHaveBeenCalled()
+  })
+
+  it('shows inline error in ConfirmDialog on delete failure', async () => {
+    mockDeleteCmsPage.mockResolvedValue({ error: 'Delete failed' })
+    const user = userEvent.setup()
+    render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
+    fireEvent.click(screen.getAllByTitle('削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    // handleDeleteConfirm: setFormError + throw → ConfirmDialog inline FormError 表示
+    await waitFor(() => {
+      expect(screen.getAllByText('Delete failed').length).toBeGreaterThanOrEqual(1)
+    })
+    // ConfirmDialog は閉じずに残っている
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
 
   it('filters by category', () => {
@@ -1225,27 +1251,39 @@ describe('RolesTable', () => {
 
   it('removes admin with confirmation', async () => {
     mockRemoveAdmin.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
     render(<RolesTable admins={baseAdmins} />)
     const deleteButtons = screen.getAllByTitle('管理者から削除')
     fireEvent.click(deleteButtons[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
       expect(mockRemoveAdmin).toHaveBeenCalledWith('u1')
     })
   })
 
-  it('cancels admin removal', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('cancels admin removal', async () => {
+    const user = userEvent.setup()
     render(<RolesTable admins={baseAdmins} />)
     fireEvent.click(screen.getAllByTitle('管理者から削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRemoveAdmin).not.toHaveBeenCalled()
   })
 
   it('shows error on remove failure', async () => {
     mockRemoveAdmin.mockResolvedValue({ error: 'Cannot remove' })
+    const user = userEvent.setup()
     render(<RolesTable admins={baseAdmins} />)
     fireEvent.click(screen.getAllByTitle('管理者から削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
-      expect(screen.getByText('Cannot remove')).toBeInTheDocument()
+      expect(mockRemoveAdmin).toHaveBeenCalledWith('u1')
+    })
+    // handleRemoveConfirm: setError + throw → ページ上部 error 表示 & ConfirmDialog inline FormError の両方に表示
+    await waitFor(() => {
+      expect(screen.getAllByText('Cannot remove').length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -1393,19 +1431,39 @@ describe('AnnouncementList', () => {
 
   it('deletes announcement with confirmation', async () => {
     mockDeleteAnnouncement.mockResolvedValue({})
+    const user = userEvent.setup()
     render(<AnnouncementList announcements={baseAnnouncements} />)
     const deleteBtns = screen.getAllByTitle('削除')
     fireEvent.click(deleteBtns[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
       expect(mockDeleteAnnouncement).toHaveBeenCalledWith('a1')
     })
   })
 
-  it('cancels announcement deletion', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('cancels announcement deletion', async () => {
+    const user = userEvent.setup()
     render(<AnnouncementList announcements={baseAnnouncements} />)
     fireEvent.click(screen.getAllByTitle('削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDeleteAnnouncement).not.toHaveBeenCalled()
+  })
+
+  it('shows inline error in ConfirmDialog on delete failure', async () => {
+    mockDeleteAnnouncement.mockResolvedValue({ error: 'Delete failed' })
+    const user = userEvent.setup()
+    render(<AnnouncementList announcements={baseAnnouncements} />)
+    fireEvent.click(screen.getAllByTitle('削除')[0])
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    // handleDeleteConfirm: setFormError + throw → ConfirmDialog inline FormError 表示
+    await waitFor(() => {
+      expect(screen.getAllByText('Delete failed').length).toBeGreaterThanOrEqual(1)
+    })
+    // ConfirmDialog は閉じずに残っている
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
 
   it('changes type in create form', () => {

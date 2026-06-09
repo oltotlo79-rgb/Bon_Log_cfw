@@ -1,6 +1,5 @@
 'use client'
 
-
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -12,6 +11,11 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_ROLE_REMOVE_CONFIRM_DESC,
+  MSG_ADMIN_ROLE_REMOVE_CONFIRM_TITLE,
+} from '@/lib/constants/messages'
 
 type AdminUser = {
   userId: string
@@ -57,6 +61,7 @@ export default function RolesTable({ admins }: { admins: AdminUser[] }) {
   const [newUserId, setNewUserId] = useState('')
   const [newRole, setNewRole] = useState<AdminRole>('readonly')
   const [error, setError] = useState<string | null>(null)
+  const [removeTargetId, setRemoveTargetId] = useState<string | null>(null)
 
   const handleRoleChange = (userId: string, role: AdminRole) => {
     setLoadingId(userId)
@@ -71,16 +76,18 @@ export default function RolesTable({ admins }: { admins: AdminUser[] }) {
     })
   }
 
-  const handleRemove = (userId: string) => {
-    if (!confirm('この管理者の権限を削除しますか?')) return
-    setLoadingId(userId)
+  const handleRemoveConfirm = async () => {
+    if (!removeTargetId) return
+    setLoadingId(removeTargetId)
     setError(null)
-    startTransition(async () => {
-      const result = await removeAdmin(userId)
-      if (result && 'error' in result) {
-        setError(result.error)
-      }
+    const result = await removeAdmin(removeTargetId)
+    if (result && 'error' in result) {
+      setError(result.error)
       setLoadingId(null)
+      throw new Error(result.error)
+    }
+    setLoadingId(null)
+    startTransition(() => {
       router.refresh()
     })
   }
@@ -171,7 +178,7 @@ export default function RolesTable({ admins }: { admins: AdminUser[] }) {
                       ))}
                     </select>
                     <button
-                      onClick={() => handleRemove(admin.userId)}
+                      onClick={() => setRemoveTargetId(admin.userId)}
                       disabled={loadingId === admin.userId || isPending}
                       className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors disabled:opacity-50"
                       title="管理者から削除"
@@ -237,6 +244,16 @@ export default function RolesTable({ admins }: { admins: AdminUser[] }) {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={removeTargetId !== null}
+        onOpenChange={(v) => { if (!v) setRemoveTargetId(null) }}
+        variant="destructive"
+        title={MSG_ADMIN_ROLE_REMOVE_CONFIRM_TITLE}
+        description={MSG_ADMIN_ROLE_REMOVE_CONFIRM_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleRemoveConfirm}
+      />
     </div>
   )
 }

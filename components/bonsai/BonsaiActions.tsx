@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { deleteBonsai } from '@/lib/actions/bonsai'
 import { useToast } from '@/hooks/use-toast'
-import { MSG_BONSAI_DELETE_FAILED } from '@/lib/constants/messages'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_BONSAI_DELETE_CONFIRM_DESC,
+  MSG_BONSAI_DELETE_CONFIRM_TITLE,
+  MSG_BONSAI_DELETE_FAILED,
+} from '@/lib/constants/messages'
 import { ROUTE_BONSAI } from '@/lib/constants/routes'
 import { buildBonsaiEditPath } from '@/lib/constants/path-builders'
 
@@ -52,31 +57,20 @@ export function BonsaiActions({ bonsaiId, bonsaiName }: BonsaiActionsProps) {
   useEffect(() => () => { mountedRef.current = false }, [])
 
   const [isOpen, setIsOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleDelete = async () => {
-    if (!confirm(`「${bonsaiName}」を削除しますか？\n成長記録もすべて削除されます。`)) {
-      return
+  const handleDeleteConfirm = async () => {
+    const result = await deleteBonsai(bonsaiId)
+    if (!result.success) {
+      const msg = 'error' in result ? result.error : MSG_BONSAI_DELETE_FAILED
+      toast({ title: msg, variant: 'destructive' })
+      throw new Error(msg)
     }
-
-    setIsDeleting(true)
-    try {
-      const result = await deleteBonsai(bonsaiId)
-      if (!result.success) {
-        toast({ title: result.error, variant: 'destructive' })
-      } else {
-        router.push(ROUTE_BONSAI)
-        router.refresh()
-      }
-    } catch {
-      toast({ title: MSG_BONSAI_DELETE_FAILED, variant: 'destructive' })
-    } finally {
-      // アンマウント後は setState しない（テスト/ナビ後などの unhandled rejection 防止）
-      if (mountedRef.current) {
-        setIsDeleting(false)
-        setIsOpen(false)
-      }
+    // アンマウント後は setState しない（テスト/ナビ後などの unhandled rejection 防止）
+    if (mountedRef.current) {
+      setIsOpen(false)
     }
+    router.push(ROUTE_BONSAI)
+    router.refresh()
   }
 
   return (
@@ -85,7 +79,6 @@ export function BonsaiActions({ bonsaiId, bonsaiName }: BonsaiActionsProps) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 hover:bg-muted rounded-lg transition-colors"
-        disabled={isDeleting}
         aria-label="メニュー"
         data-testid="bonsai-menu"
       >
@@ -107,14 +100,19 @@ export function BonsaiActions({ bonsaiId, bonsaiName }: BonsaiActionsProps) {
               <PencilIcon className="w-4 h-4" />
               編集
             </Link>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              <TrashIcon className="w-4 h-4" />
-              {isDeleting ? '削除中...' : '削除'}
-            </button>
+            <ConfirmDialog
+              trigger={
+                <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors">
+                  <TrashIcon className="w-4 h-4" />
+                  削除
+                </button>
+              }
+              variant="destructive"
+              title={MSG_BONSAI_DELETE_CONFIRM_TITLE(bonsaiName)}
+              description={MSG_BONSAI_DELETE_CONFIRM_DESC}
+              confirmLabel="削除する"
+              onConfirm={handleDeleteConfirm}
+            />
           </div>
         </>
       )}

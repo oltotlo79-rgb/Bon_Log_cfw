@@ -8,6 +8,7 @@ import { BASE_URL, ROUTE_DICTIONARY } from '@/lib/constants/routes'
 import { buildDictionaryPath } from '@/lib/constants/path-builders'
 import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 import { META_DESCRIPTION_PREVIEW_LENGTH, DESCRIPTION_UI_PREVIEW_LENGTH } from '@/lib/constants/limits'
+import { TermDescriptionExpanded } from '@/components/dictionary/TermDescriptionExpanded'
 
 export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
 
@@ -75,6 +76,7 @@ export default async function DictionaryTermPage({ params }: Props) {
         description={term.description.slice(0, DESCRIPTION_UI_PREVIEW_LENGTH)}
         category={term.category}
         url={`${BASE_URL}/dictionary/${slug}`}
+        alternateName={term.reading}
       />
       <Link
         href="/dictionary"
@@ -87,8 +89,12 @@ export default async function DictionaryTermPage({ params }: Props) {
       <article className="rounded-xl border border-border bg-card p-6 space-y-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">{term.reading}</p>
-            <h1 className="text-2xl font-bold">{term.term}</h1>
+            <h1 className="text-2xl font-bold">
+              <ruby>
+                {term.term}
+                <rt className="text-xs font-normal text-muted-foreground">{term.reading}</rt>
+              </ruby>
+            </h1>
           </div>
           <span className={`text-xs font-medium px-3 py-1 rounded-full ${colorClass}`}>
             {term.category}
@@ -97,7 +103,7 @@ export default async function DictionaryTermPage({ params }: Props) {
 
         <hr className="border-border" />
 
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{term.description}</p>
+        <TermDescriptionExpanded description={term.description} />
       </article>
 
       {relatedTerms.length > 0 && (

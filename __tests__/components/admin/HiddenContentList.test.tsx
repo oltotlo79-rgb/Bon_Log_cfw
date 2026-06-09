@@ -153,21 +153,24 @@ describe('HiddenContentList', () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('再表示'))
-    expect(window.confirm).toHaveBeenCalledWith('このコンテンツを再表示しますか？')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
   })
 
   it('再表示を確認するとサーバーアクションが呼ばれる', async () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem({ type: 'post', id: 'p1' })]} />)
     await user.click(screen.getByText('再表示'))
-    expect(mockRestore).toHaveBeenCalledWith('post', 'p1')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '再表示する' }))
+    await waitFor(() => { expect(mockRestore).toHaveBeenCalledWith('post', 'p1') })
   })
 
   it('再表示をキャンセルするとサーバーアクションが呼ばれない', async () => {
-    ;(window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(false)
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('再表示'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRestore).not.toHaveBeenCalled()
   })
 
@@ -180,23 +183,24 @@ describe('HiddenContentList', () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('削除'))
-    expect(window.confirm).toHaveBeenCalledWith(
-      'このコンテンツを完全に削除しますか？この操作は取り消せません。'
-    )
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
   })
 
   it('削除を確認するとサーバーアクションが呼ばれる', async () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem({ type: 'comment', id: 'c1' })]} />)
     await user.click(screen.getByText('削除'))
-    expect(mockDelete).toHaveBeenCalledWith('comment', 'c1')
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => { expect(mockDelete).toHaveBeenCalledWith('comment', 'c1') })
   })
 
   it('削除をキャンセルするとサーバーアクションが呼ばれない', async () => {
-    ;(window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(false)
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('削除'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDelete).not.toHaveBeenCalled()
   })
 
@@ -207,9 +211,13 @@ describe('HiddenContentList', () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('再表示'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '再表示する' }))
 
     // 処理中テキストが表示される
-    expect(screen.getAllByText('処理中...').length).toBeGreaterThan(0)
+    await waitFor(() => {
+      expect(screen.getAllByText('処理中...').length).toBeGreaterThan(0)
+    })
 
     resolvePromise!({ success: true })
     await waitFor(() => {
@@ -224,8 +232,12 @@ describe('HiddenContentList', () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('削除'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
-    expect(screen.getAllByText('処理中...').length).toBeGreaterThan(0)
+    await waitFor(() => {
+      expect(screen.getAllByText('処理中...').length).toBeGreaterThan(0)
+    })
 
     resolvePromise!({ success: true })
     await waitFor(() => {
@@ -238,6 +250,8 @@ describe('HiddenContentList', () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('再表示'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '再表示する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '再表示に失敗しました', variant: 'destructive' }))
@@ -249,6 +263,8 @@ describe('HiddenContentList', () => {
     const user = userEvent.setup()
     render(<HiddenContentList items={[createItem()]} />)
     await user.click(screen.getByText('削除'))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' }))

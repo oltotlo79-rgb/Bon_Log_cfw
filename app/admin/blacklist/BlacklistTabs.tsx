@@ -20,7 +20,14 @@ import {
 } from '@/lib/actions/blacklist'
 import { FINGERPRINT_DISPLAY_LENGTH } from '@/lib/constants/limits'
 import { useToast } from '@/hooks/use-toast'
-import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_BLACKLIST_DEVICE_REMOVE_DESC,
+  MSG_ADMIN_BLACKLIST_DEVICE_REMOVE_TITLE,
+  MSG_ADMIN_BLACKLIST_EMAIL_REMOVE_DESC,
+  MSG_ADMIN_BLACKLIST_EMAIL_REMOVE_TITLE,
+  MSG_ERROR_FALLBACK,
+} from '@/lib/constants/messages'
 
 interface EmailBlacklistItem {
   /** ブラックリストレコードID */
@@ -97,6 +104,9 @@ export function BlacklistTabs({
   const [loading, setLoading] = useState(false)
   // エラーメッセージ
   const [error, setError] = useState<string | null>(null)
+  // 削除確認ダイアログ用（メール: id+email、デバイス: idのみ）
+  const [emailRemoveTarget, setEmailRemoveTarget] = useState<{ id: string; email: string } | null>(null)
+  const [deviceRemoveTargetId, setDeviceRemoveTargetId] = useState<string | null>(null)
 
   // 追加フォームの入力値の状態管理
   const [newEmail, setNewEmail] = useState('')
@@ -179,33 +189,23 @@ export function BlacklistTabs({
     router.refresh()
   }
 
-  const handleRemoveEmail = async (id: string) => {
-    // 確認ダイアログで削除を確認（誤操作防止）
-    if (!confirm('このメールアドレスをブラックリストから削除しますか？')) return
-
-    // Server Actionを呼び出して削除
-    const result = await removeEmailFromBlacklist(id)
+  const handleRemoveEmailConfirm = async () => {
+    if (!emailRemoveTarget) return
+    const result = await removeEmailFromBlacklist(emailRemoveTarget.id)
     if ('error' in result) {
       toast({ title: result.error, variant: 'destructive' })
-      return
+      throw new Error(result.error)
     }
-
-    // 成功時はページを再読み込み
     router.refresh()
   }
 
-  const handleRemoveDevice = async (id: string) => {
-    // 確認ダイアログで削除を確認（誤操作防止）
-    if (!confirm('このデバイスをブラックリストから削除しますか？')) return
-
-    // Server Actionを呼び出して削除
-    const result = await removeDeviceFromBlacklist(id)
+  const handleRemoveDeviceConfirm = async () => {
+    if (!deviceRemoveTargetId) return
+    const result = await removeDeviceFromBlacklist(deviceRemoveTargetId)
     if ('error' in result) {
       toast({ title: result.error, variant: 'destructive' })
-      return
+      throw new Error(result.error)
     }
-
-    // 成功時はページを再読み込み
     router.refresh()
   }
 
@@ -385,7 +385,7 @@ export function BlacklistTabs({
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => handleRemoveEmail(item.id)}
+                        onClick={() => setEmailRemoveTarget({ id: item.id, email: item.email })}
                         className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                         title="削除"
                       >
@@ -420,7 +420,7 @@ export function BlacklistTabs({
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => handleRemoveDevice(item.id)}
+                      onClick={() => setDeviceRemoveTargetId(item.id)}
                       className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       title="削除"
                     >
@@ -468,6 +468,26 @@ export function BlacklistTabs({
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={emailRemoveTarget !== null}
+        onOpenChange={(v) => { if (!v) setEmailRemoveTarget(null) }}
+        variant="warning"
+        title={MSG_ADMIN_BLACKLIST_EMAIL_REMOVE_TITLE}
+        description={emailRemoveTarget ? MSG_ADMIN_BLACKLIST_EMAIL_REMOVE_DESC(emailRemoveTarget.email) : ''}
+        confirmLabel="削除する"
+        onConfirm={handleRemoveEmailConfirm}
+      />
+
+      <ConfirmDialog
+        open={deviceRemoveTargetId !== null}
+        onOpenChange={(v) => { if (!v) setDeviceRemoveTargetId(null) }}
+        variant="warning"
+        title={MSG_ADMIN_BLACKLIST_DEVICE_REMOVE_TITLE}
+        description={MSG_ADMIN_BLACKLIST_DEVICE_REMOVE_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleRemoveDeviceConfirm}
+      />
     </div>
   )
 }

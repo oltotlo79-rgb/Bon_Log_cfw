@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { signIn } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
-import { MAX_EMAIL_LENGTH, MAX_NICKNAME_LENGTH } from '@/lib/constants/limits'
+import { MAX_NICKNAME_LENGTH } from '@/lib/constants/limits'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { sendVerificationEmail } from '@/lib/email'
@@ -39,8 +39,6 @@ import {
   ERR_VERIFICATION_EMAIL_FAILED,
 } from '@/lib/constants/errors/auth'
 import {
-  ERR_EMAIL_INVALID,
-  ERR_EMAIL_TOO_LONG,
   ERR_INPUT_INVALID_GENERIC,
   ERR_NICKNAME_INVALID_CHARS,
   ERR_NICKNAME_REQUIRED,
@@ -50,16 +48,14 @@ import {
 import { isReservedNickname } from '@/lib/constants/reserved'
 import { isEmailBlacklisted, isDeviceBlacklisted } from '@/lib/services/blacklist-check'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
+import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 import type { ActionResult } from '@/types/action-result'
 
 // auth public action 用のスキーマ群。
 // rate limit を消費する前に入力境界で正規化・検証することで、不正形状の入力で quota を
 // 消費する経路を塞ぐ。schema 通過後の email を rate limit key 生成にも使う。
 const credentialsSchema = z.object({
-  email: z
-    .string()
-    .email(ERR_EMAIL_INVALID)
-    .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
+  email: normalizedEmailSchema,
   password: z.string().min(1, ERR_INPUT_INVALID_GENERIC),
 })
 
@@ -185,7 +181,7 @@ export async function signInAsGuestFormAction() {
 }
 
 const registerUserSchema = z.object({
-  email: z.string().email(ERR_EMAIL_INVALID).max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
+  email: normalizedEmailSchema,
   password: z.string(),
   nickname: z
     .string()
@@ -285,7 +281,7 @@ export async function registerUser(data: {
 
   await prisma.emailVerificationToken.create({
     data: {
-      email: data.email,
+      email,
       token: hashedToken,
       expires,
     },

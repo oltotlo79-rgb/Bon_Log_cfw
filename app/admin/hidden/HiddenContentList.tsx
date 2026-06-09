@@ -9,6 +9,13 @@ import {
   type ContentType,
 } from '@/lib/constants/report'
 import { useToast } from '@/hooks/use-toast'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_HIDDEN_DELETE_DESC,
+  MSG_ADMIN_HIDDEN_DELETE_TITLE,
+  MSG_ADMIN_HIDDEN_RESTORE_DESC,
+  MSG_ADMIN_HIDDEN_RESTORE_TITLE,
+} from '@/lib/constants/messages'
 
 interface HiddenItem {
   type: ContentType
@@ -23,33 +30,35 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
   const { toast } = useToast()
   const [filter, setFilter] = useState<ContentType | 'all'>('all')
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [restoreTarget, setRestoreTarget] = useState<{ type: ContentType; id: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ type: ContentType; id: string } | null>(null)
 
   const filteredItems = filter === 'all'
     ? items
     : items.filter((item: HiddenItem) => item.type === filter)
 
-  async function handleRestore(type: ContentType, id: string) {
-    if (!confirm('このコンテンツを再表示しますか？')) return
-
-    setProcessingId(id)
+  async function handleRestoreConfirm() {
+    if (!restoreTarget) return
+    setProcessingId(restoreTarget.id)
     try {
-      const result = await restoreContent(type, id)
+      const result = await restoreContent(restoreTarget.type, restoreTarget.id)
       if (!result.success) {
         toast({ title: result.error, variant: 'destructive' })
+        throw new Error(result.error)
       }
     } finally {
       setProcessingId(null)
     }
   }
 
-  async function handleDelete(type: ContentType, id: string) {
-    if (!confirm('このコンテンツを完全に削除しますか？この操作は取り消せません。')) return
-
-    setProcessingId(id)
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return
+    setProcessingId(deleteTarget.id)
     try {
-      const result = await deleteHiddenContent(type, id)
+      const result = await deleteHiddenContent(deleteTarget.type, deleteTarget.id)
       if (!result.success) {
         toast({ title: result.error, variant: 'destructive' })
+        throw new Error(result.error)
       }
     } finally {
       setProcessingId(null)
@@ -116,18 +125,18 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleRestore(item.type, item.id)}
+                  onClick={() => setRestoreTarget({ type: item.type, id: item.id })}
                   disabled={processingId === item.id}
                 >
-                  {processingId === item.id ? '処理中...' : '再表示'}
+                  再表示
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleDelete(item.type, item.id)}
+                  onClick={() => setDeleteTarget({ type: item.type, id: item.id })}
                   disabled={processingId === item.id}
                 >
-                  {processingId === item.id ? '処理中...' : '削除'}
+                  削除
                 </Button>
               </div>
             </div>
@@ -140,6 +149,26 @@ export function HiddenContentList({ items }: { items: HiddenItem[] }) {
           該当するコンテンツはありません
         </div>
       )}
+
+      <ConfirmDialog
+        open={restoreTarget !== null}
+        onOpenChange={(v) => { if (!v) setRestoreTarget(null) }}
+        variant="warning"
+        title={MSG_ADMIN_HIDDEN_RESTORE_TITLE}
+        description={MSG_ADMIN_HIDDEN_RESTORE_DESC}
+        confirmLabel="再表示する"
+        onConfirm={handleRestoreConfirm}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}
+        variant="destructive"
+        title={MSG_ADMIN_HIDDEN_DELETE_TITLE}
+        description={MSG_ADMIN_HIDDEN_DELETE_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

@@ -9,7 +9,11 @@ import { ja } from 'date-fns/locale'
 import { Trash2 as TrashIcon, Heart as HeartIcon, MessageCircle as MessageCircleIcon, ImageIcon, Leaf as LeafIcon } from 'lucide-react'
 import { deleteBonsaiRecord } from '@/lib/actions/bonsai'
 import { useToast } from '@/hooks/use-toast'
-import { MSG_BONSAI_DELETE_FAILED } from '@/lib/constants/messages'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_BONSAI_RECORD_DELETE_CONFIRM_DESC,
+  MSG_BONSAI_RECORD_DELETE_CONFIRM_TITLE,
+} from '@/lib/constants/messages'
 import { MAX_POST_IMAGES_FREE } from '@/lib/constants/limits'
 import { buildPostPath } from '@/lib/constants/path-builders'
 
@@ -71,8 +75,8 @@ interface BonsaiTimelineProps {
 export function BonsaiTimeline({ records, posts, isOwner }: BonsaiTimelineProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [confirmRecordId, setConfirmRecordId] = useState<string | null>(null)
 
   const timelineItems: TimelineItem[] = [
     ...records.map((record) => ({
@@ -87,22 +91,14 @@ export function BonsaiTimeline({ records, posts, isOwner }: BonsaiTimelineProps)
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime())
 
-  const handleDeleteRecord = async (recordId: string) => {
-    if (!confirm('この記録を削除しますか？')) return
-
-    setDeletingId(recordId)
-    try {
-      const result = await deleteBonsaiRecord(recordId)
-      if (!result.success) {
-        toast({ title: result.error, variant: 'destructive' })
-      } else {
-        router.refresh()
-      }
-    } catch {
-      toast({ title: MSG_BONSAI_DELETE_FAILED, variant: 'destructive' })
-    } finally {
-      setDeletingId(null)
+  const handleDeleteRecordConfirm = async () => {
+    if (!confirmRecordId) return
+    const result = await deleteBonsaiRecord(confirmRecordId)
+    if (!result.success) {
+      toast({ title: result.error, variant: 'destructive' })
+      throw new Error(result.error)
     }
+    router.refresh()
   }
 
   if (timelineItems.length === 0) {
@@ -116,6 +112,15 @@ export function BonsaiTimeline({ records, posts, isOwner }: BonsaiTimelineProps)
 
   return (
     <>
+      <ConfirmDialog
+        open={confirmRecordId !== null}
+        onOpenChange={(v) => { if (!v) setConfirmRecordId(null) }}
+        variant="destructive"
+        title={MSG_BONSAI_RECORD_DELETE_CONFIRM_TITLE}
+        description={MSG_BONSAI_RECORD_DELETE_CONFIRM_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteRecordConfirm}
+      />
       <div className="divide-y">
         {timelineItems.map((item) => {
           if (item.type === 'record') {
@@ -135,9 +140,8 @@ export function BonsaiTimeline({ records, posts, isOwner }: BonsaiTimelineProps)
                       </span>
                       {isOwner && (
                         <button
-                          onClick={() => handleDeleteRecord(record.id)}
-                          disabled={deletingId === record.id}
-                          className="ml-auto p-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                          onClick={() => setConfirmRecordId(record.id)}
+                          className="ml-auto p-1 text-muted-foreground hover:text-destructive transition-colors"
                           title="削除"
                         >
                           <TrashIcon className="w-4 h-4" />

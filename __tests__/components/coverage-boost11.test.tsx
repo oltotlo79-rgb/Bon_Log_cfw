@@ -1061,7 +1061,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('renders form when token is valid', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1074,7 +1074,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('toggles password visibility', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1099,7 +1099,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('toggles confirm password visibility', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1119,7 +1119,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('shows error when passwords do not match', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1142,7 +1142,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('shows error for short password', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1165,7 +1165,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('shows error for password without a letter (numbers only)', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1189,7 +1189,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('renders invalid token view', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: false })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: false } })
 
     await act(async () => {
       render(<PasswordResetConfirmForm />)
@@ -1202,7 +1202,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('submits successfully and shows success message', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
     mockResetPassword.mockResolvedValue({ success: true })
 
     await act(async () => {
@@ -1234,7 +1234,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
   })
 
   it('shows server error on submit failure', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
     mockResetPassword.mockResolvedValue({ error: 'サーバーエラー' })
 
     await act(async () => {

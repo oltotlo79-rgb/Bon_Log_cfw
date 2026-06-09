@@ -12,9 +12,9 @@
 'use server'
 
 import crypto from 'crypto'
+import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { sendVerificationEmail } from '@/lib/email'
-import { sanitizeInput } from '@/lib/sanitize'
 import { getAppUrl } from '@/lib/env'
 import { rateLimit } from '@/lib/rate-limit'
 import {
@@ -32,6 +32,11 @@ import {
   ERR_TOKEN_EXPIRED_OR_INVALID,
 } from '@/lib/constants/errors/auth'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
+import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
+
+const resendVerificationSchema = z.object({
+  email: normalizedEmailSchema,
+})
 
 /**
  * メール確認トークンを検証し、ユーザーの emailVerified を更新する。
@@ -74,9 +79,16 @@ export async function verifyEmailToken(token: string) {
  * to prevent email enumeration.
  */
 export async function resendVerificationEmail(email: string) {
-  const ip = await getClientIp()
-  const sanitizedEmail = sanitizeInput(email)
+  // 1. Zod バリデーション + 正規化 — 不正形状は列挙対策で success を返す
+  const parsed = resendVerificationSchema.safeParse({ email })
+  if (!parsed.success) {
+    return actionSuccess()
+  }
+  const validEmail = parsed.data.email
 
+  const ip = await getClientIp()
+
+  // 2. レート制限（Zod 通過後）
   // Redis 障害時はフェイルクローズ: メール乱用と列挙攻撃を防ぐ。
   const rateLimitResult = await rateLimit(`resend-verify:${ip}`, {
     windowMs: ONE_HOUR_MS,
@@ -89,7 +101,7 @@ export async function resendVerificationEmail(email: string) {
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: sanitizedEmail },
+    where: { email: validEmail },
     select: { id: true, emailVerified: true },
   })
 
@@ -103,7 +115,7 @@ export async function resendVerificationEmail(email: string) {
   }
 
   await prisma.emailVerificationToken.deleteMany({
-    where: { email: sanitizedEmail },
+    where: { email: validEmail },
   })
 
   const token = crypto.randomBytes(TOKEN_RANDOM_BYTES).toString('hex')
@@ -112,7 +124,7 @@ export async function resendVerificationEmail(email: string) {
 
   await prisma.emailVerificationToken.create({
     data: {
-      email: sanitizedEmail,
+      email: validEmail,
       token: hashedToken,
       expires,
     },
@@ -121,7 +133,7 @@ export async function resendVerificationEmail(email: string) {
   const baseUrl = getAppUrl()
   const verifyUrl = `${baseUrl}/verify-email?token=${token}`
 
-  const result = await sendVerificationEmail(sanitizedEmail, verifyUrl)
+  const result = await sendVerificationEmail(validEmail, verifyUrl)
   if (!result.success) {
     return actionError(ERR_EMAIL_SEND_FAILED)
   }

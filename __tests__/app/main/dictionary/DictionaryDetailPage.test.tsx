@@ -65,8 +65,11 @@ describe('DictionaryDetailPage', () => {
       mockGetTermBySlug.mockResolvedValue({ term })
       const result = await Page({ params: Promise.resolve({ slug: 'chokkan' }) })
       render(result)
-      expect(screen.getByRole('heading', { name: '直幹' })).toBeInTheDocument()
-      expect(screen.getByText('ちょっかん')).toBeInTheDocument()
+      // <ruby> renders term + reading together in JSDOM; match with regex
+      expect(screen.getByRole('heading', { name: /直幹/ })).toBeInTheDocument()
+      // reading is inside <rt> inside the heading
+      const heading = screen.getByRole('heading', { name: /直幹/ })
+      expect(heading.textContent).toContain('ちょっかん')
     })
 
     it('説明文が表示される', async () => {

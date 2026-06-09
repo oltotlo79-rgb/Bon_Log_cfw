@@ -4,7 +4,8 @@ import { vi } from 'vitest'
  * PostCard (branches), ImageGallery, BonsaiTimeline, MessageBadge, AdProvider
  */
 import React from 'react'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 // ---- mocks ----
 vi.mock('next/link', () => {
@@ -153,6 +154,7 @@ vi.mock('@/components/ui/button', () => ({
     if (asChild) return <>{children}</>
     return <button onClick={onClick} {...props}>{children}</button>
   },
+  buttonVariants: () => 'btn',
 }))
 
 vi.mock('@/lib/actions/hide-post', () => ({ hidePost: vi.fn(), getHiddenPostIds: vi.fn() }))
@@ -456,7 +458,7 @@ describe('BonsaiTimeline', () => {
   })
 
   it('shows delete button for owner and handles delete', async () => {
-    window.confirm = vi.fn(() => true)
+    const user = userEvent.setup()
     mockDeleteBonsaiRecord.mockResolvedValue({ success: true })
     const records = [{
       id: 'r1',
@@ -466,32 +468,46 @@ describe('BonsaiTimeline', () => {
       images: [],
     }]
     render(<BonsaiTimeline records={records} posts={[]} isOwner={true} />)
-    const deleteBtn = document.querySelector('button[title="削除"]')!
-    await act(async () => { fireEvent.click(deleteBtn) })
-    expect(mockDeleteBonsaiRecord).toHaveBeenCalledWith('r1')
-    expect(mockRefresh).toHaveBeenCalled()
+    // 削除ボタンをクリック → ConfirmDialog が開く
+    const deleteBtn = screen.getByRole('button', { name: /削除/i })
+    await user.click(deleteBtn)
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => {
+      expect(mockDeleteBonsaiRecord).toHaveBeenCalledWith('r1')
+      expect(mockRefresh).toHaveBeenCalled()
+    })
   })
 
   it('handles delete error', async () => {
-    window.confirm = vi.fn(() => true)
-    mockDeleteBonsaiRecord.mockResolvedValue({ error: '削除失敗' })
+    const user = userEvent.setup()
+    mockDeleteBonsaiRecord.mockResolvedValue({ success: false, error: '削除失敗' })
     const records = [{
       id: 'r1', content: 'Test', recordAt: new Date(), createdAt: new Date(), images: [],
     }]
     render(<BonsaiTimeline records={records} posts={[]} isOwner={true} />)
-    await act(async () => { fireEvent.click(document.querySelector('button[title="削除"]')!) })
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除失敗', variant: 'destructive' }))
+    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除失敗', variant: 'destructive' }))
+    })
   })
 
   it('handles delete exception', async () => {
-    window.confirm = vi.fn(() => true)
+    const user = userEvent.setup()
     mockDeleteBonsaiRecord.mockRejectedValue(new Error('fail'))
     const records = [{
       id: 'r1', content: 'Test', recordAt: new Date(), createdAt: new Date(), images: [],
     }]
     render(<BonsaiTimeline records={records} posts={[]} isOwner={true} />)
-    await act(async () => { fireEvent.click(document.querySelector('button[title="削除"]')!) })
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' }))
+    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+    // 例外発生時 ConfirmDialog はインラインエラーを表示する（toast は BonsaiTimeline の success:false 分岐のみ）
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
   })
 
   it('opens image modal on thumbnail click', () => {

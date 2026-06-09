@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 import { redirect } from 'next/navigation'
 import { verifyEmailToken } from '@/lib/actions/auth'
-import { ROUTE_LOGIN, ROUTE_REGISTER } from '@/lib/constants/routes'
+import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import Link from 'next/link'
 
 type SearchParams = { token?: string }
@@ -49,16 +49,13 @@ export default async function VerifyEmailPage({
       </p>
 
       <p className="text-center text-sm text-muted-foreground">
-        ログイン画面から「確認メールを再送する」で再度メールを送信できます。<br />
-        同じメールアドレスで再度登録することもできます。
+        ログイン画面でメールアドレスを入力してログインを試みると、<br />
+        メール未確認の場合は「確認メールを再送する」ボタンが表示されます。
       </p>
 
-      <div className="text-center pt-4 space-x-4">
+      <div className="text-center pt-4">
         <Link href={ROUTE_LOGIN} className="text-primary hover:underline font-medium">
           ログインページへ
-        </Link>
-        <Link href={ROUTE_REGISTER} className="text-primary hover:underline font-medium">
-          新規登録
         </Link>
       </div>
     </div>

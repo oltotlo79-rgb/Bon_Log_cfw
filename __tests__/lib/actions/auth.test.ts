@@ -741,7 +741,7 @@ describe('Auth Actions', async () => {
       const { verifyPasswordResetToken } = await import('@/lib/actions/auth')
       const result = await verifyPasswordResetToken('test@example.com', 'valid-token')
 
-      expect(result).toEqual({ valid: true })
+      expect(result).toEqual({ success: true, data: { valid: true } })
     })
 
     /**
@@ -761,7 +761,7 @@ describe('Auth Actions', async () => {
       const { verifyPasswordResetToken } = await import('@/lib/actions/auth')
       const result = await verifyPasswordResetToken('test@example.com', 'invalid-token')
 
-      expect(result).toEqual({ valid: false })
+      expect(result).toEqual({ success: true, data: { valid: false } })
     })
   })
 

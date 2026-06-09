@@ -7,6 +7,7 @@
 
 import { vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
+import userEvent from '@testing-library/user-event'
 import { DraftEditForm } from '@/components/draft/DraftEditForm'
 
 const mockPush = vi.fn()
@@ -70,9 +71,6 @@ class MockXHR {
 const mockXHRInstances: MockXHR[] = []
 const OriginalXHR = global.XMLHttpRequest
 
-const mockConfirm = vi.fn()
-window.confirm = mockConfirm
-
 describe('DraftEditForm - 未カバー分岐', () => {
   const mockDraft = {
     id: 'draft-1',
@@ -92,7 +90,6 @@ describe('DraftEditForm - 未カバー分岐', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    mockConfirm.mockReturnValue(true)
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ success: true })
     mockDeleteDraft.mockResolvedValue({ success: true })
@@ -319,9 +316,12 @@ describe('DraftEditForm - 未カバー分岐', () => {
   it('削除結果がsuccess: falseでerrorフィールドがない場合にデフォルトエラーを表示する', async () => {
     vi.useRealTimers()
     mockDeleteDraft.mockResolvedValue({ success: false })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(screen.getByText('エラー')).toBeInTheDocument()
@@ -330,14 +330,17 @@ describe('DraftEditForm - 未カバー分岐', () => {
 
   // ----------------------------------------------------------------
   // Publish: saveDraft with error field as null -> falls back to 'エラー'
-  // handlePublish line 541: saveResult.error ?? 'エラー'
+  // handlePublishConfirm: saveResult.error ?? MSG_ERROR_FALLBACK
   // ----------------------------------------------------------------
   it('投稿前の保存でerrorがnullの場合にデフォルトエラーを表示する', async () => {
     vi.useRealTimers()
     mockSaveDraft.mockResolvedValue({ error: null })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(screen.getByText('エラー')).toBeInTheDocument()
@@ -347,15 +350,18 @@ describe('DraftEditForm - 未カバー分岐', () => {
 
   // ----------------------------------------------------------------
   // Publish: publishDraft returns error with null -> fallback
-  // handlePublish line 549: result.error ?? 'エラー'
+  // handlePublishConfirm: result.error ?? MSG_ERROR_FALLBACK
   // ----------------------------------------------------------------
   it('投稿変換でerrorがnullの場合にデフォルトエラーを表示する', async () => {
     vi.useRealTimers()
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ error: null })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(screen.getByText('エラー')).toBeInTheDocument()

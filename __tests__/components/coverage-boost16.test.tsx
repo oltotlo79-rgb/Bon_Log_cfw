@@ -305,13 +305,11 @@ describe('PostFormModal - coverage boost', () => {
   })
 
   it('handleClose while uploading - confirm true aborts upload', async () => {
-    const mockConfirm = vi.fn().mockReturnValue(true)
-    window.confirm = mockConfirm
-
     // Make upload slow so we can test during upload
     mockPrepareFileForUpload.mockImplementation(() => new Promise(() => {}))
 
     const onClose = vi.fn()
+    const user = userEvent.setup()
     const { container } = render(<PostFormModal {...defaultProps} onClose={onClose} />)
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
@@ -319,19 +317,26 @@ describe('PostFormModal - coverage boost', () => {
     Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] })
     fireEvent.change(fileInput)
 
-    // Wait for uploading state to be true
+    // Wait for uploading state (圧縮中) to be true
     await waitFor(() => {
-      // The component should be in uploading state
-      expect(screen.queryByText(/圧縮中/i) || true).toBeTruthy()
+      expect(screen.queryByText(/圧縮中/i)).toBeInTheDocument()
     })
 
-    // Click close button
+    // Click close button — should open ConfirmDialog (upload cancel)
     const closeButton = screen.getAllByRole('button')[0]
-    fireEvent.click(closeButton)
+    await user.click(closeButton)
 
-    // The confirm dialog should be about uploading, but the uploading state
-    // might clear before we click close. Let's just check onClose is called.
-    expect(onClose).toHaveBeenCalled()
+    // Confirm dialog should be open
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    // Click the confirm button ("キャンセルする") to abort upload and close
+    await user.click(screen.getByRole('button', { name: 'キャンセルする' }))
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled()
+    })
   })
 
   it('handleClose while uploading - confirm false cancels close', async () => {

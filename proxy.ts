@@ -553,7 +553,13 @@ export default auth(async (req) => {
 
   if (isProtected && !isLoggedIn) {
     const redirectUrl = new URL(ROUTE_LOGIN, nextUrl)
-    redirectUrl.searchParams.set('callbackUrl', nextUrl.pathname)
+    // pathname + search を含めることで、ログイン後に元のページ（クエリ文字列含む）へ戻れる。
+    // proxy がセットする callbackUrl は同一オリジンの相対パスのみのため、オープンリダイレクトの
+    // 余地はない（nextUrl は Next.js が検証済みの内部 URL オブジェクト）。
+    const callbackTarget = nextUrl.search
+      ? `${nextUrl.pathname}${nextUrl.search}`
+      : nextUrl.pathname
+    redirectUrl.searchParams.set('callbackUrl', callbackTarget)
     return redirectNoStore(redirectUrl, cspHeader)
   }
 

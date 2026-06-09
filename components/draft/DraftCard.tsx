@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Image from 'next/image'
@@ -13,7 +12,15 @@ import {
 } from 'lucide-react'
 import { deleteDraft, publishDraft } from '@/lib/actions/draft'
 import { useToast } from '@/hooks/use-toast'
-import { MSG_DRAFT_DELETE_FAILED, MSG_DRAFT_POST_FAILED } from '@/lib/constants/messages'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_DRAFT_DELETE_CONFIRM_DESC,
+  MSG_DRAFT_DELETE_CONFIRM_TITLE,
+  MSG_DRAFT_DELETE_FAILED,
+  MSG_DRAFT_POST_FAILED,
+  MSG_DRAFT_PUBLISH_CONFIRM_DESC,
+  MSG_DRAFT_PUBLISH_CONFIRM_TITLE,
+} from '@/lib/constants/messages'
 import { DRAFT_CARD_MEDIA_PREVIEW_COUNT } from '@/lib/constants/limits'
 import { ROUTE_FEED } from '@/lib/constants/routes'
 import { buildDraftEditPath } from '@/lib/constants/path-builders'
@@ -50,44 +57,37 @@ export function DraftCard({ draft }: DraftCardProps) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isPublishing, setIsPublishing] = useState(false)
-
-  const handleDelete = async () => {
-    if (!confirm('この下書きを削除しますか？')) return
-
-    setIsDeleting(true)
+  const handleDeleteConfirm = async () => {
     try {
       const result = await deleteDraft(draft.id)
       if (!result.success) {
-        toast({ title: result.error, variant: 'destructive' })
-      } else {
-        router.refresh()
+        throw new Error(result.error)
       }
-    } catch {
-      toast({ title: MSG_DRAFT_DELETE_FAILED, variant: 'destructive' })
-    } finally {
-      setIsDeleting(false)
+      router.refresh()
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : MSG_DRAFT_DELETE_FAILED,
+        variant: 'destructive',
+      })
+      throw err
     }
   }
 
-  const handlePublish = async () => {
-    if (!confirm('この下書きを投稿しますか？')) return
-
-    setIsPublishing(true)
+  const handlePublishConfirm = async () => {
     try {
       const result = await publishDraft(draft.id)
       if ('error' in result) {
-        toast({ title: result.error, variant: 'destructive' })
-      } else {
-        await queryClient.invalidateQueries({ queryKey: ['timeline'] })
-        router.push(ROUTE_FEED)
-        router.refresh()
+        throw new Error(result.error)
       }
-    } catch {
-      toast({ title: MSG_DRAFT_POST_FAILED, variant: 'destructive' })
-    } finally {
-      setIsPublishing(false)
+      await queryClient.invalidateQueries({ queryKey: ['timeline'] })
+      router.push(ROUTE_FEED)
+      router.refresh()
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : MSG_DRAFT_POST_FAILED,
+        variant: 'destructive',
+      })
+      throw err
     }
   }
 
@@ -160,24 +160,34 @@ export function DraftCard({ draft }: DraftCardProps) {
             <PencilIcon className="w-4 h-4" />
             編集
           </Link>
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm text-destructive border border-destructive/30 rounded-lg hover:bg-destructive/10 transition-colors disabled:opacity-50"
-          >
-            <TrashIcon className="w-4 h-4" />
-            {isDeleting ? '削除中...' : '削除'}
-          </button>
+          <ConfirmDialog
+            trigger={
+              <button className="flex items-center gap-1 px-3 py-1.5 text-sm text-destructive border border-destructive/30 rounded-lg hover:bg-destructive/10 transition-colors">
+                <TrashIcon className="w-4 h-4" />
+                削除
+              </button>
+            }
+            variant="destructive"
+            title={MSG_DRAFT_DELETE_CONFIRM_TITLE}
+            description={MSG_DRAFT_DELETE_CONFIRM_DESC}
+            confirmLabel="削除する"
+            onConfirm={handleDeleteConfirm}
+          />
         </div>
 
-        <button
-          onClick={handlePublish}
-          disabled={isPublishing}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-        >
-          <SendIcon className="w-4 h-4" />
-          {isPublishing ? '投稿中...' : '投稿する'}
-        </button>
+        <ConfirmDialog
+          trigger={
+            <button className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+              <SendIcon className="w-4 h-4" />
+              投稿する
+            </button>
+          }
+          variant="warning"
+          title={MSG_DRAFT_PUBLISH_CONFIRM_TITLE}
+          description={MSG_DRAFT_PUBLISH_CONFIRM_DESC}
+          confirmLabel="投稿する"
+          onConfirm={handlePublishConfirm}
+        />
       </div>
     </div>
   )

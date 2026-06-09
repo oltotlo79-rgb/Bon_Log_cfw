@@ -168,38 +168,45 @@ describe('ContactActionsDropdown - branch boost', () => {
   })
 
   it('handleDelete with confirm=true and success closes menu', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     mockDeleteInquiry.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
     render(<ContactActionsDropdown inquiryId="inq-1" currentStatus="pending" />)
 
     fireEvent.click(screen.getByText('操作'))
     fireEvent.click(screen.getByText('削除'))
+
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockDeleteInquiry).toHaveBeenCalledWith('inq-1')
       expect(mockRefresh).toHaveBeenCalled()
     })
-    vi.restoreAllMocks()
   })
 
-  it('handleDelete with confirm=false does not delete', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('handleDelete with confirm=false does not delete', async () => {
+    const user = userEvent.setup()
     render(<ContactActionsDropdown inquiryId="inq-1" currentStatus="pending" />)
 
     fireEvent.click(screen.getByText('操作'))
     fireEvent.click(screen.getByText('削除'))
 
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
+
     expect(mockDeleteInquiry).not.toHaveBeenCalled()
-    vi.restoreAllMocks()
   })
 
   it('handleDelete with error response shows toast', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     mockDeleteInquiry.mockResolvedValue({ error: '削除エラー' })
+    const user = userEvent.setup()
     render(<ContactActionsDropdown inquiryId="inq-1" currentStatus="pending" />)
 
     fireEvent.click(screen.getByText('操作'))
     fireEvent.click(screen.getByText('削除'))
+
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
@@ -209,7 +216,6 @@ describe('ContactActionsDropdown - branch boost', () => {
         })
       )
     })
-    vi.restoreAllMocks()
   })
 
   it('outside click closes the menu', async () => {
@@ -239,39 +245,47 @@ describe('ContactDetailActions - branch boost', () => {
   })
 
   it('handleDelete with confirm=true and success redirects to /admin/contact', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
     render(
       <ContactDetailActions inquiryId="inq-1" currentStatus="pending" currentNote="" />
     )
 
     fireEvent.click(screen.getByText('削除'))
+
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockDeleteInquiry).toHaveBeenCalledWith('inq-1')
       expect(mockPush).toHaveBeenCalledWith('/admin/contact')
     })
-    vi.restoreAllMocks()
   })
 
-  it('handleDelete with confirm=false does not delete', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('handleDelete with confirm=false does not delete', async () => {
+    const user = userEvent.setup()
     render(
       <ContactDetailActions inquiryId="inq-1" currentStatus="pending" currentNote="" />
     )
 
     fireEvent.click(screen.getByText('削除'))
+
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
+
     expect(mockDeleteInquiry).not.toHaveBeenCalled()
-    vi.restoreAllMocks()
   })
 
   it('handleDelete with error response shows toast', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     mockDeleteInquiry.mockResolvedValue({ error: '削除エラー' })
+    const user = userEvent.setup()
     render(
       <ContactDetailActions inquiryId="inq-1" currentStatus="pending" currentNote="" />
     )
 
     fireEvent.click(screen.getByText('削除'))
+
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
@@ -281,7 +295,6 @@ describe('ContactDetailActions - branch boost', () => {
         })
       )
     })
-    vi.restoreAllMocks()
   })
 
   it('handleUpdate with status change sends updated status', async () => {

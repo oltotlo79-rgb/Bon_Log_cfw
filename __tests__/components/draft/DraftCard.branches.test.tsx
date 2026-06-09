@@ -2,14 +2,15 @@
  * DraftCard - 未カバー分岐テスト
  *
  * 対象分岐:
- * - handlePublish: confirm が false を返す場合
- * - handleDelete: deleteDraft が例外を投げる場合（catchブロック）
- * - handlePublish: publishDraft が例外を投げる場合（catchブロック）
- * - handlePublish: publishDraft が success: false を返す場合（'error' in result が false）
+ * - handlePublishConfirm: キャンセル時は投稿APIを呼ばない
+ * - handleDeleteConfirm: deleteDraft が例外を投げる場合（catchブロック）
+ * - handlePublishConfirm: publishDraft が例外を投げる場合（catchブロック）
+ * - handleDeleteConfirm: success:false + error フィールドあり
  */
 
 import { vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
+import { render, screen, waitFor } from '../../utils/test-utils'
+import userEvent from '@testing-library/user-event'
 import { DraftCard } from '@/components/draft/DraftCard'
 
 const mockPush = vi.fn()
@@ -36,8 +37,13 @@ vi.mock('@/lib/actions/draft', () => ({
   publishDraft: (...args: unknown[]) => mockPublishDraft(...args),
 }))
 
-const mockConfirm = vi.fn()
-window.confirm = mockConfirm
+vi.mock('@tanstack/react-query', async (importActual) => {
+  const actual = await importActual<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  }
+})
 
 const mockToast = vi.fn()
 vi.mock('@/hooks/use-toast', () => ({
@@ -56,58 +62,67 @@ describe('DraftCard - 未カバー分岐', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockConfirm.mockReturnValue(true)
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ success: true })
   })
 
-  it('投稿確認でキャンセルを押すと投稿APIを呼び出さない', () => {
-    mockConfirm.mockReturnValue(false)
+  it('投稿確認でキャンセルを押すと投稿APIを呼び出さない', async () => {
+    const user = userEvent.setup()
     render(<DraftCard draft={mockDraft} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
 
     expect(mockPublishDraft).not.toHaveBeenCalled()
   })
 
   it('削除で例外が発生した場合にトーストを表示する', async () => {
     mockDeleteDraft.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
     render(<DraftCard draft={mockDraft} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' })
+        expect.objectContaining({ title: 'Network failure', variant: 'destructive' })
       )
     })
   })
 
   it('投稿で例外が発生した場合にトーストを表示する', async () => {
     mockPublishDraft.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
     render(<DraftCard draft={mockDraft} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '投稿に失敗しました', variant: 'destructive' })
+        expect.objectContaining({ title: 'Network failure', variant: 'destructive' })
       )
     })
   })
 
   it('deleteDraft が success: false でエラーメッセージ付きの場合にトーストを表示する', async () => {
     mockDeleteDraft.mockResolvedValue({ success: false, error: 'カスタムエラー' })
+    const user = userEvent.setup()
     render(<DraftCard draft={mockDraft} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'カスタムエラー', variant: 'destructive' })
       )
     })
-    // refresh は呼ばれない（エラーなので）
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 
@@ -121,21 +136,16 @@ describe('DraftCard - 未カバー分岐', () => {
       ],
     }
     render(<DraftCard draft={draftWith3Media} />)
-
     expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument()
   })
 
   it('ジャンルが空の場合はタグセクションが表示されない', () => {
     render(<DraftCard draft={mockDraft} />)
-
-    // ジャンルタグのコンテナが存在しない
     expect(screen.queryByText('松柏類')).not.toBeInTheDocument()
   })
 
   it('メディアが空の場合はプレビューセクションが表示されない', () => {
     const { container } = render(<DraftCard draft={mockDraft} />)
-
-    // メディアプレビューの親コンテナが存在しない
     expect(container.querySelector('.mt-3.flex.gap-2')).not.toBeInTheDocument()
   })
 })

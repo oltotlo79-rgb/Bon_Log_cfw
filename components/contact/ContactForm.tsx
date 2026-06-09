@@ -18,6 +18,7 @@ import {
   MSG_CONTACT_EMAIL_REQUIRED,
   MSG_CONTACT_MESSAGE_MIN_LENGTH,
   MSG_CONTACT_MESSAGE_REQUIRED,
+  MSG_CONTACT_NAME_REQUIRED,
   MSG_CONTACT_SEND_FAILED,
   MSG_CONTACT_SUBJECT_REQUIRED,
   MSG_ERROR_FALLBACK,
@@ -42,7 +43,7 @@ export function ContactForm() {
     setError(null)
 
     if (!formData.name.trim()) {
-      setError('お名前を入力してください')
+      setError(MSG_CONTACT_NAME_REQUIRED)
       return
     }
     if (!formData.email.trim()) {

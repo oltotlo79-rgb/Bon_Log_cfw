@@ -26,7 +26,6 @@ import { getAppUrl } from '@/lib/env'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   BCRYPT_SALT_ROUNDS,
-  MAX_EMAIL_LENGTH,
   MAX_PASSWORD_RESET_ATTEMPTS,
   MIN_TOKEN_LENGTH,
   ONE_HOUR_MS,
@@ -42,25 +41,19 @@ import {
 } from '@/lib/constants/errors/auth'
 import { validatePassword } from '@/lib/validations/password'
 import {
-  ERR_EMAIL_INVALID,
-  ERR_EMAIL_TOO_LONG,
   ERR_INPUT_INVALID_GENERIC,
 } from '@/lib/constants/errors/content'
 import { ERR_USER_NOT_FOUND } from '@/lib/constants/errors/entity'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
+import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
+import type { ActionResult } from '@/types/action-result'
 
 const passwordResetRequestSchema = z.object({
-  email: z
-    .string()
-    .email(ERR_EMAIL_INVALID)
-    .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
+  email: normalizedEmailSchema,
 })
 
 const passwordResetConfirmSchema = z.object({
-  email: z
-    .string()
-    .email(ERR_EMAIL_INVALID)
-    .max(MAX_EMAIL_LENGTH, ERR_EMAIL_TOO_LONG(MAX_EMAIL_LENGTH)),
+  email: normalizedEmailSchema,
   token: z.string().min(MIN_TOKEN_LENGTH, ERR_INVALID_TOKEN),
   newPassword: z.string().min(PASSWORD_MIN_LENGTH, ERR_PASSWORD_MIN_LENGTH),
 })
@@ -217,20 +210,53 @@ export async function resetPassword(data: {
   return actionSuccess()
 }
 
+const verifyResetTokenSchema = z.object({
+  email: normalizedEmailSchema,
+  token: z.string().min(MIN_TOKEN_LENGTH),
+})
+
 /**
  * パスワードリセットトークンが有効かつ未失効かを確認する。
  * リセットフォーム表示前のチェックに使用。
+ *
+ * 入力不正やレート超過は列挙面を作らないため `actionSuccess({ valid: false })` で返す。
+ * レート超過時のみ `actionError(...)` でクライアントにフィードバックする。
  */
-export async function verifyPasswordResetToken(email: string, token: string) {
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+export async function verifyPasswordResetToken(
+  email: string,
+  token: string,
+): Promise<ActionResult<{ valid: boolean }>> {
+  // 1. Zod バリデーション — 不正形状はトークン照合せず valid:false（列挙面を作らない）
+  const parsed = verifyResetTokenSchema.safeParse({ email, token })
+  if (!parsed.success) {
+    return actionSuccess({ valid: false })
+  }
+  const { email: validEmail, token: validToken } = parsed.data
+
+  // 2. IP + email でレート制限（fail-closed）
+  const ip = await getClientIp()
+  const rateLimitResult = await rateLimit(
+    `verify-reset-token:${ip}:${sanitizeInput(validEmail)}`,
+    {
+      windowMs: ONE_HOUR_MS,
+      maxRequests: MAX_PASSWORD_RESET_ATTEMPTS,
+      failOpen: false,
+    },
+  )
+  if (!rateLimitResult.success) {
+    return actionError(ERR_RESET_TOO_MANY)
+  }
+
+  // 3. トークン照合
+  const hashedToken = crypto.createHash('sha256').update(validToken).digest('hex')
 
   const resetToken = await prisma.passwordResetToken.findFirst({
     where: {
-      email,
+      email: validEmail,
       token: hashedToken,
       expires: { gt: new Date() },
     },
   })
 
-  return { valid: !!resetToken }
+  return actionSuccess({ valid: !!resetToken })
 }

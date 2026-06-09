@@ -18,6 +18,7 @@
 
 import { vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
+import userEvent from '@testing-library/user-event'
 import { DraftEditForm } from '@/components/draft/DraftEditForm'
 
 const mockPush = vi.fn()
@@ -68,9 +69,6 @@ vi.mock('@/lib/client-image-compression', () => ({
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
-const mockConfirm = vi.fn()
-window.confirm = mockConfirm
-
 describe('DraftEditForm - remaining uncovered branches', () => {
   const mockDraft = {
     id: 'draft-1',
@@ -87,7 +85,6 @@ describe('DraftEditForm - remaining uncovered branches', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockConfirm.mockReturnValue(true)
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ success: true })
     mockDeleteDraft.mockResolvedValue({ success: true })
@@ -165,12 +162,15 @@ describe('DraftEditForm - remaining uncovered branches', () => {
   // ----------------------------------------------------------------
   it('削除で例外が発生した場合にエラーメッセージを表示する', async () => {
     mockDeleteDraft.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
-      expect(screen.getByText('削除に失敗しました')).toBeInTheDocument()
+      expect(screen.getByText('Network failure')).toBeInTheDocument()
     })
   })
 
@@ -180,23 +180,28 @@ describe('DraftEditForm - remaining uncovered branches', () => {
   it('投稿で例外が発生した場合にエラーメッセージを表示する', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
-      expect(screen.getByText('投稿に失敗しました')).toBeInTheDocument()
+      expect(screen.getByText('Network failure')).toBeInTheDocument()
     })
   })
 
   // ----------------------------------------------------------------
   // Publish confirm cancelled
   // ----------------------------------------------------------------
-  it('投稿確認キャンセル時は投稿しない', () => {
-    mockConfirm.mockReturnValue(false)
+  it('投稿確認キャンセル時は投稿しない', async () => {
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
 
     expect(mockSaveDraft).not.toHaveBeenCalled()
     expect(mockPublishDraft).not.toHaveBeenCalled()
@@ -205,11 +210,13 @@ describe('DraftEditForm - remaining uncovered branches', () => {
   // ----------------------------------------------------------------
   // Delete confirm cancelled
   // ----------------------------------------------------------------
-  it('削除確認キャンセル時は削除しない', () => {
-    mockConfirm.mockReturnValue(false)
+  it('削除確認キャンセル時は削除しない', async () => {
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
 
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
@@ -248,9 +255,12 @@ describe('DraftEditForm - remaining uncovered branches', () => {
   // ----------------------------------------------------------------
   it('削除成功時に下書き一覧に遷移する', async () => {
     mockDeleteDraft.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /削除/ }))
+    await user.click(screen.getByRole('button', { name: /削除/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/drafts')
@@ -264,9 +274,12 @@ describe('DraftEditForm - remaining uncovered branches', () => {
   it('投稿成功時にフィードページに遷移する', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/feed')
@@ -318,9 +331,12 @@ describe('DraftEditForm - remaining uncovered branches', () => {
   it('投稿変換でerrorメッセージ付きの場合にエラーを表示する', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
     mockPublishDraft.mockResolvedValue({ error: '投稿制限に達しています' })
+    const user = userEvent.setup()
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /投稿する/ }))
+    await user.click(screen.getByRole('button', { name: /投稿する/ }))
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '投稿する' }))
 
     await waitFor(() => {
       expect(screen.getByText('投稿制限に達しています')).toBeInTheDocument()

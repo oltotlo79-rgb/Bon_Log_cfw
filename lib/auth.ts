@@ -27,9 +27,12 @@ import {
   BCRYPT_SALT_ROUNDS,
   SESSION_MAX_AGE_SECONDS,
   SESSION_UPDATE_AGE_SECONDS,
+  PASSWORD_MIN_LENGTH,
 } from '@/lib/constants/limits'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { ERR_EMAIL_ALREADY_IN_USE } from '@/lib/constants/errors'
+import { ERR_PASSWORD_MIN_LENGTH } from '@/lib/constants/errors/auth'
+import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 import { assertSafeOAuthLinking } from '@/lib/security/oauth-guard'
 import { getGoogleOAuthConfig, getGuestPassword } from '@/lib/env'
 import { consumeTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
@@ -48,8 +51,8 @@ import {
  * twoFactorEnabled なユーザーに対してのみ必須化する。
  */
 const loginSchema = z.object({
-  email: z.string().email('有効なメールアドレスを入力してください'),
-  password: z.string().min(8, 'パスワードは8文字以上である必要があります'),
+  email: normalizedEmailSchema,
+  password: z.string().min(PASSWORD_MIN_LENGTH, ERR_PASSWORD_MIN_LENGTH),
   twoFactorTicket: z.string().optional(),
 })
 
@@ -281,10 +284,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 })
 
 /**
- * 新規ユーザーを DB に登録する。
+ * 新規ユーザーを DB に直接登録する（**信頼済み呼び出し元専用**）。
  *
- * - メールアドレスの重複は例外をスロー（呼び出し側で Server Action の
- *   `actionError(ERR_EMAIL_ALREADY_REGISTERED)` にマッピングされている）
+ * ⚠ この関数は blacklist チェック・fingerprint 検証・レート制限・確認メール送信を行わない。
+ * 通常の登録 UI 経路では `lib/actions/auth.ts` の `registerUser` を使うこと。
+ * 主にテストおよび内部スクリプトからの呼び出しを想定している。
+ *
+ * - メールアドレスの重複は例外をスロー（呼び出し側でマッピング）
+ * - email は canonical form（lowercase + trim）に正規化して保存
  * - パスワードは {@link BCRYPT_SALT_ROUNDS}（= 12）で bcrypt ハッシュ化
  *
  * @throws Error メールアドレス重複時
@@ -294,8 +301,9 @@ export async function registerUser(data: {
   password: string
   nickname: string
 }) {
+  const normalizedEmail = data.email.toLowerCase().trim()
   const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
+    where: { email: normalizedEmail },
   })
   if (existingUser) throw new Error(ERR_EMAIL_ALREADY_IN_USE)
 
@@ -303,7 +311,7 @@ export async function registerUser(data: {
 
   return await prisma.user.create({
     data: {
-      email: data.email,
+      email: normalizedEmail,
       password: hashedPassword,
       nickname: data.nickname,
     },

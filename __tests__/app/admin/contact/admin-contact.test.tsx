@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ContactActionsDropdown } from '@/app/admin/contact/ContactActionsDropdown'
 import { ContactDetailActions } from '@/app/admin/contact/[id]/ContactDetailActions'
 import AdminContactPage from '@/app/admin/contact/page'
@@ -263,23 +264,25 @@ describe('ContactActionsDropdown', async () => {
    * WHY: 危険な削除操作は事前に確認を取る必要がある。確認後の処理を検証
    */
   it('shows delete button and calls confirm then deleteInquiry', async () => {
-    // ユーザーが「OK」をクリックするシミュレート
-    global.confirm = vi.fn(() => true)
+    const user = userEvent.setup()
 
     render(<ContactActionsDropdown inquiryId="inquiry-1" currentStatus="pending" />)
 
     const button = screen.getByText('操作')
     fireEvent.click(button)
 
-    // 削除ボタンをクリック
+    // 削除ボタンをクリック → ConfirmDialog が開く
     const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
 
+    // ConfirmDialog が開くのを待つ
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+
+    // 「削除する」ボタンをクリックして確認
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+
     // Server Action実行の完了を待つ
     await waitFor(() => {
-      // 確認ダイアログが表示されたか、正しいメッセージで呼ばれたか確認
-      expect(global.confirm).toHaveBeenCalledWith('このお問い合わせを削除しますか？この操作は元に戻せません。')
-
       // deleteInquiry が正しい引数で呼ばれたか確認
       expect(mockDeleteInquiry).toHaveBeenCalledWith('inquiry-1')
 
@@ -303,8 +306,7 @@ describe('ContactActionsDropdown', async () => {
    * WHY: キャンセル時は削除が実行されないことを確認。誤操作防止
    */
   it('does not delete if confirm returns false', async () => {
-    // ユーザーが「キャンセル」をクリックするシミュレート
-    global.confirm = vi.fn(() => false)
+    const user = userEvent.setup()
 
     render(<ContactActionsDropdown inquiryId="inquiry-1" currentStatus="pending" />)
 
@@ -314,13 +316,14 @@ describe('ContactActionsDropdown', async () => {
     const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
 
-    await waitFor(() => {
-      // 確認ダイアログは呼ばれた
-      expect(global.confirm).toHaveBeenCalled()
+    // ConfirmDialog が開くのを待つ
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
 
-      // しかし deleteInquiry は呼ばれていない（削除しない）
-      expect(mockDeleteInquiry).not.toHaveBeenCalled()
-    })
+    // 「キャンセル」ボタンをクリック
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
+
+    // deleteInquiry は呼ばれていない（削除しない）
+    expect(mockDeleteInquiry).not.toHaveBeenCalled()
   })
 
   /**
@@ -400,11 +403,9 @@ describe('ContactActionsDropdown', async () => {
    * WHY: 削除エラー時にもエラーメッセージがユーザーに表示されることを確認
    */
   it('shows error toast when deleteInquiry fails', async () => {
-    // ユーザーが「OK」をクリックするシミュレート
-    global.confirm = vi.fn(() => true)
-
     // エラーを返すようにモック設定を変更
     mockDeleteInquiry.mockResolvedValue({ error: 'Delete failed' })
+    const user = userEvent.setup()
 
     render(<ContactActionsDropdown inquiryId="inquiry-1" currentStatus="pending" />)
 
@@ -413,6 +414,10 @@ describe('ContactActionsDropdown', async () => {
 
     const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
+
+    // ConfirmDialog が開くのを待つ
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       // toast にエラーメッセージが渡されたか確認
@@ -650,8 +655,7 @@ describe('ContactDetailActions', async () => {
    * WHY: 詳細ページでの削除動作、特にリダイレクトが正しく行われることを確認
    */
   it('calls deleteInquiry on delete (after confirm)', async () => {
-    // ユーザーが「OK」をクリック
-    global.confirm = vi.fn(() => true)
+    const user = userEvent.setup()
 
     render(
       <ContactDetailActions
@@ -664,10 +668,11 @@ describe('ContactDetailActions', async () => {
     const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
 
-    await waitFor(() => {
-      // 確認ダイアログが正しいメッセージで呼ばれたか
-      expect(global.confirm).toHaveBeenCalledWith('このお問い合わせを削除しますか？この操作は元に戻せません。')
+    // ConfirmDialog が開くのを待つ
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
+    await waitFor(() => {
       // deleteInquiry が呼ばれたか
       expect(mockDeleteInquiry).toHaveBeenCalledWith('inquiry-1')
 
@@ -687,8 +692,7 @@ describe('ContactDetailActions', async () => {
    * WHY: キャンセル時に削除が実行されないことを確認
    */
   it('does not delete if confirm returns false', async () => {
-    // ユーザーが「キャンセル」をクリック
-    global.confirm = vi.fn(() => false)
+    const user = userEvent.setup()
 
     render(
       <ContactDetailActions
@@ -701,13 +705,14 @@ describe('ContactDetailActions', async () => {
     const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
 
-    await waitFor(() => {
-      // 確認ダイアログは呼ばれた
-      expect(global.confirm).toHaveBeenCalled()
+    // ConfirmDialog が開くのを待つ
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
 
-      // しかし deleteInquiry は呼ばれていない（削除しない）
-      expect(mockDeleteInquiry).not.toHaveBeenCalled()
-    })
+    // 「キャンセル」ボタンをクリック
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }))
+
+    // deleteInquiry は呼ばれていない（削除しない）
+    expect(mockDeleteInquiry).not.toHaveBeenCalled()
   })
 
   /**
@@ -722,10 +727,9 @@ describe('ContactDetailActions', async () => {
    * WHY: 削除エラー時の適切なエラーハンドリング。失敗時はリスト画面に戻さない
    */
   it('shows error toast when delete fails', async () => {
-    global.confirm = vi.fn(() => true)
-
     // エラーを返すようにモック変更
     mockDeleteInquiry.mockResolvedValue({ error: 'Delete failed' })
+    const user = userEvent.setup()
 
     render(
       <ContactDetailActions
@@ -737,6 +741,10 @@ describe('ContactDetailActions', async () => {
 
     const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
+
+    // ConfirmDialog が開くのを待つ
+    await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       // エラーメッセージが toast に渡されたか

@@ -44,13 +44,13 @@ describe('PasswordResetConfirmForm', () => {
   const getConfirmPasswordInput = () => screen.getByPlaceholderText('もう一度入力')
 
   it('検証中はローディング表示をする', () => {
-    mockVerifyPasswordResetToken.mockImplementation(() => new Promise(() => {})) // 解決しないPromise
+    mockVerifyPasswordResetToken.mockImplementation(() => new Promise<{ success: true; data: { valid: boolean } }>(() => {})) // 解決しないPromise
     render(<PasswordResetConfirmForm />)
     expect(screen.getByText(/リンクを検証中/i)).toBeInTheDocument()
   })
 
   it('トークンが有効な場合フォームを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     render(<PasswordResetConfirmForm />)
 
@@ -63,7 +63,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('トークンが無効な場合エラーメッセージを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: false })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: false } })
 
     render(<PasswordResetConfirmForm />)
 
@@ -94,7 +94,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワードを入力できる', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     const user = userEvent.setup()
     render(<PasswordResetConfirmForm />)
@@ -108,7 +108,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワードが一致しない場合エラーを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     const user = userEvent.setup()
     render(<PasswordResetConfirmForm />)
@@ -128,7 +128,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワードが8文字未満の場合エラーを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     const user = userEvent.setup()
     render(<PasswordResetConfirmForm />)
@@ -148,7 +148,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワードに英字がない場合エラーを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     const user = userEvent.setup()
     render(<PasswordResetConfirmForm />)
@@ -168,7 +168,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワードに数字がない場合エラーを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     const user = userEvent.setup()
     render(<PasswordResetConfirmForm />)
@@ -188,7 +188,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワードリセット成功時に成功メッセージを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
     mockResetPassword.mockResolvedValue({ success: true })
 
     const user = userEvent.setup()
@@ -217,7 +217,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('APIがエラーを返した場合エラーメッセージを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
     mockResetPassword.mockResolvedValue({ error: 'トークンが無効です' })
 
     const user = userEvent.setup()
@@ -237,7 +237,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('更新中はボタンが無効化される', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
     mockResetPassword.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ success: true }), 100)))
 
     const user = userEvent.setup()
@@ -256,7 +256,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('パスワード表示/非表示を切り替えられる', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     const user = userEvent.setup()
     render(<PasswordResetConfirmForm />)
@@ -280,7 +280,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('無効なトークン時にパスワードリセット再リクエストリンクを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: false })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: false } })
 
     render(<PasswordResetConfirmForm />)
 
@@ -290,7 +290,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('ログインページへのリンクを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
 
     render(<PasswordResetConfirmForm />)
 
@@ -300,7 +300,7 @@ describe('PasswordResetConfirmForm', () => {
   })
 
   it('成功時に今すぐログインリンクを表示する', async () => {
-    mockVerifyPasswordResetToken.mockResolvedValue({ valid: true })
+    mockVerifyPasswordResetToken.mockResolvedValue({ success: true, data: { valid: true } })
     mockResetPassword.mockResolvedValue({ success: true })
 
     const user = userEvent.setup()

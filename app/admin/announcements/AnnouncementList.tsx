@@ -18,6 +18,11 @@ import {
   updateAnnouncement,
   deleteAnnouncement,
 } from '@/lib/actions/admin/announcements'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_ANNOUNCEMENT_DELETE_DESC,
+  MSG_ADMIN_ANNOUNCEMENT_DELETE_TITLE,
+} from '@/lib/constants/messages'
 
 interface Announcement {
   id: string
@@ -60,6 +65,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
   const [isPending, startTransition] = useTransition()
   const [showForm, setShowForm] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   // フォーム状態
   const [title, setTitle] = useState('')
@@ -102,10 +108,15 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
     })
   }
 
-  const handleDelete = (id: string) => {
-    if (!confirm('このお知らせを削除しますか?')) return
-    startTransition(async () => {
-      await deleteAnnouncement(id)
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return
+    setFormError(null)
+    const result = await deleteAnnouncement(deleteTargetId)
+    if (result && 'error' in result) {
+      setFormError(result.error)
+      throw new Error(result.error)
+    }
+    startTransition(() => {
       router.refresh()
     })
   }
@@ -258,7 +269,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
                       )}
                     </button>
                     <button
-                      onClick={() => handleDelete(announcement.id)}
+                      onClick={() => setDeleteTargetId(announcement.id)}
                       disabled={isPending}
                       className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
                       title="削除"
@@ -272,6 +283,16 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(v) => { if (!v) setDeleteTargetId(null) }}
+        variant="destructive"
+        title={MSG_ADMIN_ANNOUNCEMENT_DELETE_TITLE}
+        description={MSG_ADMIN_ANNOUNCEMENT_DELETE_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

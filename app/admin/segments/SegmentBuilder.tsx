@@ -13,6 +13,11 @@ import {
 } from 'lucide-react'
 import { deleteSegment, evaluateSegment } from '@/lib/actions/admin/segments'
 import { SegmentCreateForm } from './SegmentCreateForm'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_SEGMENT_DELETE_CONFIRM_DESC,
+  MSG_ADMIN_SEGMENT_DELETE_CONFIRM_TITLE,
+} from '@/lib/constants/messages'
 
 type Segment = {
   id: string
@@ -43,11 +48,11 @@ export function SegmentBuilder({ segments }: SegmentBuilderProps) {
   const [showForm, setShowForm] = useState(false)
   const [evaluating, setEvaluating] = useState<string | null>(null)
   const [evaluateResults, setEvaluateResults] = useState<Record<string, number>>({})
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
-  /** セグメント削除 */
-  async function handleDelete(id: string) {
-    if (!confirm('このセグメントを削除しますか?')) return
-    await deleteSegment(id)
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return
+    await deleteSegment(deleteTargetId)
     router.refresh()
   }
 
@@ -149,7 +154,7 @@ export function SegmentBuilder({ segments }: SegmentBuilderProps) {
                       </button>
 
                       <button
-                        onClick={() => handleDelete(segment.id)}
+                        onClick={() => setDeleteTargetId(segment.id)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive border border-destructive/30 rounded-lg hover:bg-destructive/10"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -168,6 +173,15 @@ export function SegmentBuilder({ segments }: SegmentBuilderProps) {
         )}
       </div>
 
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(v) => { if (!v) setDeleteTargetId(null) }}
+        variant="destructive"
+        title={MSG_ADMIN_SEGMENT_DELETE_CONFIRM_TITLE}
+        description={MSG_ADMIN_SEGMENT_DELETE_CONFIRM_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

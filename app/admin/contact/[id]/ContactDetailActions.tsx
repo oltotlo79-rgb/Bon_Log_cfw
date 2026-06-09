@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation'
 import { updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { useToast } from '@/hooks/use-toast'
 import { ROUTE_ADMIN_CONTACT } from '@/lib/constants/routes'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_CONTACT_DELETE_DESC,
+  MSG_ADMIN_CONTACT_DELETE_TITLE,
+} from '@/lib/constants/messages'
 
 interface ContactDetailActionsProps {
   /** お問い合わせID */
@@ -24,6 +29,7 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
   const [isSubmitting, setIsSubmitting] = useState(false)
   // 操作結果メッセージ（成功/エラー）
   const [message, setMessage] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const router = useRouter()
 
   /**
@@ -49,23 +55,15 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
     }
   }
 
-  /**
-   * お問い合わせを削除する関数
-   * スパムや誤送信の対応に使用
-   */
-  const handleDelete = async () => {
-    // 確認ダイアログで削除を確認（誤操作防止）
-    if (!confirm('このお問い合わせを削除しますか？この操作は元に戻せません。')) return
+  const handleDeleteConfirm = async () => {
     setIsSubmitting(true)
     try {
-      // Server Actionを呼び出して削除
       const result = await deleteInquiry(inquiryId)
       if ('error' in result) {
         toast({ title: result.error, variant: 'destructive' })
-      } else {
-        // 成功時は一覧ページへリダイレクト
-        router.push(ROUTE_ADMIN_CONTACT)
+        throw new Error(result.error)
       }
+      router.push(ROUTE_ADMIN_CONTACT)
     } finally {
       setIsSubmitting(false)
     }
@@ -120,13 +118,23 @@ export function ContactDetailActions({ inquiryId, currentStatus, currentNote }: 
           {isSubmitting ? '更新中...' : '更新する'}
         </button>
         <button
-          onClick={handleDelete}
+          onClick={() => setShowDeleteConfirm(true)}
           disabled={isSubmitting}
           className="rounded-md border border-destructive px-4 py-2 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
         >
           削除
         </button>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        variant="destructive"
+        title={MSG_ADMIN_CONTACT_DELETE_TITLE}
+        description={MSG_ADMIN_CONTACT_DELETE_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

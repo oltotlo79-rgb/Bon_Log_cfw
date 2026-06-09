@@ -160,3 +160,9 @@ export const DROPDOWN_MIN_WIDTH_PX = 150
  * ユーザーが「送信できた」ことを目視確認できる程度の長さに調整。
  */
 export const TIMEOUT_MODAL_AUTO_CLOSE_MS = 2000
+
+/**
+ * 辞典詳細ページの説明文折りたたみしきい値（文字数）。
+ * これを超える description のみ「続きを読む」ボタンを表示する。
+ */
+export const TERM_DESCRIPTION_COLLAPSE_THRESHOLD = 500

@@ -16,10 +16,12 @@ import { ROUTE_DRAFTS, ROUTE_FEED } from '@/lib/constants/routes'
 import { SharedMediaUploadSection } from '@/components/common/SharedMediaUploadSection'
 import { Check as CheckIcon, Trash2 as TrashIcon } from 'lucide-react'
 import type { DraftEditFormProps } from './DraftEditForm.types'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import {
-  MSG_DRAFT_DELETE_FAILED,
-  MSG_DRAFT_POST_FAILED,
-  MSG_DRAFT_PUBLISH_CONFIRM,
+  MSG_DRAFT_DELETE_CONFIRM_DESC,
+  MSG_DRAFT_DELETE_CONFIRM_TITLE,
+  MSG_DRAFT_PUBLISH_CONFIRM_DESC,
+  MSG_DRAFT_PUBLISH_CONFIRM_TITLE,
   MSG_DRAFT_SAVE_FAILED,
   MSG_ERROR_FALLBACK,
 } from '@/lib/constants/messages'
@@ -34,9 +36,8 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
     draft.genres.map((g) => g.genreId)
   )
   const [saving, setSaving] = useState(false)
-  const [publishing, setPublishing] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [savedTime, setSavedTime] = useState('')
 
@@ -144,60 +145,39 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
     }
   }
 
-  async function handlePublish() {
-    if (!confirm(MSG_DRAFT_PUBLISH_CONFIRM)) return
-
-    setPublishing(true)
+  async function handlePublishConfirm() {
     setError(null)
 
     // 編集内容を反映するため、投稿変換前に保存する
-    try {
-      const saveResult = await saveDraft({
-        id: draft.id,
-        content: content || undefined,
-        mediaUrls: mediaFiles.map((m) => m.url),
-        genreIds: selectedGenres,
-      })
+    const saveResult = await saveDraft({
+      id: draft.id,
+      content: content || undefined,
+      mediaUrls: mediaFiles.map((m) => m.url),
+      genreIds: selectedGenres,
+    })
 
-      if ('error' in saveResult) {
-        setError(saveResult.error ?? MSG_ERROR_FALLBACK)
-        setPublishing(false)
-        return
-      }
-
-      const result = await publishDraft(draft.id)
-
-      if ('error' in result) {
-        setError(result.error ?? MSG_ERROR_FALLBACK)
-      } else {
-        await queryClient.invalidateQueries({ queryKey: ['timeline'] })
-        router.push(ROUTE_FEED)
-        router.refresh()
-      }
-    } catch {
-      setError(MSG_DRAFT_POST_FAILED)
-    } finally {
-      setPublishing(false)
+    if ('error' in saveResult) {
+      throw new Error(saveResult.error ?? MSG_ERROR_FALLBACK)
     }
+
+    const result = await publishDraft(draft.id)
+
+    if ('error' in result) {
+      throw new Error(result.error ?? MSG_ERROR_FALLBACK)
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['timeline'] })
+    router.push(ROUTE_FEED)
+    router.refresh()
   }
 
-  async function handleDelete() {
-    if (!confirm('この下書きを削除しますか？')) return
-
-    setDeleting(true)
-    try {
-      const result = await deleteDraft(draft.id)
-      if (!result.success) {
-        setError(('error' in result ? result.error : null) ?? MSG_ERROR_FALLBACK)
-      } else {
-        router.push(ROUTE_DRAFTS)
-        router.refresh()
-      }
-    } catch {
-      setError(MSG_DRAFT_DELETE_FAILED)
-    } finally {
-      setDeleting(false)
+  async function handleDeleteConfirm() {
+    const result = await deleteDraft(draft.id)
+    if (!result.success) {
+      throw new Error(('error' in result ? result.error : null) ?? MSG_ERROR_FALLBACK)
     }
+    router.push(ROUTE_DRAFTS)
+    router.refresh()
   }
 
   return (
@@ -263,15 +243,19 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
       )}
 
       <div className="flex items-center justify-between pt-4 border-t">
-        <Button
-          type="button"
+        <ConfirmDialog
+          trigger={
+            <Button type="button" variant="destructive">
+              <TrashIcon className="w-4 h-4 mr-2" />
+              削除
+            </Button>
+          }
           variant="destructive"
-          onClick={handleDelete}
-          disabled={deleting}
-        >
-          <TrashIcon className="w-4 h-4 mr-2" />
-          {deleting ? '削除中...' : '削除'}
-        </Button>
+          title={MSG_DRAFT_DELETE_CONFIRM_TITLE}
+          description={MSG_DRAFT_DELETE_CONFIRM_DESC}
+          confirmLabel="削除する"
+          onConfirm={handleDeleteConfirm}
+        />
 
         <div className="flex gap-2">
           <Button
@@ -282,13 +266,22 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
           >
             {saving ? '保存中...' : '下書き保存'}
           </Button>
+          <ConfirmDialog
+            open={publishConfirmOpen}
+            onOpenChange={setPublishConfirmOpen}
+            variant="warning"
+            title={MSG_DRAFT_PUBLISH_CONFIRM_TITLE}
+            description={MSG_DRAFT_PUBLISH_CONFIRM_DESC}
+            confirmLabel="投稿する"
+            onConfirm={handlePublishConfirm}
+          />
           <Button
             type="button"
             variant="bonsai"
-            onClick={handlePublish}
-            disabled={publishing || (content.length === 0 && mediaFiles.length === 0) || remainingChars < 0}
+            onClick={() => setPublishConfirmOpen(true)}
+            disabled={(content.length === 0 && mediaFiles.length === 0) || remainingChars < 0}
           >
-            {publishing ? '投稿中...' : '投稿する'}
+            投稿する
           </Button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { getPesticideBySlug } from '@/lib/actions/pesticide'
 import { getMaffUrl, getResistanceRiskLabel, RESISTANCE_RISK_ORDER } from '@/lib/utils/pesticide'
 import { PesticideDisclaimer } from '@/components/pesticide/PesticideDisclaimer'
+import { MaffUnverifiedBadge } from '@/components/pesticide/MaffUnverifiedBadge'
 import { CATEGORY_BADGE, PESTICIDE_TYPE_BADGE, type DiseasePestCategory } from '@/lib/utils/pesticide-badge'
 import type { ResistanceRisk, EffectRating } from '@prisma/client'
 import { EffectRatingBadge } from '@/components/pesticide/EffectRatingBadge'
@@ -33,10 +34,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!pesticide) return { title: '薬剤が見つかりません' }
   const description = pesticide.description?.slice(0, META_DESCRIPTION_PREVIEW_LENGTH)
     || `${pesticide.name}の成分・効果・使用上の注意・FRAC/IRACコードなど詳細情報`
+  const title = `${pesticide.name} - 薬剤詳細`
+  const canonical = pageCanonical(`${ROUTE_PESTICIDES}/products/${slug}`)
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(pesticide.name)}`
   return {
-    title: `${pesticide.name} - 薬剤詳細`,
+    title,
     description,
-    alternates: { canonical: pageCanonical(`${ROUTE_PESTICIDES}/products/${slug}`) },
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title,
+      description,
+      url: canonical,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: pesticide.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   }
 }
 
@@ -111,6 +128,8 @@ export default async function PesticideDetailPage({ params }: Props) {
         )}
       </div>
 
+      <MaffUnverifiedBadge show={pesticide.registrationNumber == null} />
+
       <PesticideDisclaimer />
 
       <section className="rounded-lg border border-border/40 p-4 space-y-3">
@@ -139,12 +158,19 @@ export default async function PesticideDetailPage({ params }: Props) {
           {pesticide.formulationType && (
             <>
               <dt className="text-muted-foreground">剤型</dt>
-              <dd>
+              <dd className="space-y-1">
                 <Link
                   href={buildPesticideFormulationsPath(pesticide.formulationType.code)}
                   className="text-primary hover:underline"
                 >
                   {pesticide.formulationType.name}
+                </Link>
+                <span className="text-muted-foreground mx-2 text-xs">·</span>
+                <Link
+                  href={buildPesticideFormulationsPath(pesticide.formulationType.code)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  同じ剤型の薬剤を見る
                 </Link>
               </dd>
             </>
@@ -226,6 +252,9 @@ export default async function PesticideDetailPage({ params }: Props) {
               </Link>
             ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            各成分ページでは同じ成分を含む薬剤の一覧を確認できます。
+          </p>
         </section>
       )}
 

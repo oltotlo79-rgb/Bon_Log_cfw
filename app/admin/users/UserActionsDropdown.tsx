@@ -6,6 +6,11 @@ import { MoreVertical } from 'lucide-react'
 import { suspendUser, activateUser } from '@/lib/actions/admin/users'
 import { DROPDOWN_DIRECTION_THRESHOLD } from '@/lib/constants/limits'
 import { useToast } from '@/hooks/use-toast'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_USER_ACTIVATE_CONFIRM_DESC,
+  MSG_ADMIN_USER_ACTIVATE_CONFIRM_TITLE,
+} from '@/lib/constants/messages'
 
 interface UserActionsDropdownProps {
   /** 操作対象のユーザーID */
@@ -19,6 +24,7 @@ export function UserActionsDropdown({ userId, isSuspended }: UserActionsDropdown
   const { toast } = useToast()
   const [isOpen, setIsOpen] = useState(false)
   const [showSuspendModal, setShowSuspendModal] = useState(false)
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false)
   const [reason, setReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
@@ -65,18 +71,14 @@ export function UserActionsDropdown({ userId, isSuspended }: UserActionsDropdown
     router.refresh()
   }
 
-  const handleActivate = async () => {
-    if (!confirm('このユーザーのアカウントを復帰させますか？')) {
-      return
-    }
-
+  const handleActivateConfirm = async () => {
     setIsSubmitting(true)
     const result = await activateUser(userId)
     setIsSubmitting(false)
 
     if (!result.success) {
       toast({ title: result.error, variant: 'destructive' })
-      return
+      throw new Error(result.error)
     }
 
     setIsOpen(false)
@@ -106,7 +108,7 @@ export function UserActionsDropdown({ userId, isSuspended }: UserActionsDropdown
             >
               {isSuspended ? (
                 <button
-                  onClick={handleActivate}
+                  onClick={() => { setIsOpen(false); setShowActivateConfirm(true) }}
                   disabled={isSubmitting}
                   className="w-full px-4 py-2 text-left text-sm hover:bg-muted text-green-600"
                 >
@@ -164,6 +166,16 @@ export function UserActionsDropdown({ userId, isSuspended }: UserActionsDropdown
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showActivateConfirm}
+        onOpenChange={setShowActivateConfirm}
+        variant="warning"
+        title={MSG_ADMIN_USER_ACTIVATE_CONFIRM_TITLE}
+        description={MSG_ADMIN_USER_ACTIVATE_CONFIRM_DESC}
+        confirmLabel="復帰させる"
+        onConfirm={handleActivateConfirm}
+      />
     </>
   )
 }

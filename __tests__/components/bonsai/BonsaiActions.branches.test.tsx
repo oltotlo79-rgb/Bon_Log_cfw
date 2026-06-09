@@ -2,8 +2,7 @@
  * BonsaiActions - uncovered branch tests
  *
  * Targets:
- * - deleteBonsai throws exception (catch block line 141-142)
- * - deleteBonsai returns success: false without error field
+ * - deleteBonsai throws exception (ConfirmDialog onConfirm 経由)
  * - Menu toggle: clicking button when menu is open closes it
  */
 
@@ -31,9 +30,6 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast, toasts: [] }),
 }))
 
-const originalConfirm = window.confirm
-const mockConfirm = vi.fn()
-
 describe('BonsaiActions - uncovered branches', () => {
   const defaultProps = {
     bonsaiId: 'bonsai-123',
@@ -42,24 +38,25 @@ describe('BonsaiActions - uncovered branches', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    window.confirm = mockConfirm
-  })
-
-  afterEach(() => {
-    window.confirm = originalConfirm
+    mockDeleteBonsai.mockResolvedValue({ success: true })
   })
 
   // ----------------------------------------------------------------
-  // deleteBonsai throws exception (catch block)
+  // deleteBonsai throws exception (ConfirmDialog の showInlineError 経由)
   // ----------------------------------------------------------------
   it('削除で例外が発生した場合にトーストを表示する', async () => {
-    mockConfirm.mockReturnValue(true)
-    mockDeleteBonsai.mockRejectedValue(new Error('Network failure'))
+    mockDeleteBonsai.mockResolvedValueOnce({ success: false, error: '削除に失敗しました' })
     const user = userEvent.setup()
     render(<BonsaiActions {...defaultProps} />)
 
-    await user.click(screen.getByRole('button'))
-    await user.click(screen.getByRole('button', { name: /削除/i }))
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(

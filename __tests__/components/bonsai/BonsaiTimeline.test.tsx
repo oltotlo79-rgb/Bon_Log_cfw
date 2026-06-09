@@ -99,13 +99,21 @@ describe('BonsaiTimeline', () => {
     expect(deleteButton).not.toBeInTheDocument()
   })
 
-  it('削除ボタンクリックで削除アクションを呼ぶ', async () => {
+  it('削除ボタンクリックで確認ダイアログを表示し、確認後に削除アクションを呼ぶ', async () => {
     mockDeleteBonsaiRecord.mockResolvedValue({ success: true })
 
     const user = userEvent.setup()
     render(<BonsaiTimeline records={mockRecords} posts={[]} isOwner={true} />)
 
+    // 削除ボタンクリック → ConfirmDialog が開く
     await user.click(screen.getByRole('button', { name: /削除/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    // 「削除する」ボタンをクリックして確認
+    await user.click(screen.getByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
       expect(mockDeleteBonsaiRecord).toHaveBeenCalledWith('record-1')

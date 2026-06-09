@@ -591,7 +591,8 @@ describe('auth actions extended tests', async () => {
 
       const result = await verifyPasswordResetToken('test@example.com', 'validToken')
 
-      expect(result.valid).toBe(true)
+      expect(result.success).toBe(true)
+      expect('data' in result && result.data?.valid).toBe(true)
     })
 
     it('無効なトークンの場合はfalseを返す', async () => {
@@ -601,7 +602,8 @@ describe('auth actions extended tests', async () => {
 
       const result = await verifyPasswordResetToken('test@example.com', 'invalidToken')
 
-      expect(result.valid).toBe(false)
+      expect(result.success).toBe(true)
+      expect('data' in result && result.data?.valid).toBe(false)
     })
 
     it('有効期限が過ぎたトークンを検索しない', async () => {

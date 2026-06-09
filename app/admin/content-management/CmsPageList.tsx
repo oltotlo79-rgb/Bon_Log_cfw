@@ -14,6 +14,11 @@ import {
   Filter,
 } from 'lucide-react'
 import { createCmsPage, updateCmsPage, deleteCmsPage } from '@/lib/actions/admin/cms'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import {
+  MSG_ADMIN_CMS_DELETE_DESC,
+  MSG_ADMIN_CMS_DELETE_TITLE,
+} from '@/lib/constants/messages'
 
 interface CmsPage {
   id: string
@@ -54,6 +59,7 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
   const [isPending, startTransition] = useTransition()
   const [showForm, setShowForm] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [deleteTargetSlug, setDeleteTargetSlug] = useState<string | null>(null)
 
   // 作成フォーム状態
   const [slug, setSlug] = useState('')
@@ -106,10 +112,15 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
     })
   }
 
-  const handleDelete = (pageSlug: string) => {
-    if (!confirm('このページを削除しますか?')) return
-    startTransition(async () => {
-      await deleteCmsPage(pageSlug)
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetSlug) return
+    setFormError(null)
+    const result = await deleteCmsPage(deleteTargetSlug)
+    if (result && 'error' in result) {
+      setFormError(result.error)
+      throw new Error(result.error)
+    }
+    startTransition(() => {
       router.refresh()
     })
   }
@@ -294,7 +305,7 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
                           )}
                         </button>
                         <button
-                          onClick={() => handleDelete(page.slug)}
+                          onClick={() => setDeleteTargetSlug(page.slug)}
                           disabled={isPending}
                           className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
                           title="削除"
@@ -314,6 +325,16 @@ export function CmsPageList({ pages, total, currentCategory }: CmsPageListProps)
       <p className="text-xs text-muted-foreground">
         全 {total} 件
       </p>
+
+      <ConfirmDialog
+        open={deleteTargetSlug !== null}
+        onOpenChange={(v) => { if (!v) setDeleteTargetSlug(null) }}
+        variant="destructive"
+        title={MSG_ADMIN_CMS_DELETE_TITLE}
+        description={MSG_ADMIN_CMS_DELETE_DESC}
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }
