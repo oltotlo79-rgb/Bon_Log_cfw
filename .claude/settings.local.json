@@ -1,4 +1,5 @@
 {
+  "agent": "pm-orchestrator",
   "permissions": {
     "allow": [
       "ViewFile",
