@@ -17,7 +17,14 @@ import { PaymentHistory } from '@/components/subscription/PaymentHistory'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Crown } from 'lucide-react'
 import Image from 'next/image'
-import { PAYMENT_HISTORY_LIMIT, PREMIUM_PRICE_MONTHLY_JPY, PREMIUM_PRICE_YEARLY_JPY } from '@/lib/constants/limits'
+import {
+  PAYMENT_HISTORY_LIMIT,
+  PREMIUM_PRICE_MONTHLY_JPY,
+  PREMIUM_PRICE_YEARLY_JPY,
+  MAX_POST_CONTENT_PREMIUM,
+  MAX_POST_IMAGES_PREMIUM,
+  MAX_POST_VIDEOS_PREMIUM,
+} from '@/lib/constants/limits'
 
 export const metadata = {
   title: 'プラン管理 | BON-LOG',
@@ -114,8 +121,8 @@ export default async function SubscriptionPage({
               ご利用中の特典
             </h2>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>・ 投稿文字数 2000 文字まで</li>
-              <li>・ 画像添付 6 枚・動画添付 3 本まで</li>
+              <li>・ 投稿文字数 {MAX_POST_CONTENT_PREMIUM} 文字まで</li>
+              <li>・ 画像添付 {MAX_POST_IMAGES_PREMIUM} 枚・動画添付 {MAX_POST_VIDEOS_PREMIUM} 本まで</li>
               <li>・ 予約投稿機能</li>
               <li>・ 投稿分析ダッシュボード</li>
               <li>・ 広告非表示（サイト全体）</li>

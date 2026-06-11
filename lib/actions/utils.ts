@@ -14,7 +14,7 @@ import { auth as rawAuth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { checkUserRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { getRedisClient } from '@/lib/redis'
-import { ERR_AUTH_REQUIRED, ERR_ADMIN_REQUIRED, ERR_ACCOUNT_SUSPENDED, ERR_RATE_LIMIT_OPERATION, ERR_GUEST_CANNOT_CREATE, ERR_MEDIA_DATA_INVALID, ERR_DAILY_POST_LIMIT, ERR_IMAGE_LIMIT, ERR_VIDEO_LIMIT } from '@/lib/constants/errors'
+import { ERR_AUTH_REQUIRED, ERR_ADMIN_REQUIRED, ERR_ACCOUNT_SUSPENDED, ERR_RATE_LIMIT_OPERATION, ERR_GUEST_CANNOT_CREATE, ERR_MEDIA_DATA_INVALID, ERR_DAILY_POST_LIMIT, ERR_IMAGE_LIMIT, ERR_VIDEO_LIMIT, ERR_VIDEO_PREMIUM_ONLY } from '@/lib/constants/errors'
 import { getMembershipLimits } from '@/lib/premium'
 import { getStartOfToday, getJstDateString } from '@/lib/utils'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
@@ -47,6 +47,9 @@ export async function validateMediaCounts(
   const videoCount = mediaTypes.filter((t: string) => t === 'video').length
   if (imageCount > limits.maxImages) {
     return actionError(ERR_IMAGE_LIMIT(limits.maxImages))
+  }
+  if (videoCount > 0 && limits.maxVideos === 0) {
+    return actionError(ERR_VIDEO_PREMIUM_ONLY)
   }
   if (videoCount > limits.maxVideos) {
     return actionError(ERR_VIDEO_LIMIT(limits.maxVideos))

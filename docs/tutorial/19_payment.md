@@ -1192,7 +1192,7 @@ export interface MembershipLimits {
 const FREE_LIMITS: MembershipLimits = {
   maxPostLength: 500,        // 500文字まで
   maxImages: 4,              // 画像4枚まで
-  maxVideos: 1,              // 動画1本まで
+  maxVideos: 0,              // 動画添付不可（プレミアム限定）
   maxDailyPosts: 20,         // 1日20投稿まで
   canSchedulePost: false,    // 予約投稿は不可
   canViewAnalytics: false,   // 分析機能は不可
@@ -1204,7 +1204,7 @@ const FREE_LIMITS: MembershipLimits = {
 const PREMIUM_LIMITS: MembershipLimits = {
   maxPostLength: 2000,       // 2000文字まで（4倍）
   maxImages: 6,              // 画像6枚まで（1.5倍）
-  maxVideos: 3,              // 動画3本まで（3倍）
+  maxVideos: 1,              // 動画1本まで（無料会員は添付不可）
   maxDailyPosts: 50,         // 1日50投稿まで（2.5倍）
   canSchedulePost: true,     // 予約投稿が可能
   canViewAnalytics: true,    // 分析機能が利用可能
@@ -1222,7 +1222,7 @@ export { FREE_LIMITS, PREMIUM_LIMITS }
 |------|----------|---------------|
 | 投稿文字数 | 500文字 | 2,000文字 |
 | 画像添付枚数 | 4枚 | 6枚 |
-| 動画添付本数 | 1本 | 3本 |
+| 動画添付本数 | 添付不可 | 1本 |
 | 1日の投稿上限 | 20件 | 50件 |
 | 予約投稿 | × | ○ |
 | 投稿分析ダッシュボード | × | ○ |
@@ -1938,7 +1938,7 @@ type PricingCardProps = {
 const features = [
   '投稿文字数 2000文字',
   '画像添付 6枚まで',
-  '動画添付 3本まで',
+  '動画添付 1本まで',
   '予約投稿機能',
   '投稿分析ダッシュボード',
 ]
@@ -2031,7 +2031,7 @@ export function PricingCard({
 | **価格** | ¥500 / 月 | ¥5,000 / 年（2ヶ月分お得） |
 | 2000文字投稿 | ✓ | ✓ |
 | 画像6枚 | ✓ | ✓ |
-| 動画3本 | ✓ | ✓ |
+| 動画1本 | ✓ | ✓ |
 | 予約投稿 | ✓ | ✓ |
 | 分析機能 | ✓ | ✓ |
 | | [プレミアムに登録] | [プレミアムに登録] |
@@ -2317,7 +2317,7 @@ type PremiumUpgradeCardProps = {
 const features = [
   '投稿文字数 2000文字',
   '画像添付 6枚まで',
-  '動画添付 3本まで',
+  '動画添付 1本まで',
   '予約投稿機能',
   '投稿分析ダッシュボード',
 ]
@@ -4014,7 +4014,7 @@ export interface MembershipLimits {
 const FREE_LIMITS: MembershipLimits = {
   maxPostLength: 500,        // 500文字まで（Twitterと同程度）
   maxImages: 4,              // 画像4枚まで（一般的なSNSの標準）
-  maxVideos: 1,              // 動画1本まで（ストレージコスト考慮）
+  maxVideos: 0,              // 動画添付不可（ストレージコスト考慮、プレミアム限定）
   maxDailyPosts: 20,         // 1日20投稿まで（スパム対策）
   canSchedulePost: false,    // 予約投稿は不可（プレミアム限定）
   canViewAnalytics: false,   // 分析機能は不可（プレミアム限定）
@@ -4023,7 +4023,7 @@ const FREE_LIMITS: MembershipLimits = {
 const PREMIUM_LIMITS: MembershipLimits = {
   maxPostLength: 2000,       // 2000文字まで（長文投稿が可能）
   maxImages: 6,              // 画像6枚まで（より多くの写真を共有）
-  maxVideos: 3,              // 動画3本まで（動画投稿の自由度向上）
+  maxVideos: 1,              // 動画1本まで（プレミアム限定で動画投稿を解放）
   maxDailyPosts: 50,         // 1日50投稿まで（無料会員の2.5倍）
   canSchedulePost: true,     // 予約投稿機能を解放
   canViewAnalytics: true,    // 投稿の分析機能を解放
@@ -4178,7 +4178,7 @@ flowchart TD
 |--------|-------------------------------|----------------------|
 | maxPostLength | 2000（2000文字まで投稿OK） | 500（500文字まで） |
 | maxImages | 6（画像6枚まで添付OK） | 4（画像4枚まで） |
-| maxVideos | 3（動画3本まで添付OK） | 1（動画1本まで） |
+| maxVideos | 1（動画1本まで添付OK） | 0（動画添付不可） |
 | maxDailyPosts | 50（1日50投稿までOK） | 20（1日20投稿まで） |
 | canSchedulePost | true（予約投稿できます） | false（予約投稿は不可） |
 | canViewAnalytics | true（分析機能使えます） | false（分析機能は不可） |
@@ -5346,7 +5346,7 @@ type PremiumUpgradeCardProps = {
 const features = [
   '投稿文字数 2000文字',       // 無料: 500文字
   '画像添付 6枚まで',          // 無料: 4枚
-  '動画添付 3本まで',          // 無料: 1本
+  '動画添付 1本まで',          // 無料: 添付不可
   '予約投稿機能',              // 無料: 利用不可
   '投稿分析ダッシュボード',    // 無料: 利用不可
 ]
@@ -5421,7 +5421,7 @@ PremiumUpgradeCard の使用場面:
 | この機能を利用するにはプレミアム会員への登録が必要です。 |
 | ✅ 投稿文字数 2000文字 |
 | ✅ 画像添付 6枚まで |
-| ✅ 動画添付 3本まで |
+| ✅ 動画添付 1本まで |
 | ✅ 予約投稿機能 |
 | ✅ 投稿分析ダッシュボード |
 | ¥500/月 [プレミアムに登録する] |
@@ -6557,7 +6557,7 @@ export async function getMembershipInfo() {
       limits: {
         maxPostLength: 500,
         maxImages: 4,
-        maxVideos: 1,
+        maxVideos: 0,
         canSchedulePost: false,
         canViewAnalytics: false,
       },
@@ -6581,14 +6581,14 @@ export async function getMembershipInfo() {
       ? {
           maxPostLength: 2000,
           maxImages: 6,
-          maxVideos: 3,
+          maxVideos: 1,
           canSchedulePost: true,
           canViewAnalytics: true,
         }
       : {
           maxPostLength: 500,
           maxImages: 4,
-          maxVideos: 1,
+          maxVideos: 0,
           canSchedulePost: false,
           canViewAnalytics: false,
         },

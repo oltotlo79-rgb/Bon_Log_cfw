@@ -16,7 +16,6 @@ import {
   MAX_POST_CONTENT_FREE,
   MAX_POST_CONTENT_PREMIUM,
   MAX_POST_IMAGES_FREE,
-  MAX_POST_VIDEOS_FREE,
   MAX_POST_IMAGES_PREMIUM,
   MAX_POST_VIDEOS_PREMIUM,
   MAX_DAILY_POSTS_FREE,
@@ -57,7 +56,7 @@ const helpSections: HelpSection[] = [
       },
       {
         question: '画像や動画は何枚まで添付できますか？',
-        answer: `無料会員は画像${MAX_POST_IMAGES_FREE}枚または動画${MAX_POST_VIDEOS_FREE}本まで、有料会員は画像${MAX_POST_IMAGES_PREMIUM}枚または動画${MAX_POST_VIDEOS_PREMIUM}本まで添付できます。画像と動画は組み合わせて添付することも可能です。`,
+        answer: `無料会員は画像${MAX_POST_IMAGES_FREE}枚まで添付できます（動画の添付はプレミアム会員限定）。有料会員は画像${MAX_POST_IMAGES_PREMIUM}枚、動画${MAX_POST_VIDEOS_PREMIUM}本まで添付できます。`,
       },
       {
         question: '1日に何件まで投稿できますか？',
@@ -78,7 +77,7 @@ const helpSections: HelpSection[] = [
     items: [
       {
         question: 'プレミアム会員の特典は？',
-        answer: `プレミアム会員になると、以下の特典があります：\n・投稿文字数が${MAX_POST_CONTENT_PREMIUM}文字に拡大\n・画像${MAX_POST_IMAGES_PREMIUM}枚、動画${MAX_POST_VIDEOS_PREMIUM}本まで添付可能\n・予約投稿機能\n・投稿分析機能（いいね数、引用数、キーワード分析）\n・プレミアムバッジの表示`,
+        answer: `プレミアム会員になると、以下の特典があります：\n・投稿文字数が${MAX_POST_CONTENT_PREMIUM}文字に拡大\n・画像${MAX_POST_IMAGES_PREMIUM}枚、動画${MAX_POST_VIDEOS_PREMIUM}本まで添付可能（無料会員は動画添付不可）\n・予約投稿機能\n・投稿分析機能（いいね数、引用数、キーワード分析）\n・プレミアムバッジの表示`,
       },
       {
         question: '料金はいくらですか？',

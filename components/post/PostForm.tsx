@@ -321,6 +321,7 @@ export function PostForm({ genres, limits = DEFAULT_LIMITS, draftCount = 0, draf
         onRemove={removeMedia}
         fileInputRef={fileInputRef}
         maxTotal={limits.maxImages + limits.maxVideos}
+        maxVideos={limits.maxVideos}
         multiple
         previewClassName={`grid gap-2 mt-3 ${mediaFiles.length <= 1 ? '' : 'grid-cols-2'}`}
         buttonVariant="ghost"

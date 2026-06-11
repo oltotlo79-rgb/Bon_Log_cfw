@@ -15,6 +15,8 @@ import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { SCHEDULED_POST_STATUS } from '@/lib/constants/status'
 import { CRON_BATCH_SIZE } from '@/lib/constants/limits'
+import { validateMediaCounts } from '@/lib/actions/utils'
+import { getMembershipLimits } from '@/lib/premium'
 
 export interface PublishResult {
   publishedCount: number
@@ -41,7 +43,7 @@ export async function publishDueScheduledPosts(): Promise<PublishResult> {
       id: true,
       userId: true,
       content: true,
-      user: { select: { id: true, isSuspended: true } },
+      user: { select: { id: true, isSuspended: true, isPremium: true, premiumExpiresAt: true } },
       media: {
         select: { url: true, type: true, sortOrder: true },
         orderBy: { sortOrder: 'asc' },
@@ -67,6 +69,28 @@ export async function publishDueScheduledPosts(): Promise<PublishResult> {
         })
         failedCount++
         logger.warn(`Scheduled post ${scheduledPost.id}: User suspended or not found`)
+        continue
+      }
+
+      // 公開時点の会員種別で動画本数を再検証する。
+      // 旧上限で予約した投稿が、会員ダウングレード後に公開されることを防ぐ。
+      const limits = await getMembershipLimits(scheduledPost.userId)
+      const mediaUrls = scheduledPost.media.map((m) => m.url)
+      const mediaTypes = scheduledPost.media.map((m) => String(m.type))
+      const mediaValidation = await validateMediaCounts(mediaUrls, mediaTypes, {
+        maxImages: limits.maxImages,
+        maxVideos: limits.maxVideos,
+      })
+      if (mediaValidation) {
+        await prisma.scheduledPost.update({
+          where: { id: scheduledPost.id },
+          data: { status: SCHEDULED_POST_STATUS.FAILED },
+        })
+        failedCount++
+        const reason = !mediaValidation.success ? mediaValidation.error : 'media validation failed'
+        logger.warn(`Scheduled post ${scheduledPost.id}: Media limit exceeded at publish time`, {
+          error: reason,
+        })
         continue
       }
 

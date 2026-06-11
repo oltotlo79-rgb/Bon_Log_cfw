@@ -141,13 +141,16 @@ export function ScheduledPostForm({ genres, limits, editData }: ScheduledPostFor
           onRemove={removeMedia}
           fileInputRef={fileInputRef}
           maxTotal={limits.maxImages + limits.maxVideos}
+          maxVideos={limits.maxVideos}
           buttonVariant="outline"
           buttonLabel="メディア追加"
           multiple
         />
         <span className="text-xs text-muted-foreground">
-          画像: {mediaFiles.filter(m => m.type === 'image').length}/{limits.maxImages}枚,
-          動画: {mediaFiles.filter(m => m.type === 'video').length}/{limits.maxVideos}本
+          画像: {mediaFiles.filter(m => m.type === 'image').length}/{limits.maxImages}枚
+          {limits.maxVideos > 0 && (
+            <>、動画: {mediaFiles.filter(m => m.type === 'video').length}/{limits.maxVideos}本</>
+          )}
         </span>
       </div>
 

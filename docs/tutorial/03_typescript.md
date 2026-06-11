@@ -3229,7 +3229,7 @@ export interface MembershipLimits {
 const FREE_LIMITS: MembershipLimits = {
   maxPostLength: 500,
   maxImages: 4,
-  maxVideos: 1,
+  maxVideos: 0,
   maxDailyPosts: 20,
   canSchedulePost: false,
   canViewAnalytics: false,
@@ -3238,7 +3238,7 @@ const FREE_LIMITS: MembershipLimits = {
 const PREMIUM_LIMITS: MembershipLimits = {
   maxPostLength: 2000,
   maxImages: 6,
-  maxVideos: 3,
+  maxVideos: 1,
   maxDailyPosts: 40,
   canSchedulePost: true,
   canViewAnalytics: true,

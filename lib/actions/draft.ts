@@ -13,6 +13,7 @@ import {
   actionSuccess,
   actionError,
   enforceUserRateLimit,
+  validateMediaCounts,
 } from '@/lib/actions/utils'
 import { prisma } from '@/lib/db'
 import { deleteMediaFiles } from '@/lib/services/media-cleanup'
@@ -25,6 +26,7 @@ import {
   MAX_POST_IMAGES_FREE,
   MAX_GENRES_PER_POST,
 } from '@/lib/constants/limits'
+import { getMembershipLimits } from '@/lib/premium'
 import {
   ERR_INVALID_INPUT,
   ERR_DRAFT_NOT_FOUND,
@@ -40,6 +42,7 @@ const saveDraftSchema = z.object({
   id: z.string().min(1).optional(),
   content: z.string().max(MAX_POST_CONTENT_FREE).optional(),
   mediaUrls: z.array(z.string().min(1)).max(MAX_POST_IMAGES_FREE).optional(),
+  mediaTypes: z.array(z.enum(['image', 'video'])).optional(),
   genreIds: z.array(z.string().min(1)).max(MAX_GENRES_PER_POST).optional(),
 })
 const draftIdSchema = z.string().min(1, ERR_DRAFT_ID_REQUIRED)
@@ -134,6 +137,7 @@ export async function saveDraft(data: {
   id?: string
   content?: string
   mediaUrls?: string[]
+  mediaTypes?: ('image' | 'video')[]
   genreIds?: string[]
 }) {
   const authResult = await requireActiveNonGuestUser()
@@ -144,11 +148,22 @@ export async function saveDraft(data: {
   if (!parsed.success) {
     return actionError(ERR_INVALID_INPUT)
   }
-  const { id, content, mediaUrls, genreIds } = parsed.data
+  const { id, content, mediaUrls, mediaTypes, genreIds } = parsed.data
 
   // レート制限キーは入力 id の有無で create_draft / update_draft を切り替える (自動保存を考慮)。
   const rl = await enforceUserRateLimit(userId, id ? 'update_draft' : 'create_draft')
   if (rl) return actionError(rl.error)
+
+  // 会員種別に応じたメディア数バリデーション
+  if (mediaUrls && mediaUrls.length > 0) {
+    const limits = await getMembershipLimits(userId)
+    const types = mediaTypes ?? mediaUrls.map(() => 'image' as const)
+    const mediaValidation = await validateMediaCounts(mediaUrls, types, {
+      maxImages: limits.maxImages,
+      maxVideos: limits.maxVideos,
+    })
+    if (mediaValidation) return mediaValidation
+  }
 
   try {
     if (id) {

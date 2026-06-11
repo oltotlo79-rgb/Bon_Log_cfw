@@ -91,6 +91,7 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
     removeMedia,
     abortControllerRef,
     fileInputRef,
+    canAddVideo,
   } = useMediaUpload({
     maxImages: limits.maxImages,
     maxVideos: limits.maxVideos,
@@ -270,7 +271,9 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"
+                accept={canAddVideo
+                  ? 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime'
+                  : 'image/jpeg,image/png,image/webp,image/gif'}
                 onChange={handleFileSelect}
                 multiple
                 className="hidden"
@@ -283,7 +286,7 @@ export function PostFormModal({ genres, limits = DEFAULT_LIMITS, isOpen, onClose
                 disabled={uploading || mediaFiles.length >= (limits.maxImages + limits.maxVideos)}
               >
                 <ImageIcon className="w-5 h-5" />
-                <span className="ml-1 text-sm">画像/動画</span>
+                <span className="ml-1 text-sm">{canAddVideo ? '画像/動画' : '画像'}</span>
               </Button>
               {!isPollActive && (
                 <PollForm

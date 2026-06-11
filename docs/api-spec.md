@@ -128,7 +128,7 @@
 #### POST `/api/upload`
 - **認証:** Session
 - **レート制限:** 5回/分, 50回/日
-- **説明:** 画像・動画アップロード。ファイルタイプ・サイズ・シグネチャ検証（MIMEタイプ偽装防止）
+- **説明:** 画像・動画アップロード（動画はプレミアム会員限定）。ファイルタイプ・サイズ・シグネチャ検証（MIMEタイプ偽装防止）
 - **リクエスト:** `multipart/form-data` (`file`)
 - **レスポンス:**
   - `200`: `{ success: true, url: string, type: 'image' | 'video' }`
@@ -148,9 +148,9 @@
 - **リクエスト:** `multipart/form-data` (`file`)
 
 #### POST `/api/upload/presigned`
-- **認証:** Session
+- **認証:** Session（動画専用のためプレミアム会員限定）
 - **レート制限:** 5回/分, 50回/日
-- **説明:** Cloudflare R2直接アップロード用署名付きURL生成。Vercelの4.5MBペイロード制限を回避
+- **説明:** Cloudflare R2直接アップロード用署名付きURL生成（動画は最大80MB）。Vercelの4.5MBペイロード制限を回避
 - **許可MIMEタイプ:** `video/mp4`, `video/quicktime`, `video/webm`
 - **許可フォルダ:** `posts`, `post-videos`, `avatars`, `headers`
 - **リクエスト:** `{ contentType: string, fileSize: number, folder?: string }`

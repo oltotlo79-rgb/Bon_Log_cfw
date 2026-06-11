@@ -3386,7 +3386,7 @@ function CommentForm({ postId }: { postId: string }) {
 
   const { uploading, uploadProgress, uploadFile } = useMediaUpload({
     maxImages: 4,
-    maxVideos: 1,
+    maxVideos: 1,  // プレミアム会員の例（無料会員は 0 = 動画添付不可）
     currentImageCount: mediaFiles.filter(m => m.type === 'image').length,
     currentVideoCount: mediaFiles.filter(m => m.type === 'video').length,
     videoUploadPath: 'comments',

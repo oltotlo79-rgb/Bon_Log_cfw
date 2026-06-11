@@ -22,6 +22,8 @@ export interface SharedMediaUploadSectionProps {
   onRemove: (index: number) => void
   fileInputRef: React.RefObject<HTMLInputElement | null>
   maxTotal: number
+  /** 動画を受け付けるか。0 を渡すと動画 MIME を accept から除外し動画ボタンも非表示になる。 */
+  maxVideos?: number
   imagesOnly?: boolean
   disabled?: boolean
   buttonVariant?: 'ghost' | 'outline'
@@ -38,6 +40,7 @@ export function SharedMediaUploadSection({
   onRemove,
   fileInputRef,
   maxTotal,
+  maxVideos,
   imagesOnly = false,
   disabled = false,
   buttonVariant = 'ghost',
@@ -45,9 +48,11 @@ export function SharedMediaUploadSection({
   previewClassName,
   multiple = true,
 }: SharedMediaUploadSectionProps) {
-  const acceptTypes = imagesOnly
-    ? 'image/*'
-    : 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime'
+  // maxVideos === 0 は動画不可（無料会員）。imagesOnly フラグより優先。
+  const videoAllowed = !imagesOnly && (maxVideos === undefined || maxVideos > 0)
+  const acceptTypes = videoAllowed
+    ? 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime'
+    : 'image/jpeg,image/png,image/webp,image/gif'
 
   const isDisabled = disabled || uploading || mediaFiles.length >= maxTotal
 

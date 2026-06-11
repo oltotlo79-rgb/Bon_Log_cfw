@@ -30,8 +30,10 @@ import {
   ERR_UPLOAD_FORMAT_NOT_ALLOWED,
   ERR_UPLOAD_INVALID_FOLDER,
   ERR_UPLOAD_PARAMS_REQUIRED,
+  ERR_VIDEO_PREMIUM_ONLY,
   ERR_VIDEO_SIZE_EXCEEDED,
 } from '@/lib/constants/errors'
+import { isPremiumUser } from '@/lib/premium'
 import { logger } from '@/lib/logger'
 import { checkUserRateLimit, checkDailyLimit } from '@/lib/rate-limit'
 
@@ -64,7 +66,13 @@ export async function POST(request: NextRequest) {
     if (!userResult.ok) return userResult.response
     const userId = userResult.userId
 
-    // 2. 入力検証 (未検証入力で rate / daily limit を消費しないため auth の直後)
+    // 2. プレミアム会員チェック（動画アップロードはプレミアム限定）
+    const isPremium = await isPremiumUser(userId)
+    if (!isPremium) {
+      return NextResponse.json({ error: ERR_VIDEO_PREMIUM_ONLY }, { status: 403 })
+    }
+
+    // 3. 入力検証 (未検証入力で rate / daily limit を消費しないため auth の直後)
     const body: unknown = await request.json()
 
     const parsed = presignedUploadSchema.safeParse(body)
@@ -93,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     const { contentType, fileSize, folder } = parsed.data
 
-    // 3. レート制限 / 日次上限 (Zod 通過後に消費)
+    // 4. レート制限 / 日次上限 (Zod 通過後に消費)
     const rateLimitResult = await checkUserRateLimit(userId, 'upload')
     if (!rateLimitResult.success) {
       return NextResponse.json({ error: ERR_RATE_LIMIT_UPLOAD }, { status: 429 })

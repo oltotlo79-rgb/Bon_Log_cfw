@@ -9,6 +9,7 @@ import { ROUTE_SETTINGS_SUBSCRIPTION } from '@/lib/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Crown, Check } from 'lucide-react'
+import { MAX_POST_CONTENT_PREMIUM, MAX_POST_IMAGES_PREMIUM, MAX_POST_VIDEOS_PREMIUM } from '@/lib/constants/limits'
 
 type PremiumUpgradeCardProps = {
   title?: string
@@ -18,9 +19,9 @@ type PremiumUpgradeCardProps = {
 
 // 無料会員との差別化ポイント
 const features = [
-  '投稿文字数 2000文字',
-  '画像添付 6枚まで',
-  '動画添付 3本まで',
+  `投稿文字数 ${MAX_POST_CONTENT_PREMIUM}文字`,
+  `画像添付 ${MAX_POST_IMAGES_PREMIUM}枚まで`,
+  `動画添付 ${MAX_POST_VIDEOS_PREMIUM}本まで（無料会員は不可）`,
   '予約投稿機能',
   '投稿分析ダッシュボード',
 ]

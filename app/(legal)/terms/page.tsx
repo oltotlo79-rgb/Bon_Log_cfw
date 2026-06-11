@@ -16,11 +16,10 @@ import { Metadata } from 'next'
 import {
   MAX_POST_CONTENT_FREE,
   MAX_POST_IMAGES_FREE,
-  MAX_POST_VIDEOS_FREE,
   MAX_DAILY_POSTS_FREE,
   MAX_COMMENT_LENGTH,
   MAX_COMMENT_IMAGES,
-  MAX_COMMENT_VIDEOS,
+  MAX_COMMENT_VIDEOS_PREMIUM,
   DAILY_COMMENT_LIMIT,
   MAX_POST_CONTENT_PREMIUM,
   MAX_POST_IMAGES_PREMIUM,
@@ -99,8 +98,8 @@ export default function TermsPage() {
       <h3>5.1 無料会員</h3>
       <p>無料会員は、以下の制限の範囲内で本サービスを利用できます。</p>
       <ul>
-        <li>投稿: テキスト{MAX_POST_CONTENT_FREE}文字まで、画像{MAX_POST_IMAGES_FREE}枚まで、動画{MAX_POST_VIDEOS_FREE}本まで</li>
-        <li>コメント: テキスト{MAX_COMMENT_LENGTH}文字まで、画像{MAX_COMMENT_IMAGES}枚まで、動画{MAX_COMMENT_VIDEOS}本まで</li>
+        <li>投稿: テキスト{MAX_POST_CONTENT_FREE}文字まで、画像{MAX_POST_IMAGES_FREE}枚まで、動画の添付は不可（プレミアム会員限定）</li>
+        <li>コメント: テキスト{MAX_COMMENT_LENGTH}文字まで、画像{MAX_COMMENT_IMAGES}枚まで、動画の添付は不可（プレミアム会員限定）</li>
         <li>1日の投稿数: {MAX_DAILY_POSTS_FREE}件まで</li>
         <li>1日のコメント数: {DAILY_COMMENT_LIMIT}件まで</li>
       </ul>
@@ -109,7 +108,7 @@ export default function TermsPage() {
       <p>有料会員は、月額または年額の料金を支払うことで、以下の特典を受けられます。</p>
       <ul>
         <li>投稿: テキスト{MAX_POST_CONTENT_PREMIUM}文字まで、画像{MAX_POST_IMAGES_PREMIUM}枚まで、動画{MAX_POST_VIDEOS_PREMIUM}本まで</li>
-        <li>コメント: テキスト{MAX_COMMENT_LENGTH}文字まで、画像3枚まで、動画{MAX_COMMENT_VIDEOS}本まで</li>
+        <li>コメント: テキスト{MAX_COMMENT_LENGTH}文字まで、画像{MAX_COMMENT_IMAGES}枚まで、動画{MAX_COMMENT_VIDEOS_PREMIUM}本まで</li>
         <li>予約投稿機能の利用</li>
         <li>投稿分析機能（いいね数、引用数、キーワード分析等）の利用</li>
         <li>プレミアム会員バッジの表示</li>

@@ -3725,8 +3725,8 @@ export const imageFileSchema = z
 // ===== 動画ファイルのバリデーションスキーマ =====
 export const videoFileSchema = z
   .instanceof(File)
-  // 動画は100MB以下（画像の20倍のサイズを許可）
-  .refine((file) => file.size <= MAX_FILE_SIZE * 20, '動画は100MB以下にしてください')
+  // 動画は80MB以下（画像の16倍のサイズを許可）
+  .refine((file) => file.size <= MAX_FILE_SIZE * 16, '動画は80MB以下にしてください')
   .refine(
     (file) => ALLOWED_VIDEO_TYPES.includes(file.type),
     '対応していない動画形式です'

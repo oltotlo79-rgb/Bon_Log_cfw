@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { createCheckoutSession } from '@/lib/actions/subscription'
 import { Check, Crown, Loader2 } from 'lucide-react'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { MAX_POST_CONTENT_PREMIUM, MAX_POST_IMAGES_PREMIUM, MAX_POST_VIDEOS_PREMIUM } from '@/lib/constants/limits'
 
 type PricingCardProps = {
   isPremium: boolean
@@ -24,9 +25,9 @@ type PricingCardProps = {
 
 // 無料会員との差別化ポイント
 const features = [
-  '投稿文字数 2000文字',
-  '画像添付 6枚まで',
-  '動画添付 3本まで',
+  `投稿文字数 ${MAX_POST_CONTENT_PREMIUM}文字`,
+  `画像添付 ${MAX_POST_IMAGES_PREMIUM}枚まで`,
+  `動画添付 ${MAX_POST_VIDEOS_PREMIUM}本まで（無料会員は不可）`,
   '予約投稿機能',
   '投稿分析ダッシュボード',
   '広告非表示',

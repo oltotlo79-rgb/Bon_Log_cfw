@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { prepareFileForUpload, isVideoFile, MAX_IMAGE_SIZE, MAX_VIDEO_SIZE, uploadVideoToR2 } from '@/lib/client-image-compression'
 import { DEFAULT_COMPRESSION_MAX_SIZE_MB, MAX_IMAGE_DIMENSION } from '@/lib/constants/limits'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { ERR_VIDEO_PREMIUM_ONLY } from '@/lib/constants/errors'
 
 /**
  * メディアファイルの型
@@ -207,6 +208,12 @@ export function useMediaUpload({ maxImages, maxVideos, onError }: UseMediaUpload
     for (const file of selectedFiles) {
       const isVideo = isVideoFile(file)
 
+      // maxVideos === 0 は動画投稿不可（無料会員）
+      if (isVideo && maxVideos === 0) {
+        onError(ERR_VIDEO_PREMIUM_ONLY)
+        break
+      }
+
       if (!isVideo && imageCount >= maxImages) {
         onError(`画像は${maxImages}枚まで添付できます`)
         break
@@ -296,5 +303,7 @@ export function useMediaUpload({ maxImages, maxVideos, onError }: UseMediaUpload
     removeMedia,
     abortControllerRef,
     fileInputRef,
+    /** 呼び出し側が動画 UI を表示するかの判定用。maxVideos === 0 で false。 */
+    canAddVideo: maxVideos > 0,
   }
 }

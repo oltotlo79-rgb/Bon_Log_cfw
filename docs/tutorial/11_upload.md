@@ -156,7 +156,7 @@ BON-LOGでは、メディアの種類に応じて**両パターンを使い分�
 
 **動画にパターン2を採用する理由:**
 
-1. **Vercelの4.5MBペイロード制限を回避** -- 動画は最大256MBまで対応するため、サーバー経由では送信不可能
+1. **Vercelの4.5MBペイロード制限を回避** -- 動画は最大80MBまで対応するため、サーバー経由では送信不可能
 2. **サーバー負荷が低い** -- 動画データがサーバーを通過しないため、帯域・メモリを消費しない
 3. **アップロード速度が速い** -- クライアントからR2に直接送信するため遅延が少ない
 
@@ -176,7 +176,7 @@ BON-LOGでは、メディアの種類に応じて**両パターンを使い分�
 
 **Q3**: BON-LOGで画像と動画でアップロードパターンを分けている理由は？
 
-**A3**: Vercelのサーバーレス関数には4.5MBのペイロード制限があります。クライアント側圧縮後の画像は1MB以下に収まるためパターン1（サーバー経由）で問題ありませんが、動画は最大256MBに達するため、プリサインドURL（パターン2）でR2に直接アップロードする必要があります。
+**A3**: Vercelのサーバーレス関数には4.5MBのペイロード制限があります。クライアント側圧縮後の画像は1MB以下に収まるためパターン1（サーバー経由）で問題ありませんが、動画は最大80MBに達するため、プリサインドURL（パターン2）でR2に直接アップロードする必要があります。
 </details>
 
 ## 11.2 Cloudflare R2の概要とセットアップ
@@ -655,11 +655,11 @@ export async function deleteFile(url: string): Promise<DeleteResult> {
 > - `app/api/upload/avatar/route.ts` -- アバター画像専用（POST: multipart/form-data → R2 → DB更新 → revalidatePath）
 > - `app/api/upload/header/route.ts` -- ヘッダー画像専用（同様のフロー）
 > - `app/api/upload/route.ts` -- 投稿・コメント・レビューの一般メディア（画像のみ。動画は `/api/upload/presigned` 経由）
-> - `app/api/upload/presigned/route.ts` -- 動画用プリサインドURL生成（256MB対応、有効期限1時間）
+> - `app/api/upload/presigned/route.ts` -- 動画用プリサインドURL生成（80MB対応、有効期限1時間）
 >
 > **ファイルサイズ定数（`lib/constants/limits.ts`）:**
 > - `MAX_IMAGE_SIZE` = 4MB（サーバーが受け付ける画像上限）
-> - `MAX_VIDEO_SIZE` = 256MB（プリサインドURL経由の動画上限）
+> - `MAX_VIDEO_SIZE` = 80MB（プリサインドURL経由の動画上限）
 > - `MAX_IMAGE_SIZE_BEFORE_COMPRESSION` = 10MB（クライアントの入力上限）
 
 ### アップロードAPIの全体フロー
@@ -872,7 +872,7 @@ import { MAX_IMAGE_SIZE, MAX_VIDEO_SIZE } from '@/lib/constants/limits'
 
 // lib/constants/limits.ts で定義された定数:
 // MAX_IMAGE_SIZE = 4 * 1024 * 1024  (4MB: サーバー側で受け付ける画像の上限)
-// MAX_VIDEO_SIZE = 256 * 1024 * 1024 (256MB: プリサインドURL経由で直接R2に送れる動画の上限)
+// MAX_VIDEO_SIZE = 80 * 1024 * 1024 (80MB: プリサインドURL経由で直接R2に送れる動画の上限)
 
 // POST: メディアアップロードエンドポイント
 // リクエスト形式: multipart/form-data（FormDataオブジェクト）
@@ -1286,7 +1286,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
 | `MAX_COMPRESSION_RETRIES` | 3 | 品質調整のリトライ上限回数 |
 | `DEFAULT_COMPRESSION_MAX_SIZE_MB` | 1MB | 圧縮後の目標サイズ |
 | `MAX_IMAGE_SIZE` | 4MB | サーバー側が受け付ける画像の上限（Vercel制限対策） |
-| `MAX_VIDEO_SIZE` | 256MB | プリサインドURL経由で直接R2に送れる動画の上限 |
+| `MAX_VIDEO_SIZE` | 80MB | プリサインドURL経由で直接R2に送れる動画の上限 |
 | `PRESIGNED_URL_EXPIRY_SECONDS` | 3600 | 動画用プリサインドURLの有効期限（1時間） |
 
 ### useMediaUpload フック: 圧縮とアップロードの統合
@@ -1349,7 +1349,7 @@ export async function uploadVideoToR2(
   folder: string = 'posts',
   onProgress?: (progress: number) => void
 ): Promise<VideoUploadResult> {
-  // 1. サイズチェック（MAX_VIDEO_SIZE = 256MB）
+  // 1. サイズチェック（MAX_VIDEO_SIZE = 80MB）
   if (file.size > MAX_VIDEO_SIZE) {
     return { error: `動画は${MAX_VIDEO_SIZE / 1024 / 1024}MB以下にしてください` }
   }
@@ -1385,7 +1385,7 @@ export async function uploadVideoToR2(
 ```
 
 > **`/api/upload/presigned` の動作**
-> このエンドポイントはAWS SDK の `@aws-sdk/s3-request-presigner` を使って `PutObjectCommand` に署名します。認証・レート制限（5回/分、50回/日）・MIMEタイプ検証（mp4/quicktime/webm）・サイズ検証（256MB以下）を行い、`{ presignedUrl, fileUrl, key }` を返します。
+> このエンドポイントはAWS SDK の `@aws-sdk/s3-request-presigner` を使って `PutObjectCommand` に署名します。認証・レート制限（5回/分、50回/日）・MIMEタイプ検証（mp4/quicktime/webm）・サイズ検証（80MB以下）を行い、`{ presignedUrl, fileUrl, key }` を返します。
 
 <details>
 <summary><b>理解度チェック</b></summary>
@@ -4134,7 +4134,7 @@ BON-LOGでは用途ごとに異なるファイルサイズ制限を設けてい�
 // app/api/upload/route.ts
 
 // サイズ制限の定義
-const MAX_VIDEO_SIZE = 256 * 1024 * 1024  // 動画: 256MB
+const MAX_VIDEO_SIZE = 80 * 1024 * 1024   // 動画: 80MB
 const MAX_IMAGE_SIZE = 4 * 1024 * 1024    // 画像: 4MB
 
 // アバター・ヘッダー画像のAPI
@@ -4255,7 +4255,7 @@ flowchart TD
     Step1 -->|✓合格| Step2["Step 2: 許可リストとの照合<br/>画像: ['image/jpeg', 'image/png', 'image/webp']<br/>動画: ['video/mp4', 'video/quicktime', 'video/webm']<br/><br/>何を防ぐか：<br/>image/svg+xml（XSS攻撃の可能性）<br/>image/tiff（処理が重い）<br/>video/x-msvideo（古い形式）"]
 
     Step2 -->|×不合格| E2["400 エラー"]
-    Step2 -->|✓合格| Step3["Step 3: ファイルサイズチェック<br/>画像: file.size &lt;= 4MB<br/>動画: file.size &lt;= 256MB<br/><br/>何を防ぐか：<br/>巨大ファイルによるサーバーメモリ枯渇<br/>ストレージ容量の過剰消費"]
+    Step2 -->|✓合格| Step3["Step 3: ファイルサイズチェック<br/>画像: file.size &lt;= 4MB<br/>動画: file.size &lt;= 80MB<br/><br/>何を防ぐか：<br/>巨大ファイルによるサーバーメモリ枯渇<br/>ストレージ容量の過剰消費"]
 
     Step3 -->|×不合格| E3["400 エラー"]
     Step3 -->|✓合格| Step4["Step 4: Buffer変換<br/>const buffer = Buffer.from(<br/>  await file.arrayBuffer()<br/>)<br/><br/>なぜBuffer変換が必要か：<br/>File/Blob型はストリーム（流れ）<br/>Bufferはメモリ上の固定データ<br/>バイト単位の検査にはBufferが必要"]
@@ -4585,7 +4585,7 @@ flowchart TD
     Layer2 -->|OK| Layer3["第3層: Content-Type検証<br/>主張されたMIMEタイプが許可リストに含まれるか<br/>→ 不正なタイプは拒否（400）"]
 
     Layer3 -->|不正| E3["400 Bad Request"]
-    Layer3 -->|OK| Layer4["第4層: ファイルサイズ制限<br/>画像: 4MB以下、動画: 256MB以下<br/>→ 超過時は拒否（400）"]
+    Layer3 -->|OK| Layer4["第4層: ファイルサイズ制限<br/>画像: 4MB以下、動画: 80MB以下<br/>→ 超過時は拒否（400）"]
 
     Layer4 -->|超過| E4["400 Bad Request"]
     Layer4 -->|OK| Layer5["第5層: マジックバイト検証<br/>ファイルの実際のバイナリシグネチャを検査<br/>→ 偽装ファイルは拒否（400）"]
@@ -4838,7 +4838,7 @@ export async function POST(request: NextRequest) {
 ```
 ✅ 認証チェック（未認証ユーザーの拒否）
 ✅ レート制限（分単位 + 日次制限）
-✅ ファイルサイズ制限（画像4MB、動画256MB）
+✅ ファイルサイズ制限（画像4MB、動画80MB）
 ✅ MIMEタイプのホワイトリスト検証
 ✅ マジックバイトによるファイル形式の真正検証
 ✅ UUIDベースのファイル名生成（パストラバーサル防止）
@@ -5187,7 +5187,7 @@ import { logger } from '@/lib/logger'
 // ── 定数定義 ──
 // ファイルサイズの上限は lib/constants/limits.ts で一元管理
 // MAX_IMAGE_SIZE = 4 * 1024 * 1024    // 4MB
-// MAX_VIDEO_SIZE = 256 * 1024 * 1024  // 256MB
+// MAX_VIDEO_SIZE = 80 * 1024 * 1024   // 80MB
 //
 // なぜ環境変数ではなく定数か？
 // → セキュリティに関わる値は、コード内で明示的に管理すべき
@@ -5538,7 +5538,7 @@ OWASP（Open Web Application Security Project）のTop 10脆弱性リストに�
   展開後サイズ: 4.5PB（ペタバイト）
 
 対策（BON-LOG）:
-  ✅ ファイルサイズ制限（4MB/256MB）
+  ✅ ファイルサイズ制限（4MB/80MB）
   ✅ sharpの処理でピクセル数上限あり（268メガピクセル）
   ✅ 画像ファイルは圧縮を展開せずにsharpで処理
 
@@ -6500,7 +6500,7 @@ async function handleFileSelect(file: File) {
 
 | 項目 | 画像 | 動画 |
 |------|------|------|
-| ファイルサイズ | 100KB〜4MB | 10MB〜256MB |
+| ファイルサイズ | 100KB〜4MB | 10MB〜80MB |
 | 処理時間 | 数百ミリ秒 | 数秒〜数分 |
 | ストレージコスト | 低い | 高い（50〜100倍） |
 | CDN帯域 | 低い | 非常に高い |
@@ -6512,8 +6512,8 @@ async function handleFileSelect(file: File) {
 
 | 項目 | 内容 |
 |------|------|
-| 投稿あたり | 画像4枚 OR 動画1本（排他的） |
-| 最大サイズ | 256MB |
+| 投稿あたり | 画像4枚 OR 動画1本（排他的。動画はプレミアム会員限定） |
+| 最大サイズ | 80MB |
 | 対応形式 | MP4 (H.264), WebM (VP9) |
 | 再生方式 | HTML5 `<video>` タグ（プログレッシブダウンロード） |
 | サムネイル | 動画の最初のフレームを自動抽出 |
@@ -6523,7 +6523,7 @@ async function handleFileSelect(file: File) {
  * 動画アップロードのバリデーション
  *
  * 画像と異なるポイント:
- * 1. ファイルサイズ上限が大きい（256MB）
+ * 1. ファイルサイズ上限が大きい（80MB）
  * 2. 対応フォーマットが限定的（MP4, WebM）
  * 3. コーデックの確認が必要
  * 4. 再生時間の制限（30秒〜3分）
@@ -6599,11 +6599,11 @@ export async function validateVideoUpload(file: File): Promise<{
     }
   }
 
-  // 2. ファイルサイズチェック（256MB）
-  if (file.size > 256 * 1024 * 1024) {
+  // 2. ファイルサイズチェック（80MB）
+  if (file.size > 80 * 1024 * 1024) {
     return {
       valid: false,
-      error: '動画は256MB以下にしてください',
+      error: '動画は80MB以下にしてください',
     }
   }
 
@@ -6676,7 +6676,7 @@ sharpライブラリがデフォルトでEXIF情報を除去:
 
 **Q6: 「ファイルサイズが大きすぎます」エラーが出ます。どうすればいいですか？**
 
-このエラーは、アップロードしようとしたファイルがサイズ制限を超えている場合に発生します。BON-LOGでは画像は4MB、動画は256MBが上限です。
+このエラーは、アップロードしようとしたファイルがサイズ制限を超えている場合に発生します。BON-LOGでは画像は4MB、動画は80MBが上限です。
 
 ```typescript
 /**

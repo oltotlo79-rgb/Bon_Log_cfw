@@ -3020,7 +3020,7 @@ export default async function FeedPage() {
     getGenres(),        // ジャンル一覧（1時間キャッシュ）
     session?.user?.id
       ? getMembershipLimits(session.user.id)
-      : Promise.resolve({ maxPostLength: 500, maxImages: 4, maxVideos: 1,
+      : Promise.resolve({ maxPostLength: 500, maxImages: 4, maxVideos: 0,
           canSchedulePost: false, canViewAnalytics: false }),
     getDraftCount(),    // 下書き数
     session?.user?.id ? getBonsais() : Promise.resolve({ bonsais: [] }),
@@ -5639,7 +5639,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '許可されていないファイル形式です' }, { status: 400 })
   }
   if (fileSize > MAX_VIDEO_SIZE) {
-    return NextResponse.json({ error: '動画は256MB以下にしてください' }, { status: 400 })
+    return NextResponse.json({ error: '動画は80MB以下にしてください' }, { status: 400 })
   }
 
   // [4] AWS SDKを動的インポート（使用時のみ読み込み）

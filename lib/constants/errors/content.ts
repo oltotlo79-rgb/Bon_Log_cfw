@@ -78,6 +78,8 @@ export const ERR_DAILY_UPLOAD_LIMIT = (limit: number) => `1日のアップロー
 /** メディア・投稿バリデーション（テンプレート） */
 export const ERR_IMAGE_LIMIT = (max: number) => `画像は${max}枚までです`
 export const ERR_VIDEO_LIMIT = (max: number) => `動画は${max}本までです`
+/** 動画投稿がプレミアム会員限定の場合に表示するエラー（maxVideos === 0 のとき） */
+export const ERR_VIDEO_PREMIUM_ONLY = '動画の投稿はプレミアム会員限定です'
 export const ERR_GENRE_LIMIT = (max: number) => `ジャンルは${max}つまで選択できます`
 
 /** 汎用操作失敗エラー */

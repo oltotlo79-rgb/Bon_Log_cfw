@@ -10,17 +10,19 @@ export const MAX_IMAGE_SIZE_MB = 4
 /** 画像の最大サイズ（バイト） */
 export const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024
 
-/** 動画の最大サイズ（256MB） */
-export const MAX_VIDEO_SIZE = 256 * 1024 * 1024
+/** 動画の最大サイズ（80MB） */
+export const MAX_VIDEO_SIZE = 80 * 1024 * 1024
 
 /** 無料プラン: 投稿に添付可能な画像の最大枚数 */
 export const MAX_POST_IMAGES_FREE = 4
 
-/** 無料プラン: 投稿に添付可能な動画の最大本数 */
-export const MAX_POST_VIDEOS_FREE = 1
+/** 無料プラン: 投稿に添付可能な動画の最大本数（動画投稿はプレミアム限定のため 0） */
+export const MAX_POST_VIDEOS_FREE = 0
 
-/** コメントに添付可能なメディアの最大数 */
-export const MAX_COMMENT_MEDIA = 3
+/** 無料プラン: コメントに添付可能なメディアの最大数（画像2枚のみ） */
+export const MAX_COMMENT_MEDIA_FREE = 2
+/** プレミアムプラン: コメントに添付可能なメディアの最大数（画像2枚 + 動画1本） */
+export const MAX_COMMENT_MEDIA_PREMIUM = 3
 
 /** 盆栽記録の画像最大枚数 */
 export const MAX_BONSAI_RECORD_IMAGES = 4
@@ -34,8 +36,11 @@ export const MAX_REVIEW_IMAGE_SIZE = 4 * 1024 * 1024
 /** コメントに添付可能な画像の最大枚数 */
 export const MAX_COMMENT_IMAGES = 2
 
-/** コメントに添付可能な動画の最大本数 */
-export const MAX_COMMENT_VIDEOS = 1
+/** 無料プラン: コメントに添付可能な動画の最大本数（動画投稿はプレミアム限定のため 0） */
+export const MAX_COMMENT_VIDEOS_FREE = 0
+
+/** プレミアムプラン: コメントに添付可能な動画の最大本数 */
+export const MAX_COMMENT_VIDEOS_PREMIUM = 1
 
 /** 圧縮前の画像最大サイズ（10MB） */
 export const MAX_IMAGE_SIZE_BEFORE_COMPRESSION = 10 * 1024 * 1024

@@ -180,7 +180,7 @@ graph TD
 
     B --> B1[テキスト<br/>500文字以内]
     B --> B2[画像<br/>最大4枚]
-    B --> B3[動画<br/>最大1本<br/>※画像と排他]
+    B --> B3[動画<br/>最大1本・プレミアム限定<br/>※画像と排他]
     B --> B4[ジャンルタグ<br/>1〜3つ、必須]
 
     C --> C1[他の投稿 +<br/>自分のコメント]
@@ -202,7 +202,7 @@ graph TD
 | 項目 | 制約 | 理由 |
 |------|------|------|
 | **テキスト** | 最大500文字 | 短い文章で要点を伝える文化を育成。X（旧Twitter）の280文字より長く、ブログよりは短い「ちょうどいい長さ」 |
-| **メディア** | 画像4枚 **または** 動画1本（排他） | 画像と動画の混在はUIが複雑になるため排他に。盆栽の写真は複数アングルが重要なので4枚まで許可 |
+| **メディア** | 画像4枚 **または** 動画1本（排他。動画はプレミアム会員限定） | 画像と動画の混在はUIが複雑になるため排他に。盆栽の写真は複数アングルが重要なので4枚まで許可 |
 | **ジャンルタグ** | 最大3つ（必須） | 投稿の分類を必須にすることで、検索・フィルタリングの品質を担保 |
 | **投稿制限** | 1日20件まで | スパム・botによる大量投稿を防止 |
 | **コメント制限** | 1日100件まで | コメントスパムの防止 |
@@ -296,7 +296,7 @@ flowchart LR
 
     subgraph Validate[検証]
         B1[文字数チェック<br/>500文字以内]
-        B2[メディア数チェック<br/>画像4枚 or 動画1本]
+        B2[メディア数チェック<br/>画像4枚 or 動画1本※プレミアム限定]
         B3[ジャンルチェック<br/>1〜3つ選択済み]
         B4[投稿数制限<br/>1日20件未満]
     end
@@ -1910,7 +1910,7 @@ export default async function FeedPage() {
     getGenres(),
     session?.user?.id
       ? getMembershipLimits(session.user.id)
-      : Promise.resolve({ maxPostLength: 500, maxImages: 4, maxVideos: 1 }),
+      : Promise.resolve({ maxPostLength: 500, maxImages: 4, maxVideos: 0 }),
     getDraftCount(),
   ])
 
@@ -4397,7 +4397,7 @@ BON-LOGでは、無料会員とプレミアム会員の2つの会員種別があ
 |------|---------|--------------|
 | 投稿文字数 | 500文字 | 2,000文字 |
 | 画像枚数 | 4枚 | 10枚 |
-| 動画数 | 1本 | 3本 |
+| 動画数 | 添付不可 | 1本 |
 | 1日の投稿数 | 20件 | 40件 |
 | 予約投稿 | 不可 | 可能 |
 | 分析機能 | 不可 | 可能 |
@@ -4424,7 +4424,7 @@ export interface MembershipLimits {
 const FREE_LIMITS: MembershipLimits = {
   maxPostLength: 500,
   maxImages: 4,
-  maxVideos: 1,
+  maxVideos: 0,
   maxDailyPosts: 20,
   canSchedulePost: false,
   canViewAnalytics: false,
@@ -4434,7 +4434,7 @@ const FREE_LIMITS: MembershipLimits = {
 const PREMIUM_LIMITS: MembershipLimits = {
   maxPostLength: 2000,
   maxImages: 10,
-  maxVideos: 3,
+  maxVideos: 1,
   maxDailyPosts: 40,
   canSchedulePost: true,
   canViewAnalytics: true,
@@ -7136,7 +7136,7 @@ flowchart LR
 const FREE_LIMITS: MembershipLimits = {
   maxPostLength: 500,       // 500文字（Twitterと同程度）
   maxImages: 4,             // 4枚（SNSの標準的な上限）
-  maxVideos: 1,             // 1本（ストレージコスト考慮）
+  maxVideos: 0,             // 添付不可（ストレージコスト考慮、動画はプレミアム限定）
   maxDailyPosts: 20,        // 20件/日（スパム対策）
   canSchedulePost: false,   // 予約投稿: 不可
   canViewAnalytics: false,  // 分析機能: 不可
@@ -7146,7 +7146,7 @@ const FREE_LIMITS: MembershipLimits = {
 const PREMIUM_LIMITS: MembershipLimits = {
   maxPostLength: 2000,      // 2000文字（4倍に拡張）
   maxImages: 6,             // 6枚（1.5倍に拡張）
-  maxVideos: 3,             // 3本（3倍に拡張）
+  maxVideos: 1,             // 1本（プレミアムのみ動画添付可）
   maxDailyPosts: 40,        // 40件/日（2倍に拡張）
   canSchedulePost: true,    // 予約投稿: 可能
   canViewAnalytics: true,   // 分析機能: 可能
@@ -7160,7 +7160,7 @@ const PREMIUM_LIMITS: MembershipLimits = {
   ──────────────┼────────┼────────────┼──────
   投稿文字数    │  500   │  2,000     │  4.0x
   画像枚数      │  4     │  6         │  1.5x
-  動画数        │  1     │  3         │  3.0x
+  動画数        │  0     │  1         │  -
   1日の投稿数   │  20    │  40        │  2.0x
   予約投稿      │  ✗     │  ✓         │  -
   分析機能      │  ✗     │  ✓         │  -
@@ -7904,7 +7904,7 @@ function handleClick() {
 }
 ```
 
-### Q: 画像は4枚 + 動画は1本の制限はどこでチェックする？
+### Q: 画像は4枚 + 動画は1本（プレミアム限定）の制限はどこでチェックする？
 
 **A**: クライアントサイド（即座のフィードバック）とサーバーサイド（セキュリティ）の両方です。
 

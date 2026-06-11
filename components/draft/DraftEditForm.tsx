@@ -11,7 +11,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { saveDraft, publishDraft, deleteDraft } from '@/lib/actions/draft'
 import { GenreSelector } from '@/components/post/GenreSelector'
 import { useMediaUpload } from '@/components/post/hooks/useMediaUpload'
-import { MAX_BONSAI_RECORD_IMAGES, MAX_POST_CONTENT_FREE, DRAFT_AUTOSAVE_DELAY_MS, DRAFT_AUTOSAVE_SAVED_DISPLAY_MS } from '@/lib/constants/limits'
+import {
+  MAX_BONSAI_RECORD_IMAGES,
+  MAX_POST_CONTENT_FREE,
+  DRAFT_AUTOSAVE_DELAY_MS,
+  DRAFT_AUTOSAVE_SAVED_DISPLAY_MS,
+  MAX_POST_VIDEOS_FREE,
+  MAX_POST_VIDEOS_PREMIUM,
+} from '@/lib/constants/limits'
 import { ROUTE_DRAFTS, ROUTE_FEED } from '@/lib/constants/routes'
 import { SharedMediaUploadSection } from '@/components/common/SharedMediaUploadSection'
 import { Check as CheckIcon, Trash2 as TrashIcon } from 'lucide-react'
@@ -25,11 +32,15 @@ import {
   MSG_DRAFT_SAVE_FAILED,
   MSG_ERROR_FALLBACK,
 } from '@/lib/constants/messages'
+import { usePremium } from '@/components/premium/PremiumContext'
 
 export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
 
   const router = useRouter()
   const queryClient = useQueryClient()
+  const isPremium = usePremium()
+
+  const maxVideos = isPremium ? MAX_POST_VIDEOS_PREMIUM : MAX_POST_VIDEOS_FREE
 
   const [content, setContent] = useState(draft.content || '')
   const [selectedGenres, setSelectedGenres] = useState<string[]>(
@@ -51,7 +62,7 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
     fileInputRef,
   } = useMediaUpload({
     maxImages: MAX_BONSAI_RECORD_IMAGES,
-    maxVideos: 1,
+    maxVideos,
     onError: setError,
   })
 
@@ -222,9 +233,10 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
           onFileSelect={handleFileSelect}
           onRemove={removeMedia}
           fileInputRef={fileInputRef}
-          maxTotal={MAX_BONSAI_RECORD_IMAGES}
+          maxTotal={MAX_BONSAI_RECORD_IMAGES + maxVideos}
+          maxVideos={maxVideos}
           buttonVariant="outline"
-          buttonLabel="画像を追加"
+          buttonLabel={maxVideos > 0 ? 'メディアを追加' : '画像を追加'}
           multiple={false}
         />
       </div>

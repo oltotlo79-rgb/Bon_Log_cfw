@@ -131,7 +131,7 @@ export const MAX_POST_CONTENT_PREMIUM = 2000
 export const MAX_POST_IMAGES_PREMIUM = 6
 
 /** プレミアムプラン: 投稿に添付可能な動画の最大本数 */
-export const MAX_POST_VIDEOS_PREMIUM = 3
+export const MAX_POST_VIDEOS_PREMIUM = 1
 
 /** プレミアムプラン: 1日の最大投稿数 */
 export const MAX_DAILY_POSTS_PREMIUM = 40

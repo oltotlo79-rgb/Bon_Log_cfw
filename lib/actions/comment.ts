@@ -20,13 +20,15 @@ import { checkUserRateLimit, checkDailyLimit } from '@/lib/rate-limit'
 import {
   MAX_COMMENT_LENGTH,
   MAX_COMMENT_IMAGES,
-  MAX_COMMENT_VIDEOS,
+  MAX_COMMENT_VIDEOS_FREE,
+  MAX_COMMENT_VIDEOS_PREMIUM,
   DAILY_COMMENT_LIMIT,
   DEFAULT_PAGE_LIMIT,
   MAX_IMAGE_SIZE,
   MAX_VIDEO_SIZE,
   REPLIES_PAGE_LIMIT,
 } from '@/lib/constants/limits'
+import { isPremiumUser } from '@/lib/premium'
 import {
   ERR_RATE_LIMIT_UPLOAD,
   ERR_COMMENT_CONTENT_REQUIRED,
@@ -119,7 +121,8 @@ export async function createComment(formData: FormData) {
 
   try {
     // メディアバリデーション（トランザクション外で可）
-    const mediaValidation = await validateMediaCounts(mediaUrls, mediaTypes, { maxImages: MAX_COMMENT_IMAGES, maxVideos: MAX_COMMENT_VIDEOS })
+    const maxVideos = (await isPremiumUser(userId)) ? MAX_COMMENT_VIDEOS_PREMIUM : MAX_COMMENT_VIDEOS_FREE
+    const mediaValidation = await validateMediaCounts(mediaUrls, mediaTypes, { maxImages: MAX_COMMENT_IMAGES, maxVideos })
     if (mediaValidation) return mediaValidation
 
     // 日次制限チェック + コメント作成をトランザクションで原子的に実行

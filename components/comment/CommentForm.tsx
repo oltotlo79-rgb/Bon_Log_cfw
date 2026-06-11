@@ -6,13 +6,16 @@ import { MentionTextarea } from '@/components/common/MentionTextarea'
 import { createComment } from '@/lib/actions/comment'
 import { useMediaUpload } from '@/components/post/hooks/useMediaUpload'
 import {
-  MAX_COMMENT_MEDIA,
   MAX_COMMENT_LENGTH,
   MAX_COMMENT_IMAGES,
-  MAX_COMMENT_VIDEOS,
+  MAX_COMMENT_VIDEOS_FREE,
+  MAX_COMMENT_VIDEOS_PREMIUM,
+  MAX_COMMENT_MEDIA_FREE,
+  MAX_COMMENT_MEDIA_PREMIUM,
 } from '@/lib/constants/limits'
 import { SharedMediaUploadSection } from '@/components/common/SharedMediaUploadSection'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
+import { usePremium } from '@/components/premium/PremiumContext'
 
 type CommentFormProps = {
   postId: string
@@ -34,6 +37,10 @@ export function CommentForm({
   const [content, setContent] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const isPremium = usePremium()
+
+  const maxVideos = isPremium ? MAX_COMMENT_VIDEOS_PREMIUM : MAX_COMMENT_VIDEOS_FREE
+  const maxCommentMedia = isPremium ? MAX_COMMENT_MEDIA_PREMIUM : MAX_COMMENT_MEDIA_FREE
 
   const {
     mediaFiles,
@@ -45,7 +52,7 @@ export function CommentForm({
     fileInputRef,
   } = useMediaUpload({
     maxImages: MAX_COMMENT_IMAGES,
-    maxVideos: MAX_COMMENT_VIDEOS,
+    maxVideos,
     onError: setError,
   })
 
@@ -117,7 +124,8 @@ export function CommentForm({
         onFileSelect={handleFileSelect}
         onRemove={removeMedia}
         fileInputRef={fileInputRef}
-        maxTotal={MAX_COMMENT_MEDIA}
+        maxTotal={maxCommentMedia}
+        maxVideos={maxVideos}
         disabled={isPending}
         multiple
       />
