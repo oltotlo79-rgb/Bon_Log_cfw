@@ -2,9 +2,9 @@
   "agent": "pm-orchestrator",
   "permissions": {
     "allow": [
-      "ViewFile",
-      "ListFiles",
-      "EditFile",
+      "Read",
+      "Glob",
+      "Edit",
       "WebFetch",
       "Bash(mkdir:*)",
       "mcp__filesystem__list_directory",
@@ -46,9 +46,9 @@
       "Bash(shutdown:*)",
       "Bash(reboot:*)",
       "Bash(chmod:*)",
-      "ViewFile(.env*)",
-      "ViewFile(~/.ssh/*)",
-      "ViewFile(.git/*)"
+      "Read(**/.env*)",
+      "Read(**/.ssh/**)",
+      "Read(**/.git/**)"
     ],
     "defaultMode": "bypassPermissions"
   },

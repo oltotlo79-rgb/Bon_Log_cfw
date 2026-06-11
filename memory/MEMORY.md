@@ -1,0 +1,3 @@
+- [Project relationship](project-relationship.md) — Bon_Log_cfw is a fly.io-migration copy of bonnsa-sns; how to sync
+- [fly.io deployment](flyio-deployment.md) — fly app bon-log (nrt) config, deploy path, gotchas; live on custom domain www.bon-log.com (cutover 2026-06-07)
+- [Prod DB & test data](prod-db-and-test-data.md) — prod = Supabase yxwmnimyzcmseshtittp via .env.local (NOT the supabase MCP project); pg-script access; E2E-against-prod orphan cleanup
