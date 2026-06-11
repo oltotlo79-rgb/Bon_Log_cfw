@@ -125,7 +125,7 @@ describe('PostEditForm', () => {
     await waitFor(() => {
       expect(mockUpdatePost).toHaveBeenCalledTimes(1)
     })
-    const [postId, formData] = mockUpdatePost.mock.calls[0]
+    const [postId, formData] = mockUpdatePost.mock.calls[0]!
     expect(postId).toBe('post-1')
     expect(formData).toBeInstanceOf(FormData)
     expect(formData.get('content')).toBe('更新後の本文')

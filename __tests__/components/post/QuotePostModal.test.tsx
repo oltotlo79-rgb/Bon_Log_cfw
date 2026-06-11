@@ -54,7 +54,7 @@ describe('QuotePostModal', () => {
     await waitFor(() => {
       expect(mockCreateQuotePost).toHaveBeenCalledTimes(1)
     })
-    const [formData, quoteId] = mockCreateQuotePost.mock.calls[0]
+    const [formData, quoteId] = mockCreateQuotePost.mock.calls[0]!
     expect(quoteId).toBe('post-1')
     expect(formData).toBeInstanceOf(FormData)
     expect(formData.get('content')).toBe('いい木ですね')

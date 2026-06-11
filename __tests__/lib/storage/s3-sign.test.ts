@@ -285,7 +285,7 @@ describe('s3-sign', () => {
       await putObject(mockConfig, 'test.jpg', Buffer.from('data'), 'image/jpeg')
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0]!
       expect(url).toBe('https://abc123.r2.cloudflarestorage.com/test-bucket/test.jpg')
     })
 
@@ -379,7 +379,7 @@ describe('s3-sign', () => {
 
       await putObject(mockConfig, 'path/to/my file.jpg', Buffer.from('data'), 'image/jpeg')
 
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0]!
       expect(url).toContain('my%20file.jpg')
       expect(url).toContain('/path/to/')
     })
@@ -396,7 +396,7 @@ describe('s3-sign', () => {
       await deleteObject(mockConfig, 'test.jpg')
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
-      const [url, options] = mockFetch.mock.calls[0]
+      const [url, options] = mockFetch.mock.calls[0]!
       expect(url).toBe('https://abc123.r2.cloudflarestorage.com/test-bucket/test.jpg')
       expect(options.method).toBe('DELETE')
     })
@@ -476,7 +476,7 @@ describe('s3-sign', () => {
 
       await listObjects(mockConfig)
 
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0]!
       expect(url).toContain('list-type=2')
     })
 
@@ -539,7 +539,7 @@ describe('s3-sign', () => {
 
       await listObjects(mockConfig, { maxKeys: 10 })
 
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0]!
       expect(url).toContain('max-keys=10')
     })
 
@@ -553,7 +553,7 @@ describe('s3-sign', () => {
 
       await listObjects(mockConfig, { continuationToken: 'mytoken' })
 
-      const [url] = mockFetch.mock.calls[0]
+      const [url] = mockFetch.mock.calls[0]!
       expect(url).toContain('continuation-token=mytoken')
     })
 

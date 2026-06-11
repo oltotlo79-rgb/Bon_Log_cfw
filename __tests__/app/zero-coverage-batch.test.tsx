@@ -250,7 +250,7 @@ describe('VisitorBeacon', () => {
     const { VisitorBeacon } = await import('@/components/analytics/VisitorBeacon')
     const { rerender } = render(<VisitorBeacon />)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchSpy.mock.calls[0]
+    const [url, init] = fetchSpy.mock.calls[0]!
     expect(url).toBe('/api/analytics/track')
     expect(init).toMatchObject({
       method: 'POST',

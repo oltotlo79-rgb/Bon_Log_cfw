@@ -252,14 +252,19 @@ describe('Utils Actions', async () => {
   // ============================================================
 
   describe('getStartOfToday', async () => {
-    it('今日の0時0分0秒のDateを返す', async () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('JST 今日の 00:00:00 を UTC で表現した Date を返す（= UTC 前日 15:00:00）', async () => {
+      // 2026-06-10T03:00:00.000Z = JST 2026-06-10 12:00:00
+      // JST 今日 00:00 = UTC 2026-06-09T15:00:00.000Z
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-10T03:00:00.000Z'))
       const { getStartOfToday } = await import('@/lib/utils')
       const result = getStartOfToday()
 
-      const expected = new Date()
-      expected.setHours(0, 0, 0, 0)
-
-      expect(result.getTime()).toBe(expected.getTime())
+      expect(result.toISOString()).toBe('2026-06-09T15:00:00.000Z')
     })
 
     it('返り値はDateオブジェクトである', async () => {
@@ -269,14 +274,18 @@ describe('Utils Actions', async () => {
       expect(result).toBeInstanceOf(Date)
     })
 
-    it('時刻部分が全て0である', async () => {
+    it('UTC 表現での分・秒・ミリ秒が全て 0 である（JST 00:00 = UTC 15:00:00.000）', async () => {
+      // getStartOfToday() は JST 固定の実装であるため、実行環境の TZ に依存しない。
+      // UTC 環境では getHours() は 15 を返す（JST 00:00 = UTC 15:00）のが正しい動作。
+      // 分・秒・ミリ秒が 0 であることを UTC API で検証する。
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-10T03:00:00.000Z'))
       const { getStartOfToday } = await import('@/lib/utils')
       const result = getStartOfToday()
 
-      expect(result.getHours()).toBe(0)
-      expect(result.getMinutes()).toBe(0)
-      expect(result.getSeconds()).toBe(0)
-      expect(result.getMilliseconds()).toBe(0)
+      expect(result.getUTCMinutes()).toBe(0)
+      expect(result.getUTCSeconds()).toBe(0)
+      expect(result.getUTCMilliseconds()).toBe(0)
     })
   })
 
