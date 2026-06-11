@@ -11,13 +11,17 @@ vi.mock('@/lib/rate-limit', () => ({
   checkDailyLimit: vi.fn(),
 }))
 
-// MAX_VIDEO_SIZE を 256MB に固定したい一方で、他の制限値（MAX_IMAGE_SIZE 等）は
-// errors/content.ts が依存しているため実値を維持する必要がある。
+// isPremiumUser: デフォルトでプレミアム会員として扱い、既存のテストが通過するようにする。
+// 非プレミアムの 403 テストは個別に mockResolvedValueOnce(false) でオーバーライドする。
+vi.mock('@/lib/premium', () => ({
+  isPremiumUser: vi.fn().mockResolvedValue(true),
+}))
+
+// MAX_VIDEO_SIZE は 80MB のまま（実値を使う）。他の制限値も実値を維持する。
 vi.mock('@/lib/constants/limits', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/constants/limits')>()
   return {
     ...actual,
-    MAX_VIDEO_SIZE: 256 * 1024 * 1024,
     PRESIGNED_URL_EXPIRY_SECONDS: 3600,
   }
 })
@@ -148,16 +152,39 @@ describe('POST /api/upload/presigned', async () => {
     expect(data.error).toContain('contentType')
   })
 
-  it('ファイルサイズ超過で400を返す', async () => {
+  it('ファイルサイズ超過で400を返す（100MB > 80MB）', async () => {
     const { POST } = await import('@/app/api/upload/presigned/route')
     const response = await POST(createRequest({
       ...validBody,
-      fileSize: 300 * 1024 * 1024, // 300MB > 256MB
+      fileSize: 100 * 1024 * 1024, // 100MB > 80MB
     }))
 
     expect(response.status).toBe(400)
     const data = await response.json()
     expect(data.error).toContain('MB以下')
+  })
+
+  it('80MB+1バイトでもファイルサイズ超過エラーになる（境界値テスト）', async () => {
+    const { POST } = await import('@/app/api/upload/presigned/route')
+    const response = await POST(createRequest({
+      ...validBody,
+      fileSize: 80 * 1024 * 1024 + 1,
+    }))
+
+    expect(response.status).toBe(400)
+    const data = await response.json()
+    expect(data.error).toContain('MB以下')
+  })
+
+  it('80MB丁度はファイルサイズ超過エラーにならない（境界値テスト）', async () => {
+    const { POST } = await import('@/app/api/upload/presigned/route')
+    const response = await POST(createRequest({
+      ...validBody,
+      fileSize: 80 * 1024 * 1024,
+    }))
+
+    // 80MB ちょうどは Zod バリデーションをパスしてR2設定チェックに進む
+    expect(response.status).not.toBe(400)
   })
 
   it('R2環境変数未設定で500を返す', async () => {
@@ -291,5 +318,17 @@ describe('POST /api/upload/presigned', async () => {
     expect(response.status).toBe(500)
     const data = await response.json()
     expect(data.error).toBe('署名付きURLの生成に失敗しました')
+  })
+
+  it('非プレミアム会員は403と ERR_VIDEO_PREMIUM_ONLY を返す', async () => {
+    const { isPremiumUser } = await import('@/lib/premium')
+    vi.mocked(isPremiumUser).mockResolvedValueOnce(false)
+
+    const { POST } = await import('@/app/api/upload/presigned/route')
+    const response = await POST(createRequest(validBody))
+
+    expect(response.status).toBe(403)
+    const data = await response.json()
+    expect(data.error).toBe('動画の投稿はプレミアム会員限定です')
   })
 })

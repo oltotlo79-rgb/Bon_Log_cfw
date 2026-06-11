@@ -20,8 +20,8 @@ describe('client-image-compression', async () => {
       expect(MAX_IMAGE_SIZE).toBe(10 * 1024 * 1024)
     })
 
-    it('MAX_VIDEO_SIZEが256MBに設定されている', () => {
-      expect(MAX_VIDEO_SIZE).toBe(256 * 1024 * 1024)
+    it('MAX_VIDEO_SIZEが80MBに設定されている', () => {
+      expect(MAX_VIDEO_SIZE).toBe(80 * 1024 * 1024)
     })
   })
 
@@ -159,7 +159,7 @@ describe('client-image-compression', async () => {
 
     it('大きなファイルサイズを処理する', () => {
       expect(formatFileSize(MAX_IMAGE_SIZE)).toBe('10 MB')
-      expect(formatFileSize(MAX_VIDEO_SIZE)).toBe('256 MB')
+      expect(formatFileSize(MAX_VIDEO_SIZE)).toBe('80 MB')
     })
   })
 
@@ -249,9 +249,9 @@ describe('client-image-compression', async () => {
     })
 
     it('一般的な動画サイズが制限内', () => {
-      // 100MBの動画
-      const hundredMB = 100 * 1024 * 1024
-      expect(hundredMB <= MAX_VIDEO_SIZE).toBe(true)
+      // 50MBの動画（80MB上限内）
+      const fiftyMB = 50 * 1024 * 1024
+      expect(fiftyMB <= MAX_VIDEO_SIZE).toBe(true)
     })
   })
 
@@ -449,13 +449,13 @@ describe('client-image-compression', async () => {
     })
 
     it('ファイルサイズエラーの形式', () => {
-      const fileSize = 300 * 1024 * 1024 // 300MB
-      const maxSize = 256 * 1024 * 1024 // 256MB
+      const fileSize = 100 * 1024 * 1024 // 100MB
+      const maxSize = 80 * 1024 * 1024 // 80MB
 
       const errorMessage = `動画は${maxSize / 1024 / 1024}MB以下にしてください（現在: ${(fileSize / 1024 / 1024).toFixed(1)}MB）`
 
-      expect(errorMessage).toContain('256MB')
-      expect(errorMessage).toContain('300.0MB')
+      expect(errorMessage).toContain('80MB')
+      expect(errorMessage).toContain('100.0MB')
     })
   })
 
@@ -788,7 +788,7 @@ describe('client-image-compression', async () => {
       const result = await uploadVideoToR2(largeFile)
 
       expect(result.error).toBeDefined()
-      expect(result.error).toContain('256MB')
+      expect(result.error).toContain('80MB')
     })
 
     it('Presigned URL取得失敗時にエラーを返す', async () => {
@@ -1038,8 +1038,8 @@ describe('client-image-compression', async () => {
       expect(MAX_IMAGE_SIZE).toBe(10485760)
     })
 
-    it('MAX_VIDEO_SIZEはバイト単位で268435456である', () => {
-      expect(MAX_VIDEO_SIZE).toBe(268435456)
+    it('MAX_VIDEO_SIZEはバイト単位で83886080である', () => {
+      expect(MAX_VIDEO_SIZE).toBe(83886080)
     })
 
     it('MAX_IMAGE_SIZEがMAX_VIDEO_SIZEより小さい', () => {

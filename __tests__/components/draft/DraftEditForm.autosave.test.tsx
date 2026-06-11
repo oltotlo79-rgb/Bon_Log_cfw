@@ -54,7 +54,7 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: vi.fn().mockReturnValue(false),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: vi.fn(),
 }))
 

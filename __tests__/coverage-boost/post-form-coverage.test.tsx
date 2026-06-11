@@ -1,3 +1,4 @@
+import React from 'react'
 import { vi } from 'vitest'
 /**
  * PostForm / PostFormModal カバレッジ向上テスト
@@ -61,7 +62,7 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
@@ -97,10 +98,21 @@ const mockGenres = {
   ],
 }
 
+// 動画テストにはプレミアム制限値を渡す（maxVideos=1 で動画アップロードが許可される）
+const premiumLimits = {
+  maxPostLength: 500,
+  maxImages: 4,
+  maxVideos: 1,
+  maxDailyPosts: 20,
+  canSchedulePost: false,
+  canViewAnalytics: false,
+}
+
 const modalDefaultProps = {
   genres: mockGenres,
   isOpen: true,
   onClose: vi.fn(),
+  limits: premiumLimits,
 }
 
 // ============================================================
@@ -271,7 +283,7 @@ describe('PostForm - coverage boost', () => {
       mockIsVideoFile.mockReturnValue(true)
       mockUploadVideoToR2.mockResolvedValue({ url: '/video1.mp4' })
 
-      const { container } = render(<PostForm genres={mockGenres} />)
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       // 1本目の動画をアップロード
@@ -306,7 +318,7 @@ describe('PostForm - coverage boost', () => {
         }
       )
 
-      const { container } = render(<PostForm genres={mockGenres} />)
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       const file = new File(['vid'], 'test.mp4', { type: 'video/mp4' })
@@ -424,7 +436,7 @@ describe('PostForm - coverage boost', () => {
       mockIsVideoFile.mockReturnValue(true)
       mockUploadVideoToR2.mockResolvedValue({ url: '/video.mp4' })
 
-      const { container } = render(<PostForm genres={mockGenres} />)
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       const file = new File(['vid'], 'test.mp4', { type: 'video/mp4' })

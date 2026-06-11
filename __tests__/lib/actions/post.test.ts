@@ -961,14 +961,14 @@ describe('Post Actions', async () => {
 
       const { uploadPostMedia } = await import('@/lib/actions/post')
       const formData = new FormData()
-      // 257MB以上のファイル
-      const largeBuffer = new ArrayBuffer(257 * 1024 * 1024)
+      // 81MB以上のファイル（80MB上限）
+      const largeBuffer = new ArrayBuffer(81 * 1024 * 1024)
       const file = new File([largeBuffer], 'large-video.mp4', { type: 'video/mp4' })
       formData.append('file', file)
 
       const result = await uploadPostMedia(formData)
 
-      expect('error' in result && result.error).toBe('動画は256MB以下にしてください')
+      expect('error' in result && result.error).toBe('動画は80MB以下にしてください')
     })
 
     it('レート制限に達した場合はエラーを返す', async () => {

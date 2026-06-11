@@ -51,8 +51,14 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
+}))
+
+// DraftEditForm は usePremium() で動画上限を決める。プレミアム会員として動作させる。
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 class MockXHR {
@@ -179,10 +185,10 @@ describe('DraftEditForm', () => {
     expect(screen.getByRole('button', { name: /削除/ })).toBeInTheDocument()
   })
 
-  it('画像を追加ボタンを表示する', () => {
+  it('メディアを追加ボタンを表示する（プレミアム）', () => {
     render(<DraftEditForm draft={mockDraft} genres={mockGenres} />)
 
-    expect(screen.getByRole('button', { name: /画像を追加/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /メディアを追加/ })).toBeInTheDocument()
   })
 
   describe('保存機能', () => {
@@ -628,19 +634,21 @@ describe('DraftEditForm', () => {
       })
     })
 
-    it('画像を追加ボタンは4枚以上で無効化される', () => {
-      const draftWith4Media = {
+    it('メディアを追加ボタンはmaxTotal以上で無効化される（プレミアム: 画像4+動画1=5件）', () => {
+      // プレミアム: maxImages=4, maxVideos=1 → maxTotal=5
+      const draftWith5Media = {
         ...mockDraft,
         media: [
           { id: '1', url: '/img1.jpg', type: 'image' },
           { id: '2', url: '/img2.jpg', type: 'image' },
           { id: '3', url: '/img3.jpg', type: 'image' },
           { id: '4', url: '/img4.jpg', type: 'image' },
+          { id: '5', url: '/vid.mp4', type: 'video' },
         ],
       }
-      render(<DraftEditForm draft={draftWith4Media} genres={mockGenres} />)
+      render(<DraftEditForm draft={draftWith5Media} genres={mockGenres} />)
 
-      expect(screen.getByRole('button', { name: /画像を追加/ })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /メディアを追加/ })).toBeDisabled()
     })
 
     it('プレースホルダが「いまどうしてる？」になっている', () => {
@@ -829,7 +837,7 @@ describe('DraftEditForm', () => {
       fireEvent.change(fileInput)
 
       await waitFor(() => {
-        expect(screen.getByText(/動画は256MB以下にしてください/)).toBeInTheDocument()
+        expect(screen.getByText(/動画は80MB以下にしてください/)).toBeInTheDocument()
       })
     })
 

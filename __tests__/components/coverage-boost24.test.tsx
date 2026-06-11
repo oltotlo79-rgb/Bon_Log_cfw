@@ -1,3 +1,4 @@
+import React from 'react'
 import { vi } from 'vitest'
 
 const mockClientLoggerError = vi.fn()
@@ -433,7 +434,13 @@ vi.mock('@/lib/client-image-compression', () => ({
   formatFileSize: vi.fn((size) => `${size} bytes`),
   uploadVideoToR2: vi.fn(),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 100 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
+}))
+
+// CommentForm は usePremium() で動画上限を決める。プレミアム会員として動作させる。
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 vi.mock('next/image', () => ({
@@ -547,7 +554,6 @@ describe('CommentForm', async () => {
 
   test('動画ファイルサイズ超過エラー', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
-    const { MAX_VIDEO_SIZE } = await import('@/lib/client-image-compression')
 
     vi.mocked(isVideoFile).mockReturnValue(true)
 
@@ -555,7 +561,9 @@ describe('CommentForm', async () => {
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
-    const largeVideo = new File(['x'.repeat(MAX_VIDEO_SIZE + 1)], 'large.mp4', { type: 'video/mp4' })
+    // Object.defineProperty でサイズを偽装することで大量メモリ確保を回避する
+    const largeVideo = new File(['x'], 'large.mp4', { type: 'video/mp4' })
+    Object.defineProperty(largeVideo, 'size', { value: 100 * 1024 * 1024, configurable: true })
     Object.defineProperty(fileInput, 'files', {
       value: [largeVideo],
       writable: true,
@@ -569,7 +577,6 @@ describe('CommentForm', async () => {
 
   test('画像ファイルサイズ超過エラー', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
-    const { MAX_IMAGE_SIZE } = await import('@/lib/client-image-compression')
 
     vi.mocked(isVideoFile).mockReturnValue(false)
 
@@ -577,7 +584,9 @@ describe('CommentForm', async () => {
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
-    const largeImage = new File(['x'.repeat(MAX_IMAGE_SIZE + 1)], 'large.jpg', { type: 'image/jpeg' })
+    // Object.defineProperty でサイズを偽装することで大量メモリ確保を回避する
+    const largeImage = new File(['x'], 'large.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(largeImage, 'size', { value: 15 * 1024 * 1024, configurable: true })
     Object.defineProperty(fileInput, 'files', {
       value: [largeImage],
       writable: true,

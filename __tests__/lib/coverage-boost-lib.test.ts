@@ -131,6 +131,6 @@ describe('client-image-compression utilities', async () => {
   it('MAX_IMAGE_SIZE and MAX_VIDEO_SIZE are exported', async () => {
     const { MAX_IMAGE_SIZE, MAX_VIDEO_SIZE } = await import('@/lib/client-image-compression')
     expect(MAX_IMAGE_SIZE).toBe(10 * 1024 * 1024)
-    expect(MAX_VIDEO_SIZE).toBe(256 * 1024 * 1024)
+    expect(MAX_VIDEO_SIZE).toBe(80 * 1024 * 1024)
   })
 })

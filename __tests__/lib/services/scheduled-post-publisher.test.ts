@@ -36,9 +36,27 @@ vi.mock('@/lib/constants/status', () => ({
   },
 }))
 
-vi.mock('@/lib/constants/limits', () => ({
-  CRON_BATCH_SIZE: 50,
+vi.mock('@/lib/constants/limits', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/constants/limits')>()
+  return { ...actual, CRON_BATCH_SIZE: 50 }
+})
+
+// getMembershipLimits / isPremiumUser は publisher が使う。
+// デフォルトで無料会員制限を返す（動画なし投稿の正常ケースで影響なし）。
+vi.mock('@/lib/premium', () => ({
+  getMembershipLimits: vi.fn().mockResolvedValue({ maxPostLength: 500, maxImages: 4, maxVideos: 0, maxDailyPosts: 20, canSchedulePost: false, canViewAnalytics: false }),
+  isPremiumUser: vi.fn().mockResolvedValue(false),
 }))
+
+// validateMediaCounts は publisher が lib/actions/utils からインポートする。
+// utils の依存先（redis, rate-limit, auth）を個別にスタブしてロードを通す。
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }),
+  checkDailyLimit: vi.fn().mockResolvedValue({ allowed: true, count: 0, limit: 50 }),
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: {},
+}))
+vi.mock('@/lib/auth', () => ({ auth: vi.fn().mockResolvedValue(null) }))
 
 describe('publishDueScheduledPosts', async () => {
   const { publishDueScheduledPosts } = await import('@/lib/services/scheduled-post-publisher')
@@ -351,5 +369,29 @@ describe('publishDueScheduledPosts', async () => {
     await publishDueScheduledPosts()
 
     expect(mockGenreCreateMany).not.toHaveBeenCalled()
+  })
+
+  it('無料会員の予約投稿に動画が含まれる場合、メディアバリデーションで FAILED に更新する', async () => {
+    // getMembershipLimits はデフォルトで maxVideos:0 を返す
+    mockFindMany.mockResolvedValueOnce([
+      {
+        id: 'sp-video-free',
+        userId: 'user-1',
+        content: '動画付き予約投稿',
+        user: { id: 'user-1', isSuspended: false },
+        media: [{ url: '/video.mp4', type: 'video', sortOrder: 0 }],
+        genres: [],
+      },
+    ])
+
+    const result = await publishDueScheduledPosts()
+
+    expect(result.failedCount).toBe(1)
+    expect(result.publishedCount).toBe(0)
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: 'failed' },
+      })
+    )
   })
 })

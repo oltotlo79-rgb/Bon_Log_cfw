@@ -1,3 +1,4 @@
+import React from 'react'
 import { vi } from 'vitest'
 /**
  * Coverage boost tests for:
@@ -135,8 +136,14 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
+}))
+
+// DraftEditForm は usePremium() で動画上限を決める。プレミアム会員として動作させる。
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 // XHR mock helpers
@@ -191,10 +198,12 @@ import { TwoFactorSettings } from '@/components/settings/TwoFactorSettings'
 
 describe('PostFormModal - coverage boost', () => {
   const mockGenres = { '松柏類': [{ id: 'genre-1', name: '黒松', category: '松柏類' }] }
+  // limits に maxVideos:1 を含める（動画アップロードテストに必要）
   const defaultProps = {
     genres: mockGenres,
     isOpen: true,
     onClose: vi.fn(),
+    limits: { maxPostLength: 500, maxImages: 4, maxVideos: 1, maxDailyPosts: 20, canSchedulePost: false, canViewAnalytics: false },
   }
 
   beforeEach(() => {

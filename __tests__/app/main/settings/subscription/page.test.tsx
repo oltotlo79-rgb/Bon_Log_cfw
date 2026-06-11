@@ -130,7 +130,7 @@ describe('SubscriptionPage', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: /ご利用中の特典/ })).toBeInTheDocument()
     expect(screen.getByText(/投稿文字数 2000 文字まで/)).toBeInTheDocument()
-    expect(screen.getByText(/画像添付 6 枚・動画添付 3 本まで/)).toBeInTheDocument()
+    expect(screen.getByText(/画像添付 6 枚・動画添付 1 本まで/)).toBeInTheDocument()
     expect(screen.getByText(/予約投稿機能/)).toBeInTheDocument()
     expect(screen.getByText(/投稿分析ダッシュボード/)).toBeInTheDocument()
     expect(screen.getByText(/広告非表示（サイト全体）/)).toBeInTheDocument()

@@ -14,6 +14,7 @@
  * - draftId absent: no auto-save indicator displayed
  */
 
+import React from 'react'
 import { vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
@@ -68,7 +69,7 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
@@ -76,6 +77,16 @@ const mockGenres = {
   '松柏類': [
     { id: 'genre-1', name: '黒松', category: '松柏類' },
   ],
+}
+
+// 動画テストにはプレミアム制限値を渡す（maxVideos=1 で動画アップロードが許可される）
+const premiumLimits = {
+  maxPostLength: 500,
+  maxImages: 4,
+  maxVideos: 1,
+  maxDailyPosts: 20,
+  canSchedulePost: false,
+  canViewAnalytics: false,
 }
 
 describe('PostForm - extra uncovered branches', () => {
@@ -90,11 +101,11 @@ describe('PostForm - extra uncovered branches', () => {
   // ----------------------------------------------------------------
   it('動画ファイルサイズ超過時にエラーを表示しアップロードしない', async () => {
     mockIsVideoFile.mockReturnValue(true)
-    const { container } = render(<PostForm genres={mockGenres} />)
+    const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
     const largeVideo = new File(['x'], 'big.mp4', { type: 'video/mp4' })
-    Object.defineProperty(largeVideo, 'size', { value: 300 * 1024 * 1024 }) // 300MB > 256MB
+    Object.defineProperty(largeVideo, 'size', { value: 100 * 1024 * 1024 }) // 100MB > 80MB
 
     Object.defineProperty(fileInput, 'files', { value: [largeVideo], configurable: true })
     fireEvent.change(fileInput)
@@ -132,7 +143,7 @@ describe('PostForm - extra uncovered branches', () => {
     mockIsVideoFile.mockReturnValue(true)
     mockUploadVideoToR2.mockResolvedValue({ error: '動画アップロード失敗' })
 
-    const { container } = render(<PostForm genres={mockGenres} />)
+    const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
     const video = new File(['vid'], 'test.mp4', { type: 'video/mp4' })

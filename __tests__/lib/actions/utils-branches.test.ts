@@ -243,6 +243,28 @@ describe('utils.ts - 未カバー分岐', () => {
 
       expect(result).toBeNull()
     })
+
+    it('maxVideos===0 のとき動画1本でもERR_VIDEO_PREMIUM_ONLYを返す', async () => {
+      const { validateMediaCounts } = await import('@/lib/actions/utils')
+      const result = await validateMediaCounts(
+        ['u1'],
+        ['video'],
+        { maxImages: 4, maxVideos: 0 }
+      )
+
+      expect(result).toMatchObject({ success: false, error: '動画の投稿はプレミアム会員限定です' })
+    })
+
+    it('maxVideos===0 のとき画像のみなら成功する', async () => {
+      const { validateMediaCounts } = await import('@/lib/actions/utils')
+      const result = await validateMediaCounts(
+        ['u1', 'u2'],
+        ['image', 'image'],
+        { maxImages: 4, maxVideos: 0 }
+      )
+
+      expect(result).toBeNull()
+    })
   })
 
   // ================================================================

@@ -32,6 +32,12 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), 
 vi.mock('@/lib/services/usage', () => ({
   getMembershipLimits: vi.fn().mockResolvedValue({ maxPostLength: 500, maxImages: 4, maxVideos: 1 }),
 }))
+// getMembershipLimits: maxVideos=1（プレミアム動画上限）だが、それ以外は無料会員の制限値を維持する。
+// こうすることで「501文字は上限超過」「画像5枚は上限超過」「動画2本は上限超過」が検証できる。
+vi.mock('@/lib/premium', () => ({
+  isPremiumUser: vi.fn().mockResolvedValue(true),
+  getMembershipLimits: vi.fn().mockResolvedValue({ maxPostLength: 500, maxImages: 4, maxVideos: 1, maxDailyPosts: 20, canSchedulePost: false, canViewAnalytics: false }),
+}))
 
 beforeEach(() => {
   vi.clearAllMocks()

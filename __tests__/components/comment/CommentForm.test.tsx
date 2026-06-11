@@ -24,6 +24,13 @@ vi.mock('@/lib/actions/mention', () => ({
   searchMentionUsers: vi.fn().mockResolvedValue([]),
 }))
 
+// CommentForm は usePremium() で動画上限を決める。
+// テストではプレミアム会員（maxVideos=1）として動作させる。
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 const mockPrepareFileForUpload = vi.fn()
 const mockIsVideoFile = vi.fn()
 const mockUploadVideoToR2 = vi.fn()
@@ -34,7 +41,7 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
@@ -637,7 +644,7 @@ describe('CommentForm', async () => {
     fireEvent.change(fileInput)
 
     await waitFor(() => {
-      expect(screen.getByText(/動画は256MB以下にしてください/)).toBeInTheDocument()
+      expect(screen.getByText(/動画は80MB以下にしてください/)).toBeInTheDocument()
     })
   })
 

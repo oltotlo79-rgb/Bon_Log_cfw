@@ -126,7 +126,13 @@ vi.mock('@/lib/client-image-compression', () => ({
     return Promise.resolve({ url: 'https://r2.example.com/video.mp4' })  // アップロード完了を返す
   }),
   MAX_IMAGE_SIZE: 4 * 1024 * 1024,  // 画像の最大サイズ：4MB
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,  // 動画の最大サイズ：256MB
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,  // 動画の最大サイズ：80MB
+}))
+
+// CommentForm は usePremium() で動画上限を決める。プレミアム会員として動作させる。
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 /**

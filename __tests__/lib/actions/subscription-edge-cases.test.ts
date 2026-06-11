@@ -297,7 +297,7 @@ describe('Subscription Actions Edge Cases', () => {
       expect(result.isPremium).toBe(true)
       expect(result.limits.maxPostLength).toBe(2000)
       expect(result.limits.maxImages).toBe(6)
-      expect(result.limits.maxVideos).toBe(3)
+      expect(result.limits.maxVideos).toBe(1)
       expect(result.limits.canSchedulePost).toBe(true)
       expect(result.limits.canViewAnalytics).toBe(true)
     })

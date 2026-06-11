@@ -69,16 +69,15 @@ describe('uploadCommentMedia', async () => {
     expect(result.error).toContain('4MB')
   })
 
-  it('rejects video larger than 256MB', async () => {
+  it('rejects video larger than 80MB', async () => {
     const { uploadCommentMedia } = await import('@/lib/actions/comment')
-    // Create a file object with a large size
     const file = new File(['x'], 'video.mp4', { type: 'video/mp4' })
-    Object.defineProperty(file, 'size', { value: 257 * 1024 * 1024 })
+    Object.defineProperty(file, 'size', { value: 81 * 1024 * 1024 })
     const formData = new FormData()
     formData.append('file', file)
     const result = await uploadCommentMedia(formData)
     expectError(result)
-    expect(result.error).toContain('256MB')
+    expect(result.error).toContain('80MB')
   })
 
   it('uploads image successfully', async () => {

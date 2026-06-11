@@ -491,8 +491,25 @@ describe('Comment Actions', async () => {
       expect('error' in result && result.error).toBe('画像は2枚までです')
     })
 
-    it('動画が上限を超える場合はエラーを返す', async () => {
+    it('無料会員が動画を添付しようとするとエラーを返す', async () => {
+      // isPremiumUser は prisma.user.findUnique を使う。
+      // isSuspended のみを持つモックは isPremium=undefined → false → 無料扱い。
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+
+      const { createComment } = await import('@/lib/actions/comment')
+      const formData = new FormData()
+      formData.append('postId', 'post-id')
+      formData.append('content', 'テストコメント')
+      formData.append('mediaUrls', 'https://example.com/video1.mp4')
+      formData.append('mediaTypes', 'video')
+      const result = await createComment(formData)
+
+      expect('error' in result && result.error).toBe('動画の投稿はプレミアム会員限定です')
+    })
+
+    it('プレミアム会員が動画上限を超える場合はエラーを返す', async () => {
+      // isPremiumUser → true にするため isPremium: true を返す
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPremium: true, premiumExpiresAt: null })
 
       const { createComment } = await import('@/lib/actions/comment')
       const formData = new FormData()

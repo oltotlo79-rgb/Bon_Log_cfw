@@ -41,13 +41,17 @@ describe('SharedMediaUploadSection - extra branches', () => {
     expect(video).toHaveAttribute('src', '/video.mp4')
   })
 
-  it('imagesOnly=true sets accept to image/*', () => {
+  it('imagesOnly=true sets accept to image types only (no video)', () => {
     const { container } = render(
       <SharedMediaUploadSection {...makeProps({ imagesOnly: true })} />
     )
 
     const input = container.querySelector('input[type="file"]')
-    expect(input).toHaveAttribute('accept', 'image/*')
+    const accept = input?.getAttribute('accept') ?? ''
+    // 画像MIMEが含まれることを確認
+    expect(accept).toContain('image/jpeg')
+    // 動画MIMEが含まれないことを確認
+    expect(accept).not.toContain('video/')
   })
 
   it('imagesOnly=false includes video types in accept', () => {

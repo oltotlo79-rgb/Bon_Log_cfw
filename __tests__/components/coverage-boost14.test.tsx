@@ -1,3 +1,4 @@
+import React from 'react'
 import { vi } from 'vitest'
 /* eslint-disable @next/next/no-img-element */
 /**
@@ -65,8 +66,14 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
+}))
+
+// CommentForm は usePremium() で動画上限を決める。プレミアム会員として動作させる。
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 // --- CommentForm mocks ---
@@ -229,6 +236,16 @@ const mockGenres: Record<string, { id: string; name: string; category: string }[
   '松柏類': [{ id: 'genre-1', name: '黒松', category: '松柏類' }],
 }
 
+// PostForm は limits prop で動画上限を決める。動画テストにはプレミアム制限値を渡す。
+const premiumLimits = {
+  maxPostLength: 2000,
+  maxImages: 6,
+  maxVideos: 1,
+  maxDailyPosts: 30,
+  canSchedulePost: true,
+  canViewAnalytics: true,
+}
+
 function createFile(name: string, size: number, type: string): File {
   const buffer = new ArrayBuffer(size)
   return new File([buffer], name, { type })
@@ -313,7 +330,7 @@ describe('PostForm - Coverage Boost', async () => {
     })
 
     it('shows error when video count exceeds max (1 video)', async () => {
-      const { container } = render(<PostForm genres={mockGenres} />)
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       // Upload 1 video successfully first
@@ -342,19 +359,19 @@ describe('PostForm - Coverage Boost', async () => {
   })
 
   describe('File size validation', async () => {
-    it('shows error when video exceeds 256MB', async () => {
-      const { container } = render(<PostForm genres={mockGenres} />)
+    it('shows error when video exceeds 80MB', async () => {
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       mockIsVideoFile.mockReturnValue(true)
-      const bigVideo = createFile('big.mp4', 300 * 1024 * 1024, 'video/mp4')
+      const bigVideo = createFile('big.mp4', 100 * 1024 * 1024, 'video/mp4')
 
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [bigVideo] } })
       })
 
       await waitFor(() => {
-        const errorMsg = screen.getByText(/動画は256MB以下にしてください/)
+        const errorMsg = screen.getByText(/動画は80MB以下にしてください/)
         expect(errorMsg).toBeInTheDocument()
       })
     })
@@ -709,7 +726,7 @@ describe('PostForm - Coverage Boost', async () => {
 
   describe('Video upload via R2', async () => {
     it('handles video upload error from R2', async () => {
-      const { container } = render(<PostForm genres={mockGenres} />)
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       mockIsVideoFile.mockReturnValue(true)
@@ -792,19 +809,19 @@ describe('CommentForm - Coverage Boost', async () => {
   })
 
   describe('File size validation', async () => {
-    it('shows error when video exceeds 256MB', async () => {
+    it('shows error when video exceeds 80MB', async () => {
       const { container } = render(<CommentForm postId="post-1" />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       mockIsVideoFile.mockReturnValue(true)
-      const bigVideo = createFile('big.mp4', 300 * 1024 * 1024, 'video/mp4')
+      const bigVideo = createFile('big.mp4', 100 * 1024 * 1024, 'video/mp4')
 
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [bigVideo] } })
       })
 
       await waitFor(() => {
-        expect(screen.getByText(/動画は256MB以下にしてください/)).toBeInTheDocument()
+        expect(screen.getByText(/動画は80MB以下にしてください/)).toBeInTheDocument()
       })
     })
 
@@ -1665,7 +1682,7 @@ describe('PostForm - Additional Coverage', async () => {
         return Promise.resolve({ url: '/video.mp4' })
       })
 
-      const { container } = render(<PostForm genres={mockGenres} />)
+      const { container } = render(<PostForm genres={mockGenres} limits={premiumLimits} />)
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
 
       mockIsVideoFile.mockReturnValue(true)

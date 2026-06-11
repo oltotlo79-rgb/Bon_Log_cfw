@@ -131,10 +131,14 @@ describe('SharedMediaUploadSection', () => {
     expect(fileSelectBtn).toBeDisabled()
   })
 
-  it('imagesOnly=trueの場合、image/*のみacceptする', () => {
+  it('imagesOnly=trueの場合、画像MIMEのみacceptする（動画を含まない）', () => {
     render(<SharedMediaUploadSection {...makeProps({ imagesOnly: true })} />)
     const input = document.querySelector('input[type="file"]')
-    expect(input).toHaveAttribute('accept', 'image/*')
+    const accept = input?.getAttribute('accept') ?? ''
+    // 画像MIMEが含まれることを確認
+    expect(accept).toContain('image/jpeg')
+    // 動画MIMEが含まれないことを確認
+    expect(accept).not.toContain('video/')
   })
 
   it('imagesOnly=falseの場合、画像と動画をacceptする', () => {

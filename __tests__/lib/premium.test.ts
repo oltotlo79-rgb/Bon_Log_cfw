@@ -90,7 +90,7 @@ describe('Premium Module', () => {
       expect(FREE_LIMITS).toEqual({
         maxPostLength: 500,        // 500文字まで
         maxImages: 4,              // 画像4枚まで
-        maxVideos: 1,              // 動画1本まで
+        maxVideos: 0,              // 動画0本（プレミアム限定）
         maxDailyPosts: 20,         // 1日20投稿まで
         canSchedulePost: false,    // 予約投稿は使えない
         canViewAnalytics: false,   // 詳細分析は使えない
@@ -122,7 +122,7 @@ describe('Premium Module', () => {
       expect(PREMIUM_LIMITS).toEqual({
         maxPostLength: 2000,       // 2000文字まで（無料の4倍）
         maxImages: 6,              // 画像6枚まで
-        maxVideos: 3,              // 動画3本まで
+        maxVideos: 1,              // 動画1本まで
         maxDailyPosts: 40,         // 1日40投稿まで（無料の2倍）
         canSchedulePost: true,     // 予約投稿が使える
         canViewAnalytics: true,    // 詳細分析が使える

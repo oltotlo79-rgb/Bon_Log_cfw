@@ -68,7 +68,7 @@ describe('PricingCard', () => {
     render(<PricingCard {...defaultProps} />)
     expect(screen.getByText('投稿文字数 2000文字')).toBeInTheDocument()
     expect(screen.getByText('画像添付 6枚まで')).toBeInTheDocument()
-    expect(screen.getByText('動画添付 3本まで')).toBeInTheDocument()
+    expect(screen.getByText('動画添付 1本まで（無料会員は不可）')).toBeInTheDocument()
     expect(screen.getByText('予約投稿機能')).toBeInTheDocument()
     expect(screen.getByText('投稿分析ダッシュボード')).toBeInTheDocument()
     // サイト全体の広告非表示もプレミアム特典として明示する
@@ -85,7 +85,7 @@ describe('PricingCard', () => {
     expect(texts).toEqual([
       '投稿文字数 2000文字',
       '画像添付 6枚まで',
-      '動画添付 3本まで',
+      '動画添付 1本まで（無料会員は不可）',
       '予約投稿機能',
       '投稿分析ダッシュボード',
       '広告非表示',

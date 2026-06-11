@@ -112,7 +112,7 @@ describe('client-image-compression', async () => {
       Object.defineProperty(bigVideo, 'size', { value: 300 * 1024 * 1024 }) // 300MB
 
       const result = await mod.uploadVideoToR2(bigVideo)
-      expect(result.error).toContain('256MB以下')
+      expect(result.error).toContain('80MB以下')
     })
 
     it('returns error when presigned URL fetch fails', async () => {

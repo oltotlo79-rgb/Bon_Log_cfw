@@ -11,6 +11,7 @@
  * - 初期値: draft に既存メディア・ジャンルがある場合のステート初期化
  */
 
+import React from 'react'
 import { vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
@@ -60,8 +61,13 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
+}))
+
+vi.mock('@/components/premium/PremiumContext', () => ({
+  usePremium: () => true,
+  PremiumContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 describe('DraftEditForm - 残り分岐カバレッジ', () => {

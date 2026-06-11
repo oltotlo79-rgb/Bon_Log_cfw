@@ -1,3 +1,4 @@
+import React from 'react'
 import { vi } from 'vitest'
 /**
  * PostFormModalコンポーネントの追加テスト
@@ -57,7 +58,7 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
@@ -78,10 +79,12 @@ const mockGenres = {
   '松柏類': [{ id: 'genre-1', name: '黒松', category: '松柏類' }],
 }
 
+// limits に maxVideos:1 を含める（動画アップロードテストに必要）
 const defaultProps = {
   genres: mockGenres,
   isOpen: true,
   onClose: vi.fn(),
+  limits: { maxPostLength: 500, maxImages: 4, maxVideos: 1, maxDailyPosts: 20, canSchedulePost: false, canViewAnalytics: false },
 }
 
 describe('PostFormModal - 追加カバレッジテスト', () => {
@@ -152,7 +155,7 @@ describe('PostFormModal - 追加カバレッジテスト', () => {
       fireEvent.change(fileInput)
 
       await waitFor(() => {
-        expect(screen.getByText(/動画は256MB以下にしてください/)).toBeInTheDocument()
+        expect(screen.getByText(/動画は80MB以下にしてください/)).toBeInTheDocument()
       })
     })
   })

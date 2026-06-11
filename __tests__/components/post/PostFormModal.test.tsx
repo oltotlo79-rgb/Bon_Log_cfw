@@ -53,7 +53,7 @@ vi.mock('@/lib/client-image-compression', () => ({
   isVideoFile: (...args: unknown[]) => mockIsVideoFile(...args),
   formatFileSize: vi.fn().mockReturnValue('1 MB'),
   MAX_IMAGE_SIZE: 10 * 1024 * 1024,
-  MAX_VIDEO_SIZE: 256 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 80 * 1024 * 1024,
   uploadVideoToR2: (...args: unknown[]) => mockUploadVideoToR2(...args),
 }))
 
@@ -76,10 +76,21 @@ const mockGenres = {
   ],
 }
 
+// プレミアム会員の制限値（maxVideos=1）を使って動画関連 UI を検証する
+const premiumLimits = {
+  maxPostLength: 2000,
+  maxImages: 6,
+  maxVideos: 1,
+  maxDailyPosts: 40,
+  canSchedulePost: true,
+  canViewAnalytics: true,
+}
+
 const defaultProps = {
   genres: mockGenres,
   isOpen: true,
   onClose: vi.fn(),
+  limits: premiumLimits,
 }
 
 describe('PostFormModal', () => {
@@ -177,7 +188,8 @@ describe('PostFormModal', () => {
 
     await user.type(screen.getByPlaceholderText('いまどうしてる？'), 'テスト')
 
-    expect(screen.getByText('497')).toBeInTheDocument()
+    // premiumLimits.maxPostLength=2000 - 3文字 = 1997
+    expect(screen.getByText('1997')).toBeInTheDocument()
   })
 
   it('空の状態では投稿ボタンが無効', () => {
@@ -286,7 +298,8 @@ describe('PostFormModal', () => {
     const user = userEvent.setup()
     render(<PostFormModal {...defaultProps} />)
     await user.type(screen.getByPlaceholderText('いまどうしてる？'), 'あいう')
-    expect(screen.getByText('497')).toBeInTheDocument()
+    // premiumLimits.maxPostLength=2000 - 3文字 = 1997
+    expect(screen.getByText('1997')).toBeInTheDocument()
   })
 
   it('空の状態では下書き保存ボタンも無効', () => {
@@ -646,7 +659,7 @@ describe('PostFormModal', () => {
     fireEvent.change(fileInput)
 
     await waitFor(() => {
-      expect(screen.getByText(/動画は256MB以下にしてください/)).toBeInTheDocument()
+      expect(screen.getByText(/動画は80MB以下にしてください/)).toBeInTheDocument()
     })
   })
 

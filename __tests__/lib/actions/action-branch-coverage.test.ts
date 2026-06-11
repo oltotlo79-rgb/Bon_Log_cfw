@@ -56,6 +56,9 @@ const mockGetMembershipLimits = vi.fn().mockResolvedValue({
 })
 vi.mock('@/lib/premium', () => ({
   getMembershipLimits: (...args: unknown[]) => mockGetMembershipLimits(...args),
+  // createComment は isPremiumUser を直接呼ぶ。デフォルトはプレミアム扱いにして
+  // 動画本数チェックが maxVideos=1 で動作するようにする
+  isPremiumUser: vi.fn().mockResolvedValue(true),
 }))
 
 vi.mock('@/lib/sanitize', () => ({

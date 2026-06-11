@@ -19,10 +19,22 @@ vi.mock('@/lib/cron-auth', () => ({
   verifyCronAuth: vi.fn(),
 }))
 
-vi.mock('@/lib/constants/limits', () => ({
-  CRON_BATCH_SIZE: 50,
-  CRON_FUNCTION_TIMEOUT_SECONDS: 60,
+vi.mock('@/lib/constants/limits', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/constants/limits')>()
+  return { ...actual, CRON_BATCH_SIZE: 50, CRON_FUNCTION_TIMEOUT_SECONDS: 60 }
+})
+
+vi.mock('@/lib/premium', () => ({
+  getMembershipLimits: vi.fn().mockResolvedValue({ maxPostLength: 500, maxImages: 4, maxVideos: 0, maxDailyPosts: 20, canSchedulePost: false, canViewAnalytics: false }),
+  isPremiumUser: vi.fn().mockResolvedValue(false),
 }))
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }),
+  checkDailyLimit: vi.fn().mockResolvedValue({ allowed: true, count: 0, limit: 50 }),
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: {},
+}))
+vi.mock('@/lib/auth', () => ({ auth: vi.fn().mockResolvedValue(null) }))
 
 vi.mock('@/lib/constants/status', () => ({
   SCHEDULED_POST_STATUS: {

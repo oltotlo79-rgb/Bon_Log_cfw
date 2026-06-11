@@ -169,6 +169,27 @@ describe('saveDraft', async () => {
     })
     expect(result).toBeDefined()
   })
+
+  it('無料会員が動画を含む下書きを保存しようとすると ERR_VIDEO_PREMIUM_ONLY を返す', async () => {
+    const { getMembershipLimits } = await import('@/lib/premium')
+    vi.mocked(getMembershipLimits).mockResolvedValueOnce({
+      maxDailyPosts: 20,
+      maxPostLength: 500,
+      maxImages: 4,
+      maxVideos: 0,
+      canSchedulePost: false,
+      canViewAnalytics: false,
+    })
+
+    const { saveDraft } = await import('@/lib/actions/draft')
+    const result = await saveDraft({
+      content: 'テスト',
+      mediaUrls: ['/video.mp4'],
+      mediaTypes: ['video'],
+    })
+
+    expect(result).toMatchObject({ success: false, error: '動画の投稿はプレミアム会員限定です' })
+  })
 })
 
 describe('deleteDraft', async () => {
