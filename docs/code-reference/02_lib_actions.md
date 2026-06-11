@@ -218,14 +218,14 @@ Server Actions はすべて `'use server'` で宣言され、認証・レート�
 
 ## scheduled-post.ts
 
-**役割**: 予約投稿の CRUD と、公開時刻到達時の公開処理。
+**役割**: 予約投稿の CRUD（実装は `scheduled-post-crud.ts`、`scheduled-post.ts` はバレル再エクスポート）。
 
 - **createScheduledPost** / **updateScheduledPost** / **deleteScheduledPost** / **getScheduledPosts**  
   公開予定日時（scheduledAt）と本文・メディア等を保存。  
   件数上限（MAX_PENDING_SCHEDULED_POSTS）と予約日数上限（MAX_SCHEDULED_DAYS_AHEAD）をチェック。
-- **publishScheduledPosts()**  
-  Cron（`/api/cron/publish-scheduled`）から呼ばれる。  
-  `scheduledAt <= now` の予約投稿をバッチで取得し、通常の `Post` として作成して予約レコードは削除。
+- 公開時刻到達時の公開処理は Server Action ではなく `lib/services/scheduled-post-publisher.ts` の  
+  **publishDueScheduledPosts()** に一本化。Cron（`/api/cron/publish-scheduled`、GitHub Actions が 5 分毎に起動）から呼ばれ、  
+  `scheduledAt <= now` の pending をバッチで取得して通常の `Post` として作成し、予約レコードのステータスを published（失敗時 failed）に更新。
 
 ---
 

@@ -12,11 +12,11 @@ export function extractPesticidesFromAdditions(src: string) {
     const ft = after.match(/formulationTypeCode:\s*'([^']+)'/);
     if (pt) {
       rows.push({
-        name: m[2],
-        slug: m[1],
+        name: m[2]!,
+        slug: m[1]!,
         registrationNumber: m[4] ?? "",
-        pesticideType: pt ? pt[1] : "",
-        formulationType: ft ? ft[1] : "",
+        pesticideType: pt[1]!,
+        formulationType: ft ? ft[1]! : "",
         description: "",
         source: "additions",
       });
@@ -41,13 +41,13 @@ export function extractIngredientsFromAdditions(src: string) {
     // ingredientGroupがなければ農薬定義であって有効成分定義ではない
     if (!ig) continue;
     rows.push({
-      name: m[2],
-      nameEn: m[3],
-      fracCode: fc ? fc[1] : "",
-      iracCode: ic ? ic[1] : "",
-      ingredientGroup: ig[1],
-      slug: m[1],
-      resistanceRisk: rr ? rr[1] : "",
+      name: m[2]!,
+      nameEn: m[3]!,
+      fracCode: fc ? fc[1]! : "",
+      iracCode: ic ? ic[1]! : "",
+      ingredientGroup: ig[1]!,
+      slug: m[1]!,
+      resistanceRisk: rr ? rr[1]! : "",
       source: "additions",
     });
   }
@@ -61,8 +61,8 @@ export function extractLinksFromAdditions(src: string) {
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
     rows.push({
-      pesticideSlug: m[1],
-      ingredientSlug: m[2],
+      pesticideSlug: m[1]!,
+      ingredientSlug: m[2]!,
       contentLabel: m[3] ?? "",
       source: "additions",
     });
@@ -76,7 +76,7 @@ export function extractEffectsFromAdditions(src: string) {
   function extractRating(block: string, field: string): string {
     const re = new RegExp(field + ":\\s*['\"]?(\\w+)['\"]?\\s*(?:as\\s+\\w+)?");
     const m = re.exec(block);
-    return m ? m[1] : "";
+    return m ? m[1]! : "";
   }
 
   // パターン1: pMap["slug"] or pMap['slug'], dpMap["slug"] or dpMap['slug'] 形式
@@ -91,8 +91,8 @@ export function extractEffectsFromAdditions(src: string) {
     const blockEnd = src.indexOf("}", m.index);
     const block = src.slice(m.index, blockEnd > 0 ? blockEnd + 1 : m.index + 300);
     rows.push({
-      pesticideSlug: m[1],
-      diseasePestSlug: m[2],
+      pesticideSlug: m[1]!,
+      diseasePestSlug: m[2]!,
       preventionLevel: extractRating(block, "preventionLevel"),
       treatmentLevel: extractRating(block, "treatmentLevel"),
       efficacyLevel: extractRating(block, "efficacyLevel"),

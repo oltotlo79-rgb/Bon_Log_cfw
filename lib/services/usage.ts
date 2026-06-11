@@ -1,7 +1,11 @@
-// 各クラウドサービスの使用量を取得するサービス
+/**
+ * @module lib/services/usage
+ * 各クラウドサービスの使用量を取得するサービス。
+ */
 
 import 'server-only'
 
+import { z } from 'zod'
 import {
   R2_BUCKET_LIMIT,
   RESEND_DAILY_EMAIL_LIMIT,
@@ -37,14 +41,21 @@ export interface ServiceUsage {
 /** fly.io Machines REST API のベース URL（GraphQL より machines/volumes 取得が安定） */
 const FLYIO_MACHINES_API_BASE = 'https://api.machines.dev/v1'
 
-interface FlyioMachine {
-  state?: string
-  config?: { guest?: { cpus?: number; memory_mb?: number } }
-}
+const flyioMachineSchema = z.object({
+  state: z.string().optional(),
+  config: z.object({
+    guest: z.object({
+      cpus: z.number().optional(),
+      memory_mb: z.number().optional(),
+    }).optional(),
+  }).optional(),
+}).passthrough()
 
-interface FlyioVolume {
-  size_gb?: number
-}
+const flyioVolumeSchema = z.object({
+  size_gb: z.number().optional(),
+}).passthrough()
+
+type FlyioMachine = z.infer<typeof flyioMachineSchema>
 
 /**
  * fly.io Machines API からマシン/ボリュームの使用量行を組み立てる。
@@ -63,7 +74,9 @@ async function fetchFlyioUsageRows(
     next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
   })
   if (!machinesRes.ok) throw new Error(`Machines API HTTP ${machinesRes.status}`)
-  const machines = (await machinesRes.json()) as FlyioMachine[]
+  const machinesParsed = z.array(flyioMachineSchema).safeParse(await machinesRes.json())
+  if (!machinesParsed.success) throw new Error('Machines API response malformed')
+  const machines: FlyioMachine[] = machinesParsed.data
 
   const started = machines.filter((m) => m.state === 'started').length
   rows.push({
@@ -89,9 +102,9 @@ async function fetchFlyioUsageRows(
       next: { revalidate: USAGE_CACHE_REVALIDATE_SECONDS },
     })
     if (volumesRes.ok) {
-      const volumes = (await volumesRes.json()) as FlyioVolume[]
-      if (volumes.length > 0) {
-        const totalGb = volumes.reduce((sum, v) => sum + (v.size_gb ?? 0), 0)
+      const volumesParsed = z.array(flyioVolumeSchema).safeParse(await volumesRes.json())
+      if (volumesParsed.success && volumesParsed.data.length > 0) {
+        const totalGb = volumesParsed.data.reduce((sum, v) => sum + (v.size_gb ?? 0), 0)
         rows.push({ current: totalGb, limit: 0, unit: 'ボリューム (GB)', percentage: 0 })
       }
     }

@@ -3,6 +3,7 @@ import { ROUTE_LOGIN } from '@/lib/constants/routes'
 import { getCmsPages } from '@/lib/actions/admin/cms'
 import { CmsPageList } from './CmsPageList'
 import { FileEdit } from 'lucide-react'
+import { ADMIN_CMS_PAGES_PAGE_LIMIT } from '@/lib/constants/limits'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,7 @@ export default async function ContentManagementPage({ searchParams }: PageProps)
 
   const result = await getCmsPages({
     category: category || undefined,
-    limit: 100,
+    limit: ADMIN_CMS_PAGES_PAGE_LIMIT,
   })
 
   if ('error' in result) {

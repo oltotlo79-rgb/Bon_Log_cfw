@@ -6,23 +6,23 @@
  * 自動非表示にする閾値。誤判定リスクと対応の遅延のバランスから 10 件に設定。
  */
 
-/** 通報理由 (UI 表示ラベル付き) */
-export const REPORT_REASONS = [
-  { value: 'spam', label: 'スパム' },
-  { value: 'inappropriate', label: '不適切な内容' },
-  { value: 'harassment', label: '誹謗中傷' },
-  { value: 'copyright', label: '著作権侵害' },
-  { value: 'other', label: 'その他' },
-] as const
-
 /** 通報理由の `value` だけを抽出した tuple。Zod enum で使う。 */
-export const REPORT_REASON_VALUES = REPORT_REASONS.map((r) => r.value) as unknown as readonly [
+export const REPORT_REASON_VALUES = [
   'spam',
   'inappropriate',
   'harassment',
   'copyright',
   'other',
-]
+] as const
+
+/** 通報理由 (UI 表示ラベル付き) */
+export const REPORT_REASONS = [
+  { value: 'spam' as const, label: 'スパム' },
+  { value: 'inappropriate' as const, label: '不適切な内容' },
+  { value: 'harassment' as const, label: '誹謗中傷' },
+  { value: 'copyright' as const, label: '著作権侵害' },
+  { value: 'other' as const, label: 'その他' },
+] satisfies ReadonlyArray<{ value: typeof REPORT_REASON_VALUES[number]; label: string }>
 
 export type ReportReason = (typeof REPORT_REASON_VALUES)[number]
 

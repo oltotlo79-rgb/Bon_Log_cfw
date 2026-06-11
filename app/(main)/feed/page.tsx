@@ -6,17 +6,16 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 import { BASE_URL, ROUTE_FEED, ROUTE_ONBOARDING } from '@/lib/constants/routes'
-import { Timeline } from '@/components/feed/Timeline'
 import { TimelineSkeleton } from '@/components/feed/TimelineSkeleton'
 import { ComposeButton } from '@/components/feed/ComposeButton'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { getGenres } from '@/lib/actions/post'
-import { getTimeline } from '@/lib/actions/feed'
 import { getDraftCount } from '@/lib/actions/draft'
 import { getBonsais } from '@/lib/actions/bonsai'
 import { getMembershipLimits, FREE_LIMITS } from '@/lib/premium'
 import { SeasonalBanner } from '@/components/common/SeasonalBanner'
 import { WeatherAdviceCard } from '@/components/weather/WeatherAdviceCard'
+import { TimelineSection } from './TimelineSection'
 
 /**
  * ページメタデータ
@@ -38,27 +37,6 @@ export const metadata: Metadata = {
     description: 'フォロー中のユーザーの最新投稿を時系列で確認できるタイムライン。',
     url: `${BASE_URL}${ROUTE_FEED}`,
   },
-}
-
-async function TimelineSection({
-  currentUserId,
-  isGuest,
-}: {
-  currentUserId?: string
-  isGuest?: boolean
-}) {
-  const timelineResult = await getTimeline()
-  const posts = timelineResult.success ? timelineResult.data?.posts ?? [] : []
-  const nextCursor = timelineResult.success ? timelineResult.data?.nextCursor : undefined
-
-  return (
-    <Timeline
-      initialPosts={posts}
-      currentUserId={currentUserId}
-      isGuest={isGuest}
-      nextCursor={nextCursor}
-    />
-  )
 }
 
 export default async function FeedPage() {

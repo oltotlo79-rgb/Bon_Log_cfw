@@ -5,8 +5,7 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
-import { buildUserLikesPath, buildUserPath } from '@/lib/constants/path-builders'
-import { pageCanonical } from '@/lib/utils/seo'
+import { buildUserPath } from '@/lib/constants/path-builders'
 import { canViewAuthorContent, visiblePostWhere } from '@/lib/services/post-visibility'
 
 type Props = {
@@ -27,7 +26,8 @@ export async function generateMetadata({ params }: Props) {
 
   return {
     title: `${user.nickname}のいいね`,
-    alternates: { canonical: pageCanonical(buildUserLikesPath(id)) },
+    // プロフィール本体 /users/[id] と内容が重複するサブページ。canonical は本体が持つ。
+    robots: { index: false, follow: true },
     ...((user.isPublic === false || user.isSuspended) && {
       robots: { index: false, follow: false },
     }),

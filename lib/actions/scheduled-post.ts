@@ -5,7 +5,6 @@
  * - scheduled-post-crud.ts    : createScheduledPost, getScheduledPosts,
  *                               getScheduledPost, updateScheduledPost,
  *                               deleteScheduledPost, cancelScheduledPost
- * - scheduled-post-publish.ts : publishScheduledPosts（cron/バッチ処理）
  *
  * @module lib/actions/scheduled-post
  */
@@ -20,7 +19,6 @@ import {
   deleteScheduledPost as _deleteScheduledPost,
   cancelScheduledPost as _cancelScheduledPost,
 } from './scheduled-post-crud'
-import { publishScheduledPosts as _publishScheduledPosts } from './scheduled-post-publish'
 
 export async function createScheduledPost(formData: FormData) {
   return _createScheduledPost(formData)
@@ -44,8 +42,4 @@ export async function deleteScheduledPost(id: string) {
 
 export async function cancelScheduledPost(id: string) {
   return _cancelScheduledPost(id)
-}
-
-export async function publishScheduledPosts(cronSecret?: string) {
-  return _publishScheduledPosts(cronSecret)
 }

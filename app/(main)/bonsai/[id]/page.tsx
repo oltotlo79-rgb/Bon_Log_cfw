@@ -42,36 +42,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `${bonsai.species ? `${bonsai.species}の` : ''}盆栽「${bonsai.name}」${bonsai.description.slice(0, BONSAI_DESCRIPTION_PREVIEW_LENGTH)}${bonsai.description.length > BONSAI_DESCRIPTION_PREVIEW_LENGTH ? '...' : ''}`
     : `${bonsai.species ? `${bonsai.species}の` : ''}盆栽「${bonsai.name}」の成長記録`
 
-  const latestImage = bonsai.records?.[0]?.images?.[0]?.url
-  const ogImage = latestImage || '/api/og'
-
   return {
     title: pageTitle(title),
     description,
-    openGraph: {
-      type: 'article',
-      title,
-      description,
-      url: pageCanonical(buildBonsaiPath(id)),
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: bonsai.name,
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [ogImage],
-    },
-    alternates: {
-      canonical: pageCanonical(buildBonsaiPath(id)),
-    },
-    // /bonsai/* は認証必須リソース（個人の盆栽記録）。robots.txt と二重防御で noindex を明示。
+    // /bonsai/* は認証必須リソース（個人の盆栽記録）。robots.txt Disallow + PROTECTED_PATHS で
+    // クローラは到達できないため canonical / OG は出力しない。noindex を明示して三重防御とする。
     robots: { index: false, follow: false },
   }
 }

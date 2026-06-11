@@ -15,9 +15,12 @@ import {
   FIFTEEN_MINUTES_MS,
   ONE_HOUR_MS,
   ONE_DAY_SECONDS,
+  ONE_SECOND_MS,
+  MIDNIGHT_BUFFER_SECONDS,
   DAILY_UPLOAD_LIMIT,
 } from '@/lib/constants/limits'
 import { getClientIpFromRequest } from '@/lib/utils/client-ip'
+import { getJstDateString, getStartOfToday } from '@/lib/utils'
 
 interface RateLimitOptions {
   windowMs: number
@@ -261,7 +264,8 @@ export async function checkDailyLimit(
   const { failOpen = true } = options
   const redis = getRedisClient()
   const limit = DAILY_LIMITS[limitType]
-  const today = new Date().toISOString().split('T')[0]
+  // JST 暦日をキーラベルに使う（checkDailyPostLimit と同じ方式）
+  const today = getJstDateString()
   const key = `daily:${limitType}:${userId}:${today}`
 
   try {
@@ -269,7 +273,12 @@ export async function checkDailyLimit(
     const newCount = await redis.incr(key)
 
     if (newCount === 1) {
-      await redis.expire(key, ONE_DAY_SECONDS)
+      // 新規キー: JST 翌日 00:00 まで + バッファで期限設定
+      const jstTodayStart = getStartOfToday()
+      const jstTomorrow = new Date(jstTodayStart.getTime() + 24 * 60 * 60 * 1000)
+      const msUntilMidnight = jstTomorrow.getTime() - Date.now()
+      const secondsUntilMidnight = Math.ceil(msUntilMidnight / ONE_SECOND_MS) + MIDNIGHT_BUFFER_SECONDS
+      await redis.expire(key, secondsUntilMidnight)
     } else {
       const ttl = await redis.ttl(key)
       if (ttl < 0) {

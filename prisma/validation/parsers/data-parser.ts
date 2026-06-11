@@ -33,13 +33,13 @@ export function extractIngredientsFromMain(src: string) {
     const after = src.slice(m.index, m.index + 800);
     const rr = after.match(/resistanceRisk:\s*"([^"]+)"/);
     rows.push({
-      name: m[1],
-      nameEn: m[2],
+      name: m[1]!,
+      nameEn: m[2]!,
       fracCode: m[3] ?? "",
       iracCode: m[4] ?? "",
-      ingredientGroup: m[5],
-      slug: m[6],
-      resistanceRisk: rr ? rr[1] : "",
+      ingredientGroup: m[5]!,
+      slug: m[6]!,
+      resistanceRisk: rr ? rr[1]! : "",
       source: "data",
     });
   }
@@ -72,10 +72,10 @@ export function extractDiseasePests(src: string, sourceLabel: string) {
     /name:\s*"([^"]+)",\s*\n\s*nameKana:\s*"([^"]*)",\s*\n\s*category:\s*"([^"]+)",\s*\n\s*description:\s*\n?\s*"([\s\S]*?)",\s*\n\s*slug:\s*"([^"]+)",/g;
   let m: RegExpExecArray | null;
   while ((m = blockRe.exec(src)) !== null) {
-    const slug = m[5];
+    const slug = m[5]!;
     if (seen.has(slug)) continue;
     seen.add(slug);
-    const category = m[3];
+    const category = m[3]!;
     let bminVal = "";
     let bmaxVal = "";
     if (category === "pest" || category === "beneficial_insect") {
@@ -84,17 +84,17 @@ export function extractDiseasePests(src: string, sourceLabel: string) {
       const narrow = src.slice(slugPos, searchEnd > 0 ? searchEnd : slugPos + 300);
       const bmin = narrow.match(/bodySizeMinMm:\s*([\d.]+)/);
       const bmax = narrow.match(/bodySizeMaxMm:\s*([\d.]+)/);
-      bminVal = bmin ? bmin[1] : "";
-      bmaxVal = bmax ? bmax[1] : "";
+      bminVal = bmin ? bmin[1]! : "";
+      bmaxVal = bmax ? bmax[1]! : "";
     }
     rows.push({
-      name: m[1],
-      nameKana: m[2],
+      name: m[1]!,
+      nameKana: m[2]!,
       category,
       slug,
       bodySizeMinMm: bminVal,
       bodySizeMaxMm: bmaxVal,
-      descriptionHead: m[4].slice(0, 150).replace(/\n/g, " "),
+      descriptionHead: m[4]!.slice(0, 150).replace(/\n/g, " "),
       source: sourceLabel,
     });
   }
@@ -104,7 +104,7 @@ export function extractDiseasePests(src: string, sourceLabel: string) {
     /slug:\s*'([^']+)',\s*\n\s*name:\s*'([^']+)',\s*\n\s*nameKana:\s*'([^']*)',\s*\n\s*category:\s*'([^']+)'/g;
   let am: RegExpExecArray | null;
   while ((am = arrRe.exec(src)) !== null) {
-    const slug = am[1];
+    const slug = am[1]!;
     if (seen.has(slug)) continue;
     seen.add(slug);
     const after = src.slice(am.index, am.index + 1500);
@@ -112,13 +112,13 @@ export function extractDiseasePests(src: string, sourceLabel: string) {
     const bmin = after.match(/bodySizeMinMm:\s*([\d.]+)/);
     const bmax = after.match(/bodySizeMaxMm:\s*([\d.]+)/);
     rows.push({
-      name: am[2],
-      nameKana: am[3],
-      category: am[4],
+      name: am[2]!,
+      nameKana: am[3]!,
+      category: am[4]!,
       slug,
-      bodySizeMinMm: bmin ? bmin[1] : "",
-      bodySizeMaxMm: bmax ? bmax[1] : "",
-      descriptionHead: desc ? desc[1].slice(0, 150).replace(/\n/g, " ") : "",
+      bodySizeMinMm: bmin ? bmin[1]! : "",
+      bodySizeMaxMm: bmax ? bmax[1]! : "",
+      descriptionHead: desc ? desc[1]!.slice(0, 150).replace(/\n/g, " ") : "",
       source: sourceLabel,
     });
   }
@@ -157,9 +157,9 @@ export function extractFormulationTypes(src: string) {
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
     rows.push({
-      code: m[1],
-      name: m[2],
-      description: m[3].slice(0, 100),
+      code: m[1]!,
+      name: m[2]!,
+      description: m[3]!.slice(0, 100),
     });
   }
   return rows;
@@ -171,12 +171,12 @@ export function extractColumns(src: string) {
     /slug:\s*"([^"]+)",\s*\n\s*title:\s*"([^"]+)",\s*\n\s*content:\s*\n?\s*"([\s\S]*?)",\s*\n\s*category:\s*"([^"]+)"/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
-    if (!["management", "resistance", "organic", "basics", "calendar", "technique"].includes(m[4])) continue;
+    if (!["management", "resistance", "organic", "basics", "calendar", "technique"].includes(m[4]!)) continue;
     rows.push({
-      slug: m[1],
-      title: m[2],
-      category: m[4],
-      contentHead: m[3].slice(0, 200).replace(/\n/g, "\\n"),
+      slug: m[1]!,
+      title: m[2]!,
+      category: m[4]!,
+      contentHead: m[3]!.slice(0, 200).replace(/\n/g, "\\n"),
     });
   }
   return rows;
@@ -197,11 +197,11 @@ export function extractIncompatibilities(src: string) {
     const slugs: string[] = [];
     const itemRe = /"([a-z][a-z0-9-]*)"/g;
     let im: RegExpExecArray | null;
-    while ((im = itemRe.exec(am[2])) !== null) {
-      slugs.push(im[1]);
+    while ((im = itemRe.exec(am[2]!)) !== null) {
+      slugs.push(im[1]!);
     }
     if (slugs.length > 0) {
-      arrayDefs.set(am[1], slugs);
+      arrayDefs.set(am[1]!, slugs);
     }
   }
 
@@ -217,8 +217,8 @@ export function extractIncompatibilities(src: string) {
     // outerArr.forEach((varName) => { — ブロック開始
     const outerStart = trimmed.match(/^(\w+)\.forEach\(\((\w+)\)\s*=>\s*\{$/);
     if (outerStart) {
-      const arrSlugs = arrayDefs.get(outerStart[1]) ?? [];
-      varBindings.set(outerStart[2], arrSlugs);
+      const arrSlugs = arrayDefs.get(outerStart[1]!) ?? [];
+      varBindings.set(outerStart[2]!, arrSlugs);
       continue;
     }
 
@@ -227,10 +227,10 @@ export function extractIncompatibilities(src: string) {
       /(\w+)\.forEach\(\((\w+)\)\s*=>\s*addIncompatibility\(\s*([^,)]+?)\s*,\s*([^)]+?)\s*\)\)/
     );
     if (innerMatch) {
-      const iterArrSlugs = arrayDefs.get(innerMatch[1]) ?? [];
-      const iterVar = innerMatch[2];
-      const arg1Raw = innerMatch[3].replace(/["']/g, "").trim();
-      const arg2Raw = innerMatch[4].replace(/["']/g, "").trim();
+      const iterArrSlugs = arrayDefs.get(innerMatch[1]!) ?? [];
+      const iterVar = innerMatch[2]!;
+      const arg1Raw = innerMatch[3]!.replace(/["']/g, "").trim();
+      const arg2Raw = innerMatch[4]!.replace(/["']/g, "").trim();
 
       const resolve = (raw: string, currentIterVar: string, currentItem: string): string[] => {
         if (raw === currentIterVar) return [currentItem];
@@ -269,8 +269,9 @@ export function extractSpreaderTypes(src: string) {
   if (spreaderSection) {
     const spEntryRe = /code:\s*"([^"]+)"[\s\S]*?name:\s*"([^"]+)"[\s\S]*?slug:\s*"([^"]+)"[\s\S]*?sortOrder:\s*(\d+)/g;
     let sm: RegExpExecArray | null;
-    while ((sm = spEntryRe.exec(spreaderSection[1])) !== null) {
-      rows.push({ code: sm[1], name: sm[2], slug: sm[3], descriptionHead: "" });
+    // spreaderSection[1] は if(spreaderSection) で保証済み
+    while ((sm = spEntryRe.exec(spreaderSection[1]!)) !== null) {
+      rows.push({ code: sm[1]!, name: sm[2]!, slug: sm[3]!, descriptionHead: "" });
     }
   }
   return rows;
@@ -286,7 +287,7 @@ export function extractSpreaderLinks(src: string) {
   while ((m = re.exec(src)) !== null) {
     const pesticideSlug = m[1] ?? m[2];
     if (pesticideSlug) {
-      rows.push({ pesticideSlug, spreaderTypeSlug: m[3] });
+      rows.push({ pesticideSlug, spreaderTypeSlug: m[3]! });
     }
   }
   return rows;
@@ -299,8 +300,9 @@ export function extractSpreaderPesticides(src: string) {
   if (spSection) {
     const re = /slug:\s*"([a-z0-9-]+)",\s*name:\s*"([^"]+)",\s*reg:\s*(?:"([^"]+)"|null)/g;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(spSection[0])) !== null) {
-      rows.push({ slug: m[1], name: m[2], regNumber: m[3] ?? "", pesticideType: "other" });
+    // spSection[0] は if(spSection) で保証済み
+    while ((m = re.exec(spSection[0]!)) !== null) {
+      rows.push({ slug: m[1]!, name: m[2]!, regNumber: m[3] ?? "", pesticideType: "other" });
     }
   }
   return rows;

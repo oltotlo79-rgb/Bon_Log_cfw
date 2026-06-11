@@ -5618,10 +5618,10 @@ flowchart TD
 予約投稿は、バックグラウンドのCronジョブ（定期実行タスク）が期限を過ぎた予約を検出し、自動的に投稿に変換します。
 
 ```typescript
-// lib/actions/scheduled-post.ts
+// lib/services/scheduled-post-publisher.ts
 
 // Cronジョブから呼ばれる: 期限を過ぎた予約投稿を公開する
-export async function publishScheduledPosts() {
+export async function publishDueScheduledPosts() {
   // ① 公開すべき予約投稿を検索
   // WHERE status = 'pending' AND scheduled_at <= NOW()
   // → @@index([status, scheduledAt]) が効くクエリ
@@ -5691,7 +5691,7 @@ export async function publishScheduledPosts() {
 
 Cronジョブの実行イメージ:
 
-毎分実行: `publishScheduledPosts()`
+5分毎に実行（GitHub Actions が `/api/cron/publish-scheduled` を起動）: `publishDueScheduledPosts()`
 
 **scheduled_posts テーブル（実行前、現在時刻: 2024-03-15 10:00）:**
 

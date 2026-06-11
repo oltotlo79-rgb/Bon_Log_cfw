@@ -10,10 +10,10 @@ export function extractPesticidesFromSpray(src: string) {
     const after = src.slice(m.index, m.index + 800);
     const pt = after.match(/pesticideType:\s*'([^']+)'/);
     rows.push({
-      name: m[2],
-      slug: m[1],
+      name: m[2]!,
+      slug: m[1]!,
       registrationNumber: m[4] ?? "",
-      pesticideType: pt ? pt[1] : "",
+      pesticideType: pt ? pt[1]! : "",
       formulationType: "",
       description: "",
       source: "spray",
@@ -36,13 +36,13 @@ export function extractIngredientsFromSpray(src: string) {
     const ig = block.match(/ingredientGroup:\s*'([^']+)'/);
     const rr = block.match(/resistanceRisk:\s*'([^']+)'/);
     rows.push({
-      name: name ? name[1] : "",
-      nameEn: nameEn ? nameEn[1] : "",
-      fracCode: fc ? fc[1] : "",
-      iracCode: ic ? ic[1] : "",
-      ingredientGroup: ig ? ig[1] : "",
-      slug: m[1],
-      resistanceRisk: rr ? rr[1] : "",
+      name: name ? name[1]! : "",
+      nameEn: nameEn ? nameEn[1]! : "",
+      fracCode: fc ? fc[1]! : "",
+      iracCode: ic ? ic[1]! : "",
+      ingredientGroup: ig ? ig[1]! : "",
+      slug: m[1]!,
+      resistanceRisk: rr ? rr[1]! : "",
       source: "spray",
     });
   }
@@ -56,23 +56,23 @@ export function extractLinksFromSpray(src: string) {
   const re1 = /const\s+(\w+)\s*=\s*await\s+ensureSprayProduct\(\{\s*\n?\s*slug:\s*'([^']+)'/g;
   let m: RegExpExecArray | null;
   while ((m = re1.exec(src)) !== null) {
-    pestVarMap.set(m[1], m[2]);
+    pestVarMap.set(m[1]!, m[2]!);
   }
   const ingVarMap = new Map<string, string>();
   const re2 = /const\s+(\w+)\s*=\s*await\s+ensureActiveIngredient\(\{\s*\n?\s*slug:\s*'([^']+)'/g;
   while ((m = re2.exec(src)) !== null) {
-    ingVarMap.set(m[1], m[2]);
+    ingVarMap.set(m[1]!, m[2]!);
   }
   const re3 = /const\s+(\w+)\s*=\s*await\s+prisma\.activeIngredient\.findUnique\(\{\s*where:\s*\{\s*slug:\s*'([^']+)'/g;
   while ((m = re3.exec(src)) !== null) {
-    ingVarMap.set(m[1], m[2]);
+    ingVarMap.set(m[1]!, m[2]!);
   }
   const re4 = /linkIngredient\(\s*(\w+)\.id,\s*(\w+)!?\.id,\s*'([^']+)'\s*\)/g;
   while ((m = re4.exec(src)) !== null) {
-    const pSlug = pestVarMap.get(m[1]);
-    const iSlug = ingVarMap.get(m[2]);
+    const pSlug = pestVarMap.get(m[1]!);
+    const iSlug = ingVarMap.get(m[2]!);
     if (pSlug && iSlug) {
-      rows.push({ pesticideSlug: pSlug, ingredientSlug: iSlug, contentLabel: m[3], source: "spray" });
+      rows.push({ pesticideSlug: pSlug, ingredientSlug: iSlug, contentLabel: m[3]!, source: "spray" });
     }
   }
   return rows;
@@ -85,24 +85,24 @@ export function extractEffectsFromSpray(src: string) {
   const re0 = /const\s+(\w+)\s*=\s*await\s+ensureSprayProduct\(\{\s*\n?\s*slug:\s*'([^']+)'/g;
   let m: RegExpExecArray | null;
   while ((m = re0.exec(src)) !== null) {
-    pestVarMap.set(m[1], m[2]);
+    pestVarMap.set(m[1]!, m[2]!);
   }
   const re = /linkEffect\(\s*(\w+)\.id,\s*'([^']+)',\s*\{([^}]*)\}/g;
   while ((m = re.exec(src)) !== null) {
-    const pSlug = pestVarMap.get(m[1]);
+    const pSlug = pestVarMap.get(m[1]!);
     if (!pSlug) continue;
-    const props = m[3];
+    const props = m[3]!;
     const prev = props.match(/preventionLevel:\s*'([^']+)'/);
     const treat = props.match(/treatmentLevel:\s*'([^']+)'/);
     const eff = props.match(/efficacyLevel:\s*'([^']+)'/);
     const pers = props.match(/persistenceLevel:\s*'([^']+)'/);
     rows.push({
       pesticideSlug: pSlug,
-      diseasePestSlug: m[2],
-      preventionLevel: prev ? prev[1] : "",
-      treatmentLevel: treat ? treat[1] : "",
-      efficacyLevel: eff ? eff[1] : "",
-      persistenceLevel: pers ? pers[1] : "",
+      diseasePestSlug: m[2]!,
+      preventionLevel: prev ? prev[1]! : "",
+      treatmentLevel: treat ? treat[1]! : "",
+      efficacyLevel: eff ? eff[1]! : "",
+      persistenceLevel: pers ? pers[1]! : "",
       source: "spray",
     });
   }
@@ -114,7 +114,7 @@ export function buildSprayVarToSlugMap(src: string): Map<string, string> {
   const map = new Map<string, string>();
   const re = /const\s+(\w+)\s*=\s*await\s+ensureSprayProduct\(\{\s*\n?\s*slug:\s*'([^']+)'/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(src)) !== null) map.set(m[1], m[2]);
+  while ((m = re.exec(src)) !== null) map.set(m[1]!, m[2]!);
   return map;
 }
 
@@ -123,9 +123,9 @@ export function buildSprayIngVarMap(src: string): Map<string, string> {
   const map = new Map<string, string>();
   const re1 = /const\s+(\w+)\s*=\s*await\s+ensureActiveIngredient\(\{\s*\n?\s*slug:\s*'([^']+)'/g;
   let m: RegExpExecArray | null;
-  while ((m = re1.exec(src)) !== null) map.set(m[1], m[2]);
+  while ((m = re1.exec(src)) !== null) map.set(m[1]!, m[2]!);
   const re2 = /const\s+(\w+)\s*=\s*await\s+prisma\.activeIngredient\.findUnique\(\{\s*where:\s*\{\s*slug:\s*'([^']+)'/g;
-  while ((m = re2.exec(src)) !== null) map.set(m[1], m[2]);
+  while ((m = re2.exec(src)) !== null) map.set(m[1]!, m[2]!);
   return map;
 }
 
@@ -135,7 +135,7 @@ export function extractSprayLinksRaw(src: string) {
   const re = /linkIngredient\(\s*(\w+)\.id,\s*(\w+)!?\.id,\s*'([^']+)'\s*\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
-    links.push({ pesticideVar: m[1], ingredientVar: m[2], contentLabel: m[3] });
+    links.push({ pesticideVar: m[1]!, ingredientVar: m[2]!, contentLabel: m[3]! });
   }
   return links;
 }

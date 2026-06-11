@@ -48,10 +48,6 @@ export function actionError(message: string): { success: false; error: string } 
   return { success: false, error: message }
 }
 
-// ----------------------------------------------------------------
-// コンビネータ
-// ----------------------------------------------------------------
-
 /**
  * Server Action 内で頻出する「`{ error: string }` 形式の認可ゲートを通したら続ける」パターンを
  * 1 行に置き換えるコンビネータ。

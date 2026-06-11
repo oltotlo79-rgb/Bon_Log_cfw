@@ -164,7 +164,7 @@ Next.js App Router の全ルート・レイアウト・API をファイル単位
 | `upload/header/route.ts` | ヘッダー画像専用。同様に検証・保存。 |
 | `upload/presigned/route.ts` | R2 の presigned URL を発行。クライアントが直接アップロードする方式で使用。 |
 | `upload/_shared/profile-image-upload.ts` | アバター/ヘッダー共通の検証・保存ロジック。 |
-| `cron/publish-scheduled/route.ts` | Cron: 予約投稿の自動公開。`verifyCronAuth` で認証後、`publishScheduledPosts()` を実行。 |
+| `cron/publish-scheduled/route.ts` | Cron: 予約投稿の自動公開。`verifyCronAuth` で認証後、`lib/services/scheduled-post-publisher.ts` の `publishDueScheduledPosts()` を実行。GitHub Actions（`.github/workflows/cron.yml`）が 5 分毎に起動。 |
 | `cron/check-subscriptions/route.ts` | Cron: サブスク期限切れチェック。`checkPremiumExpiry()` と期限切れメール送信。 |
 | `cron/cleanup-events/route.ts` | Cron: 終了イベントのクリーンアップ。一定期間経過したイベントを非表示または削除。 |
 | `webhooks/stripe/route.ts` | Stripe Webhook。署名検証後、`checkout.session.completed` 等を処理し、DB のプレミアム状態を更新。 |

@@ -155,3 +155,17 @@ CLAUDE.md ルール3 は「全 Action で認証 → Zod → レート制限」�
 **ルール:** admin 一般 action はレート制限を省略してよい。ただし
 **公開・準公開の入力を扱う admin action（例: 公開フォーム由来のモデレーション）には
 レート制限を付ける**（`moderation.ts` がその例）。一般ユーザー向け Action は従来どおり 3 点セット必須。
+
+### 許容される `as unknown as` キャストの例外
+
+CLAUDE.md ルール8 は `any` / `as` キャストを禁止するが、以下の 2 箇所は
+確立イディオムとして許容する。
+
+- `lib/db.ts:25` — Prisma global singleton（`global as unknown as { prisma: PrismaClient }`）。
+  ホットリロード時の接続リーク防止のための Prisma 公式パターン。
+- `lib/stripe.ts:29` — 遅延初期化 Proxy の `get` トラップにおけるプロパティ転送
+  （`_stripe as unknown as Record<string | symbol, unknown>`）。
+
+**条件:** 該当箇所には理由コメント（モジュールヘッダ JSDoc での説明を含む）を併記すること。
+
+これ以外の `as unknown as` は禁止。Zod 検証または型導出（`as const` / `satisfies`）で解決する。

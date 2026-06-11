@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { getUserActivity, detectSuspiciousBehavior } from '@/lib/actions/admin/activity'
 import { getAdminUserDetail } from '@/lib/actions/admin/users'
+import { ADMIN_USER_ACTIVITY_PAGE_LIMIT } from '@/lib/constants/limits'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -90,7 +91,7 @@ export default async function AdminUserActivityPage({ params }: Props) {
 
   const [userResult, activityResult, suspiciousResult] = await Promise.all([
     getAdminUserDetail(id),
-    getUserActivity(id, { limit: 50 }),
+    getUserActivity(id, { limit: ADMIN_USER_ACTIVITY_PAGE_LIMIT }),
     detectSuspiciousBehavior(id),
   ])
 

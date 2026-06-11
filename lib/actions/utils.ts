@@ -16,7 +16,7 @@ import { checkUserRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { getRedisClient } from '@/lib/redis'
 import { ERR_AUTH_REQUIRED, ERR_ADMIN_REQUIRED, ERR_ACCOUNT_SUSPENDED, ERR_RATE_LIMIT_OPERATION, ERR_GUEST_CANNOT_CREATE, ERR_MEDIA_DATA_INVALID, ERR_DAILY_POST_LIMIT, ERR_IMAGE_LIMIT, ERR_VIDEO_LIMIT } from '@/lib/constants/errors'
 import { getMembershipLimits } from '@/lib/premium'
-import { getStartOfToday } from '@/lib/utils'
+import { getStartOfToday, getJstDateString } from '@/lib/utils'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { actionSuccess as actionSuccessHelper, actionError as actionErrorHelper, type ActionResult as ActionResultType } from '@/types/action-result'
 import logger from '@/lib/logger'
@@ -191,15 +191,17 @@ export async function checkDailyPostLimit(userId: string): Promise<ActionResult<
   // Redis INCR でアトミックカウント（TOCTOU対策）
   try {
     const redis = getRedisClient()
-    const dateStr = today.toISOString().split('T')[0]
+    // JST 暦日をキーラベルにする（getStartOfToday() の .toISOString() は UTC 日付になるため専用ヘルパーを使う）
+    const dateStr = getJstDateString()
     const redisKey = `daily_posts:${userId}:${dateStr}`
 
     const count = await redis.incr(redisKey)
     if (count === 1) {
-      // 新規キー: 翌日0時 + バッファで期限設定
-      const tomorrow = new Date()
-      tomorrow.setHours(24, 0, 0, 0)
-      const msUntilMidnight = tomorrow.getTime() - Date.now()
+      // 新規キー: JST 翌日 00:00 + バッファで期限設定。
+      // getStartOfToday() は「今日の JST 00:00」を UTC で返すため、
+      // +24h で「明日の JST 00:00」= JST 日界のリセット時刻になる。
+      const jstTomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+      const msUntilMidnight = jstTomorrow.getTime() - Date.now()
       const secondsUntilMidnight = Math.ceil(msUntilMidnight / ONE_SECOND_MS) + MIDNIGHT_BUFFER_SECONDS
       await redis.expire(redisKey, secondsUntilMidnight)
     }

@@ -69,11 +69,13 @@ function splitCsvLine(line: string): string[] {
 export function parseCsv(content: string): Record<string, string>[] {
   const lines = content.trim().split("\n");
   if (lines.length < 2) return [];
-  const headerLine = lines[0].replace(/^\uFEFF/, "");
+  // length >= 2 \u3092\u76F4\u524D\u3067\u78BA\u8A8D\u6E08\u307F
+  const headerLine = lines[0]!.replace(/^\uFEFF/, "");
   const headers = splitCsvLine(headerLine);
   const rows: Record<string, string>[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const vals = splitCsvLine(lines[i]);
+    // i < lines.length \u3092 for \u6761\u4EF6\u3067\u4FDD\u8A3C\u6E08\u307F
+    const vals = splitCsvLine(lines[i]!);
     const row: Record<string, string> = {};
     headers.forEach((h, j) => { row[h] = vals[j] ?? ""; });
     rows.push(row);

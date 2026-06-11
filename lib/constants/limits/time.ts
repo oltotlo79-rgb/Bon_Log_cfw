@@ -39,3 +39,10 @@ export const MIDNIGHT_BUFFER_SECONDS = 60
 
 /** Cronジョブのデフォルトタイムアウト秒数（Vercel Function制限） */
 export const CRON_FUNCTION_TIMEOUT_SECONDS = 60
+
+/**
+ * JST（日本標準時）の UTC オフセット（ミリ秒）。
+ * 日本は DST（夏時間）なし、UTC+9 固定。
+ * サーバー TZ に依存しない日界計算で使用する。
+ */
+export const JST_OFFSET_MS = 9 * 60 * 60 * 1000

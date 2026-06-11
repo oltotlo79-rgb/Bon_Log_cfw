@@ -5470,7 +5470,7 @@ export async function POST(request: NextRequest) {
 
 ### Cronジョブの実装
 
-定期的に実行するバッチ処理です。Vercel Cron Jobsから呼び出されます。
+定期的に実行するバッチ処理です。GitHub Actions（`.github/workflows/cron.yml`）のスケジュール実行から呼び出されます。
 
 ```typescript
 // app/api/cron/cleanup-events/route.ts（簡略版）
@@ -5706,7 +5706,7 @@ Route Handlerには、ファイルレベルで設定できるオプションが�
 ```typescript
 // app/api/cron/publish-scheduled/route.ts
 
-// Vercel Cron設定
+// Cron用 Route Handler 設定
 export const dynamic = 'force-dynamic'  // 常に動的実行（キャッシュなし）
 export const maxDuration = 60           // 最大実行時間: 60秒（デフォルトは10秒）
 ```

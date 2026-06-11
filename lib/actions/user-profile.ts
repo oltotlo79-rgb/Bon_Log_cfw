@@ -195,11 +195,19 @@ export async function getFollowing(userId: string, cursor?: string, limit = DEFA
   return { following: result.users ?? [], nextCursor: result.nextCursor }
 }
 
+const updatePrivacySchema = z.object({ isPublic: z.boolean() })
+
 export async function updatePrivacy(isPublic: boolean) {
+  // 1. 認証
   const auth = await requireActiveNonGuestUser()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  // 2. Zod バリデーション
+  const parsed = updatePrivacySchema.safeParse({ isPublic })
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
+  // 3. レート制限
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 

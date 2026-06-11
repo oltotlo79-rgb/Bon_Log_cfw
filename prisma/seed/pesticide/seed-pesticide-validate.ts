@@ -356,11 +356,11 @@ async function fetchMaffData(registrationNumber: string): Promise<MaffData | nul
 
   // 製品名: <h1 class="ttl">...</h1>
   const titleMatch = html.match(/<h1\s+class="ttl">([\s\S]*?)<\/h1>/);
-  const productName = titleMatch ? toHalfWidth(stripTags(titleMatch[1])) : "";
+  const productName = titleMatch ? toHalfWidth(stripTags(titleMatch[1]!)) : "";
 
   // 剤型: <th>剤型</th><td>...</td>
   const formulationMatch = html.match(/<th[^>]*>剤型<\/th>\s*<td>([\s\S]*?)<\/td>/);
-  const formulation = formulationMatch ? stripTags(formulationMatch[1]).trim() : "";
+  const formulation = formulationMatch ? stripTags(formulationMatch[1]!).trim() : "";
 
   // 有効成分: table.col2_table 内の「有効成分」行
   const ingredients: { name: string; concentration: string }[] = [];
@@ -370,8 +370,8 @@ async function fetchMaffData(registrationNumber: string): Promise<MaffData | nul
     const rowRegex = /<tr(?:\s[^>]*)?>\s*<th[^>]*class="sp_only"[^>]*><\/th>\s*<th[^>]*>有効成分<\/th>\s*<td[^>]*><p>([\s\S]*?)<\/p><\/td>\s*<td[^>]*><p>([\s\S]*?)<\/p><\/td>\s*<\/tr>/g;
     let match;
     while ((match = rowRegex.exec(ingredientSection)) !== null) {
-      const name = toHalfWidth(stripTags(match[1])).trim();
-      const concentration = stripTags(match[2]).trim();
+      const name = toHalfWidth(stripTags(match[1]!)).trim();
+      const concentration = stripTags(match[2]!).trim();
       if (name) ingredients.push({ name, concentration });
     }
   }
@@ -383,7 +383,7 @@ async function fetchMaffData(registrationNumber: string): Promise<MaffData | nul
     const pestCellRegex = /data-label="適用病害虫名[^"]*"[^>]*>([\s\S]*?)<\/td>/g;
     let pestMatch;
     while ((pestMatch = pestCellRegex.exec(applicationSection)) !== null) {
-      const pestName = toHalfWidth(stripTags(pestMatch[1])).trim();
+      const pestName = toHalfWidth(stripTags(pestMatch[1]!)).trim();
       if (pestName && !applicablePests.includes(pestName)) {
         applicablePests.push(pestName);
       }

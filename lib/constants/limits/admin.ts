@@ -28,6 +28,12 @@ export const SUSPICIOUS_FOLLOWS_PER_HOUR = 30
 /** 有効なお知らせの最大表示件数 */
 export const ACTIVE_ANNOUNCEMENTS_LIMIT = 5
 
+/** 管理画面: ユーザーアクティビティ一覧のページ取得件数 */
+export const ADMIN_USER_ACTIVITY_PAGE_LIMIT = 50
+
+/** 管理画面: CMSページ一覧のページ取得件数 */
+export const ADMIN_CMS_PAGES_PAGE_LIMIT = 100
+
 /**
  * 管理画面のお知らせ一覧の最大表示件数。
  * ページネーションではなく一覧を一括表示する想定で、通常運用では十分な件数を確保する。

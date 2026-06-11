@@ -345,7 +345,7 @@ export async function getComments(postId: string, cursor?: string, limit = DEFAU
           },
         } : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       ...buildCursorPagination(safeCursor, safeLimit),
     })
 
@@ -427,7 +427,7 @@ export async function getReplies(commentId: string, cursor?: string, limit = REP
           },
         } : {}),
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       ...buildCursorPagination(safeCursor, safeLimit),
     })
 

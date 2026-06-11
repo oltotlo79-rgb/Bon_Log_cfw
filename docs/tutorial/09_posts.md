@@ -4077,14 +4077,14 @@ export async function createScheduledPost(formData: FormData) {
 }
 ```
 
-### publishScheduledPosts: バッチ処理による自動公開
+### publishDueScheduledPosts: バッチ処理による自動公開
 
-Cronジョブで定期的に実行される関数です。公開時刻を過ぎた予約投稿を自動的に公開します。
+Cronジョブで定期的に実行される関数です。公開時刻を過ぎた予約投稿を自動的に公開します。Server Action ではなく services 層に置かれ、Cron用 Route Handler からのみ呼ばれます。
 
 ```typescript
-// lib/actions/scheduled-post.ts
+// lib/services/scheduled-post-publisher.ts
 
-export async function publishScheduledPosts() {
+export async function publishDueScheduledPosts() {
   const now = new Date()
 
   // 公開対象の予約投稿を取得
@@ -4143,15 +4143,16 @@ export async function publishScheduledPosts() {
 ```
 
 > **Cronジョブとは？**
-> 定期的にタスクを実行する仕組みです。BON-LOGでは Vercel の Cron Jobs や API ルートを使って、例えば毎分 `publishScheduledPosts()` を呼び出し、公開時刻を過ぎた予約投稿を自動公開します。
+> 定期的にタスクを実行する仕組みです。BON-LOGでは GitHub Actions（`.github/workflows/cron.yml`）が5分毎に `/api/cron/publish-scheduled` を起動し、`publishDueScheduledPosts()` で公開時刻を過ぎた予約投稿を自動公開します。
 
 ### BON-LOGでの使用箇所
 
 | ファイル | 役割 |
 |---------|------|
-| `lib/actions/scheduled-post.ts` | 予約投稿のServer Actions（createScheduledPost, publishScheduledPosts, cancelScheduledPost） |
+| `lib/actions/scheduled-post.ts` | 予約投稿のServer Actions（createScheduledPost, cancelScheduledPost 等のCRUD） |
+| `lib/services/scheduled-post-publisher.ts` | 公開バッチ処理本体（publishDueScheduledPosts） |
 | `components/post/ScheduledPostForm.tsx` | 予約投稿作成フォーム（プレミアム会員のみ表示） |
-| `app/api/cron/publish-scheduled/route.ts` | Cronジョブ用APIルート（定期実行でpublishScheduledPostsを呼び出し） |
+| `app/api/cron/publish-scheduled/route.ts` | Cronジョブ用APIルート（GitHub Actions が5分毎に起動し、publishDueScheduledPostsを呼び出し） |
 | `app/(main)/posts/scheduled/page.tsx` | 予約投稿一覧ページ |
 
 ### 実装しない場合の影響
@@ -6417,7 +6418,7 @@ const timeLabel = isExpired
 > - ScheduledPostForm コンポーネントの状態管理
 > - 日時入力のバリデーション設計
 > - ScheduledPostStatus の遷移ルール
-> - publishScheduledPosts バッチ処理の詳細
+> - publishDueScheduledPosts バッチ処理の詳細
 > - Cronジョブとの連携パターン
 
 ### ScheduledPostForm の状態管理
@@ -6573,14 +6574,14 @@ stateDiagram-v2
   ※ pending 状態のみ「編集」「キャンセル」「削除」が可能
 ```
 
-### publishScheduledPosts バッチ処理の詳細
+### publishDueScheduledPosts バッチ処理の詳細
 
 Cronジョブで定期的に実行されるバッチ処理の動作を追跡します。
 
 ```typescript
-// lib/actions/scheduled-post.ts
+// lib/services/scheduled-post-publisher.ts（簡略版）
 
-export async function publishScheduledPosts() {
+export async function publishDueScheduledPosts() {
   const now = new Date()
 
   // ステップ1: 公開対象の予約投稿を取得
@@ -6676,34 +6677,27 @@ WHERE status='pending' AND scheduledAt <= '2024-12-15 10:05:00'
 
 ### Cronジョブとの連携
 
-Vercel の Cron Jobs を使って定期的にバッチ処理を実行します。実際のソースコードでは、HMAC署名ベースの認証とトランザクションを使った安全な実装になっています。
+GitHub Actions（`.github/workflows/cron.yml`）が5分毎に `/api/cron/publish-scheduled` を起動してバッチ処理を実行します。Route Handler は `verifyCronAuth` で認証だけを行い、公開処理本体は services 層の `publishDueScheduledPosts()` に委譲します。実際のソースコードでは、ユーザー停止チェックとトランザクションを使った安全な実装になっています。
 
 > **ファイルパス**: `app/api/cron/publish-scheduled/route.ts`
 >
 > **この処理がないと**: 予約投稿は作成できても、指定時刻に自動公開されません。
 
 ```typescript
-// app/api/cron/publish-scheduled/route.ts（実際のソースコード）
+// app/api/cron/publish-scheduled/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { verifyCronAuth } from '@/lib/cron-auth'
-import { CRON_BATCH_SIZE } from '@/lib/constants/limits'
-import { logger } from '@/lib/logger'
-
-type TransactionClient = Omit<typeof prisma,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
-
-// Vercel Cron Job用 - 予約投稿の自動公開
-// cron: */5 * * * * (5分ごとに実行)
+import { publishDueScheduledPosts } from '@/lib/services/scheduled-post-publisher'
 
 export async function GET(request: NextRequest) {
-  // ── HMAC署名ベースの認証 ──
-  // Bearer トークンではなく、タイムスタンプ付きHMAC署名で検証
+  // ── Cron 認証 ──
+  // Bearer CRON_SECRET（GitHub Actions cron 用）と
+  // HMAC署名＋タイムスタンプ（外部スケジューラ用）の2方式を受け付ける
   const authHeader = request.headers.get('authorization')
   const timestampHeader = request.headers.get('x-cron-timestamp')
 
-  const authResult = verifyCronAuth(authHeader, timestampHeader)
+  const authResult = verifyCronAuth(authHeader, timestampHeader, request.nextUrl.pathname)
   if (!authResult.valid) {
     return NextResponse.json(
       { error: authResult.error || 'Unauthorized' },
@@ -6711,131 +6705,123 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  try {
-    const now = new Date()
+  // ── 公開処理本体は services 層に一本化 ──
+  const { published, failed } = await publishDueScheduledPosts()
 
-    // ── 公開対象の予約投稿を取得 ──
-    const scheduledPosts = await prisma.scheduledPost.findMany({
-      where: {
-        status: 'pending',
-        scheduledAt: { lte: now },
+  return NextResponse.json({
+    success: true,
+    message: `Published ${published} scheduled posts`,
+    publishedCount: published,
+    failedCount: failed,
+  })
+}
+
+// Cron用 Route Handler 設定
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // 60秒タイムアウト
+```
+
+公開処理本体（services 層）は、取得カラムの絞り込み・ユーザー停止チェック・トランザクションを組み合わせた実装です。
+
+```typescript
+// lib/services/scheduled-post-publisher.ts（公開処理本体・抜粋）
+
+export async function publishDueScheduledPosts() {
+  const now = new Date()
+
+  // ── 公開対象の予約投稿を取得 ──
+  const scheduledPosts = await prisma.scheduledPost.findMany({
+    where: {
+      status: 'pending',
+      scheduledAt: { lte: now },
+    },
+    select: {
+      id: true,
+      userId: true,
+      content: true,
+      user: { select: { id: true, isSuspended: true } },
+      media: {
+        select: { url: true, type: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
       },
-      select: {
-        id: true,
-        userId: true,
-        content: true,
-        user: { select: { id: true, isSuspended: true } },
-        media: {
-          select: { url: true, type: true, sortOrder: true },
-          orderBy: { sortOrder: 'asc' },
-        },
-        genres: { select: { genreId: true } },
-      },
-      take: CRON_BATCH_SIZE,  // lib/constants/limits.ts で 50 に設定
-    })
+      genres: { select: { genreId: true } },
+    },
+    take: CRON_BATCH_SIZE,  // lib/constants/limits.ts で 50 に設定
+  })
 
-    if (scheduledPosts.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No scheduled posts to publish',
-        publishedCount: 0,
-      })
-    }
+  let published = 0
+  let failed = 0
 
-    let publishedCount = 0
-    let failedCount = 0
-    const errors: string[] = []
-
-    for (const scheduledPost of scheduledPosts) {
-      try {
-        // ── ユーザーが有効かチェック ──
-        // 停止されたユーザーの投稿は公開しない
-        if (!scheduledPost.user || scheduledPost.user.isSuspended) {
-          await prisma.scheduledPost.update({
-            where: { id: scheduledPost.id },
-            data: { status: 'failed' },
-          })
-          failedCount++
-          errors.push(`Post ${scheduledPost.id}: User suspended or not found`)
-          continue
-        }
-
-        // ── トランザクションで投稿作成と予約投稿の更新を行う ──
-        await prisma.$transaction(async (tx: TransactionClient) => {
-          // 投稿を作成
-          const post = await tx.post.create({
-            data: {
-              userId: scheduledPost.userId,
-              content: scheduledPost.content,
-            },
-          })
-
-          // メディアを作成
-          if (scheduledPost.media.length > 0) {
-            await tx.postMedia.createMany({
-              data: scheduledPost.media.map((m) => ({
-                postId: post.id,
-                url: m.url,
-                type: m.type,
-                sortOrder: m.sortOrder,
-              })),
-            })
-          }
-
-          // ジャンルを作成
-          if (scheduledPost.genres.length > 0) {
-            await tx.postGenre.createMany({
-              data: scheduledPost.genres.map((g) => ({
-                postId: post.id,
-                genreId: g.genreId,
-              })),
-            })
-          }
-
-          // 予約投稿のステータスを更新
-          await tx.scheduledPost.update({
-            where: { id: scheduledPost.id },
-            data: {
-              status: 'published',
-              publishedPostId: post.id,
-            },
-          })
-        })
-
-        publishedCount++
-      } catch (error) {
-        logger.error(
-          `Failed to publish scheduled post ${scheduledPost.id}:`, error
-        )
-        failedCount++
-
-        // ステータスを失敗に更新（次回のCronで再試行しない）
+  for (const scheduledPost of scheduledPosts) {
+    try {
+      // ── ユーザーが有効かチェック ──
+      // 停止されたユーザーの投稿は公開しない
+      if (!scheduledPost.user || scheduledPost.user.isSuspended) {
         await prisma.scheduledPost.update({
           where: { id: scheduledPost.id },
           data: { status: 'failed' },
-        }).catch(() => {}) // 更新失敗は無視
+        })
+        failed++
+        continue
       }
+
+      // ── トランザクションで投稿作成と予約投稿の更新を行う ──
+      await prisma.$transaction(async (tx) => {
+        // 投稿を作成
+        const post = await tx.post.create({
+          data: {
+            userId: scheduledPost.userId,
+            content: scheduledPost.content,
+          },
+        })
+
+        // メディアを作成
+        if (scheduledPost.media.length > 0) {
+          await tx.postMedia.createMany({
+            data: scheduledPost.media.map((m) => ({
+              postId: post.id,
+              url: m.url,
+              type: m.type,
+              sortOrder: m.sortOrder,
+            })),
+          })
+        }
+
+        // ジャンルを作成
+        if (scheduledPost.genres.length > 0) {
+          await tx.postGenre.createMany({
+            data: scheduledPost.genres.map((g) => ({
+              postId: post.id,
+              genreId: g.genreId,
+            })),
+          })
+        }
+
+        // 予約投稿のステータスを更新
+        await tx.scheduledPost.update({
+          where: { id: scheduledPost.id },
+          data: {
+            status: 'published',
+            publishedPostId: post.id,
+          },
+        })
+      })
+
+      published++
+    } catch (error) {
+      logger.error(`Failed to publish scheduled post ${scheduledPost.id}:`, error)
+      failed++
+
+      // ステータスを失敗に更新（次回のCronで再試行しない）
+      await prisma.scheduledPost.update({
+        where: { id: scheduledPost.id },
+        data: { status: 'failed' },
+      }).catch(() => {}) // 更新失敗は無視
     }
-
-    return NextResponse.json({
-      success: true,
-      message: `Published ${publishedCount} scheduled posts`,
-      publishedCount,
-      failedCount,
-      errors: errors.length > 0 ? errors : undefined,
-    })
-  } catch (error) {
-    logger.error('Cron job error (publish-scheduled):', error)
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
   }
-}
 
-// Vercel Cron設定
-export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // 60秒タイムアウト
+  return { published, failed }
+}
 ```
 
 ```
@@ -6854,13 +6840,12 @@ export const maxDuration = 60 // 60秒タイムアウト
     "success": true,
     "message": "Published 1 scheduled posts",
     "publishedCount": 1,
-    "failedCount": 1,
-    "errors": ["Post sp-2: User suspended or not found"]
+    "failedCount": 1
   }
 ```
 
-> **実装のポイント: HMAC認証 vs Bearer トークン**
-> 単純な Bearer トークン（`CRON_SECRET`）ではなく、HMAC署名＋タイムスタンプによる認証を採用しています。これにより、トークンの漏洩リスクが低減し、リプレイ攻撃（過去のリクエストを再送する攻撃）も防止できます。
+> **実装のポイント: Bearer と HMAC の2方式**
+> `verifyCronAuth` は Bearer トークン（`CRON_SECRET`。GitHub Actions cron が GET で使用）と、HMAC署名＋タイムスタンプ（外部スケジューラ用）の2方式を受け付けます。HMAC方式はトークン漏洩リスクが低減し、リプレイ攻撃（過去のリクエストを再送する攻撃）も防止できます。
 
 > **実装のポイント: ユーザー停止チェック**
 > 予約投稿の作成後にユーザーが停止された場合、そのユーザーの投稿を公開すべきではありません。`user.isSuspended` チェックにより、停止ユーザーの投稿は `failed` ステータスに変更されます。

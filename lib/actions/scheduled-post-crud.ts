@@ -1,7 +1,7 @@
 /**
  * 予約投稿のCRUD操作（ユーザー向け）のServer Actions
  *
- * 予約投稿の公開バッチ処理は scheduled-post-publish.ts を参照。
+ * 予約投稿の公開バッチ処理は lib/services/scheduled-post-publisher.ts を参照。
  *
  * @module lib/actions/scheduled-post-crud
  */
@@ -46,12 +46,15 @@ import {
   ERR_GENRE_LIMIT,
   ERR_SCHEDULED_DATE_TOO_FAR,
   ERR_SCHEDULED_POST_LIMIT,
+  ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
 import { SCHEDULED_POST_STATUS } from '@/lib/constants/status'
 import { ROUTE_SCHEDULED_POSTS } from '@/lib/constants/routes'
 import { mediaUrlListSchema, mediaTypeListSchema } from '@/lib/actions/schemas/common'
 
 type TransactionClient = Prisma.TransactionClient
+
+const scheduledPostIdSchema = z.string().min(1)
 
 const createScheduledPostSchema = z.object({
   content: z.string().max(MAX_POST_CONTENT_PREMIUM).optional().default(''),
@@ -172,12 +175,21 @@ export async function getScheduledPosts() {
  * 単一の予約投稿を取得する（所有者のみ）。
  */
 export async function getScheduledPost(id: string) {
+  // 1. 認証
   const auth = await requireActiveNonGuestUser()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
+  // 2. Zod バリデーション
+  const parsed = scheduledPostIdSchema.safeParse(id)
+  if (!parsed.success) return actionError(ERR_INVALID_INPUT)
+
+  // 3. レート制限
+  const rl = await enforceUserRateLimit(userId, 'read')
+  if (rl) return actionError(rl.error)
+
   const scheduledPost = await prisma.scheduledPost.findUnique({
-    where: { id },
+    where: { id: parsed.data },
     include: {
       media: { orderBy: { sortOrder: 'asc' } },
       genres: POST_GENRE_RELATION,
@@ -199,9 +211,14 @@ export async function getScheduledPost(id: string) {
  * 予約中（pending）の予約投稿の内容を更新する。
  */
 export async function updateScheduledPost(id: string, formData: FormData) {
+  // 1. 認証
   const auth = await requireActiveNonGuestUser()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
+
+  // 2. Zod バリデーション（id + body）
+  const idParsed = scheduledPostIdSchema.safeParse(id)
+  if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
 
   // mediaTypes は enum に合わない値を 'image' にフォールバックしてから Zod に渡す
   const validMediaTypes = new Set<string>(['image', 'video'])
@@ -224,9 +241,8 @@ export async function updateScheduledPost(id: string, formData: FormData) {
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 
-  // DB lookup は Zod 検証 + rate limit の後に実施 (不正入力で DB 一往復させない / 任意 id 探索を防ぐ)。
   const existing = await prisma.scheduledPost.findUnique({
-    where: { id },
+    where: { id: idParsed.data },
     select: { userId: true, status: true },
   })
   if (!existing) return actionError(ERR_SCHEDULED_POST_NOT_FOUND)
@@ -253,11 +269,11 @@ export async function updateScheduledPost(id: string, formData: FormData) {
 
   // トランザクションで既存メディア・ジャンルを削除し、新しい内容で差し替える
   await prisma.$transaction(async (tx: TransactionClient) => {
-    await tx.scheduledPostMedia.deleteMany({ where: { scheduledPostId: id } })
-    await tx.scheduledPostGenre.deleteMany({ where: { scheduledPostId: id } })
+    await tx.scheduledPostMedia.deleteMany({ where: { scheduledPostId: idParsed.data } })
+    await tx.scheduledPostGenre.deleteMany({ where: { scheduledPostId: idParsed.data } })
 
     await tx.scheduledPost.update({
-      where: { id },
+      where: { id: idParsed.data },
       data: {
         content: content || null,
         scheduledAt,
@@ -283,16 +299,21 @@ export async function updateScheduledPost(id: string, formData: FormData) {
  * 予約投稿を削除する。公開済みのものは削除不可。
  */
 export async function deleteScheduledPost(id: string) {
+  // 1. 認証
   const auth = await requireActiveNonGuestUser()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
-  // id のみの操作のため Zod は無いが、任意 id 探索を消費させないよう DB lookup の前に実施する。
+  // 2. Zod バリデーション
+  const idParsed = scheduledPostIdSchema.safeParse(id)
+  if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
+
+  // 3. レート制限
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 
   const scheduledPost = await prisma.scheduledPost.findUnique({
-    where: { id },
+    where: { id: idParsed.data },
     select: { userId: true, status: true, media: { select: { url: true } } },
   })
   if (!scheduledPost) return actionError(ERR_SCHEDULED_POST_NOT_FOUND)
@@ -301,7 +322,7 @@ export async function deleteScheduledPost(id: string) {
     return actionError(ERR_SCHEDULED_POST_PUBLISHED_DELETE)
   }
 
-  await prisma.scheduledPost.delete({ where: { id } })
+  await prisma.scheduledPost.delete({ where: { id: idParsed.data } })
 
   // DB カスケード後にストレージ実体も回収（オーファン防止、best-effort）
   await deleteMediaFiles(scheduledPost.media.map((m) => m.url))
@@ -315,16 +336,21 @@ export async function deleteScheduledPost(id: string) {
  * pending 状態のもののみキャンセル可能。
  */
 export async function cancelScheduledPost(id: string) {
+  // 1. 認証
   const auth = await requireActiveNonGuestUser()
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
-  // id のみの操作のため Zod は無いが、任意 id 探索を消費させないよう DB lookup の前に実施する。
+  // 2. Zod バリデーション
+  const idParsed = scheduledPostIdSchema.safeParse(id)
+  if (!idParsed.success) return actionError(ERR_INVALID_INPUT)
+
+  // 3. レート制限
   const rl = await enforceUserRateLimit(userId, 'engagement')
   if (rl) return actionError(rl.error)
 
   const scheduledPost = await prisma.scheduledPost.findUnique({
-    where: { id },
+    where: { id: idParsed.data },
     select: { userId: true, status: true },
   })
   if (!scheduledPost) return actionError(ERR_SCHEDULED_POST_NOT_FOUND)
@@ -334,7 +360,7 @@ export async function cancelScheduledPost(id: string) {
   }
 
   await prisma.scheduledPost.update({
-    where: { id },
+    where: { id: idParsed.data },
     data: { status: SCHEDULED_POST_STATUS.CANCELLED },
   })
 

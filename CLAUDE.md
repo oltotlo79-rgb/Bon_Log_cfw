@@ -36,9 +36,10 @@ npm run test:all      # 全テスト実行
 | ジョブ | 内容 | 実行タイミング |
 |--------|------|--------------|
 | lint | ESLint + TypeScript型チェック | 常時 |
-| test | ユニットテスト | 常時 |
+| security | npm audit（high/critical ゲート）+ CodeQL | 常時 |
+| test | ユニットテスト（カバレッジゲート） | 常時 |
 | build | ビルド確認 | 常時 |
-| e2e | E2Eテスト（Playwright） | mainのみ |
+| e2e | E2Eテスト（Playwright） | 常時（lint/test/build 成功後） |
 
 ## 技術スタック
 

@@ -183,13 +183,14 @@
 
 ### Cron ジョブ
 
-全ジョブで HMAC-SHA256 署名 + タイムスタンプ認証 (`verifyCronAuth()`) を使用。
+全ジョブで `verifyCronAuth()` による認証（Bearer `CRON_SECRET`（GET のみ）/ HMAC-SHA256 署名 + タイムスタンプの 2 方式）。
+本番は GitHub Actions（`.github/workflows/cron.yml`）の schedule が Bearer 方式で起動する。
 
 #### GET `/api/cron/publish-scheduled`
-- **認証:** HMAC-SHA256（`verifyCronAuth` が未認証時 `401 { error: API_ERR_UNAUTHORIZED }` を返す）
+- **認証:** `verifyCronAuth`（Bearer / HMAC。未認証時 `401 { error: API_ERR_UNAUTHORIZED }` を返す）
 - **実行間隔:** 5分毎 (`*/5 * * * *`)
 - **maxDuration:** 60 秒（リテラル。`CRON_FUNCTION_TIMEOUT_SECONDS` 定数と一致することを型レベルで検証）
-- **説明:** 予約投稿の公開処理（バッチ）。凍結ユーザーの投稿はスキップ
+- **説明:** 予約投稿の公開処理（バッチ）。本体は `lib/services/scheduled-post-publisher.ts` の `publishDueScheduledPosts()`。凍結ユーザーの投稿はスキップ
 - **レスポンス:** `{ success: true, publishedCount: number, failedCount: number, message: string }`
 - **エラー:** 予期せぬ失敗時は `500 { success: false, error: API_ERR_INTERNAL_SERVER_ERROR }`
 
@@ -728,7 +729,8 @@ PostgreSQL 全文検索（FTS）対応。IP ベースレート制限。検索系
 | `updateScheduledPost(id, formData)` | 予約投稿更新 |
 | `deleteScheduledPost(id)` | 予約投稿削除 |
 | `cancelScheduledPost(id)` | 予約投稿キャンセル |
-| `publishScheduledPosts(cronSecret?)` | 予約投稿公開処理（cron用） |
+
+公開処理は Server Action ではなく `lib/services/scheduled-post-publisher.ts` の `publishDueScheduledPosts()` に一本化。`/api/cron/publish-scheduled`（GitHub Actions cron が 5 分毎に起動）からのみ呼ばれる。
 
 ---
 

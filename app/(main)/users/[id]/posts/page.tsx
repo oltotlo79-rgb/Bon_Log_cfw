@@ -4,8 +4,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
-import { buildUserPostsPath, buildUserPath } from '@/lib/constants/path-builders'
-import { pageCanonical } from '@/lib/utils/seo'
+import { buildUserPath } from '@/lib/constants/path-builders'
 import { canViewAuthorContent } from '@/lib/services/post-visibility'
 
 type Props = {
@@ -26,7 +25,9 @@ export async function generateMetadata({ params }: Props) {
 
   return {
     title: `${user.nickname}の投稿`,
-    alternates: { canonical: pageCanonical(buildUserPostsPath(id)) },
+    // プロフィール本体 /users/[id] が同じ投稿タブを表示するため重複コンテンツになる。
+    // canonical は本体ページが持つため、このサブページは noindex とし canonical も出さない。
+    robots: { index: false, follow: true },
     ...((user.isPublic === false || user.isSuspended) && {
       robots: { index: false, follow: false },
     }),
