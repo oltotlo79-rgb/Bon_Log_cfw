@@ -83,8 +83,8 @@ describe('Subscription Actions Edge Cases', () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.isPremium).toBe(true)
-      expect(result.subscription).toBeNull()
+      expect(('isPremium' in result ? result.isPremium : undefined)).toBe(true)
+      expect(('subscription' in result ? result.subscription : undefined)).toBeNull()
     })
 
     it('current_period_endがnullの場合はpremiumExpiresAtにフォールバック', async () => {
@@ -104,8 +104,8 @@ describe('Subscription Actions Edge Cases', () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.subscription).not.toBeNull()
-      expect(result.subscription?.currentPeriodEnd).toEqual(expiresAt)
+      expect(('subscription' in result ? result.subscription : undefined)).not.toBeNull()
+      expect(('subscription' in result ? result.subscription : undefined)?.currentPeriodEnd).toEqual(expiresAt)
     })
 
     it('current_period_endが0の場合はフォールバックする', async () => {
@@ -125,7 +125,7 @@ describe('Subscription Actions Edge Cases', () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.subscription?.currentPeriodEnd).toEqual(expiresAt)
+      expect(('subscription' in result ? result.subscription : undefined)?.currentPeriodEnd).toEqual(expiresAt)
     })
 
     it('premiumExpiresAtもnullの場合は30日後にフォールバック', async () => {
@@ -145,9 +145,9 @@ describe('Subscription Actions Edge Cases', () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.subscription).not.toBeNull()
+      expect(('subscription' in result ? result.subscription : undefined)).not.toBeNull()
       // 30日後のフォールバック（THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000）
-      const periodEnd = result.subscription!.currentPeriodEnd as Date
+      const periodEnd = ('subscription' in result ? result.subscription : undefined)!.currentPeriodEnd as Date
       const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
       expect(periodEnd.getTime()).toBeGreaterThanOrEqual(now + thirtyDaysMs - 1000)
       expect(periodEnd.getTime()).toBeLessThanOrEqual(now + thirtyDaysMs + 1000)
@@ -172,8 +172,8 @@ describe('Subscription Actions Edge Cases', () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.subscription?.cancelAtPeriodEnd).toBe(true)
-      expect(result.subscription?.status).toBe('active')
+      expect(('subscription' in result ? result.subscription : undefined)?.cancelAtPeriodEnd).toBe(true)
+      expect(('subscription' in result ? result.subscription : undefined)?.status).toBe('active')
     })
 
     it('ステータスがcanceledの場合を正しく返す', async () => {
@@ -192,8 +192,8 @@ describe('Subscription Actions Edge Cases', () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.isPremium).toBe(false)
-      expect(result.subscription?.status).toBe('canceled')
+      expect(('isPremium' in result ? result.isPremium : undefined)).toBe(false)
+      expect(('subscription' in result ? result.subscription : undefined)?.status).toBe('canceled')
     })
   })
 
@@ -211,7 +211,7 @@ describe('Subscription Actions Edge Cases', () => {
       const { getPaymentHistory } = await import('@/lib/actions/subscription')
       const result = await getPaymentHistory()
 
-      expect(result.payments).toEqual(payments)
+      expect(('payments' in result ? result.payments : undefined)).toEqual(payments)
       expect(mockPrisma.payment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           orderBy: { createdAt: 'desc' },

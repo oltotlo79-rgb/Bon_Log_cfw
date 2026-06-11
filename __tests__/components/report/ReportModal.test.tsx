@@ -70,7 +70,7 @@ describe('ReportModal', () => {
 
     // Xボタンをクリック
     const closeButtons = screen.getAllByRole('button')
-    await user.click(closeButtons[0]) // 最初のボタンがXボタン
+    await user.click(closeButtons[0]!) // 最初のボタンがXボタン
 
     expect(defaultProps.onClose).toHaveBeenCalled()
   })
@@ -156,9 +156,9 @@ describe('ReportModal', () => {
     // 並列実行下のフレークを避けるため、解決を手動制御する Promise を使う。
     // 旧実装は setTimeout(100ms) に依存しており、パラレル負荷で送信完了が
     // disabled 状態の検証より早く起きるケースがあった。
-    let resolveCreate: ((value: { success: true }) => void) | null = null
+    let resolveCreate: ((value: { success: true }) => void) | undefined
     mockCreateReport.mockImplementation(
-      () => new Promise<{ success: true }>((resolve) => { resolveCreate = resolve })
+      () => new Promise<{ success: true }>((resolve) => { resolveCreate = resolve as (value: { success: true }) => void })
     )
     const user = userEvent.setup()
     render(<ReportModal {...defaultProps} />)
@@ -171,7 +171,7 @@ describe('ReportModal', () => {
     })
 
     // 後始末: pending Promise を解決させてリーク警告を防ぐ
-    resolveCreate?.({ success: true })
+    resolveCreate?.({ success: true as const })
   })
 
   it('文字数カウンターを表示する', async () => {

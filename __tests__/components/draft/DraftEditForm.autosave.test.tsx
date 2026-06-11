@@ -200,7 +200,7 @@ describe('DraftEditForm - auto-save branches', () => {
 
     await waitFor(() => {
       // The last call should have '変更2' as content
-      const lastCall = mockSaveDraft.mock.calls[mockSaveDraft.mock.calls.length - 1]
+      const lastCall = mockSaveDraft.mock.calls[mockSaveDraft.mock.calls.length - 1]!
       expect(lastCall[0].content).toBe('変更2')
     })
   })

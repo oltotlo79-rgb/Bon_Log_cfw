@@ -260,8 +260,8 @@ describe('管理者向けCMSページ管理アクション', () => {
       const { getCmsPage } = await import('@/lib/actions/admin/cms')
       const result = await getCmsPage('about') as { page: typeof mockCmsPageWithVersions }
 
-      expect(result.page.versions[0].version).toBe(3)
-      expect(result.page.versions[2].version).toBe(1)
+      expect(result.page.versions[0]!.version).toBe(3)
+      expect(result.page.versions[2]!.version).toBe(1)
     })
   })
 
@@ -519,8 +519,8 @@ describe('管理者向けCMSページ管理アクション', () => {
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(pageV3)
 
       // トランザクション内の引数をキャプチャ
-      mockTransaction.mockImplementation((ops: unknown[]) => {
-        return Promise.resolve(ops)
+      mockTransaction.mockImplementation((ops: unknown) => {
+        return Promise.resolve(ops as unknown[])
       })
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
@@ -539,7 +539,7 @@ describe('管理者向けCMSページ管理アクション', () => {
 
     it('updateCmsPageでCmsPageVersionが正しいcontent/titleで作成される', async () => {
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(mockCmsPage)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { title: '新タイトル', content: '<p>新内容</p>' })
@@ -559,7 +559,7 @@ describe('管理者向けCMSページ管理アクション', () => {
       // 1回目: version 1 -> 2
       const pageV1 = { ...mockCmsPage, version: 1 }
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(pageV1)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { title: 'v2' })
@@ -578,7 +578,7 @@ describe('管理者向けCMSページ管理アクション', () => {
       // 2回目: version 2 -> 3
       const pageV2 = { ...mockCmsPage, version: 2 }
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(pageV2)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       await updateCmsPage('about', { title: 'v3' })
 
@@ -597,7 +597,7 @@ describe('管理者向けCMSページ管理アクション', () => {
     it('publishする時にpublishedAtがnew Date()になる', async () => {
       const unpublishedPage = { ...mockCmsPage, isPublished: false, publishedAt: null, version: 1 }
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(unpublishedPage)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { isPublished: true })
@@ -616,7 +616,7 @@ describe('管理者向けCMSページ管理アクション', () => {
       const originalPublishedAt = new Date('2025-01-15')
       const publishedPage = { ...mockCmsPage, isPublished: true, publishedAt: originalPublishedAt, version: 2 }
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(publishedPage)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { isPublished: false })
@@ -633,7 +633,7 @@ describe('管理者向けCMSページ管理アクション', () => {
 
     it('isPublished未指定時は既存の公開状態が維持される', async () => {
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(mockCmsPage)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { title: 'タイトルのみ更新' })
@@ -710,7 +710,7 @@ describe('管理者向けCMSページ管理アクション', () => {
     it('deleteCmsPageのadminLogに正しいslugとtitleが記録される', async () => {
       const targetPage = { ...mockCmsPage, slug: 'delete-target', title: '削除対象ページ' }
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(targetPage)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { deleteCmsPage } = await import('@/lib/actions/admin/cms')
       await deleteCmsPage('delete-target')
@@ -729,7 +729,7 @@ describe('管理者向けCMSページ管理アクション', () => {
     it('updateCmsPageのadminLogにversion番号が含まれる', async () => {
       const pageV5 = { ...mockCmsPage, version: 5, id: 'page-v5' }
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(pageV5)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { title: 'v6テスト' })
@@ -747,7 +747,7 @@ describe('管理者向けCMSページ管理アクション', () => {
 
     it('updateCmsPageのadminLogにpublished状態が含まれる', async () => {
       ;(mockPrisma as Record<string, any>).cmsPage.findUnique.mockResolvedValue(mockCmsPage)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.resolve(ops))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.resolve(ops as unknown[]))
 
       const { updateCmsPage } = await import('@/lib/actions/admin/cms')
       await updateCmsPage('about', { isPublished: false })

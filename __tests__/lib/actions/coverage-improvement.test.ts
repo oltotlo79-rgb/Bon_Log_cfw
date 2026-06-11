@@ -5,6 +5,7 @@
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { createMockPrismaClient, mockUser, mockPost } from '../../utils/test-utils'
+import { expectError } from '../../helpers/action-result'
 
 const mockPrisma = createMockPrismaClient()
 ;(mockPrisma.shopReview as Record<string, unknown>).aggregate = vi.fn()
@@ -217,8 +218,7 @@ describe('createPost edge cases', () => {
     formData.append('mediaUrls', 'https://example.com/img.jpg')
     formData.append('mediaTypes', 'image')
     const result = await createPost(formData)
-    expect(result.success).toBe(true)
-    expect(result.data?.postId).toBe('media-post')
+    expect(result).toMatchObject({ success: true, data: { postId: 'media-post' } })
   })
 
   it('poll with invalid JSON returns poll data invalid error', async () => {
@@ -227,7 +227,7 @@ describe('createPost edge cases', () => {
     formData.append('content', 'テスト')
     formData.append('pollOptions', '{bad json')
     const result = await createPost(formData)
-    expect(result.success).toBe(false)
+    expectError(result)
     expect(result.error).toBe('アンケートデータが不正です')
   })
 
@@ -238,7 +238,7 @@ describe('createPost edge cases', () => {
     formData.append('pollOptions', JSON.stringify(['one']))
     formData.append('pollDuration', '86400')
     const result = await createPost(formData)
-    expect(result.success).toBe(false)
+    expectError(result)
     expect(result.error).toContain('選択肢は')
   })
 
@@ -249,7 +249,7 @@ describe('createPost edge cases', () => {
     formData.append('pollOptions', JSON.stringify(['ok', '']))
     formData.append('pollDuration', '86400')
     const result = await createPost(formData)
-    expect(result.success).toBe(false)
+    expectError(result)
     expect(result.error).toContain('選択肢は')
   })
 
@@ -260,7 +260,7 @@ describe('createPost edge cases', () => {
     formData.append('pollOptions', JSON.stringify(['A', 'B']))
     formData.append('pollDuration', '999999')
     const result = await createPost(formData)
-    expect(result.success).toBe(false)
+    expectError(result)
     expect(result.error).toBe('無効な投票期間です')
   })
 })
@@ -269,7 +269,7 @@ describe('deletePost edge cases', () => {
   it('empty postId returns invalid input error', async () => {
     const { deletePost } = await import('@/lib/actions/post')
     const result = await deletePost('')
-    expect(result.success).toBe(false)
+    expectError(result)
     expect(result.error).toBe('入力データが不正です')
   })
 })
@@ -310,7 +310,7 @@ describe('createShop edge cases', () => {
     formData.append('longitude', '139.65')
     const result = await createShop(formData)
     expect(result.success).toBe(false)
-    expect(result.error).toBe('入力データが不正です')
+    if (!result.success) expect(result.error).toBe('入力データが不正です')
   })
 
   it('invalid longitude returns invalid input error', async () => {
@@ -323,7 +323,7 @@ describe('createShop edge cases', () => {
     formData.append('longitude', 'bad')
     const result = await createShop(formData)
     expect(result.success).toBe(false)
-    expect(result.error).toBe('入力データが不正です')
+    if (!result.success) expect(result.error).toBe('入力データが不正です')
   })
 
   it('DB error during create returns shop create failed', async () => {
@@ -335,7 +335,7 @@ describe('createShop edge cases', () => {
     formData.append('address', '新住所')
     const result = await createShop(formData)
     expect(result.success).toBe(false)
-    expect(result.error).toBe('盆栽園の登録に失敗しました')
+    if (!result.success) expect(result.error).toBe('盆栽園の登録に失敗しました')
   })
 
   it('duplicate address returns error with existingId', async () => {
@@ -346,8 +346,10 @@ describe('createShop edge cases', () => {
     formData.append('address', '東京都')
     const result = await createShop(formData)
     expect(result.success).toBe(false)
-    expect(result.error).toBe('この住所の盆栽園は既に登録されています')
-    expect(result.existingId).toBe('dup-id')
+    if (!result.success) {
+      expect(result.error).toBe('この住所の盆栽園は既に登録されています')
+      expect(result.existingId).toBe('dup-id')
+    }
   })
 })
 

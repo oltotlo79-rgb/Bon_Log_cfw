@@ -453,9 +453,9 @@ describe('Fulltext Search Module', async () => {
 
       expect(result.success).toBe(true)
       expect(result.steps).toHaveLength(2)
-      expect(result.steps[0].step).toBe('pg_trgm拡張の有効化')
-      expect(result.steps[0].success).toBe(true)
-      expect(result.steps[1].step).toBe('GINインデックスの作成')
+      expect(result.steps[0]!.step).toBe('pg_trgm拡張の有効化')
+      expect(result.steps[0]!.success).toBe(true)
+      expect(result.steps[1]!.step).toBe('GINインデックスの作成')
     })
 
     it('pg_trgm拡張の有効化に失敗した場合は早期リターン', async () => {
@@ -467,7 +467,7 @@ describe('Fulltext Search Module', async () => {
 
       expect(result.success).toBe(false)
       expect(result.steps).toHaveLength(1)
-      expect(result.steps[0].success).toBe(false)
+      expect(result.steps[0]!.success).toBe(false)
     })
   })
 

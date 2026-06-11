@@ -64,8 +64,8 @@ describe('useMediaUpload', () => {
     })
 
     expect(result.current.mediaFiles).toHaveLength(2)
-    expect(result.current.mediaFiles[0].url).toBe('/image1.jpg')
-    expect(result.current.mediaFiles[1].url).toBe('/image3.jpg')
+    expect(result.current.mediaFiles[0]!.url).toBe('/image1.jpg')
+    expect(result.current.mediaFiles[1]!.url).toBe('/image3.jpg')
   })
 
   it('removeMediaで最初のファイルを削除できること', () => {
@@ -83,7 +83,7 @@ describe('useMediaUpload', () => {
     })
 
     expect(result.current.mediaFiles).toHaveLength(1)
-    expect(result.current.mediaFiles[0].url).toBe('/image2.jpg')
+    expect(result.current.mediaFiles[0]!.url).toBe('/image2.jpg')
   })
 
   it('removeMediaで最後のファイルを削除できること', () => {
@@ -101,7 +101,7 @@ describe('useMediaUpload', () => {
     })
 
     expect(result.current.mediaFiles).toHaveLength(1)
-    expect(result.current.mediaFiles[0].url).toBe('/image1.jpg')
+    expect(result.current.mediaFiles[0]!.url).toBe('/image1.jpg')
   })
 
   it('アンマウント時にAbortControllerがabortされること', () => {

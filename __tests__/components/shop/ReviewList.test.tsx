@@ -92,7 +92,7 @@ describe('ReviewList', () => {
   })
 
   it('レビューが1件の場合も正しく表示する', () => {
-    render(<ReviewList reviews={[mockReviews[0]]} />)
+    render(<ReviewList reviews={[mockReviews[0]!]} />)
 
     expect(screen.getByTestId('review-review-1')).toBeInTheDocument()
     expect(screen.queryByText('まだレビューがありません')).not.toBeInTheDocument()

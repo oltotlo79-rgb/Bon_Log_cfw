@@ -1,18 +1,22 @@
 import { vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { redirect as _redirect, notFound as _notFound } from 'next/navigation'
+import type { Session } from 'next-auth'
 
-// モック
+const mockAuth = vi.fn<() => Promise<Session | null>>()
+const mockGetDraft = vi.fn()
+const mockGetGenres = vi.fn()
+
 vi.mock('@/lib/auth', () => ({
-  auth: vi.fn(),
+  auth: () => mockAuth(),
 }))
 
 vi.mock('@/lib/actions/draft', () => ({
-  getDraft: vi.fn(),
+  getDraft: (...args: unknown[]) => mockGetDraft(...args),
 }))
 
 vi.mock('@/lib/actions/post', () => ({
-  getGenres: vi.fn(),
+  getGenres: () => mockGetGenres(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -22,37 +26,35 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href }: any) => <a href={href}>{children}</a>,
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }))
 
 vi.mock('@/components/draft/DraftEditForm', () => ({
-  DraftEditForm: ({ draft, genres }: any) => (
+  DraftEditForm: ({ draft, genres }: { draft: { id: string }; genres: unknown[] }) => (
     <div data-testid="draft-edit-form">
       Draft ID: {draft.id}, Genres: {genres.length}
     </div>
   ),
 }))
 
-describe('DraftEditPage', async () => {
-  const { auth } = await import('@/lib/auth')
-  const { getDraft } = await import('@/lib/actions/draft')
-  const { getGenres } = await import('@/lib/actions/post')
+const SESSION: Session = { user: { id: 'user1' }, expires: '2099-01-01' }
+
+describe('DraftEditPage', () => {
   const redirect = _redirect as unknown as ReturnType<typeof vi.fn>
   const notFound = _notFound as unknown as ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetModules()
   })
 
   it('未認証の場合はリダイレクト', async () => {
-     
-    auth.mockResolvedValue(null as any)
+    mockAuth.mockResolvedValue(null)
 
     const { default: Page } = await import('@/app/(main)/drafts/[id]/edit/page')
 
     try {
-       
-      await Page({ params: Promise.resolve({ id: 'draft1' }) } as any)
+      await Page({ params: Promise.resolve({ id: 'draft1' }) } as Parameters<typeof Page>[0])
     } catch (_error) {
       // redirect throws
     }
@@ -61,18 +63,14 @@ describe('DraftEditPage', async () => {
   })
 
   it('下書きが見つからない場合はnotFound', async () => {
-     
-    auth.mockResolvedValue({ user: { id: 'user1' } } as any)
-
-    getDraft.mockResolvedValue({ success: false, error: 'Not found' } as any)
-
-    getGenres.mockResolvedValue({ genres: [] } as any)
+    mockAuth.mockResolvedValue(SESSION)
+    mockGetDraft.mockResolvedValue({ success: false, error: 'Not found' })
+    mockGetGenres.mockResolvedValue({ genres: [] })
 
     const { default: Page } = await import('@/app/(main)/drafts/[id]/edit/page')
 
     try {
-       
-      await Page({ params: Promise.resolve({ id: 'draft1' }) } as any)
+      await Page({ params: Promise.resolve({ id: 'draft1' }) } as Parameters<typeof Page>[0])
     } catch (_error) {
       // notFound throws
     }
@@ -81,18 +79,14 @@ describe('DraftEditPage', async () => {
   })
 
   it('下書きデータがない場合もnotFound', async () => {
-     
-    auth.mockResolvedValue({ user: { id: 'user1' } } as any)
-
-    getDraft.mockResolvedValue({ success: true, data: { draft: null } } as any)
-
-    getGenres.mockResolvedValue({ genres: [] } as any)
+    mockAuth.mockResolvedValue(SESSION)
+    mockGetDraft.mockResolvedValue({ success: true, data: { draft: null } })
+    mockGetGenres.mockResolvedValue({ genres: [] })
 
     const { default: Page } = await import('@/app/(main)/drafts/[id]/edit/page')
 
     try {
-       
-      await Page({ params: Promise.resolve({ id: 'draft1' }) } as any)
+      await Page({ params: Promise.resolve({ id: 'draft1' }) } as Parameters<typeof Page>[0])
     } catch (_error) {
       // notFound throws
     }
@@ -116,26 +110,19 @@ describe('DraftEditPage', async () => {
       { id: 'genre2', name: 'ジャンル2', slug: 'genre2' },
     ]
 
-     
-    auth.mockResolvedValue({ user: { id: 'user1' } } as any)
-     
-    getDraft.mockResolvedValue({ success: true, data: { draft: mockDraft } } as any)
-     
-    getGenres.mockResolvedValue({ genres: mockGenres } as any)
+    mockAuth.mockResolvedValue(SESSION)
+    mockGetDraft.mockResolvedValue({ success: true, data: { draft: mockDraft } })
+    mockGetGenres.mockResolvedValue({ genres: mockGenres })
 
     const { default: Page } = await import('@/app/(main)/drafts/[id]/edit/page')
-     
-    const result = await Page({ params: Promise.resolve({ id: 'draft1' }) } as any)
+    const result = await Page({ params: Promise.resolve({ id: 'draft1' }) } as Parameters<typeof Page>[0])
     render(result)
 
-    // タイトル
     expect(screen.getByText('下書きを編集')).toBeInTheDocument()
 
-    // 戻るリンク
     const backLink = screen.getByText('下書き一覧に戻る')
     expect(backLink.closest('a')).toHaveAttribute('href', '/drafts')
 
-    // フォーム
     expect(screen.getByTestId('draft-edit-form')).toHaveTextContent('Draft ID: draft1')
     expect(screen.getByTestId('draft-edit-form')).toHaveTextContent('Genres: 2')
   })
@@ -151,18 +138,14 @@ describe('DraftEditPage', async () => {
       updatedAt: new Date(),
     }
 
-     
-    auth.mockResolvedValue({ user: { id: 'user1' } } as any)
-     
-    getDraft.mockResolvedValue({ success: true, data: { draft: mockDraft } } as any)
-     
-    getGenres.mockResolvedValue({ genres: [] } as any)
+    mockAuth.mockResolvedValue(SESSION)
+    mockGetDraft.mockResolvedValue({ success: true, data: { draft: mockDraft } })
+    mockGetGenres.mockResolvedValue({ genres: [] })
 
     const { default: Page } = await import('@/app/(main)/drafts/[id]/edit/page')
-     
-    await Page({ params: Promise.resolve({ id: 'draft1' }) } as any)
+    await Page({ params: Promise.resolve({ id: 'draft1' }) } as Parameters<typeof Page>[0])
 
-    expect(getDraft).toHaveBeenCalledWith('draft1')
-    expect(getGenres).toHaveBeenCalled()
+    expect(mockGetDraft).toHaveBeenCalledWith('draft1')
+    expect(mockGetGenres).toHaveBeenCalled()
   })
 })

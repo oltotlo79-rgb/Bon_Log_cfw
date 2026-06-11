@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { createMockPrismaClient } from '../../utils/test-utils'
 /**
  * Extended draft tests - saveDraft, getDrafts, getDraft, getDraftCount, publishDraft, deleteDraft
  */
@@ -7,20 +8,8 @@ export {}
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
-const mockPrisma: Record<string, any> = {
-  draftPost: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn(), upsert: vi.fn() },
-  draftPostMedia: { deleteMany: vi.fn(), createMany: vi.fn() },
-  draftPostGenre: { deleteMany: vi.fn(), createMany: vi.fn() },
-  post: { create: vi.fn(), count: vi.fn() },
-  postMedia: { createMany: vi.fn() },
-  postGenre: { createMany: vi.fn() },
-  user: { findUnique: vi.fn() },
-  $transaction: vi.fn().mockImplementation(async (fn: unknown) => {
-    if (typeof fn === 'function') return (fn as (tx: unknown) => Promise<unknown>)(mockPrisma)
-    return fn
-  }),
-}
-const dp = mockPrisma.draftPost as Record<string, ReturnType<typeof vi.fn>>
+const mockPrisma = createMockPrismaClient()
+const dp = mockPrisma.draftPost
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 vi.mock('@/lib/logger', () => ({ default: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }, logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }))
@@ -54,9 +43,9 @@ describe('getDrafts', async () => {
 
   it('returns user drafts', async () => {
     const { getDrafts } = await import('@/lib/actions/draft')
-    dp.findMany.mockResolvedValue([
+    vi.mocked(dp.findMany).mockResolvedValue([
       { id: 'd1', content: 'Draft 1', media: [], genres: [] },
-    ])
+    ] as never)
 
     const result = await getDrafts()
     expect(result).toMatchObject({ success: true, data: { drafts: expect.any(Array) } })
@@ -64,7 +53,7 @@ describe('getDrafts', async () => {
 
   it('handles db error', async () => {
     const { getDrafts } = await import('@/lib/actions/draft')
-    dp.findMany.mockRejectedValue(new Error('db'))
+    vi.mocked(dp.findMany).mockRejectedValue(new Error('db'))
 
     const result = await getDrafts()
     expect(result).toHaveProperty('error')
@@ -81,7 +70,7 @@ describe('getDraftCount', async () => {
 
   it('returns count', async () => {
     const { getDraftCount } = await import('@/lib/actions/draft')
-    dp.count.mockResolvedValue(3)
+    vi.mocked(dp.count).mockResolvedValue(3)
     const result = await getDraftCount()
     expect(result).toBe(3)
   })
@@ -103,9 +92,9 @@ describe('getDraft', async () => {
 
   it('returns draft by id', async () => {
     const { getDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({
+    vi.mocked(dp.findFirst).mockResolvedValue({
       id: 'd1', content: 'test', userId: 'u1', media: [], genres: [],
-    })
+    } as never)
 
     const result = await getDraft('d1')
     expect(result).toMatchObject({ success: true, data: { draft: expect.any(Object) } })
@@ -113,7 +102,7 @@ describe('getDraft', async () => {
 
   it('returns error for not found', async () => {
     const { getDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue(null)
+    vi.mocked(dp.findFirst).mockResolvedValue(null)
 
     const result = await getDraft('d999')
     expect(result).toHaveProperty('error')
@@ -136,7 +125,7 @@ describe('saveDraft', async () => {
 
   it('creates new draft', async () => {
     const { saveDraft } = await import('@/lib/actions/draft')
-    dp.create.mockResolvedValue({ id: 'd1', content: 'テスト下書き', media: [], genres: [] })
+    vi.mocked(dp.create).mockResolvedValue({ id: 'd1', content: 'テスト下書き', media: [], genres: [] } as never)
 
     const result = await saveDraft({ content: 'テスト下書き' })
     expect(result).toMatchObject({ success: true, data: { draft: expect.any(Object) } })
@@ -144,10 +133,10 @@ describe('saveDraft', async () => {
 
   it('updates existing draft', async () => {
     const { saveDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({ id: 'd1', userId: 'u1' })
-    dp.update.mockResolvedValue({ id: 'd1', media: [], genres: [] })
-    ;(mockPrisma.draftPostMedia as Record<string, ReturnType<typeof vi.fn>>).deleteMany.mockResolvedValue({})
-    ;(mockPrisma.draftPostGenre as Record<string, ReturnType<typeof vi.fn>>).deleteMany.mockResolvedValue({})
+    vi.mocked(dp.findFirst).mockResolvedValue({ id: 'd1', userId: 'u1' } as never)
+    vi.mocked(dp.update).mockResolvedValue({ id: 'd1', media: [], genres: [] } as never)
+    vi.mocked(mockPrisma.draftPostMedia.deleteMany).mockResolvedValue({} as never)
+    vi.mocked(mockPrisma.draftPostGenre.deleteMany).mockResolvedValue({} as never)
 
     const result = await saveDraft({ id: 'd1', content: '更新内容' })
     expect(result).toBeDefined()
@@ -155,7 +144,7 @@ describe('saveDraft', async () => {
 
   it('rejects other user draft update', async () => {
     const { saveDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue(null)
+    vi.mocked(dp.findFirst).mockResolvedValue(null)
 
     const result = await saveDraft({ id: 'd1', content: 'test' })
     expect(result).toHaveProperty('error')
@@ -163,7 +152,7 @@ describe('saveDraft', async () => {
 
   it('handles db error', async () => {
     const { saveDraft } = await import('@/lib/actions/draft')
-    dp.create.mockRejectedValue(new Error('db'))
+    vi.mocked(dp.create).mockRejectedValue(new Error('db'))
 
     const result = await saveDraft({ content: 'test' })
     expect(result).toHaveProperty('error')
@@ -171,7 +160,7 @@ describe('saveDraft', async () => {
 
   it('saves with media and genres', async () => {
     const { saveDraft } = await import('@/lib/actions/draft')
-    dp.create.mockResolvedValue({ id: 'd1', media: [], genres: [] })
+    vi.mocked(dp.create).mockResolvedValue({ id: 'd1', media: [], genres: [] } as never)
 
     const result = await saveDraft({
       content: 'テスト',
@@ -198,8 +187,8 @@ describe('deleteDraft', async () => {
 
   it('deletes own draft', async () => {
     const { deleteDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({ id: 'd1', userId: 'u1', media: [] })
-    dp.delete.mockResolvedValue({})
+    vi.mocked(dp.findFirst).mockResolvedValue({ id: 'd1', userId: 'u1', media: [] } as never)
+    vi.mocked(dp.delete).mockResolvedValue({} as never)
 
     const result = await deleteDraft('d1')
     expect(result).toHaveProperty('success', true)
@@ -207,7 +196,7 @@ describe('deleteDraft', async () => {
 
   it('rejects non-existent draft', async () => {
     const { deleteDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue(null)
+    vi.mocked(dp.findFirst).mockResolvedValue(null)
 
     const result = await deleteDraft('d999')
     expect(result).toHaveProperty('error')
@@ -215,8 +204,8 @@ describe('deleteDraft', async () => {
 
   it('handles db error', async () => {
     const { deleteDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({ id: 'd1', userId: 'u1' })
-    dp.delete.mockRejectedValue(new Error('db'))
+    vi.mocked(dp.findFirst).mockResolvedValue({ id: 'd1', userId: 'u1' } as never)
+    vi.mocked(dp.delete).mockRejectedValue(new Error('db'))
 
     const result = await deleteDraft('d1')
     expect(result).toHaveProperty('error')
@@ -239,7 +228,7 @@ describe('publishDraft', async () => {
 
   it('rejects non-existent draft', async () => {
     const { publishDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue(null)
+    vi.mocked(dp.findFirst).mockResolvedValue(null)
 
     const result = await publishDraft('d999')
     expect(result).toHaveProperty('error')
@@ -247,14 +236,14 @@ describe('publishDraft', async () => {
 
   it('publishes draft successfully', async () => {
     const { publishDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({
+    vi.mocked(dp.findFirst).mockResolvedValue({
       id: 'd1', userId: 'u1', content: 'テスト投稿',
       media: [{ url: '/img.jpg', type: 'image', sortOrder: 0 }],
       genres: [{ genreId: 'g1' }],
-    })
-    ;(mockPrisma.post as Record<string, ReturnType<typeof vi.fn>>).count.mockResolvedValue(0)
-    ;(mockPrisma.post as Record<string, ReturnType<typeof vi.fn>>).create.mockResolvedValue({ id: 'p1' })
-    dp.delete.mockResolvedValue({})
+    } as never)
+    vi.mocked(mockPrisma.post.count).mockResolvedValue(0)
+    vi.mocked(mockPrisma.post.create).mockResolvedValue({ id: 'p1' } as never)
+    vi.mocked(dp.delete).mockResolvedValue({} as never)
 
     const result = await publishDraft('d1')
     expect(result).toMatchObject({ success: true, data: { postId: 'p1' } })
@@ -262,12 +251,12 @@ describe('publishDraft', async () => {
 
   it('handles db error during publish', async () => {
     const { publishDraft } = await import('@/lib/actions/draft')
-    dp.findFirst.mockResolvedValue({
+    vi.mocked(dp.findFirst).mockResolvedValue({
       id: 'd1', userId: 'u1', content: 'テスト',
       media: [], genres: [],
-    })
-    ;(mockPrisma.post as Record<string, ReturnType<typeof vi.fn>>).count.mockResolvedValue(0)
-    ;(mockPrisma.post as Record<string, ReturnType<typeof vi.fn>>).create.mockRejectedValue(new Error('db'))
+    } as never)
+    vi.mocked(mockPrisma.post.count).mockResolvedValue(0)
+    vi.mocked(mockPrisma.post.create).mockRejectedValue(new Error('db'))
 
     const result = await publishDraft('d1')
     expect(result).toHaveProperty('error')

@@ -33,7 +33,7 @@ describe('ReportForm', () => {
   it('通報理由を選択するとsetReasonが呼ばれる', () => {
     render(<ReportForm {...defaultProps} />)
     const radioInputs = screen.getAllByRole('radio')
-    fireEvent.click(radioInputs[0]) // spam
+    fireEvent.click(radioInputs[0]!) // spam
     expect(defaultProps.setReason).toHaveBeenCalledWith('spam')
   })
 

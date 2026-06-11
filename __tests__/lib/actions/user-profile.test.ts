@@ -452,6 +452,22 @@ describe('User Profile Actions', async () => {
 
       expect(result).toMatchObject({ error: ERR_GUEST_CANNOT_CREATE })
     })
+
+    it('非 boolean（string）を渡すと ERR_INVALID_INPUT を返す', async () => {
+      const { updatePrivacy } = await import('@/lib/actions/user-profile')
+      const result = await updatePrivacy('yes' as unknown as boolean)
+
+      expect(result).toMatchObject({ error: '入力データが不正です' })
+      expect(mockPrisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('非 boolean（数値）を渡すと ERR_INVALID_INPUT を返す', async () => {
+      const { updatePrivacy } = await import('@/lib/actions/user-profile')
+      const result = await updatePrivacy(1 as unknown as boolean)
+
+      expect(result).toMatchObject({ error: '入力データが不正です' })
+      expect(mockPrisma.user.update).not.toHaveBeenCalled()
+    })
   })
 
   // ============================================================
@@ -470,7 +486,7 @@ describe('User Profile Actions', async () => {
       const result = await getFollowing(mockUser.id)
 
       expect(result.following).toHaveLength(2)
-      expect(result.following[0].id).toBe('user-2')
+      expect(result.following[0]!.id).toBe('user-2')
     })
 
     it('follow.tsのgetFollowingに処理を委譲する', async () => {

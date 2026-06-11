@@ -366,7 +366,7 @@ describe('管理者向けユーザー管理アクション', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockRegularUser)
       mockPrisma.user.update.mockResolvedValue({ ...mockRegularUser, isSuspended: true })
       mockPrisma.adminLog.create.mockResolvedValue({})
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.all(ops as Promise<unknown>[]))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.all(ops as Promise<unknown>[]))
 
       const { suspendUser } = await import('@/lib/actions/admin/users')
       await suspendUser('regular-user-id', '規約違反')
@@ -455,7 +455,7 @@ describe('管理者向けユーザー管理アクション', () => {
       })
       mockPrisma.user.update.mockResolvedValue({ ...mockSuspendedUser, isSuspended: false, suspendedAt: null })
       mockPrisma.adminLog.create.mockResolvedValue({})
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.all(ops as Promise<unknown>[]))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.all(ops as Promise<unknown>[]))
 
       const { activateUser } = await import('@/lib/actions/admin/users')
       await activateUser('suspended-user-id')
@@ -551,7 +551,7 @@ describe('管理者向けユーザー管理アクション', () => {
         .mockResolvedValueOnce(null)
       mockPrisma.user.delete.mockResolvedValue(mockRegularUser)
       mockPrisma.adminLog.create.mockResolvedValue({})
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.all(ops as Promise<unknown>[]))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.all(ops as Promise<unknown>[]))
 
       const { deleteUserByAdmin } = await import('@/lib/actions/admin/users')
       await deleteUserByAdmin('regular-user-id', '不正アクセス')

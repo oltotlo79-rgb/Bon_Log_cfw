@@ -123,7 +123,7 @@ describe('PostFormModal', () => {
     render(<PostFormModal {...defaultProps} onClose={onClose} />)
 
     // 閉じるボタン（Xアイコン）をクリック
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     await user.click(closeButton)
 
     expect(onClose).toHaveBeenCalled()
@@ -487,7 +487,7 @@ describe('PostFormModal', () => {
     render(<PostFormModal {...defaultProps} onClose={onClose} />)
 
     await user.type(screen.getByPlaceholderText('いまどうしてる？'), 'テスト')
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     await user.click(closeButton)
 
     // ConfirmDialog should appear (discard variant)
@@ -504,7 +504,7 @@ describe('PostFormModal', () => {
     render(<PostFormModal {...defaultProps} onClose={onClose} />)
 
     await user.type(screen.getByPlaceholderText('いまどうしてる？'), 'テスト')
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     await user.click(closeButton)
 
     // ConfirmDialog should appear (discard variant)
@@ -542,7 +542,7 @@ describe('PostFormModal', () => {
 
     await waitFor(() => {
       expect(mockCreatePost).toHaveBeenCalled()
-      const formData = mockCreatePost.mock.calls[0][0] as FormData
+      const formData = mockCreatePost.mock.calls[0]![0]! as FormData
       expect(formData.get('bonsaiId')).toBe('b1')
     })
   })

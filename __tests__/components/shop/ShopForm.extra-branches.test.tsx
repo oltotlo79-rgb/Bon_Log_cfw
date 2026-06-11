@@ -59,7 +59,7 @@ const mockInitialData = {
   website: 'https://example.com' as string | null,
   businessHours: '9:00-17:00' as string | null,
   closedDays: '水曜日' as string | null,
-  genres: [mockGenres[0]],
+  genres: [mockGenres[0]!],
 }
 
 describe('ShopForm - extra branch coverage', () => {
@@ -179,7 +179,7 @@ describe('ShopForm - extra branch coverage', () => {
 
     // Click the cancel button in the delete dialog
     const cancelButtons = screen.getAllByRole('button', { name: 'キャンセル' })
-    fireEvent.click(cancelButtons[cancelButtons.length - 1])
+    fireEvent.click(cancelButtons[cancelButtons.length - 1]!)
 
     expect(screen.queryByText('盆栽園を削除')).not.toBeInTheDocument()
   })

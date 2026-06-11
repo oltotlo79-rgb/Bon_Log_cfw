@@ -176,7 +176,7 @@ describe('SegmentBuilder', () => {
   ]
 
   it('renders segment list with rule count and dates', () => {
-    render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
+    render(<SegmentBuilder segments={baseSegments} />)
     expect(screen.getByText('Active users')).toBeInTheDocument()
     expect(screen.getByText('Users who post frequently')).toBeInTheDocument()
     expect(screen.getByText('No desc segment')).toBeInTheDocument()
@@ -184,12 +184,12 @@ describe('SegmentBuilder', () => {
   })
 
   it('shows empty state when no segments', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     expect(screen.getByText('セグメントがありません')).toBeInTheDocument()
   })
 
   it('toggles create form on button click', async () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     const btn = screen.getByText('セグメント作成')
     fireEvent.click(btn)
     expect(screen.getByText('新しいセグメント')).toBeInTheDocument()
@@ -199,7 +199,7 @@ describe('SegmentBuilder', () => {
   })
 
   it('shows validation error when name is empty on submit', async () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
     // Submit the form directly to bypass HTML required validation
     const form = document.querySelector('form')!
@@ -209,7 +209,7 @@ describe('SegmentBuilder', () => {
 
   it('creates segment successfully and resets form', async () => {
     mockCreateSegment.mockResolvedValue({ id: 'new-seg' })
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     // Fill name
@@ -232,7 +232,7 @@ describe('SegmentBuilder', () => {
 
   it('shows error from createSegment action', async () => {
     mockCreateSegment.mockResolvedValue({ error: '重複するセグメント名です' })
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     const nameInput = screen.getByPlaceholderText('例: アクティブユーザー')
@@ -245,7 +245,7 @@ describe('SegmentBuilder', () => {
   })
 
   it('toggles logic between AND and OR', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
     fireEvent.click(screen.getByText('OR (いずれか)'))
     // The OR button should now be active
@@ -253,7 +253,7 @@ describe('SegmentBuilder', () => {
   })
 
   it('adds and removes rules', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     // Add rule
@@ -270,13 +270,14 @@ describe('SegmentBuilder', () => {
     const xButtons = screen.getAllByRole('button').filter(btn => {
       return btn.getAttribute('type') === 'button' && btn.classList.contains('hover:text-destructive')
     })
-    if (xButtons.length > 0) {
-      fireEvent.click(xButtons[xButtons.length - 1])
+    const lastXButton = xButtons[xButtons.length - 1]
+    if (lastXButton) {
+      fireEvent.click(lastXButton)
     }
   })
 
   it('updates rule field and resets operator', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     const fieldSelect = screen.getByDisplayValue('登録日')
@@ -286,7 +287,7 @@ describe('SegmentBuilder', () => {
   })
 
   it('handles boolean field value input', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     const fieldSelect = screen.getByDisplayValue('登録日')
@@ -298,7 +299,7 @@ describe('SegmentBuilder', () => {
 
   it('handles number field type (postCount)', async () => {
     mockCreateSegment.mockResolvedValue({ id: 'seg-num' })
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     const fieldSelect = screen.getByDisplayValue('登録日')
@@ -313,13 +314,14 @@ describe('SegmentBuilder', () => {
     fireEvent.click(screen.getByText('作成'))
     await waitFor(() => {
       expect(mockCreateSegment).toHaveBeenCalled()
-      const callArgs = mockCreateSegment.mock.calls[0][0]
-      expect(callArgs.conditions.rules[0].value).toBe(50)
+      const firstCall = mockCreateSegment.mock.calls[0]
+      const callArgs = firstCall?.[0]
+      expect(callArgs?.conditions.rules[0]?.value).toBe(50)
     })
   })
 
   it('handles location field (text type)', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     const fieldSelect = screen.getByDisplayValue('登録日')
@@ -328,7 +330,7 @@ describe('SegmentBuilder', () => {
   })
 
   it('handles followerCount field', () => {
-    render(<SegmentBuilder segments={[]} total={0} page={1} limit={10} />)
+    render(<SegmentBuilder segments={[]} />)
     fireEvent.click(screen.getByText('セグメント作成'))
 
     const fieldSelect = screen.getByDisplayValue('登録日')
@@ -341,9 +343,10 @@ describe('SegmentBuilder', () => {
   it('deletes a segment with confirmation', async () => {
     mockDeleteSegment.mockResolvedValue({})
     const user = userEvent.setup()
-    render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
+    render(<SegmentBuilder segments={baseSegments} />)
     const deleteButtons = screen.getAllByText('削除')
-    fireEvent.click(deleteButtons[0])
+    const _el_deleteButtons = deleteButtons[0]
+    if (_el_deleteButtons) fireEvent.click(_el_deleteButtons)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
@@ -353,8 +356,9 @@ describe('SegmentBuilder', () => {
 
   it('cancels segment deletion when confirm is false', async () => {
     const user = userEvent.setup()
-    render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
-    fireEvent.click(screen.getAllByText('削除')[0])
+    render(<SegmentBuilder segments={baseSegments} />)
+    const _el0 = screen.getAllByText('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDeleteSegment).not.toHaveBeenCalled()
@@ -362,9 +366,10 @@ describe('SegmentBuilder', () => {
 
   it('evaluates a segment and shows count', async () => {
     mockEvaluateSegment.mockResolvedValue({ count: 42 })
-    render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
+    render(<SegmentBuilder segments={baseSegments} />)
     const evalButtons = screen.getAllByText('評価')
-    fireEvent.click(evalButtons[0])
+    const _el_evalButtons = evalButtons[0]
+    if (_el_evalButtons) fireEvent.click(_el_evalButtons)
     await waitFor(() => {
       expect(screen.getByText('該当: 42人')).toBeInTheDocument()
     })
@@ -374,7 +379,7 @@ describe('SegmentBuilder', () => {
   // 移行に伴い SegmentBuilder から削除された。対応する obsolete な skip テストは削除済み。
 
   it('does not show pagination when single page', () => {
-    render(<SegmentBuilder segments={baseSegments} total={2} page={1} limit={10} />)
+    render(<SegmentBuilder segments={baseSegments} />)
     expect(screen.queryByText('1 / 1')).not.toBeInTheDocument()
   })
 
@@ -384,7 +389,7 @@ describe('SegmentBuilder', () => {
       conditions: { rules: 'not-an-array' },
       createdAt: new Date(), createdBy: null,
     }]
-    render(<SegmentBuilder segments={segs} total={1} page={1} limit={10} />)
+    render(<SegmentBuilder segments={segs} />)
     expect(screen.getByText('条件: 0件')).toBeInTheDocument()
   })
 
@@ -394,7 +399,7 @@ describe('SegmentBuilder', () => {
       conditions: null,
       createdAt: new Date(), createdBy: null,
     }]
-    render(<SegmentBuilder segments={segs} total={1} page={1} limit={10} />)
+    render(<SegmentBuilder segments={segs} />)
     expect(screen.getByText('条件: 0件')).toBeInTheDocument()
   })
 })
@@ -641,8 +646,6 @@ describe('WarningsList', () => {
     total: 3,
     activeWarnings: 2,
     levelCounts: { notice: 1, warning: 0, temp_suspend: 0, permanent_ban: 1 },
-    totalPages: 1,
-    currentPage: 1,
   }
 
   it('renders stats cards', () => {
@@ -671,7 +674,8 @@ describe('WarningsList', () => {
     mockDeactivateWarning.mockResolvedValue({ success: true })
     render(<WarningsList {...baseProps} />)
     const deactivateButtons = screen.getAllByText('無効化')
-    fireEvent.click(deactivateButtons[0])
+    const _el_deactivateButtons = deactivateButtons[0]
+    if (_el_deactivateButtons) fireEvent.click(_el_deactivateButtons)
     await waitFor(() => {
       expect(mockDeactivateWarning).toHaveBeenCalledWith('w1')
       expect(mockToast).toHaveBeenCalledWith({ title: '警告を無効化しました' })
@@ -681,7 +685,8 @@ describe('WarningsList', () => {
   it('shows error on deactivate failure', async () => {
     mockDeactivateWarning.mockResolvedValue({ error: 'Failed' })
     render(<WarningsList {...baseProps} />)
-    fireEvent.click(screen.getAllByText('無効化')[0])
+    const _el0 = screen.getAllByText('無効化')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({ title: 'Failed', variant: 'destructive' })
     })
@@ -729,7 +734,7 @@ describe('NgWordList', () => {
     { id: 'nw3', word: 'bad', category: 'unknown_cat', isRegex: false, isActive: true, createdAt: '2025-03-01' },
   ]
 
-  const baseProps = { words: baseWords, total: 3, search: '', category: '', page: 1, limit: 20 }
+  const baseProps = { words: baseWords, search: '', category: '' }
 
   it('renders word list with categories and statuses', () => {
     render(<NgWordList {...baseProps} />)
@@ -755,7 +760,7 @@ describe('NgWordList', () => {
   })
 
   it('shows empty state', () => {
-    render(<NgWordList {...baseProps} words={[]} total={0} />)
+    render(<NgWordList {...baseProps} words={[]} />)
     expect(screen.getByText('NGワードが見つかりません')).toBeInTheDocument()
   })
 
@@ -795,7 +800,8 @@ describe('NgWordList', () => {
     mockToggleNgWord.mockResolvedValue({ success: true })
     render(<NgWordList {...baseProps} />)
     const toggleBtns = screen.getAllByTitle(/にする/)
-    fireEvent.click(toggleBtns[0])
+    const _el_toggleBtns = toggleBtns[0]
+    if (_el_toggleBtns) fireEvent.click(_el_toggleBtns)
     await waitFor(() => {
       expect(mockToggleNgWord).toHaveBeenCalledWith('nw1')
     })
@@ -805,7 +811,8 @@ describe('NgWordList', () => {
     mockToggleNgWord.mockResolvedValue({ error: 'Toggle failed' })
     render(<NgWordList {...baseProps} />)
     const toggleBtns = screen.getAllByTitle(/にする/)
-    fireEvent.click(toggleBtns[0])
+    const _el_toggleBtns = toggleBtns[0]
+    if (_el_toggleBtns) fireEvent.click(_el_toggleBtns)
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ description: 'Toggle failed', variant: 'destructive' })
@@ -816,7 +823,8 @@ describe('NgWordList', () => {
   it('deletes a word after confirming in the dialog', async () => {
     mockDeleteNgWord.mockResolvedValue({ success: true })
     render(<NgWordList {...baseProps} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     const confirmBtn = await screen.findByRole('button', { name: '削除する' })
     fireEvent.click(confirmBtn)
     await waitFor(() => {
@@ -826,7 +834,8 @@ describe('NgWordList', () => {
 
   it('cancels deletion via the dialog cancel button', async () => {
     render(<NgWordList {...baseProps} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     const cancelBtn = await screen.findByRole('button', { name: 'キャンセル' })
     fireEvent.click(cancelBtn)
     expect(mockDeleteNgWord).not.toHaveBeenCalled()
@@ -835,7 +844,8 @@ describe('NgWordList', () => {
   it('shows toast on delete error', async () => {
     mockDeleteNgWord.mockResolvedValue({ error: 'Delete failed' })
     render(<NgWordList {...baseProps} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     const confirmBtn = await screen.findByRole('button', { name: '削除する' })
     fireEvent.click(confirmBtn)
     await waitFor(() => {
@@ -961,7 +971,8 @@ describe('CmsPageList', () => {
     mockUpdateCmsPage.mockResolvedValue({})
     render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
     const toggleBtns = screen.getAllByTitle(/にする|公開する/)
-    fireEvent.click(toggleBtns[0])
+    const _el_toggleBtns = toggleBtns[0]
+    if (_el_toggleBtns) fireEvent.click(_el_toggleBtns)
     await waitFor(() => {
       expect(mockUpdateCmsPage).toHaveBeenCalled()
     })
@@ -972,7 +983,8 @@ describe('CmsPageList', () => {
     const user = userEvent.setup()
     render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
     const deleteBtns = screen.getAllByTitle('削除')
-    fireEvent.click(deleteBtns[0])
+    const _el_deleteBtns = deleteBtns[0]
+    if (_el_deleteBtns) fireEvent.click(_el_deleteBtns)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
@@ -983,7 +995,8 @@ describe('CmsPageList', () => {
   it('cancels page deletion', async () => {
     const user = userEvent.setup()
     render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDeleteCmsPage).not.toHaveBeenCalled()
@@ -993,7 +1006,8 @@ describe('CmsPageList', () => {
     mockDeleteCmsPage.mockResolvedValue({ error: 'Delete failed' })
     const user = userEvent.setup()
     render(<CmsPageList pages={basePages} total={3} currentCategory="" />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     // handleDeleteConfirm: setFormError + throw → ConfirmDialog inline FormError 表示
@@ -1009,7 +1023,8 @@ describe('CmsPageList', () => {
     // ヘルプ appears in filter button, table badge, and create form select
     const helpButtons = screen.getAllByText('ヘルプ')
     // Click the first one (filter button)
-    fireEvent.click(helpButtons[0])
+    const _el_helpButtons = helpButtons[0]
+    if (_el_helpButtons) fireEvent.click(_el_helpButtons)
     expect(mockPush).toHaveBeenCalled()
   })
 
@@ -1052,7 +1067,7 @@ describe('ModerationQueueList', () => {
   ]
 
   const baseProps = {
-    items: baseItems, total: 6, currentPage: 1, totalPages: 1, currentStatus: '',
+    items: baseItems,
   }
 
   it('renders items with correct status badges', () => {
@@ -1096,7 +1111,8 @@ describe('ModerationQueueList', () => {
   it('reviews an item (approve)', async () => {
     mockReviewModerationItem.mockResolvedValue({ success: true })
     render(<ModerationQueueList {...baseProps} />)
-    fireEvent.click(screen.getAllByText('承認')[0])
+    const _el0 = screen.getAllByText('承認')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(mockReviewModerationItem).toHaveBeenCalledWith('m1', 'approved')
       expect(mockToast).toHaveBeenCalledWith({ title: '承認しました' })
@@ -1106,7 +1122,8 @@ describe('ModerationQueueList', () => {
   it('reviews an item (reject)', async () => {
     mockReviewModerationItem.mockResolvedValue({ success: true })
     render(<ModerationQueueList {...baseProps} />)
-    fireEvent.click(screen.getAllByText('却下')[0])
+    const _el0 = screen.getAllByText('却下')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(mockReviewModerationItem).toHaveBeenCalledWith('m1', 'rejected')
       expect(mockToast).toHaveBeenCalledWith({ title: '却下しました' })
@@ -1116,7 +1133,8 @@ describe('ModerationQueueList', () => {
   it('shows error on review failure', async () => {
     mockReviewModerationItem.mockResolvedValue({ error: 'Review error' })
     render(<ModerationQueueList {...baseProps} />)
-    fireEvent.click(screen.getAllByText('承認')[0])
+    const _el0 = screen.getAllByText('承認')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({ title: 'Review error', variant: 'destructive' })
     })
@@ -1124,19 +1142,23 @@ describe('ModerationQueueList', () => {
 
   it('handles select all / deselect all', () => {
     render(<ModerationQueueList {...baseProps} />)
-    const allCheckbox = screen.getAllByRole('checkbox')[0]
-    fireEvent.click(allCheckbox) // select all
-    expect(screen.getByText(`${baseItems.length} 件選択中`)).toBeInTheDocument()
-    fireEvent.click(allCheckbox) // deselect all
-    expect(screen.queryByText(/件選択中/)).not.toBeInTheDocument()
+    const checkboxes = screen.getAllByRole('checkbox')
+    const allCheckbox = checkboxes[0]
+    if (allCheckbox) {
+      fireEvent.click(allCheckbox) // select all
+      expect(screen.getByText(`${baseItems.length} 件選択中`)).toBeInTheDocument()
+      fireEvent.click(allCheckbox) // deselect all
+      expect(screen.queryByText(/件選択中/)).not.toBeInTheDocument()
+    }
   })
 
   it('toggles individual item selection', () => {
     render(<ModerationQueueList {...baseProps} />)
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[1]) // select first item
+    const itemCheckbox = checkboxes[1]
+    if (itemCheckbox) fireEvent.click(itemCheckbox) // select first item
     expect(screen.getByText('1 件選択中')).toBeInTheDocument()
-    fireEvent.click(checkboxes[1]) // deselect
+    if (itemCheckbox) fireEvent.click(itemCheckbox) // deselect
     expect(screen.queryByText(/件選択中/)).not.toBeInTheDocument()
   })
 
@@ -1144,8 +1166,10 @@ describe('ModerationQueueList', () => {
     mockBulkReviewModeration.mockResolvedValue({ success: true })
     render(<ModerationQueueList {...baseProps} />)
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[1])
-    fireEvent.click(checkboxes[2])
+    const checkbox1 = checkboxes[1]
+    if (checkbox1) fireEvent.click(checkbox1)
+    const checkbox2 = checkboxes[2]
+    if (checkbox2) fireEvent.click(checkbox2)
     fireEvent.click(screen.getByText('一括承認'))
     await waitFor(() => {
       expect(mockBulkReviewModeration).toHaveBeenCalled()
@@ -1157,7 +1181,8 @@ describe('ModerationQueueList', () => {
     mockBulkReviewModeration.mockResolvedValue({ success: true })
     render(<ModerationQueueList {...baseProps} />)
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[1])
+    const checkbox1 = checkboxes[1]
+    if (checkbox1) fireEvent.click(checkbox1)
     fireEvent.click(screen.getByText('一括却下'))
     await waitFor(() => {
       expect(mockBulkReviewModeration).toHaveBeenCalled()
@@ -1168,7 +1193,8 @@ describe('ModerationQueueList', () => {
     mockBulkReviewModeration.mockResolvedValue({ error: 'Bulk fail' })
     render(<ModerationQueueList {...baseProps} />)
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[1])
+    const _el_checkboxes = checkboxes[1]
+    if (_el_checkboxes) fireEvent.click(_el_checkboxes)
     fireEvent.click(screen.getByText('一括承認'))
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({ title: 'Bulk fail', variant: 'destructive' })
@@ -1178,13 +1204,14 @@ describe('ModerationQueueList', () => {
   it('clears selection with button', () => {
     render(<ModerationQueueList {...baseProps} />)
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[1])
+    const _el_checkboxes = checkboxes[1]
+    if (_el_checkboxes) fireEvent.click(_el_checkboxes)
     fireEvent.click(screen.getByText('選択解除'))
     expect(screen.queryByText(/件選択中/)).not.toBeInTheDocument()
   })
 
   it('shows empty state', () => {
-    render(<ModerationQueueList items={[]} total={0} currentPage={1} totalPages={1} currentStatus="" />)
+    render(<ModerationQueueList items={[]}/>)
     expect(screen.getByText('モデレーション対象が見つかりません')).toBeInTheDocument()
   })
 
@@ -1235,7 +1262,8 @@ describe('RolesTable', () => {
     mockUpdateAdminRole.mockResolvedValue({ success: true })
     render(<RolesTable admins={baseAdmins} />)
     const selects = screen.getAllByDisplayValue('管理者')
-    fireEvent.change(selects[0], { target: { value: 'moderator' } })
+    const firstSelect = selects[0]
+    if (firstSelect) fireEvent.change(firstSelect, { target: { value: 'moderator' } })
     await waitFor(() => {
       expect(mockUpdateAdminRole).toHaveBeenCalledWith('u1', 'moderator')
     })
@@ -1245,7 +1273,8 @@ describe('RolesTable', () => {
     mockUpdateAdminRole.mockResolvedValue({ error: 'Unauthorized' })
     render(<RolesTable admins={baseAdmins} />)
     const selects = screen.getAllByDisplayValue('管理者')
-    fireEvent.change(selects[0], { target: { value: 'support' } })
+    const firstSelect = selects[0]
+    if (firstSelect) fireEvent.change(firstSelect, { target: { value: 'support' } })
     await waitFor(() => {
       expect(screen.getByText('Unauthorized')).toBeInTheDocument()
     })
@@ -1256,7 +1285,8 @@ describe('RolesTable', () => {
     const user = userEvent.setup()
     render(<RolesTable admins={baseAdmins} />)
     const deleteButtons = screen.getAllByTitle('管理者から削除')
-    fireEvent.click(deleteButtons[0])
+    const _el_deleteButtons = deleteButtons[0]
+    if (_el_deleteButtons) fireEvent.click(_el_deleteButtons)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
@@ -1267,7 +1297,8 @@ describe('RolesTable', () => {
   it('cancels admin removal', async () => {
     const user = userEvent.setup()
     render(<RolesTable admins={baseAdmins} />)
-    fireEvent.click(screen.getAllByTitle('管理者から削除')[0])
+    const _el0 = screen.getAllByTitle('管理者から削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRemoveAdmin).not.toHaveBeenCalled()
@@ -1277,7 +1308,8 @@ describe('RolesTable', () => {
     mockRemoveAdmin.mockResolvedValue({ error: 'Cannot remove' })
     const user = userEvent.setup()
     render(<RolesTable admins={baseAdmins} />)
-    fireEvent.click(screen.getAllByTitle('管理者から削除')[0])
+    const _el0 = screen.getAllByTitle('管理者から削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
@@ -1293,8 +1325,9 @@ describe('RolesTable', () => {
     mockAddAdmin.mockResolvedValue({ success: true })
     render(<RolesTable admins={baseAdmins} />)
     fireEvent.change(screen.getByPlaceholderText('ユーザーID'), { target: { value: 'new-user-id' } })
-    const addButton = screen.getAllByText('追加')[0]
-    fireEvent.click(addButton)
+    const addButtons = screen.getAllByText('追加')
+    const addButton = addButtons[0]
+    if (addButton) fireEvent.click(addButton)
     await waitFor(() => {
       expect(mockAddAdmin).toHaveBeenCalledWith('new-user-id', 'readonly')
     })
@@ -1302,8 +1335,9 @@ describe('RolesTable', () => {
 
   it('does not add admin with empty user id', () => {
     render(<RolesTable admins={baseAdmins} />)
-    const addButton = screen.getAllByText('追加')[0]
-    fireEvent.click(addButton)
+    const addButtons = screen.getAllByText('追加')
+    const addButton = addButtons[0]
+    if (addButton) fireEvent.click(addButton)
     expect(mockAddAdmin).not.toHaveBeenCalled()
   })
 
@@ -1311,7 +1345,8 @@ describe('RolesTable', () => {
     mockAddAdmin.mockResolvedValue({ error: 'User not found' })
     render(<RolesTable admins={baseAdmins} />)
     fireEvent.change(screen.getByPlaceholderText('ユーザーID'), { target: { value: 'bad-id' } })
-    fireEvent.click(screen.getAllByText('追加')[0])
+    const _el0 = screen.getAllByText('追加')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(screen.getByText('User not found')).toBeInTheDocument()
     })
@@ -1405,8 +1440,9 @@ describe('AnnouncementList', () => {
     const createBtn = buttons.find(b => b.textContent?.trim() === '作成')!
     fireEvent.click(createBtn)
     await waitFor(() => {
-      const call = mockCreateAnnouncement.mock.calls[0][0]
-      expect(call.endsAt).toBeTruthy()
+      const firstCall = mockCreateAnnouncement.mock.calls[0]
+      const call = firstCall?.[0]
+      expect(call?.endsAt).toBeTruthy()
     })
   })
 
@@ -1425,7 +1461,8 @@ describe('AnnouncementList', () => {
     mockUpdateAnnouncement.mockResolvedValue({})
     render(<AnnouncementList announcements={baseAnnouncements} />)
     const toggleBtns = screen.getAllByTitle(/にする/)
-    fireEvent.click(toggleBtns[0])
+    const _el_toggleBtns = toggleBtns[0]
+    if (_el_toggleBtns) fireEvent.click(_el_toggleBtns)
     await waitFor(() => {
       expect(mockUpdateAnnouncement).toHaveBeenCalled()
     })
@@ -1436,7 +1473,8 @@ describe('AnnouncementList', () => {
     const user = userEvent.setup()
     render(<AnnouncementList announcements={baseAnnouncements} />)
     const deleteBtns = screen.getAllByTitle('削除')
-    fireEvent.click(deleteBtns[0])
+    const _el_deleteBtns = deleteBtns[0]
+    if (_el_deleteBtns) fireEvent.click(_el_deleteBtns)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => {
@@ -1447,7 +1485,8 @@ describe('AnnouncementList', () => {
   it('cancels announcement deletion', async () => {
     const user = userEvent.setup()
     render(<AnnouncementList announcements={baseAnnouncements} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockDeleteAnnouncement).not.toHaveBeenCalled()
@@ -1457,7 +1496,8 @@ describe('AnnouncementList', () => {
     mockDeleteAnnouncement.mockResolvedValue({ error: 'Delete failed' })
     const user = userEvent.setup()
     render(<AnnouncementList announcements={baseAnnouncements} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     // handleDeleteConfirm: setFormError + throw → ConfirmDialog inline FormError 表示
@@ -1493,7 +1533,7 @@ describe('PesticideTable', () => {
   ]
 
   const baseProps = {
-    pesticides: basePesticides, total: 2, search: '', pesticideType: '', page: 1, limit: 20,
+    pesticides: basePesticides, search: '', pesticideType: '',
   }
 
   it('renders pesticide list', () => {
@@ -1517,7 +1557,7 @@ describe('PesticideTable', () => {
   })
 
   it('shows empty state', () => {
-    render(<PesticideTable {...baseProps} pesticides={[]} total={0} />)
+    render(<PesticideTable {...baseProps} pesticides={[]} />)
     expect(screen.getByText('該当する農薬データはありません')).toBeInTheDocument()
   })
 
@@ -1559,7 +1599,8 @@ describe('PesticideTable', () => {
   it('deletes pesticide after confirming in the dialog', async () => {
     mockDeletePesticide.mockResolvedValue({ success: true })
     render(<PesticideTable {...baseProps} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     const confirmBtn = await screen.findByRole('button', { name: '削除する' })
     fireEvent.click(confirmBtn)
     await waitFor(() => {
@@ -1569,7 +1610,8 @@ describe('PesticideTable', () => {
 
   it('cancels pesticide deletion via the dialog cancel button', async () => {
     render(<PesticideTable {...baseProps} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     const cancelBtn = await screen.findByRole('button', { name: 'キャンセル' })
     fireEvent.click(cancelBtn)
     expect(mockDeletePesticide).not.toHaveBeenCalled()
@@ -1578,7 +1620,8 @@ describe('PesticideTable', () => {
   it('shows toast on delete error', async () => {
     mockDeletePesticide.mockResolvedValue({ error: 'Delete error' })
     render(<PesticideTable {...baseProps} />)
-    fireEvent.click(screen.getAllByTitle('削除')[0])
+    const _el0 = screen.getAllByTitle('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     const confirmBtn = await screen.findByRole('button', { name: '削除する' })
     fireEvent.click(confirmBtn)
     await waitFor(() => {
@@ -1591,7 +1634,7 @@ describe('PesticideTable', () => {
   // NOTE: total / page ベースのページネーション UI はカーソル化で削除済み。
 
   it('does not show item range when total is 0', () => {
-    render(<PesticideTable {...baseProps} total={0} pesticides={[]} />)
+    render(<PesticideTable {...baseProps} pesticides={[]} />)
     expect(screen.queryByText(/件を表示/)).not.toBeInTheDocument()
   })
 })
@@ -1624,7 +1667,7 @@ describe('SecurityEventList', () => {
   ]
 
   const baseProps = {
-    events: baseEvents, total: 5, eventType: '', ipAddress: '', dateFrom: '', dateTo: '', page: 1, limit: 20,
+    events: baseEvents, eventType: '', ipAddress: '', dateFrom: '', dateTo: '',
   }
 
   it('renders event list with labels', () => {
@@ -1650,7 +1693,7 @@ describe('SecurityEventList', () => {
   })
 
   it('shows empty state', () => {
-    render(<SecurityEventList {...baseProps} events={[]} total={0} />)
+    render(<SecurityEventList {...baseProps} events={[]} />)
     expect(screen.getByText('該当するイベントはありません')).toBeInTheDocument()
   })
 
@@ -1678,15 +1721,17 @@ describe('SecurityEventList', () => {
 
   it('applies date range filter', () => {
     const { container } = render(<SecurityEventList {...baseProps} />)
-    const dateInputs = container.querySelectorAll('input[type="date"]')
+    const dateInputs = Array.from(container.querySelectorAll('input[type="date"]'))
     expect(dateInputs.length).toBe(2)
 
-    fireEvent.change(dateInputs[0], { target: { value: '2025-01-01' } })
-    fireEvent.change(dateInputs[1], { target: { value: '2025-01-31' } })
+    const dateInput0 = dateInputs[0]
+    const dateInput1 = dateInputs[1]
+    if (dateInput0) fireEvent.change(dateInput0, { target: { value: '2025-01-01' } })
+    if (dateInput1) fireEvent.change(dateInput1, { target: { value: '2025-01-31' } })
 
     // Controlled date inputs reflect the selected range
-    expect((dateInputs[0] as HTMLInputElement).value).toBe('2025-01-01')
-    expect((dateInputs[1] as HTMLInputElement).value).toBe('2025-01-31')
+    expect((dateInputs[0] as HTMLInputElement | undefined)?.value).toBe('2025-01-01')
+    expect((dateInputs[1] as HTMLInputElement | undefined)?.value).toBe('2025-01-31')
 
     // Applying the filter pushes both bounds into the URL
     mockPush.mockClear()

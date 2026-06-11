@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { createMockPrismaClient } from '../../utils/test-utils'
 /**
  * Extended event-import tests - importSelectedEvents, scrapeExternalEvents, scrapeEventsByRegion
  */
@@ -7,11 +8,7 @@ import { vi } from 'vitest'
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
-const mockPrisma: Record<string, Record<string, unknown>> = {
-  user: { findUnique: vi.fn() },
-  event: { findMany: vi.fn(), create: vi.fn(), createMany: vi.fn(), count: vi.fn() },
-  adminUser: { findUnique: vi.fn() },
-}
+const mockPrisma = createMockPrismaClient()
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 vi.mock('@/lib/logger', () => ({ default: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }, logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }))
@@ -113,8 +110,8 @@ describe('scrapeExternalEvents', async () => {
     const { scrapeExternalEvents } = await import('@/lib/actions/event-import')
     const result = await scrapeExternalEvents()
     expect(result).toBeDefined()
-    if ('events' in result) {
-      expect(result.events.length).toBeGreaterThanOrEqual(0)
+    if (result.success && result.data) {
+      expect(result.data.events.length).toBeGreaterThanOrEqual(0)
     }
   })
 
@@ -203,9 +200,9 @@ describe('scrapeExternalEvents', async () => {
       // 都道府県が違うので exact とは判定されない
       expect(result.filteredCount).toBe(0)
     }
-    if ('events' in result) {
+    if (result.success && result.data) {
       // 重複ではないので events に残る
-      expect(result.events.length).toBeGreaterThan(0)
+      expect(result.data.events.length).toBeGreaterThan(0)
     }
   })
 })

@@ -120,7 +120,7 @@ describe('AdminEventsPage', () => {
     const result = await AdminEventsPage({ searchParams: Promise.resolve({}) })
 
     expect(result).toBeDefined()
-    const call = mockFindMany.mock.calls[0][0]
+    const call = mockFindMany.mock.calls[0]![0]
     expect(call.take).toBe(20)
     expect(call.cursor).toBeUndefined()
     expect(call.skip).toBeUndefined()

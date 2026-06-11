@@ -20,14 +20,14 @@ describe('StarRating handleMouseLeave branch (lines 184-185)', () => {
     const buttons = screen.getAllByRole('button')
 
     // Hover over the 5th star to set hoverRating = 5
-    fireEvent.mouseEnter(buttons[4])
+    fireEvent.mouseEnter(buttons[4]!)
 
     // While hovering at star 5, all 5 stars should be filled
     let filledStars = container.querySelectorAll('svg[fill="currentColor"]')
     expect(filledStars).toHaveLength(5)
 
     // Now leave the star area
-    fireEvent.mouseLeave(buttons[4])
+    fireEvent.mouseLeave(buttons[4]!)
 
     // After mouse leave, only the original rating (1) star should be filled
     filledStars = container.querySelectorAll('svg[fill="currentColor"]')
@@ -42,12 +42,12 @@ describe('StarRating handleMouseLeave branch (lines 184-185)', () => {
     const buttons = screen.getAllByRole('button')
 
     // mouseEnter on non-interactive should not change display
-    fireEvent.mouseEnter(buttons[4])
+    fireEvent.mouseEnter(buttons[4]!)
     let filledStars = container.querySelectorAll('svg[fill="currentColor"]')
     expect(filledStars).toHaveLength(3)
 
     // mouseLeave on non-interactive should also be a no-op
-    fireEvent.mouseLeave(buttons[4])
+    fireEvent.mouseLeave(buttons[4]!)
     filledStars = container.querySelectorAll('svg[fill="currentColor"]')
     expect(filledStars).toHaveLength(3)
   })

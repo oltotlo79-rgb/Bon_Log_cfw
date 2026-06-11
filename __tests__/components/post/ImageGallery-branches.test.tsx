@@ -84,7 +84,7 @@ describe('ImageGallery - モーダル', () => {
     )
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByLabelText('閉じる')).toBeInTheDocument()
@@ -96,7 +96,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0), makeImage('2', 1)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
 
     await user.click(screen.getByLabelText('閉じる'))
@@ -110,7 +110,7 @@ describe('ImageGallery - モーダル', () => {
     )
 
     // 最初の画像をクリック
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
 
     // 最初の画像では「前へ」ボタンが非表示
@@ -136,7 +136,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0), makeImage('2', 1)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
 
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
@@ -150,7 +150,7 @@ describe('ImageGallery - モーダル', () => {
     )
 
     // 2枚目を開く
-    await user.click(screen.getAllByRole('button')[1])
+    await user.click(screen.getAllByRole('button')[1]!)
     expect(screen.getByTestId('modal-media-2')).toBeInTheDocument()
 
     // ArrowLeftで1枚目に
@@ -164,7 +164,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0), makeImage('2', 1)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     expect(screen.getByTestId('modal-media-1')).toBeInTheDocument()
 
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' })
@@ -177,7 +177,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0), makeImage('2', 1)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowLeft' })
     expect(screen.getByTestId('modal-media-1')).toBeInTheDocument()
   })
@@ -188,7 +188,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0), makeImage('2', 1)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[1])
+    await user.click(screen.getAllByRole('button')[1]!)
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' })
     expect(screen.getByTestId('modal-media-2')).toBeInTheDocument()
   })
@@ -199,7 +199,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0), makeImage('2', 1), makeImage('3', 2)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     expect(screen.getByTestId('modal-media-1')).toBeInTheDocument()
 
     // 3番目のドットをクリック
@@ -213,7 +213,7 @@ describe('ImageGallery - モーダル', () => {
       <ImageGallery images={[makeImage('1', 0)]} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
     expect(screen.queryByLabelText(/画像 \d+ を表示/)).not.toBeInTheDocument()
   })
 })
@@ -226,7 +226,7 @@ describe('ImageGallery - onMediaClick', () => {
       <ImageGallery images={[makeImage('1', 0)]} onMediaClick={handler} />
     )
 
-    await user.click(screen.getAllByRole('button')[0])
+    await user.click(screen.getAllByRole('button')[0]!)
 
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: '1' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

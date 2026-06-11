@@ -64,18 +64,18 @@ describe('Bonsai Events Scraping', () => {
       expect(events).toHaveLength(2)
 
       // 最初のイベント
-      expect(events[0].title).toBe('第10回盆栽展（東京都）')
-      expect(events[0].prefecture).toBe('東京都')
-      expect(events[0].venue).toBe('上野公園')
-      expect(events[0].organizer).toContain('日本盆栽協会')
-      expect(events[0].admissionFee).toContain('入場無料')
-      expect(events[0].externalUrl).toBe('https://example.com/event1')
-      expect(events[0].startDate).toBeInstanceOf(Date)
-      expect(events[0].endDate).toBeInstanceOf(Date)
+      expect(events[0]!.title).toBe('第10回盆栽展（東京都）')
+      expect(events[0]!.prefecture).toBe('東京都')
+      expect(events[0]!.venue).toBe('上野公園')
+      expect(events[0]!.organizer).toContain('日本盆栽協会')
+      expect(events[0]!.admissionFee).toContain('入場無料')
+      expect(events[0]!.externalUrl).toBe('https://example.com/event1')
+      expect(events[0]!.startDate).toBeInstanceOf(Date)
+      expect(events[0]!.endDate).toBeInstanceOf(Date)
 
       // 2番目のイベント
-      expect(events[1].title).toBe('春の盆栽展示会')
-      expect(events[1].hasSales).toBe(true)
+      expect(events[1]!.title).toBe('春の盆栽展示会')
+      expect(events[1]!.hasSales).toBe(true)
     })
 
     it('fetch失敗時は空配列を返す', async () => {
@@ -124,8 +124,8 @@ describe('Bonsai Events Scraping', () => {
         ['東京都']
       )
 
-      expect(events[0].description).not.toContain('&#x260e;')
-      expect(events[0].description).not.toContain('03-1234-5678')
+      expect(events[0]!.description).not.toContain('&#x260e;')
+      expect(events[0]!.description).not.toContain('03-1234-5678')
     })
 
     it('空のタイトルはスキップする', async () => {
@@ -152,7 +152,7 @@ describe('Bonsai Events Scraping', () => {
       )
 
       expect(events).toHaveLength(1)
-      expect(events[0].title).toBe('有効なイベント')
+      expect(events[0]!.title).toBe('有効なイベント')
     })
   })
 
@@ -176,10 +176,10 @@ describe('Bonsai Events Scraping', () => {
         ['東京都']
       )
 
-      expect(events[0].startDate?.getMonth()).toBe(2) // 3月
-      expect(events[0].startDate?.getDate()).toBe(7)
-      expect(events[0].endDate?.getMonth()).toBe(3) // 4月
-      expect(events[0].endDate?.getDate()).toBe(8)
+      expect(events[0]!.startDate?.getMonth()).toBe(2) // 3月
+      expect(events[0]!.startDate?.getDate()).toBe(7)
+      expect(events[0]!.endDate?.getMonth()).toBe(3) // 4月
+      expect(events[0]!.endDate?.getDate()).toBe(8)
     })
 
     it('月日～日形式（同月）をパースする', async () => {
@@ -201,10 +201,10 @@ describe('Bonsai Events Scraping', () => {
         ['東京都']
       )
 
-      expect(events[0].startDate?.getMonth()).toBe(4) // 5月
-      expect(events[0].startDate?.getDate()).toBe(10)
-      expect(events[0].endDate?.getMonth()).toBe(4) // 5月
-      expect(events[0].endDate?.getDate()).toBe(15)
+      expect(events[0]!.startDate?.getMonth()).toBe(4) // 5月
+      expect(events[0]!.startDate?.getDate()).toBe(10)
+      expect(events[0]!.endDate?.getMonth()).toBe(4) // 5月
+      expect(events[0]!.endDate?.getDate()).toBe(15)
     })
 
     it('単日形式をパースする', async () => {
@@ -226,9 +226,9 @@ describe('Bonsai Events Scraping', () => {
         ['東京都']
       )
 
-      expect(events[0].startDate?.getMonth()).toBe(5) // 6月
-      expect(events[0].startDate?.getDate()).toBe(20)
-      expect(events[0].endDate).toBeNull()
+      expect(events[0]!.startDate?.getMonth()).toBe(5) // 6月
+      expect(events[0]!.startDate?.getDate()).toBe(20)
+      expect(events[0]!.endDate).toBeNull()
     })
 
     it('全角数字を半角に変換する', async () => {
@@ -250,8 +250,8 @@ describe('Bonsai Events Scraping', () => {
         ['東京都']
       )
 
-      expect(events[0].startDate?.getMonth()).toBe(11) // 12月
-      expect(events[0].startDate?.getDate()).toBe(15)
+      expect(events[0]!.startDate?.getMonth()).toBe(11) // 12月
+      expect(events[0]!.startDate?.getDate()).toBe(15)
     })
   })
 
@@ -275,7 +275,7 @@ describe('Bonsai Events Scraping', () => {
         ['東京都', '神奈川県']
       )
 
-      expect(events[0].prefecture).toBe('神奈川県')
+      expect(events[0]!.prefecture).toBe('神奈川県')
     })
 
     it('コンテンツから都道府県を抽出する', async () => {
@@ -297,7 +297,7 @@ describe('Bonsai Events Scraping', () => {
         ['東京都', '埼玉県']
       )
 
-      expect(events[0].prefecture).toBe('埼玉県')
+      expect(events[0]!.prefecture).toBe('埼玉県')
     })
 
     it('見つからない場合はデフォルト都道府県を返す', async () => {
@@ -319,7 +319,7 @@ describe('Bonsai Events Scraping', () => {
         ['東京都', '神奈川県']
       )
 
-      expect(events[0].prefecture).toBe('東京都')
+      expect(events[0]!.prefecture).toBe('東京都')
     })
   })
 
@@ -343,7 +343,7 @@ describe('Bonsai Events Scraping', () => {
         ['神奈川県']
       )
 
-      expect(events[0].city).toBe('横浜市')
+      expect(events[0]!.city).toBe('横浜市')
     })
 
     it('入場料を抽出する', async () => {
@@ -365,7 +365,7 @@ describe('Bonsai Events Scraping', () => {
         ['東京都']
       )
 
-      expect(events[0].admissionFee).toContain('入場料')
+      expect(events[0]!.admissionFee).toContain('入場料')
     })
   })
 

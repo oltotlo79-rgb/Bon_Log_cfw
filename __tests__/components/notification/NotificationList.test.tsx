@@ -1,3 +1,4 @@
+import type { Notification } from '@/components/notification/NotificationItem'
 import { vi } from 'vitest'
 import { render, screen, waitFor } from '../../utils/test-utils'
 import { NotificationList } from '@/components/notification/NotificationList'
@@ -104,7 +105,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     // NotificationItemがモックされていないため個別の通知内容は確認できないが、
     // 空状態メッセージが表示されないことを確認
@@ -143,7 +144,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.getByText('読み込み中...')).toBeInTheDocument()
   })
@@ -162,7 +163,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.getByText('これ以上通知はありません')).toBeInTheDocument()
   })
@@ -181,7 +182,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.getByText('すべて既読にする')).toBeInTheDocument()
   })
@@ -201,7 +202,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.queryByText('すべて既読にする')).not.toBeInTheDocument()
   })
@@ -225,7 +226,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={page1} />)
+    render(<NotificationList initialNotifications={page1 as unknown as Notification[]} />)
 
     expect(screen.queryByText('通知はありません')).not.toBeInTheDocument()
   })
@@ -245,7 +246,7 @@ describe('NotificationList', () => {
     const useInfiniteQuery = mockUseInfiniteQuery
     const notifications = [{ id: '1', type: 'like', isRead: false }]
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(useInfiniteQuery).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -289,7 +290,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument()
   })
@@ -311,7 +312,7 @@ describe('NotificationList', () => {
       refetch: vi.fn(),
     })
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.queryByText('通知はありません')).not.toBeInTheDocument()
   })

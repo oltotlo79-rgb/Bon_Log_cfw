@@ -38,7 +38,7 @@ describe('StarRating', () => {
     render(<StarRating rating={3} interactive={true} onChange={mockOnChange} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[4]) // 5番目の星をクリック
+    await user.click(buttons[4]!) // 5番目の星をクリック
 
     expect(mockOnChange).toHaveBeenCalledWith(5)
   })
@@ -63,7 +63,7 @@ describe('StarRatingInput', () => {
     render(<StarRatingInput value={3} onChange={mockOnChange} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[3]) // 4番目の星をクリック
+    await user.click(buttons[3]!) // 4番目の星をクリック
 
     expect(mockOnChange).toHaveBeenCalledWith(4)
   })

@@ -80,7 +80,7 @@ describe('getShops ブランチカバレッジ', async () => {
     const { getShops } = await import('@/lib/actions/shop')
     const result = await getShops({ sortBy: 'rating' })
     expect(result.shops).toBeDefined()
-    expect(result.shops[0].averageRating).toBe(5)
+    expect(result.shops[0]!.averageRating).toBe(5)
   })
 
   it('sortBy=location で地域順ソート', async () => {
@@ -127,8 +127,8 @@ describe('getShops ブランチカバレッジ', async () => {
 
     const { getShops } = await import('@/lib/actions/shop')
     const result = await getShops({})
-    expect(result.shops[0].latitude).toBeNull()
-    expect(result.shops[0].longitude).toBeNull()
+    expect(result.shops[0]!.latitude).toBeNull()
+    expect(result.shops[0]!.longitude).toBeNull()
   })
 
   it('reviewsが空の場合averageRatingがnullになる', async () => {
@@ -146,7 +146,7 @@ describe('getShops ブランチカバレッジ', async () => {
 
     const { getShops } = await import('@/lib/actions/shop')
     const result = await getShops({})
-    expect(result.shops[0].averageRating).toBeNull()
+    expect(result.shops[0]!.averageRating).toBeNull()
   })
 })
 
@@ -180,7 +180,7 @@ describe('updateShop ブランチカバレッジ', async () => {
     const { updateShop } = await import('@/lib/actions/shop')
     await updateShop('shop-1', formData)
 
-    expect(capturedTx.bonsaiShop.update).toHaveBeenCalledWith(
+    expect(capturedTx.bonsaiShop!.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           latitude: null,
@@ -211,7 +211,7 @@ describe('updateShop ブランチカバレッジ', async () => {
     const { updateShop } = await import('@/lib/actions/shop')
     await updateShop('shop-1', formData)
 
-    const updateCall = capturedTx.bonsaiShop.update.mock.calls[0][0]
+    const updateCall = capturedTx.bonsaiShop!.update!.mock.calls[0]![0]
     // genreIdsが空の場合、genres.createが含まれないことを確認
     expect(updateCall.data.genres?.create).toBeUndefined()
   })

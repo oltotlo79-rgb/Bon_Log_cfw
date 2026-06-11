@@ -876,7 +876,7 @@ describe('TwoFactorSettings - uncovered functions', () => {
     const copyButtons = document.querySelectorAll('button.text-muted-foreground')
     if (copyButtons.length > 0) {
       await act(async () => {
-        fireEvent.click(copyButtons[0])
+        fireEvent.click(copyButtons[0]!)
       })
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('BACKUP1')
     }
@@ -1089,12 +1089,12 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
 
     // Click the first eye toggle button (for password field)
     const toggleButtons = screen.getAllByLabelText('パスワードを表示')
-    fireEvent.click(toggleButtons[0])
+    fireEvent.click(toggleButtons[0]!)
     expect(passwordInput).toHaveAttribute('type', 'text')
 
     // Click again to hide
     const hideButtons = screen.getAllByLabelText('パスワードを隠す')
-    fireEvent.click(hideButtons[0])
+    fireEvent.click(hideButtons[0]!)
     expect(passwordInput).toHaveAttribute('type', 'password')
   })
 
@@ -1114,7 +1114,7 @@ describe('PasswordResetConfirmForm - uncovered functions', () => {
 
     // Find the second toggle (confirm password)
     const allToggles = screen.getAllByLabelText('パスワードを表示')
-    fireEvent.click(allToggles[1])
+    fireEvent.click(allToggles[1]!)
     expect(confirmInput).toHaveAttribute('type', 'text')
   })
 

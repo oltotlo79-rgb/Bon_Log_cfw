@@ -1,6 +1,7 @@
 // @vitest-environment node
 
-import { cn, getEndOfDay, getStartOfToday, getStartOfNDaysAgo } from '@/lib/utils'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { cn, getEndOfDay, getStartOfToday, getStartOfNDaysAgo, getJstDateString } from '@/lib/utils'
 
 describe('cn (className utility)', () => {
   // ============================================================
@@ -314,25 +315,93 @@ describe('getEndOfDay', () => {
 })
 
 describe('getStartOfToday', () => {
-  it('今日の0:00:00.000を返す', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('JST日界直前 (14:59:59.999Z = JST 23:59:59.999) → JST当日 6/10 の 00:00 JST を返す', () => {
+    // 2026-06-10T14:59:59.999Z は JST では 2026-06-10 23:59:59.999
+    // → getStartOfToday() は JST 2026-06-10 00:00:00 = UTC 2026-06-09T15:00:00.000Z
+    vi.setSystemTime(new Date('2026-06-10T14:59:59.999Z'))
     const result = getStartOfToday()
-    const now = new Date()
-    expect(result.getFullYear()).toBe(now.getFullYear())
-    expect(result.getMonth()).toBe(now.getMonth())
-    expect(result.getDate()).toBe(now.getDate())
-    expect(result.getHours()).toBe(0)
-    expect(result.getMinutes()).toBe(0)
-    expect(result.getSeconds()).toBe(0)
-    expect(result.getMilliseconds()).toBe(0)
+    expect(result.toISOString()).toBe('2026-06-09T15:00:00.000Z')
+  })
+
+  it('JST日界ちょうど (15:00:00.000Z = JST 00:00:00.000) → JST翌日 6/11 の 00:00 JST を返す', () => {
+    // 2026-06-10T15:00:00.000Z は JST では 2026-06-11 00:00:00.000
+    // → getStartOfToday() は JST 2026-06-11 00:00:00 = UTC 2026-06-10T15:00:00.000Z
+    vi.setSystemTime(new Date('2026-06-10T15:00:00.000Z'))
+    const result = getStartOfToday()
+    expect(result.toISOString()).toBe('2026-06-10T15:00:00.000Z')
+  })
+
+  it('返値は UTC ベースの Date で、UTCの 15:00:00.000 になる（JST 00:00:00 相当）', () => {
+    // JST 正午頃 (2026-06-10T03:00:00.000Z = JST 2026-06-10 12:00:00)
+    vi.setSystemTime(new Date('2026-06-10T03:00:00.000Z'))
+    const result = getStartOfToday()
+    // JST 2026-06-10 00:00:00 = UTC 2026-06-09T15:00:00.000Z
+    expect(result.toISOString()).toBe('2026-06-09T15:00:00.000Z')
+    // UTC 表現のため getUTCHours() が 15
+    expect(result.getUTCHours()).toBe(15)
+    expect(result.getUTCMinutes()).toBe(0)
+    expect(result.getUTCSeconds()).toBe(0)
+    expect(result.getUTCMilliseconds()).toBe(0)
+  })
+})
+
+describe('getJstDateString', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('JST日界直前 (14:59Z) → JST当日の日付文字列を返す', () => {
+    // 2026-06-10T14:59:59.999Z は JST では 2026-06-10 23:59:59.999
+    vi.setSystemTime(new Date('2026-06-10T14:59:59.999Z'))
+    expect(getJstDateString()).toBe('2026-06-10')
+  })
+
+  it('JST日界ちょうど (15:00Z) → JST翌日の日付文字列を返す', () => {
+    // 2026-06-10T15:00:00.000Z は JST では 2026-06-11 00:00:00.000
+    vi.setSystemTime(new Date('2026-06-10T15:00:00.000Z'))
+    expect(getJstDateString()).toBe('2026-06-11')
+  })
+
+  it('JST 月末 (2026-06-30T14:59Z = JST 2026-06-30 23:59) → 2026-06-30', () => {
+    // 2026-06-30T14:59:59Z = 2026-06-30T23:59:59 JST → JST 日付は 2026-06-30
+    vi.setSystemTime(new Date('2026-06-30T14:59:59.000Z'))
+    expect(getJstDateString()).toBe('2026-06-30')
+  })
+
+  it('JST 月初 (2026-06-30T15:00Z = JST 2026-07-01 00:00) → 2026-07-01', () => {
+    // 2026-06-30T15:00:00Z = 2026-07-01T00:00:00 JST → JST 日付は 2026-07-01
+    vi.setSystemTime(new Date('2026-06-30T15:00:00.000Z'))
+    expect(getJstDateString()).toBe('2026-07-01')
   })
 })
 
 describe('getStartOfNDaysAgo', () => {
-  it('N日前の0:00:00.000を返す', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('getStartOfNDaysAgo(7) は getStartOfToday() から 7×86400000ms 遡った値', () => {
+    // TZ非依存: getStartOfToday() の結果から固定ms差として確認
+    vi.setSystemTime(new Date('2026-06-10T03:00:00.000Z'))
+    const today = getStartOfToday()
+    const sevenDaysAgo = getStartOfNDaysAgo(7)
+    expect(sevenDaysAgo.getTime()).toBe(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+  })
+
+  it('getStartOfNDaysAgo(0) は getStartOfToday() と等しい', () => {
+    vi.setSystemTime(new Date('2026-06-10T03:00:00.000Z'))
+    expect(getStartOfNDaysAgo(0).getTime()).toBe(getStartOfToday().getTime())
+  })
+
+  it('JST 日界をまたぐ 7 日前は JST ベースで正しく計算される', () => {
+    // JST 2026-06-10 23:59 → today = JST 2026-06-10 00:00 (UTC 2026-06-09T15:00:00Z)
+    // 7日前 = UTC 2026-06-02T15:00:00Z (JST 2026-06-03 00:00:00)
+    vi.setSystemTime(new Date('2026-06-10T14:59:59.999Z'))
     const result = getStartOfNDaysAgo(7)
-    const expected = new Date()
-    expected.setDate(expected.getDate() - 7)
-    expected.setHours(0, 0, 0, 0)
-    expect(result.getTime()).toBe(expected.getTime())
+    expect(result.toISOString()).toBe('2026-06-02T15:00:00.000Z')
   })
 })

@@ -22,9 +22,7 @@ import { createMockPrismaClient, mockUser, mockPost } from '../../utils/test-uti
 
 // Prismaモック
 const mockPrisma = createMockPrismaClient()
-// @ts-expect-error - groupByはモックに追加
 mockPrisma.like.groupBy = vi.fn()
-// @ts-expect-error - shopReviewはモックに追加
 mockPrisma.shopReview = { aggregate: vi.fn(), groupBy: vi.fn() }
 
 vi.mock('@/lib/db', () => ({
@@ -100,7 +98,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
   if (result.success) {
     return ((result.data ?? {}) as unknown) as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
   }
-  return { error: result.error, posts: [], nextCursor: undefined } as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
+  return { error: result.error, posts: [], nextCursor: undefined } as unknown as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
 }
 
 describe('Search Actions - Coverage Boost 2', async () => {
@@ -118,9 +116,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
     mockPrisma.bonsaiShop.findMany.mockResolvedValue([])
     mockPrisma.event.findMany.mockResolvedValue([])
     mockPrisma.bonsai.findMany.mockResolvedValue([])
-    // @ts-expect-error - groupByはモックに追加
     mockPrisma.like.groupBy.mockResolvedValue([])
-    // @ts-expect-error - shopReviewはモックに追加
     mockPrisma.shopReview.groupBy.mockResolvedValue([])
   })
 
@@ -143,7 +139,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
 
       expect(mockFulltextSearchPosts).toHaveBeenCalled()
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].likeCount).toBe(2)
+      expect(result.posts[0]!.likeCount).toBe(2)
     })
 
     it('trgmモードで結果が0件の場合は空配列を返す', async () => {
@@ -212,12 +208,10 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const { searchPosts } = await import('@/lib/actions/search')
       await searchPosts('テスト', [], undefined, 20, { minLikes: 0 })
 
-      // @ts-expect-error - groupByはモックに追加
       expect(mockPrisma.like.groupBy).not.toHaveBeenCalled()
     })
 
     it('minLikesで結果にnullのpostIdが含まれる場合はフィルタされる', async () => {
-      // @ts-expect-error - groupByはモックに追加
       mockPrisma.like.groupBy.mockResolvedValue([
         { postId: 'post-1', _count: { postId: 10 } },
         { postId: null, _count: { postId: 5 } },
@@ -251,8 +245,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const result = unwrap(await searchPosts('テスト'))
 
       expect(mockGetExcludedUserIds).not.toHaveBeenCalled()
-      expect(result.posts[0].isLiked).toBe(false)
-      expect(result.posts[0].isBookmarked).toBe(false)
+      expect(result.posts[0]!.isLiked).toBe(false)
+      expect(result.posts[0]!.isBookmarked).toBe(false)
     })
   })
 
@@ -276,10 +270,10 @@ describe('Search Actions - Coverage Boost 2', async () => {
 
       // 順序はfulltext結果の順序を維持: post-1, post-2 (post-missingは除外)
       expect(result.posts).toHaveLength(2)
-      expect(result.posts[0].id).toBe('post-1')
-      expect(result.posts[0].isLiked).toBe(true)
-      expect(result.posts[1].id).toBe('post-2')
-      expect(result.posts[1].isBookmarked).toBe(true)
+      expect(result.posts[0]!.id).toBe('post-1')
+      expect(result.posts[0]!.isLiked).toBe(true)
+      expect(result.posts[1]!.id).toBe('post-2')
+      expect(result.posts[1]!.isBookmarked).toBe(true)
     })
   })
 
@@ -326,8 +320,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       expect(result.success).toBe(true)
       if (!result.success) return
       expect(result.data?.users).toHaveLength(1)
-      expect(result.data?.users[0].followersCount).toBe(5)
-      expect(result.data?.users[0].followingCount).toBe(3)
+      expect(result.data?.users[0]!.followersCount).toBe(5)
+      expect(result.data?.users[0]!.followingCount).toBe(3)
     })
 
     it('trgmモードで結果が0件の場合は空配列を返す', async () => {
@@ -416,8 +410,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const result = unwrap(await searchByTag('盆栽'))
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].isLiked).toBe(false)
-      expect(result.posts[0].isBookmarked).toBe(false)
+      expect(result.posts[0]!.isLiked).toBe(false)
+      expect(result.posts[0]!.isBookmarked).toBe(false)
     })
   })
 
@@ -454,7 +448,6 @@ describe('Search Actions - Coverage Boost 2', async () => {
           _count: { reviews: 3 },
         },
       ])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([{ shopId: 'shop-1', _avg: { rating: 3.5 } }])
 
       const { searchShops } = await import('@/lib/actions/search')
@@ -462,8 +455,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
 
       expect(mockFulltextSearchShops).toHaveBeenCalled()
       expect(result.shops).toHaveLength(1)
-      expect(result.shops[0].avgRating).toBe(3.5)
-      expect(result.shops[0].reviewCount).toBe(3)
+      expect(result.shops[0]!.avgRating).toBe(3.5)
+      expect(result.shops[0]!.reviewCount).toBe(3)
     })
 
     it('trgmモードでnextCursorが設定される', async () => {
@@ -532,13 +525,12 @@ describe('Search Actions - Coverage Boost 2', async () => {
       mockPrisma.bonsaiShop.findMany.mockResolvedValue([
         { id: 'shop-1', name: 'テスト園', address: '東京都', genres: [], _count: { reviews: 0 } },
       ])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([])
 
       const { searchShops } = await import('@/lib/actions/search')
       const result = await searchShops('テスト')
 
-      expect(result.shops[0].avgRating).toBe(0)
+      expect(result.shops[0]!.avgRating).toBe(0)
     })
   })
 
@@ -675,8 +667,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
 
       expect(mockFulltextSearchBonsais).toHaveBeenCalled()
       expect(result.bonsais).toHaveLength(1)
-      expect(result.bonsais[0].recordCount).toBe(3)
-      expect(result.bonsais[0].postCount).toBe(2)
+      expect(result.bonsais[0]!.recordCount).toBe(3)
+      expect(result.bonsais[0]!.postCount).toBe(2)
     })
 
     it('trgmモードで結果が0件の場合は空配列を返す', async () => {
@@ -805,7 +797,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const result = await searchGlobal('テスト')
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts![0].likeCount).toBe(3)
+      expect(result.posts![0]!.likeCount).toBe(3)
       expect(result.users).toEqual([])
       expect(result.shops).toEqual([])
       expect(result.events).toHaveLength(1)
@@ -825,7 +817,6 @@ describe('Search Actions - Coverage Boost 2', async () => {
         { id: 'shop-2', name: '園2', address: '大阪', genres: [], _count: { reviews: 0 } },
         { id: 'shop-1', name: '園1', address: '東京', genres: [{ genre: { id: 'g1', name: 'G' } }], _count: { reviews: 1 } },
       ])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([
         { shopId: 'shop-1', _avg: { rating: 4.0 } },
         { shopId: 'shop-2', _avg: { rating: 0 } },
@@ -835,8 +826,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const result = await searchShops('テスト')
 
       expect(result.shops).toHaveLength(2)
-      expect(result.shops[0].id).toBe('shop-1')
-      expect(result.shops[1].id).toBe('shop-2')
+      expect(result.shops[0]!.id).toBe('shop-1')
+      expect(result.shops[1]!.id).toBe('shop-2')
     })
   })
 
@@ -882,7 +873,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const result = await searchBonsais('テスト')
 
       expect(result.bonsais).toHaveLength(1)
-      expect(result.bonsais[0].recordCount).toBe(1)
+      expect(result.bonsais[0]!.recordCount).toBe(1)
     })
   })
 
@@ -919,7 +910,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
       expect(result.success).toBe(true)
       if (!result.success) return
       expect(result.data?.users).toHaveLength(1)
-      expect(result.data?.users[0].followersCount).toBe(10)
+      expect(result.data?.users[0]!.followersCount).toBe(10)
     })
   })
 

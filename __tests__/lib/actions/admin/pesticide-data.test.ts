@@ -107,8 +107,9 @@ describe('農薬データ管理アクション', () => {
     }
   })
 
-  const getPesticide = () => (mockPrisma as Record<string, unknown>).pesticide as Record<string, ReturnType<typeof vi.fn>>
-  const getHistory = () => (mockPrisma as Record<string, unknown>).pesticideDataHistory as Record<string, ReturnType<typeof vi.fn>>
+  type MockModelMethods = { findUnique: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> }
+  const getPesticide = () => (mockPrisma as Record<string, unknown>).pesticide as MockModelMethods
+  const getHistory = () => (mockPrisma as Record<string, unknown>).pesticideDataHistory as MockModelMethods
 
   // ============================================================
   // getAdminPesticides
@@ -214,7 +215,7 @@ describe('農薬データ管理アクション', () => {
       const { getAdminPesticides } = await import('@/lib/actions/admin/pesticide-data')
       await getAdminPesticides()
 
-      const call = getPesticide().findMany.mock.calls[0][0]
+      const call = getPesticide().findMany.mock.calls[0]![0]
       expect(call.take).toBe(20)
       expect(call.cursor).toBeUndefined()
       expect(call.skip).toBeUndefined()
@@ -739,7 +740,7 @@ describe('農薬データ管理アクション', () => {
       const { getPesticideHistory } = await import('@/lib/actions/admin/pesticide-data')
       await getPesticideHistory()
 
-      const call = getHistory().findMany.mock.calls[0][0]
+      const call = getHistory().findMany.mock.calls[0]![0]
       expect(call.take).toBe(20)
       expect(call.cursor).toBeUndefined()
       expect(call.skip).toBeUndefined()
@@ -784,7 +785,7 @@ describe('農薬データ管理アクション', () => {
       const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
       await createPesticide(validData)
 
-      const historyCall = getHistory().create.mock.calls[0][0]
+      const historyCall = getHistory().create.mock.calls[0]![0]
       expect(historyCall.data.action).toBe('create')
       expect(historyCall.data.changes).toEqual(
         expect.objectContaining({
@@ -806,7 +807,7 @@ describe('農薬データ管理アクション', () => {
       const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
       await createPesticide(validData)
 
-      const historyCall = getHistory().create.mock.calls[0][0]
+      const historyCall = getHistory().create.mock.calls[0]![0]
       expect(historyCall.data.performedBy).toBe(mockUser.id)
       expect(historyCall.data.pesticideId).toBe('new-id')
     })
@@ -822,7 +823,7 @@ describe('農薬データ管理アクション', () => {
       const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
       await updatePesticide('pesticide-1', { name: '更新後名', description: '新しい説明' })
 
-      const historyCall = getHistory().create.mock.calls[0][0]
+      const historyCall = getHistory().create.mock.calls[0]![0]
       expect(historyCall.data.action).toBe('update')
       expect(historyCall.data.changes.before).toEqual(
         expect.objectContaining({
@@ -850,7 +851,7 @@ describe('農薬データ管理アクション', () => {
       const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
       await updatePesticide('pesticide-1', { name: '更新後' })
 
-      const historyCall = getHistory().create.mock.calls[0][0]
+      const historyCall = getHistory().create.mock.calls[0]![0]
       expect(historyCall.data.changes.before.registrationNumber).toBeNull()
     })
 
@@ -882,7 +883,7 @@ describe('農薬データ管理アクション', () => {
       const { deletePesticide } = await import('@/lib/actions/admin/pesticide-data')
       await deletePesticide('pesticide-1')
 
-      const historyCall = getHistory().create.mock.calls[0][0]
+      const historyCall = getHistory().create.mock.calls[0]![0]
       expect(historyCall.data.action).toBe('delete')
       expect(historyCall.data.changes).toEqual(
         expect.objectContaining({
@@ -946,7 +947,7 @@ describe('農薬データ管理アクション', () => {
       const { deletePesticide } = await import('@/lib/actions/admin/pesticide-data')
       await deletePesticide('pesticide-1')
 
-      const historyCall = getHistory().create.mock.calls[0][0]
+      const historyCall = getHistory().create.mock.calls[0]![0]
       expect(historyCall.data.performedBy).toBe(mockUser.id)
       expect(historyCall.data.pesticideId).toBe('pesticide-1')
     })

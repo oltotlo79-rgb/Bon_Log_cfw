@@ -100,7 +100,7 @@ describe('getAdminPosts', async () => {
 
       const result = await getAdminPosts()
       if ('posts' in result) {
-        expect(result.posts[0].reportCount).toBe(0)
+        expect(result.posts[0]!.reportCount).toBe(0)
       }
     })
 

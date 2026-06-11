@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
+import { createMockPrismaClient, MockPrismaClient } from '../../utils/test-utils'
 
 /**
  * メンテナンスアクション - ブランチカバレッジ向上テスト
@@ -9,12 +11,17 @@ import { vi } from 'vitest'
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
-const mockPrisma: Record<string, Record<string, ReturnType<typeof vi.fn>>> = {
-  user: { findUnique: vi.fn() },
-  systemSetting: { findUnique: vi.fn(), upsert: vi.fn() },
-  adminUser: { findUnique: vi.fn() },
-  adminLog: { create: vi.fn() },
+const mockPrisma = createMockPrismaClient() as MockPrismaClient & {
+  systemSetting: {
+    findUnique: ReturnType<typeof vi.fn>
+    upsert: ReturnType<typeof vi.fn>
+  }
 }
+mockPrisma.systemSetting = {
+  findUnique: vi.fn(),
+  upsert: vi.fn(),
+}
+
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
@@ -29,7 +36,7 @@ describe('updateMaintenanceSettings - エラーハンドリングブランチ', 
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
-    mockPrisma.adminUser.findUnique.mockResolvedValue({ role: 'admin' })
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ role: 'admin' } as never)
     mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
   })
 
@@ -40,6 +47,7 @@ describe('updateMaintenanceSettings - エラーハンドリングブランチ', 
     const result = await updateMaintenanceSettings({ enabled: true })
 
     expect(result.success).toBe(false)
+    expectError(result)
     expect(typeof result.error).toBe('string')
   })
 
@@ -50,12 +58,13 @@ describe('updateMaintenanceSettings - エラーハンドリングブランチ', 
     const result = await updateMaintenanceSettings({ enabled: true })
 
     expect(result.success).toBe(false)
+    expectError(result)
     expect(typeof result.error).toBe('string')
   })
 
   it('adminLog.createが失敗しても設定自体は成功する', async () => {
     mockPrisma.systemSetting.upsert.mockResolvedValue({})
-    mockPrisma.adminLog.create.mockRejectedValue(new Error('log write failed'))
+    vi.mocked(mockPrisma.adminLog.create).mockRejectedValue(new Error('log write failed'))
 
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ enabled: true })
@@ -69,7 +78,7 @@ describe('updateMaintenanceSettings - エラーハンドリングブランチ', 
 
   it('Redis同期が失敗しても設定自体は成功する', async () => {
     mockPrisma.systemSetting.upsert.mockResolvedValue({})
-    mockPrisma.adminLog.create.mockResolvedValue({})
+    vi.mocked(mockPrisma.adminLog.create).mockResolvedValue({} as never)
     mockRedisClient.set.mockRejectedValue(new Error('Redis connection refused'))
 
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
@@ -83,14 +92,13 @@ describe('updateMaintenanceSettings - エラーハンドリングブランチ', 
   })
 
   it('トップレベルの予期しないエラーでエラーメッセージを返す（DB詳細は漏洩しない）', async () => {
-    // requireAdminがErrorをthrowするシナリオ
     mockAuth.mockRejectedValue(new Error('unexpected auth failure'))
 
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ enabled: true })
 
     expect(result.success).toBe(false)
-    // DB詳細やスタックトレースが含まれないことを確認
+    expectError(result)
     expect(result.error).toBe('設定の更新に失敗しました')
     expect(result.error).not.toContain('unexpected auth failure')
   })
@@ -102,7 +110,7 @@ describe('updateMaintenanceSettings - エラーハンドリングブランチ', 
     const result = await updateMaintenanceSettings({ enabled: true })
 
     expect(result.success).toBe(false)
-    // 数値エラーもクライアントには定数メッセージのみ返す
+    expectError(result)
     expect(result.error).toBe('設定の更新に失敗しました')
     expect(result.error).not.toContain('42')
   })

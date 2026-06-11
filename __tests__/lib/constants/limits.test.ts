@@ -356,7 +356,7 @@ describe('lib/constants/limits', () => {
 
       it('is sorted in ascending order', () => {
         for (let i = 1; i < VALID_POLL_DURATIONS.length; i++) {
-          expect(VALID_POLL_DURATIONS[i]).toBeGreaterThan(VALID_POLL_DURATIONS[i - 1])
+          expect(VALID_POLL_DURATIONS[i]!).toBeGreaterThan(VALID_POLL_DURATIONS[i - 1]!)
         }
       })
 

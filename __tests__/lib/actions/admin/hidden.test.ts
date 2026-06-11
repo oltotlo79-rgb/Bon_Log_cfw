@@ -172,7 +172,7 @@ describe('管理者向け非表示コンテンツ管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected items, got error')
       expect(result.items).toHaveLength(1)
-      expect(result.items[0].type).toBe('post')
+      expect(result.items[0]!.type).toBe('post')
       // タイプ指定時、他のfindManyは呼ばれないか空配列を返す
     })
 
@@ -183,7 +183,7 @@ describe('管理者向け非表示コンテンツ管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected items, got error')
       expect(result.items).toHaveLength(1)
-      expect(result.items[0].type).toBe('comment')
+      expect(result.items[0]!.type).toBe('comment')
     })
 
     it('type=eventを指定した場合、イベントのみを取得する', async () => {
@@ -193,8 +193,8 @@ describe('管理者向け非表示コンテンツ管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected items, got error')
       expect(result.items).toHaveLength(1)
-      expect(result.items[0].type).toBe('event')
-      expect(result.items[0].content).toContain('非表示イベント')
+      expect(result.items[0]!.type).toBe('event')
+      expect(result.items[0]!.content).toContain('非表示イベント')
     })
 
     it('type=shopを指定した場合、盆栽園のみを取得する', async () => {
@@ -204,8 +204,8 @@ describe('管理者向け非表示コンテンツ管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected items, got error')
       expect(result.items).toHaveLength(1)
-      expect(result.items[0].type).toBe('shop')
-      expect(result.items[0].content).toContain('非表示盆栽園')
+      expect(result.items[0]!.type).toBe('shop')
+      expect(result.items[0]!.content).toContain('非表示盆栽園')
     })
 
     it('type=reviewを指定した場合、レビューのみを取得する', async () => {
@@ -215,7 +215,7 @@ describe('管理者向け非表示コンテンツ管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected items, got error')
       expect(result.items).toHaveLength(1)
-      expect(result.items[0].type).toBe('review')
+      expect(result.items[0]!.type).toBe('review')
     })
 
     it('通報件数を取得して各アイテムに設定する', async () => {
@@ -227,7 +227,7 @@ describe('管理者向け非表示コンテンツ管理アクション', () => {
       const result = await getHiddenContent()
 
       if ('error' in result) throw new Error('Expected items, got error')
-      expect(result.items[0].reportCount).toBe(5)
+      expect(result.items[0]!.reportCount).toBe(5)
     })
 
     it('limit オプションが指定タイプの findMany に渡される（offset は非対応）', async () => {

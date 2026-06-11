@@ -173,7 +173,7 @@ describe('Storage Module', async () => {
 
         // The key should be 'avatars/test.jpg' (without leading slash)
         expect(capturedDeleteArgs.length).toBe(1)
-        expect(capturedDeleteArgs[0][1]).toBe('avatars/test.jpg')
+        expect(capturedDeleteArgs[0]![1]!).toBe('avatars/test.jpg')
 
         process.env.STORAGE_PROVIDER = originalProvider
         process.env.R2_ACCOUNT_ID = originalAccountId

@@ -261,7 +261,7 @@ describe('toggleFollow — レート制限失敗', () => {
 
   it('レート制限超過時に ERR_RATE_LIMIT_OPERATION を返す', async () => {
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false })
+    vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: Date.now() })
 
     const { toggleFollow } = await import('@/lib/actions/follow')
     const result = await toggleFollow('u2')

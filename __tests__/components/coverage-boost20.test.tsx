@@ -30,7 +30,7 @@ describe('client-image-compression', async () => {
     })
 
     it('returns original file when canvas context is null', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       // Create a file > 500KB to trigger compression
       const file = new File(['x'.repeat(600 * 1024)], 'big.jpg', { type: 'image/jpeg' })
@@ -94,7 +94,7 @@ describe('client-image-compression', async () => {
     })
 
     it('compresses image files and logs when ratio > 0', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
       // Small image - will skip compression, ratio = 0
       const file = new File(['x'], 'small.jpg', { type: 'image/jpeg' })
       Object.defineProperty(file, 'size', { value: 100 })
@@ -171,7 +171,7 @@ describe('client-image-compression', async () => {
 
       // Simulate load event
       await new Promise((r) => setTimeout(r, 10))
-      const loadHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'load')[1]
+      const loadHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'load')![1]
       loadHandler()
 
       const result = await resultPromise
@@ -205,7 +205,7 @@ describe('client-image-compression', async () => {
       const resultPromise = mod.uploadVideoToR2(video)
 
       await new Promise((r) => setTimeout(r, 10))
-      const errorHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'error')[1]
+      const errorHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'error')![1]
       errorHandler()
 
       const result = await resultPromise
@@ -238,7 +238,7 @@ describe('client-image-compression', async () => {
       const resultPromise = mod.uploadVideoToR2(video)
 
       await new Promise((r) => setTimeout(r, 10))
-      const abortHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'abort')[1]
+      const abortHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'abort')![1]
       abortHandler()
 
       const result = await resultPromise
@@ -272,7 +272,7 @@ describe('client-image-compression', async () => {
       const resultPromise = mod.uploadVideoToR2(video)
 
       await new Promise((r) => setTimeout(r, 10))
-      const loadHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'load')[1]
+      const loadHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'load')![1]
       loadHandler()
 
       const result = await resultPromise
@@ -282,7 +282,7 @@ describe('client-image-compression', async () => {
     })
 
     it('handles fetch throwing an error (catch block)', async () => {
-      vi.spyOn(console, 'error').mockImplementation()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
       const video = new File(['x'], 'test.mp4', { type: 'video/mp4' })
       Object.defineProperty(video, 'size', { value: 1024 })
 
@@ -328,7 +328,7 @@ describe('client-image-compression', async () => {
       }
 
       // Complete
-      const loadHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'load')[1]
+      const loadHandler = mockXHR.addEventListener.mock.calls.find((c: any[]) => c[0] === 'load')![1]
       loadHandler()
       await resultPromise
 

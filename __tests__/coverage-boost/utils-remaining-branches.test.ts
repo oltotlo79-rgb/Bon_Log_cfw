@@ -17,7 +17,7 @@ import { vi } from 'vitest'
 
 export {}
 
-const mockPrisma: Record<string, Record<string, any>> = {
+const mockPrisma = {
   user: { findUnique: vi.fn() },
   follow: { findMany: vi.fn() },
   block: { findMany: vi.fn() },

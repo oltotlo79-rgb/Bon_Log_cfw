@@ -321,7 +321,7 @@ describe('CommentForm', async () => {
 
     await waitFor(() => {
       expect(mockCreateComment).toHaveBeenCalled()
-      const formData = mockCreateComment.mock.calls[0][0] as FormData
+      const formData = mockCreateComment.mock.calls[0]![0]! as FormData
       expect(formData.get('postId')).toBe('post-abc')
     })
   })
@@ -336,7 +336,7 @@ describe('CommentForm', async () => {
     await user.click(screen.getByRole('button', { name: /返信する/i }))
 
     await waitFor(() => {
-      const formData = mockCreateComment.mock.calls[0][0] as FormData
+      const formData = mockCreateComment.mock.calls[0]![0]! as FormData
       expect(formData.get('parentId')).toBe('parent-123')
     })
   })
@@ -351,7 +351,7 @@ describe('CommentForm', async () => {
     await user.click(screen.getByRole('button', { name: /コメントする/i }))
 
     await waitFor(() => {
-      const formData = mockCreateComment.mock.calls[0][0] as FormData
+      const formData = mockCreateComment.mock.calls[0]![0]! as FormData
       expect(formData.get('parentId')).toBeNull()
     })
   })
@@ -477,7 +477,7 @@ describe('CommentForm', async () => {
     await user.click(screen.getByRole('button', { name: /コメントする/i }))
 
     await waitFor(() => {
-      const formData = mockCreateComment.mock.calls[0][0] as FormData
+      const formData = mockCreateComment.mock.calls[0]![0]! as FormData
       expect(formData.get('content')).toBe('テスト内容')
     })
   })
@@ -678,7 +678,7 @@ describe('CommentForm', async () => {
 
     await waitFor(() => {
       expect(mockCreateComment).toHaveBeenCalled()
-      const formData = mockCreateComment.mock.calls[0][0] as FormData
+      const formData = mockCreateComment.mock.calls[0]![0]! as FormData
       expect(formData.get('mediaUrls')).toBe('/uploaded.jpg')
       expect(formData.get('mediaTypes')).toBe('image')
     })

@@ -137,14 +137,14 @@ describe('cms - catch ブランチ', async () => {
     mockPrisma.cmsPage.findMany.mockRejectedValueOnce(new Error('DB down'))
     mockPrisma.cmsPage.count.mockResolvedValueOnce(0)
     const result = await mod.getCmsPages()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getCmsPages failed', expect.any(Object))
   })
 
   it('getCmsPage: prisma.cmsPage.findUnique が throw → ERR_OPERATION_FAILED', async () => {
     mockPrisma.cmsPage.findUnique.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getCmsPage('about')
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getCmsPage failed', expect.any(Object))
   })
 

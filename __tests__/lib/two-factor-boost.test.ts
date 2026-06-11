@@ -96,7 +96,7 @@ describe('two-factor ブランチカバレッジ向上', () => {
       const codes = generateBackupCodes()
       const hashedCodes = codes.map(hashBackupCode)
 
-      const lowerCode = codes[0].toLowerCase()
+      const lowerCode = codes[0]!.toLowerCase()
       expect(verifyBackupCode(lowerCode, hashedCodes)).toBe(0)
     })
   })

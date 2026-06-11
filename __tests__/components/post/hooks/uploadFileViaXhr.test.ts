@@ -60,7 +60,7 @@ describe('uploadFileViaXhr', () => {
 
   it('正常アップロードでレスポンスを返す', async () => {
     const promise = uploadFileViaXhr(testFile)
-    lastXhr._handlers.load()
+    lastXhr._handlers.load!()
     const result = await promise
     expect(result).toEqual({ url: '/uploaded.jpg', type: 'image' })
     expect(lastXhr.open).toHaveBeenCalledWith('POST', '/api/upload')
@@ -72,10 +72,10 @@ describe('uploadFileViaXhr', () => {
     const promise = uploadFileViaXhr(testFile, { onProgress })
 
     expect(lastXhr.upload.addEventListener).toHaveBeenCalledWith('progress', expect.any(Function))
-    lastXhr._uploadHandlers.progress({ lengthComputable: true, loaded: 50, total: 100 })
+    lastXhr._uploadHandlers.progress!({ lengthComputable: true, loaded: 50, total: 100 })
     expect(onProgress).toHaveBeenCalledWith(50)
 
-    lastXhr._handlers.load()
+    lastXhr._handlers.load!()
     await promise
   })
 
@@ -83,17 +83,17 @@ describe('uploadFileViaXhr', () => {
     const onProgress = vi.fn()
     const promise = uploadFileViaXhr(testFile, { onProgress })
 
-    lastXhr._uploadHandlers.progress({ lengthComputable: false, loaded: 50, total: 100 })
+    lastXhr._uploadHandlers.progress!({ lengthComputable: false, loaded: 50, total: 100 })
     expect(onProgress).not.toHaveBeenCalled()
 
-    lastXhr._handlers.load()
+    lastXhr._handlers.load!()
     await promise
   })
 
   it('HTTPエラーの場合エラーを返す', async () => {
     const promise = uploadFileViaXhr(testFile)
     lastXhr.status = 500
-    lastXhr._handlers.load()
+    lastXhr._handlers.load!()
     const result = await promise
     expect(result).toEqual({ error: 'アップロードに失敗しました' })
   })
@@ -101,14 +101,14 @@ describe('uploadFileViaXhr', () => {
   it('レスポンスのJSON解析失敗時にエラーを返す', async () => {
     const promise = uploadFileViaXhr(testFile)
     lastXhr.responseText = 'invalid json'
-    lastXhr._handlers.load()
+    lastXhr._handlers.load!()
     const result = await promise
     expect(result).toEqual({ error: 'アップロードに失敗しました' })
   })
 
   it('ネットワークエラー時にエラーを返す', async () => {
     const promise = uploadFileViaXhr(testFile)
-    lastXhr._handlers.error()
+    lastXhr._handlers.error!()
     const result = await promise
     expect(result).toEqual({ error: 'アップロードに失敗しました' })
   })
@@ -116,7 +116,7 @@ describe('uploadFileViaXhr', () => {
   it('onProgress なしでも動作する', async () => {
     const promise = uploadFileViaXhr(testFile)
     expect(lastXhr.upload.addEventListener).not.toHaveBeenCalled()
-    lastXhr._handlers.load()
+    lastXhr._handlers.load!()
     const result = await promise
     expect(result).toEqual({ url: '/uploaded.jpg', type: 'image' })
   })

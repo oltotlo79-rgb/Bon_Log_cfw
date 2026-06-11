@@ -329,8 +329,8 @@ describe('Report Actions', async () => {
       const { getReports } = await import('@/lib/actions/report')
       const result = await getReports()
 
-      expect(result.reports).toHaveLength(1)
-      expect(result.total).toBe(1)
+      expect(('reports' in result ? result.reports : undefined)).toHaveLength(1)
+      expect(('total' in result ? result.total : undefined)).toBe(1)
     })
 
     it('ステータスでフィルタリングできる', async () => {
@@ -407,9 +407,9 @@ describe('Report Actions', async () => {
       const { getReportStats } = await import('@/lib/actions/report')
       const result = await getReportStats()
 
-      expect(result.stats).toBeDefined()
-      expect(result.stats?.pending).toBe(5)
-      expect(result.stats?.total).toBe(20)
+      expect(('stats' in result ? result.stats : undefined)).toBeDefined()
+      expect(('stats' in result ? result.stats : undefined)?.pending).toBe(5)
+      expect(('stats' in result ? result.stats : undefined)?.total).toBe(20)
     })
 
     it('認証なしの場合はエラーを返す', async () => {

@@ -46,7 +46,7 @@ describe('NotificationPreferences', () => {
     render(<NotificationPreferences initialPreferences={{}} />)
 
     const switches = screen.getAllByRole('switch')
-    await user.click(switches[0]) // toggle like off
+    await user.click(switches[0]!) // toggle like off
 
     expect(mockUpdateNotificationPreferences).toHaveBeenCalledWith(
       expect.objectContaining({ like: false })
@@ -59,7 +59,7 @@ describe('NotificationPreferences', () => {
     render(<NotificationPreferences initialPreferences={{}} />)
 
     const switches = screen.getAllByRole('switch')
-    await user.click(switches[0])
+    await user.click(switches[0]!)
 
     expect(await screen.findByText('更新に失敗しました')).toBeInTheDocument()
   })

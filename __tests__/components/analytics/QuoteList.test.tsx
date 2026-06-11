@@ -148,7 +148,7 @@ describe('QuoteList', () => {
   it('コンテンツがnullの場合はコンテンツを表示しない', () => {
     const quotesWithNullContent = [
       {
-        ...mockQuotes[0],
+        ...mockQuotes[0]!,
         content: null,
       },
     ]

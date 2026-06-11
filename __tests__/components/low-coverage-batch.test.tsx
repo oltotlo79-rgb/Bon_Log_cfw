@@ -39,7 +39,7 @@ vi.mock('lucide-react', () => {
     TrendingUp: icon('TrendingUp'), BarChart3: icon('BarChart3'), LucideIcon: icon('LucideIcon'),
   }
 })
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }), { virtual: true })
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/actions/comment-thread-mute', () => ({
   muteThread: vi.fn().mockResolvedValue({ success: true }),
   unmuteThread: vi.fn().mockResolvedValue({ success: true }),

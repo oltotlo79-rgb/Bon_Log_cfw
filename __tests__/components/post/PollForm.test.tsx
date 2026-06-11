@@ -123,7 +123,7 @@ describe('PollForm', () => {
     const allButtons = screen.getAllByRole('button')
     // 閉じるボタン、3つの削除ボタン、追加ボタン
     // 削除ボタンは2番目以降
-    await user.click(allButtons[1]) // 最初の選択肢の削除
+    await user.click(allButtons[1]!) // 最初の選択肢の削除
     expect(onOptionsChange).toHaveBeenCalledWith(['B', 'C'])
   })
 
@@ -132,7 +132,7 @@ describe('PollForm', () => {
     const user = userEvent.setup()
     render(<PollForm {...defaultProps} isActive={true} />)
     // 最初のボタンが閉じるボタン（Xアイコン）
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     await user.click(closeButton)
     expect(defaultProps.onToggle).toHaveBeenCalledTimes(1)
   })

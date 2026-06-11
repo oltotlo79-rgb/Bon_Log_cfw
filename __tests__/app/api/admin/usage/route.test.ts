@@ -54,17 +54,19 @@ describe('Admin Usage API', () => {
 
   it('管理者には使用状況を返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
       name: 'fly.io',
       status: 'ok',
+      dashboardUrl: '',
       lastUpdated: new Date().toISOString(),
     })
     vi.mocked(getResendUsage).mockResolvedValue({
       name: 'Resend',
       status: 'ok',
+      dashboardUrl: '',
       lastUpdated: new Date().toISOString(),
     })
 
@@ -79,7 +81,7 @@ describe('Admin Usage API', () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValue([{ pg_database_size: '1000000' }])
 
     const { listObjects } = await import('@/lib/storage/s3-sign')
-    vi.mocked(listObjects).mockResolvedValue({ contents: [], isTruncated: false })
+    vi.mocked(listObjects).mockResolvedValue({ Contents: [], IsTruncated: false })
 
     const { GET } = await import('@/app/api/admin/usage/route')
     const response = await GET()
@@ -92,17 +94,19 @@ describe('Admin Usage API', () => {
 
   it('Platform APIが想定外の形式(Zod検証失敗)を返す場合 pg_database_size にフォールバックする', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
       name: 'fly.io',
       status: 'ok',
+      dashboardUrl: '',
       lastUpdated: new Date().toISOString(),
     })
     vi.mocked(getResendUsage).mockResolvedValue({
       name: 'Resend',
       status: 'ok',
+      dashboardUrl: '',
       lastUpdated: new Date().toISOString(),
     })
 
@@ -117,7 +121,7 @@ describe('Admin Usage API', () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValue([{ pg_database_size: '1000000' }])
 
     const { listObjects } = await import('@/lib/storage/s3-sign')
-    vi.mocked(listObjects).mockResolvedValue({ contents: [], isTruncated: false })
+    vi.mocked(listObjects).mockResolvedValue({ Contents: [], IsTruncated: false })
 
     const { GET } = await import('@/app/api/admin/usage/route')
     const response = await GET()
@@ -130,7 +134,7 @@ describe('Admin Usage API', () => {
 
   it('R2未設定時にunconfiguredを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -163,7 +167,7 @@ describe('Admin Usage API', () => {
 
   it('R2データ取得成功時にOKステータスを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -208,7 +212,7 @@ describe('Admin Usage API', () => {
 
   it('R2でページネーション処理を行う', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -254,7 +258,7 @@ describe('Admin Usage API', () => {
 
   it('R2エラー時にエラーステータスを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -292,7 +296,7 @@ describe('Admin Usage API', () => {
 
   it('Supabase Platform API成功時にデータを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -340,7 +344,7 @@ describe('Admin Usage API', () => {
 
   it('Supabase Platform APIエラー時はDBから取得', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -389,7 +393,7 @@ describe('Admin Usage API', () => {
 
   it('SupabaseのDB取得エラー時にエラーステータスを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockResolvedValue({
@@ -430,7 +434,7 @@ describe('Admin Usage API', () => {
 
   it('全サービスのエラーを適切に処理する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { getFlyioUsage, getResendUsage } = await import('@/lib/services/usage')
     vi.mocked(getFlyioUsage).mockRejectedValue(new Error('Vercel Error'))

@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "types/**/*.d.ts",
+    "__tests__/**/*.ts",
+    "__tests__/**/*.tsx",
+    "e2e/**/*.ts",
+    "e2e/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "run-semantic-test.ts",
+    "temp-seed.ts",
+    "prisma/seed/**",
+    "prisma/validation/**"
+  ]
+}

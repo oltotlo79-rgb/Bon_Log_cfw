@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 /**
  * Extended notification tests
  */
@@ -77,7 +78,7 @@ describe('getNotifications', async () => {
 
     expect(result).toHaveProperty('notifications')
     expect(result.notifications).toHaveLength(1)
-    expect(result.notifications[0].type).toBe('like')
+    expect(result.notifications[0]!.type).toBe('like')
   })
 
   it('ミュートユーザーからの通知を除外する', async () => {
@@ -192,6 +193,7 @@ describe('markAsRead', async () => {
     const { markAsRead } = await import('@/lib/actions/notification')
     const result = await markAsRead('n1')
     expect(result).toHaveProperty('error')
+    expectError(result)
     expect(result.error).toBe('認証が必要です')
   })
 
@@ -262,6 +264,7 @@ describe('markAllAsRead', async () => {
     const { markAllAsRead } = await import('@/lib/actions/notification')
     const result = await markAllAsRead()
     expect(result).toHaveProperty('error')
+    expectError(result)
     expect(result.error).toBe('認証が必要です')
   })
 

@@ -415,14 +415,16 @@ describe('Storage Module', async () => {
   })
 
   describe('本番環境では内部エラーを返さない', () => {
-    const originalNodeEnv = process.env.NODE_ENV
+    function setNodeEnv(value: string) {
+      ;(process.env as { NODE_ENV: string }).NODE_ENV = value
+    }
 
     afterEach(() => {
-      process.env.NODE_ENV = originalNodeEnv
+      setNodeEnv('test')
     })
 
     it('NODE_ENV=production のときアップロード失敗は汎用メッセージを返す', async () => {
-      process.env.NODE_ENV = 'production'
+      setNodeEnv('production')
       process.env.STORAGE_PROVIDER = 'local'
       mockMkdir.mockResolvedValue(undefined)
       mockWriteFile.mockRejectedValue(new Error('Internal disk error'))
@@ -440,7 +442,7 @@ describe('Storage Module', async () => {
     })
 
     it('NODE_ENV=production のとき削除失敗は汎用メッセージを返す', async () => {
-      process.env.NODE_ENV = 'production'
+      setNodeEnv('production')
       process.env.STORAGE_PROVIDER = 'local'
       mockUnlink.mockRejectedValue(new Error('Internal delete error'))
 

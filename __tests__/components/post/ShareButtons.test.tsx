@@ -193,7 +193,7 @@ describe('ShareButtons', () => {
 
     await user.click(screen.getByRole('button', { name: 'X(Twitter)でシェア' }))
 
-    const calledUrl = mockWindowOpen.mock.calls[0][0] as string
+    const calledUrl = mockWindowOpen.mock.calls[0]![0]! as string
     expect(calledUrl).toContain('url=')
     expect(calledUrl).toContain('text=')
     expect(calledUrl).toContain('twitter.com/intent/tweet')
@@ -205,7 +205,7 @@ describe('ShareButtons', () => {
 
     await user.click(screen.getByRole('button', { name: 'Facebookでシェア' }))
 
-    const calledUrl = mockWindowOpen.mock.calls[0][0] as string
+    const calledUrl = mockWindowOpen.mock.calls[0]![0]! as string
     expect(calledUrl).toContain('u=')
     expect(calledUrl).toContain('facebook.com/sharer/sharer.php')
   })
@@ -216,7 +216,7 @@ describe('ShareButtons', () => {
 
     await user.click(screen.getByRole('button', { name: 'LINEでシェア' }))
 
-    const calledUrl = mockWindowOpen.mock.calls[0][0] as string
+    const calledUrl = mockWindowOpen.mock.calls[0]![0]! as string
     expect(calledUrl).toContain('url=')
     expect(calledUrl).toContain('line.me')
   })
@@ -241,7 +241,7 @@ describe('ShareButtons', () => {
 
     await user.click(screen.getByRole('button', { name: 'X(Twitter)でシェア' }))
 
-    const calledUrl = mockWindowOpen.mock.calls[0][0] as string
+    const calledUrl = mockWindowOpen.mock.calls[0]![0]! as string
     expect(calledUrl).toContain(encodeURIComponent(specialTitle))
     expect(calledUrl).not.toContain('&投稿')
   })
@@ -253,7 +253,7 @@ describe('ShareButtons', () => {
 
     await user.click(screen.getByRole('button', { name: 'X(Twitter)でシェア' }))
 
-    const calledUrl = mockWindowOpen.mock.calls[0][0] as string
+    const calledUrl = mockWindowOpen.mock.calls[0]![0]! as string
     expect(calledUrl).toContain(encodeURIComponent(specialUrl))
   })
 })

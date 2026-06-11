@@ -66,7 +66,7 @@ describe('PesticideSearchForm', () => {
     await user.click(screen.getByRole('button', { name: '検索' }))
 
     expect(mockPush).toHaveBeenCalled()
-    const url = mockPush.mock.calls[0][0] as string
+    const url = mockPush.mock.calls[0]?.[0] as string
     expect(url).not.toContain('search=')
   })
 
@@ -212,7 +212,7 @@ describe('PesticideSearchForm', () => {
     await user.click(screen.getByRole('button', { name: '検索' }))
 
     expect(mockPush).toHaveBeenCalled()
-    const url = mockPush.mock.calls[0][0] as string
+    const url = mockPush.mock.calls[0]?.[0] as string
     expect(url).not.toContain('diseasePest=')
   })
 })

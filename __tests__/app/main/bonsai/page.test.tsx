@@ -7,7 +7,7 @@ vi.mock('@/lib/auth', () => ({
   auth: () => mockAuth(),
 }))
 
-const mockRedirect = vi.fn(() => {
+const mockRedirect = vi.fn((_path: string) => {
   throw new Error('NEXT_REDIRECT')
 })
 vi.mock('next/navigation', () => ({

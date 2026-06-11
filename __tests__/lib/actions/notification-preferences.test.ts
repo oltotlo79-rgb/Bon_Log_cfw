@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 import { createMockPrismaClient, mockUser } from '../../utils/test-utils'
 
 const mockPrisma = createMockPrismaClient()
@@ -78,6 +79,7 @@ describe('Notification Preferences Actions', async () => {
       const { updateNotificationPreferences } = await import('@/lib/actions/notification-preferences')
       const result = await updateNotificationPreferences({ like: false })
 
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
     })
 
@@ -100,6 +102,7 @@ describe('Notification Preferences Actions', async () => {
 
       const result = await updateNotificationPreferences({ like: 'invalid' } as any)
 
+      expectError(result)
       expect(result.error).toBeDefined()
       expect(mockPrisma.user.update).not.toHaveBeenCalled()
     })
@@ -184,6 +187,7 @@ describe('Notification Preferences Actions', async () => {
       const { updateNotificationPreferences } = await import('@/lib/actions/notification-preferences')
       const result = await updateNotificationPreferences({ like: 123 } as any)
 
+      expectError(result)
       expect(result.error).toBeDefined()
       expect(mockPrisma.user.update).not.toHaveBeenCalled()
     })
@@ -192,6 +196,7 @@ describe('Notification Preferences Actions', async () => {
       const { updateNotificationPreferences } = await import('@/lib/actions/notification-preferences')
       const result = await updateNotificationPreferences({ like: null } as any)
 
+      expectError(result)
       expect(result.error).toBeDefined()
       expect(mockPrisma.user.update).not.toHaveBeenCalled()
     })

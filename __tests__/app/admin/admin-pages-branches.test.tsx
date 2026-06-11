@@ -335,8 +335,8 @@ describe('WarningsPage branches', () => {
   })
 
   it('isActive=true フィルター', async () => {
-    mockGetWarnings.mockResolvedValue({ warnings: [{ id: 'w1', level: 'caution', isActive: true }], total: 1 })
-    const result = await WarningsPage({ searchParams: Promise.resolve({ isActive: 'true', level: 'caution', search: 'test', page: '2' }) })
+    mockGetWarnings.mockResolvedValue({ warnings: [{ id: 'w1', level: 'notice', isActive: true }], total: 1 })
+    const result = await WarningsPage({ searchParams: Promise.resolve({ isActive: 'true', level: 'notice', search: 'test', cursor: '' }) })
     expect(result).toBeDefined()
   })
 

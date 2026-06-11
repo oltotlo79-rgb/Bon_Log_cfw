@@ -49,7 +49,7 @@ describe('getBonsais pagination', () => {
     const result = await getBonsais()
     const data = unwrapOk<{ bonsais: Array<{ id: string }> }>(result)
     expect(data.bonsais).toHaveLength(1)
-    expect(data.bonsais[0].id).toBe('bonsai-1')
+    expect(data.bonsais[0]?.id).toBe('bonsai-1')
   })
 
   it('ignores any passed userId and scopes to the authenticated user', async () => {
@@ -99,7 +99,7 @@ describe('getBonsais pagination', () => {
     mockPrisma.bonsaiRecord.findMany.mockResolvedValue([mockRecord])
 
     const result = await getBonsaiTimeline({ cursor: 'cursor-id', limit: 10 })
-    const data = unwrapOk<{ records: Array<typeof mockRecord>; nextCursor?: string }>(result)
+    const data = unwrapOk<{ records: unknown[]; nextCursor?: string }>(result)
     expect(data.records).toHaveLength(1)
     expect(mockPrisma.bonsaiRecord.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -135,7 +135,7 @@ describe('getBonsais pagination', () => {
     mockPrisma.bonsaiRecord.findMany.mockResolvedValue(records)
 
     const result = await getBonsaiTimeline({ limit: 20 })
-    const data = unwrapOk<{ records: typeof records; nextCursor?: string }>(result)
+    const data = unwrapOk<{ records: unknown[]; nextCursor?: string }>(result)
     expect(data.nextCursor).toBe('record-19')
   })
 })

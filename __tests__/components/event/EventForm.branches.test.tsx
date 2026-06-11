@@ -142,7 +142,7 @@ describe('EventForm - branch coverage', () => {
     await user.click(screen.getByRole('button', { name: '登録する' }))
 
     await waitFor(() => {
-      const formData = mockCreateEvent.mock.calls[0][0] as FormData
+      const formData = mockCreateEvent.mock.calls[0]![0]! as FormData
       expect(formData.get('title')).toBe('テスト')
       expect(formData.get('endDate')).toBeNull()
       expect(formData.get('city')).toBeNull()
@@ -162,7 +162,7 @@ describe('EventForm - branch coverage', () => {
     await user.click(screen.getByRole('button', { name: '更新する' }))
 
     await waitFor(() => {
-      const formData = mockUpdateEvent.mock.calls[0][1] as FormData
+      const formData = mockUpdateEvent.mock.calls[0]![1]! as FormData
       expect(formData.get('endDate')).toBeTruthy()
       expect(formData.get('city')).toBe('渋谷区')
       expect(formData.get('venue')).toBe('テスト会場')

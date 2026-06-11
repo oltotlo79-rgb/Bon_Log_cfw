@@ -95,11 +95,11 @@ describe('getHiddenPostIds', async () => {
       { postId: 'post-2' },
     ])
 
-    const result = await getHiddenPostIds('user-1')
+    const result = await getHiddenPostIds()
 
     expect(result).toEqual(['post-1', 'post-2'])
     expect(mockPrisma.userHiddenPost.findMany).toHaveBeenCalledWith({
-      where: { userId: 'user-1' },
+      where: { userId: expect.any(String) },
       select: { postId: true },
     })
   })
@@ -107,7 +107,7 @@ describe('getHiddenPostIds', async () => {
   it('DBエラー時は空配列を返す（エラーリカバリ）', async () => {
     mockPrisma.userHiddenPost.findMany.mockRejectedValue(new Error('DB connection lost'))
 
-    const result = await getHiddenPostIds('user-1')
+    const result = await getHiddenPostIds()
 
     expect(result).toEqual([])
   })

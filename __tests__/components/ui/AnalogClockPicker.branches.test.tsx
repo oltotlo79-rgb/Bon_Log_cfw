@@ -62,7 +62,7 @@ describe('AnalogClockPicker - branch coverage', () => {
       // Top center: clientX=112, clientY=0 (far from center = outer ring)
       fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 10 })
 
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]!
       // At 12 o'clock position on outer ring, hour should be 0 (since newHours = 0 % 12 = 0)
       // and it's in AM outer ring, so it stays 0
       expect(lastCall[0]).toMatch(/^(00|12):00$/)
@@ -86,7 +86,7 @@ describe('AnalogClockPicker - branch coverage', () => {
       // So click at (112, 112-50) = (112, 62) which is ~50px from center
       fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 62 })
 
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]!
       // At 12 o'clock position inner ring, newHours = 0, so it maps to 12
       expect(lastCall[0]).toBe('12:00')
     }
@@ -107,7 +107,7 @@ describe('AnalogClockPicker - branch coverage', () => {
       // 3 o'clock: right side (clientX=224, clientY=112)
       fireEvent.mouseDown(clockFace, { clientX: 224, clientY: 112 })
 
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]!
       expect(lastCall[0]).toBe('03:00')
     }
   })
@@ -129,7 +129,7 @@ describe('AnalogClockPicker - branch coverage', () => {
       // So (112+50, 112) = (162, 112) which is 50px from center
       fireEvent.mouseDown(clockFace, { clientX: 162, clientY: 112 })
 
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]!
       expect(lastCall[0]).toBe('15:00')
     }
   })
@@ -153,7 +153,7 @@ describe('AnalogClockPicker - branch coverage', () => {
       // 6 o'clock: bottom center
       fireEvent.mouseDown(clockFace, { clientX: 112, clientY: 224 })
 
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]!
       expect(lastCall[0]).toBe('09:30')
     }
   })

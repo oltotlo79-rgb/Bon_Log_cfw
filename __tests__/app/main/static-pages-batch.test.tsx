@@ -299,8 +299,8 @@ describe('HormoneInteractionsPage', () => {
     render(await Page())
     const cards = screen.getAllByTestId('interaction-card')
     expect(cards).toHaveLength(2)
-    expect(cards[0].dataset.type).toBe('synergistic')
-    expect(cards[1].dataset.type).toBe('antagonistic')
+    expect(cards[0]?.dataset.type).toBe('synergistic')
+    expect(cards[1]?.dataset.type).toBe('antagonistic')
   })
 
   it('ダイアグラムページへの導線リンクがある', async () => {
@@ -324,6 +324,6 @@ describe('HormoneInteractionsPage', () => {
   it('force-dynamic が宣言されている（(main) レイアウト/PremiumProvider が auth() を使うため静的化不可）', async () => {
     const mod = await import('@/app/(main)/hormones/interactions/page')
     expect(mod.dynamic).toBe('force-dynamic')
-    expect(mod.revalidate).toBeUndefined()
+    expect((mod as Record<string, unknown>).revalidate).toBeUndefined()
   })
 })

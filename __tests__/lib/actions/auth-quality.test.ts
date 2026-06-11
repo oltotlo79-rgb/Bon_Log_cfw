@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 
 // ============================================================================
 // Mock setup
@@ -78,15 +79,15 @@ vi.mock('@/lib/sanitize', () => ({
 
 const mockRateLimit = vi.fn().mockResolvedValue({ success: true })
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
+  rateLimit: mockRateLimit,
   RATE_LIMITS: {},
 }))
 
 const mockIsEmailBlacklisted = vi.fn().mockResolvedValue(false)
 const mockIsDeviceBlacklisted = vi.fn().mockResolvedValue(false)
 vi.mock('@/lib/services/blacklist-check', () => ({
-  isEmailBlacklisted: (...args: unknown[]) => mockIsEmailBlacklisted(...args),
-  isDeviceBlacklisted: (...args: unknown[]) => mockIsDeviceBlacklisted(...args),
+  isEmailBlacklisted: mockIsEmailBlacklisted,
+  isDeviceBlacklisted: mockIsDeviceBlacklisted,
 }))
 
 vi.mock('@/lib/security-logger', () => ({
@@ -97,19 +98,19 @@ vi.mock('@/lib/security-logger', () => ({
   logPasswordResetSuccess: vi.fn(),
 }))
 
-const mockValidatePassword = vi.fn(() => ({ valid: true }))
+const mockValidatePassword = vi.fn((): { valid: true } | { valid: false; error: string } => ({ valid: true }))
 vi.mock('@/lib/validations/password', () => ({
-  validatePassword: (...args: unknown[]) => mockValidatePassword(...args),
+  validatePassword: mockValidatePassword,
 }))
 
 const mockIsReservedNickname = vi.fn(() => false)
 vi.mock('@/lib/constants/reserved', () => ({
-  isReservedNickname: (...args: unknown[]) => mockIsReservedNickname(...args),
+  isReservedNickname: mockIsReservedNickname,
 }))
 
 const mockSignIn = vi.fn()
 vi.mock('@/lib/auth', () => ({
-  signIn: (...args: unknown[]) => mockSignIn(...args),
+  signIn: mockSignIn,
   auth: vi.fn().mockResolvedValue(null),
 }))
 
@@ -203,7 +204,7 @@ describe('Auth Actions - Quality Tests', () => {
 
     it('rejects when password validation fails', async () => {
       mockValidatePassword.mockReturnValueOnce({
-        valid: false,
+        valid: false as const,
         error: 'パスワードが弱すぎます',
       })
 
@@ -321,7 +322,7 @@ describe('Auth Actions - Quality Tests', () => {
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('user@example.com', 'Password123')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('ログイン中にエラーが発生しました')
     })
   })

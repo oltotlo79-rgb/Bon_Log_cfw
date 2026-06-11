@@ -198,7 +198,7 @@ describe('統合テスト: 実シードファイルのパース', () => {
     it('石灰硫黄合剤×銅系殺菌剤が含まれる', () => {
       const result = extractIncompatibilities(mainSrc)
       const copperPairs = result.filter(
-        r => r.slug1 === 'lime-sulfur' && ['z-bordeaux', 'sankei-copper-wp', 'quinondo-wp'].includes(r.slug2)
+        r => r.slug1 === 'lime-sulfur' && ['z-bordeaux', 'sankei-copper-wp', 'quinondo-wp'].includes(r.slug2!)
       )
       expect(copperPairs.length).toBeGreaterThanOrEqual(3)
     })
@@ -337,8 +337,8 @@ describe('統合テスト: 実シードファイルのパース', () => {
         const fx = effects.filter(e => e.pesticideSlug === iSlug)
         for (const e of fx) {
           // ウイルス病（mosaic-byo, fuiri-sho）は媒介害虫防除として許容
-          if (['mosaic-byo', 'fuiri-sho'].includes(e.diseasePestSlug)) continue
-          expect(diseaseSlugSet.has(e.diseasePestSlug)).toBe(false)
+          if (['mosaic-byo', 'fuiri-sho'].includes(e.diseasePestSlug!)) continue
+          expect(diseaseSlugSet.has(e.diseasePestSlug!)).toBe(false)
         }
       }
     })
@@ -352,10 +352,10 @@ describe('統合テスト: 実シードファイルのパース', () => {
         ...extractEffectsFromSpray(add2Src),
       ]
       for (const e of all) {
-        expect(validLevels.has(e.preventionLevel)).toBe(true)
-        expect(validLevels.has(e.treatmentLevel)).toBe(true)
-        expect(validLevels.has(e.efficacyLevel)).toBe(true)
-        expect(validLevels.has(e.persistenceLevel)).toBe(true)
+        expect(validLevels.has(e.preventionLevel!)).toBe(true)
+        expect(validLevels.has(e.treatmentLevel!)).toBe(true)
+        expect(validLevels.has(e.efficacyLevel!)).toBe(true)
+        expect(validLevels.has(e.persistenceLevel!)).toBe(true)
       }
     })
   })
@@ -371,7 +371,7 @@ describe('統合テスト: 実シードファイルのパース', () => {
       const slugs = all.map(p => p.slug)
       // dedup前の重複を検出
       const counts = new Map<string, number>()
-      for (const s of slugs) counts.set(s, (counts.get(s) ?? 0) + 1)
+      for (const s of slugs) counts.set(s!, (counts.get(s!) ?? 0) + 1)
       const _dupes = [...counts.entries()].filter(([, c]) => c > 1).map(([s]) => s)
       // 同一製品が複数ソースで定義される場合はdedupで解消されるので、
       // ここでは同一ソース内の重複のみチェック

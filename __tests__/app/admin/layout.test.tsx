@@ -99,7 +99,8 @@ describe('AdminLayout', async () => {
     const result = await AdminLayout({ children: <div>test</div> })
 
     // JSX要素のpropsからクラス名を検証
-    const rootClassName = (result as React.ReactElement).props.className as string
+    const jsxElement = result as React.ReactElement<{ className?: string }>
+    const rootClassName = jsxElement.props.className
     expect(rootClassName).toContain('admin-theme')
   })
 })

@@ -106,7 +106,7 @@ describe('Pesticide Actions', () => {
       const { getDiseasePests } = await import('@/lib/actions/pesticide')
       await getDiseasePests({ bodySizeMm: 0 })
 
-      const call = mockPrisma.diseasePest.findMany.mock.calls[0][0]
+      const call = mockPrisma.diseasePest.findMany.mock.calls[0]![0]
       expect(call.where).not.toHaveProperty('bodySizeMinMm')
       expect(call.where).not.toHaveProperty('bodySizeMaxMm')
     })
@@ -146,7 +146,7 @@ describe('Pesticide Actions', () => {
       const { getPesticides } = await import('@/lib/actions/pesticide')
       await getPesticides({ type: 'invalid-type' })
 
-      const call = mockPrisma.pesticide.findMany.mock.calls[0][0]
+      const call = mockPrisma.pesticide.findMany.mock.calls[0]![0]
       expect(call.where).not.toHaveProperty('pesticideType')
     })
 

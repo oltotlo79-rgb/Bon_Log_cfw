@@ -366,7 +366,7 @@ describe('管理者向け警告管理アクション', () => {
 
       expect(result).toMatchObject({ success: true })
       // $transactionに渡される配列にuser.updateが含まれることを確認
-      const transactionArg = mockTransaction.mock.calls[0][0]
+      const transactionArg = mockTransaction.mock.calls[0]![0]
       expect(Array.isArray(transactionArg)).toBe(true)
       // 配列には warning.create + user.update + adminLog.create の3つ
       expect(transactionArg).toHaveLength(3)
@@ -381,7 +381,7 @@ describe('管理者向け警告管理アクション', () => {
       })
 
       expect(result).toMatchObject({ success: true })
-      const transactionArg = mockTransaction.mock.calls[0][0]
+      const transactionArg = mockTransaction.mock.calls[0]![0]
       expect(Array.isArray(transactionArg)).toBe(true)
       // warning.create + user.update + adminLog.create の3つ
       expect(transactionArg).toHaveLength(3)
@@ -395,7 +395,7 @@ describe('管理者向け警告管理アクション', () => {
         reason: '注意のみ',
       })
 
-      const transactionArg = mockTransaction.mock.calls[0][0]
+      const transactionArg = mockTransaction.mock.calls[0]![0]
       expect(Array.isArray(transactionArg)).toBe(true)
       // warning.create + adminLog.create の2つ（user.updateなし）
       expect(transactionArg).toHaveLength(2)
@@ -948,7 +948,7 @@ describe('管理者向け警告管理アクション', () => {
       const result = await getWarnings()
 
       if ('error' in result) throw new Error('Expected warnings, got error')
-      expect(result.warnings[0].user).toEqual({
+      expect(result.warnings[0]!.user).toEqual({
         id: mockTargetUser.id,
         nickname: mockTargetUser.nickname,
         email: mockTargetUser.email,
@@ -1004,7 +1004,7 @@ describe('管理者向け警告管理アクション', () => {
       const { deactivateWarning } = await import('@/lib/actions/admin/warnings')
       await deactivateWarning('warning-1')
 
-      const transactionArg = mockTransaction.mock.calls[0][0]
+      const transactionArg = mockTransaction.mock.calls[0]![0]
       expect(Array.isArray(transactionArg)).toBe(true)
       expect(transactionArg).toHaveLength(2)
 

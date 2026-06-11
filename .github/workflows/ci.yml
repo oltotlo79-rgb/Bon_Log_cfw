@@ -57,6 +57,9 @@ jobs:
       - name: Run TypeScript type check
         run: npx tsc --noEmit -p tsconfig.check.json
 
+      - name: Type check (tests)
+        run: npx tsc --noEmit -p tsconfig.test.json
+
   # ===========================================
   # Security Scan
   # ===========================================
@@ -85,10 +88,7 @@ jobs:
         # 旧実装は grep ベースで「既知 GHSA 文字列が 1 件でもあれば全 high/critical を許容」
         # する論理穴があったため、--json + jq で structured に検証する。
         #
-        # 許容リスト:
-        #   GHSA-38f7-945m-qr2g: effect <3.20.0 (Prisma 内部依存)。
-        #     AsyncLocalStorage+Effect fibers 固有問題で本プロジェクトには影響なし。
-        #     2026-07-01 までに Prisma 側で effect が更新されたら除外を解除する。
+        # 許容リスト: (現在 high/critical の既知除外なし)
         run: |
           set +e
           npm audit --json --omit=dev > audit.json
@@ -103,7 +103,7 @@ jobs:
 
           # jq で via 配列内の advisory を all high/critical だけ抜き、
           # ALLOWLIST 外があれば fail する。
-          ALLOWLIST='["GHSA-38f7-945m-qr2g"]'
+          ALLOWLIST='[]'
           UNKNOWN=$(jq --argjson allow "$ALLOWLIST" '
             [
               .vulnerabilities
@@ -125,7 +125,7 @@ jobs:
             jq '.vulnerabilities' audit.json
             exit 1
           fi
-          echo "npm audit: only allowlisted advisories present ($(echo "$ALLOWLIST" | jq -r 'join(", ")'))"
+          echo "npm audit: no high/critical advisories (allowlist is empty)"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3

@@ -483,7 +483,7 @@ describe('Action Branch Coverage', async () => {
 
       // 削除済み+返信なしのコメントはフィルタされる
       expect(result.comments).toHaveLength(1)
-      expect(result.comments[0].id).toBe('active-comment')
+      expect(result.comments[0]!.id).toBe('active-comment')
     })
 
     it('削除済みだが返信があるコメントは残る（isDeleted: true）', async () => {
@@ -502,7 +502,7 @@ describe('Action Branch Coverage', async () => {
       const result = await getComments(mockPost.id)
 
       expect(result.comments).toHaveLength(1)
-      expect(result.comments[0].isDeleted).toBe(true)
+      expect(result.comments[0]!.isDeleted).toBe(true)
     })
   })
 

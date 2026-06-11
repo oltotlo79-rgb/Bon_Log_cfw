@@ -11,7 +11,7 @@ function createMockPlans() {
 
   return Array.from({ length: 12 }, (_, i) => ({
     month: i + 1,
-    action: actions[i],
+    action: actions[i]!,
     nitrogenLevel: (i % 2 === 0 ? 'high' : 'low') as NutrientLevel | null,
     phosphorusLevel: (i % 3 === 0 ? 'balanced' : null) as NutrientLevel | null,
     potassiumLevel: (i < 6 ? 'high' : 'none') as NutrientLevel | null,

@@ -75,7 +75,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
     posts: [],
     nextCursor: undefined,
     isGuest: false,
-  } as (T extends object ? T : Record<string, never>) & FeedLegacyShape
+  } as unknown as (T extends object ? T : Record<string, never>) & FeedLegacyShape
 }
 
 describe('getTimeline - ゲストタイムライン (lines 115-157)', () => {
@@ -137,16 +137,16 @@ describe('getTimeline - ゲストタイムライン (lines 115-157)', () => {
     expect(result.posts).toHaveLength(2)
 
     // 投稿の整形が正しい
-    expect(result.posts[0].likeCount).toBe(5)
-    expect(result.posts[0].commentCount).toBe(2)
-    expect(result.posts[0].isLiked).toBe(true)
-    expect(result.posts[0].isBookmarked).toBe(false)
-    expect(result.posts[0].genres).toEqual([{ id: 'genre-1', name: '黒松', category: '松柏類' }])
+    expect(result.posts[0]!.likeCount).toBe(5)
+    expect(result.posts[0]!.commentCount).toBe(2)
+    expect(result.posts[0]!.isLiked).toBe(true)
+    expect(result.posts[0]!.isBookmarked).toBe(false)
+    expect(result.posts[0]!.genres).toEqual([{ id: 'genre-1', name: '黒松', category: '松柏類' }])
 
-    expect(result.posts[1].likeCount).toBe(10)
-    expect(result.posts[1].commentCount).toBe(0)
-    expect(result.posts[1].isLiked).toBe(false)
-    expect(result.posts[1].isBookmarked).toBe(true)
+    expect(result.posts[1]!.likeCount).toBe(10)
+    expect(result.posts[1]!.commentCount).toBe(0)
+    expect(result.posts[1]!.isLiked).toBe(false)
+    expect(result.posts[1]!.isBookmarked).toBe(true)
 
     // 非表示投稿に加え、非公開・停止著者の投稿もゲストには出さない
     expect(mockPrisma.post.findMany).toHaveBeenCalledWith(

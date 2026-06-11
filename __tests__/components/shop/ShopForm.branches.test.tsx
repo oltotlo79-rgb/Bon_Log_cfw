@@ -73,7 +73,7 @@ const mockInitialData = {
   website: 'https://example.com' as string | null,
   businessHours: '9:00-17:00' as string | null,
   closedDays: '水曜日' as string | null,
-  genres: [mockGenres[0]],
+  genres: [mockGenres[0]!],
 }
 
 describe('ShopForm - branch coverage', () => {
@@ -140,7 +140,7 @@ describe('ShopForm - branch coverage', () => {
 
     await waitFor(() => {
       expect(mockUpdateShop).toHaveBeenCalled()
-      const formData = mockUpdateShop.mock.calls[0][1] as FormData
+      const formData = mockUpdateShop.mock.calls[0]![1]! as FormData
       expect(formData.get('phone')).toBeNull()
       expect(formData.get('website')).toBeNull()
       expect(formData.get('businessHours')).toBeNull()
@@ -161,7 +161,7 @@ describe('ShopForm - branch coverage', () => {
     fireEvent.click(screen.getByText('このまま登録'))
 
     await waitFor(() => {
-      const formData = mockCreateShop.mock.calls[0][0] as FormData
+      const formData = mockCreateShop.mock.calls[0]![0]! as FormData
       expect(formData.get('latitude')).toBeNull()
       expect(formData.get('longitude')).toBeNull()
     })

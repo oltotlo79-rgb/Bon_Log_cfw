@@ -35,6 +35,23 @@ vi.mock('@/lib/rate-limit', () => ({
   checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }),
 }))
 
+// Redis モック（checkDailyPostLimit で直接使用）
+const mockRedisForUtils = {
+  incr: vi.fn(),
+  expire: vi.fn(),
+  get: vi.fn(),
+  set: vi.fn(),
+  del: vi.fn(),
+}
+vi.mock('@/lib/redis', () => ({
+  getRedisClient: () => mockRedisForUtils,
+}))
+
+// getMembershipLimits モック（checkDailyPostLimit が呼ぶ）
+vi.mock('@/lib/premium', () => ({
+  getMembershipLimits: vi.fn().mockResolvedValue({ maxDailyPosts: 20 }),
+}))
+
 describe('Utils Actions', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -359,7 +376,7 @@ describe('Utils Actions', async () => {
     it('未認証の場合は認証エラーを返す', async () => {
       mockAuth.mockResolvedValue(null)
       const { requireActiveNonGuestUser } = await import('@/lib/actions/utils')
-      const result = await requireActiveNonGuestUser('post')
+      const result = await requireActiveNonGuestUser()
       expect('error' in result).toBe(true)
     })
 
@@ -369,7 +386,7 @@ describe('Utils Actions', async () => {
       mockAuth.mockResolvedValue({ user: { id: 'guest-1', email: GUEST_EMAIL } })
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
       const { requireActiveNonGuestUser } = await import('@/lib/actions/utils')
-      const result = await requireActiveNonGuestUser('post')
+      const result = await requireActiveNonGuestUser()
       expect(result).toMatchObject({ error: ERR_GUEST_CANNOT_CREATE })
     })
 
@@ -378,7 +395,7 @@ describe('Utils Actions', async () => {
       mockAuth.mockResolvedValue({ user: { id: 'u1', email: 'user@example.com' } })
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: true })
       const { requireActiveNonGuestUser } = await import('@/lib/actions/utils')
-      const result = await requireActiveNonGuestUser('post')
+      const result = await requireActiveNonGuestUser()
       expect(result).toMatchObject({ error: ERR_ACCOUNT_SUSPENDED })
     })
 
@@ -386,8 +403,89 @@ describe('Utils Actions', async () => {
       mockAuth.mockResolvedValue({ user: { id: 'u1', email: 'user@example.com' } })
       mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
       const { requireActiveNonGuestUser } = await import('@/lib/actions/utils')
-      const result = await requireActiveNonGuestUser('post')
+      const result = await requireActiveNonGuestUser()
       expect(result).toEqual({ userId: 'u1' })
+    })
+  })
+
+  // ============================================================
+  // checkDailyPostLimit — JST 暦日キー検証
+  // ============================================================
+
+  describe('checkDailyPostLimit: Redis キーの JST 暦日ラベル', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      mockAuth.mockResolvedValue({ user: { id: 'u1', email: 'user@example.com' } })
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+      mockRedisForUtils.expire.mockResolvedValue(undefined)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('UTC 2026-06-10T20:00:00Z（= JST 6/11 5:00）のとき INCR キーが "2026-06-11" を含む', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-10T20:00:00.000Z'))
+      // 制限内: count=1
+      mockRedisForUtils.incr.mockResolvedValue(1)
+
+      const { checkDailyPostLimit } = await import('@/lib/actions/utils')
+      const result = await checkDailyPostLimit('u1')
+
+      expect(result).toBeNull()
+      expect(mockRedisForUtils.incr).toHaveBeenCalledWith(
+        expect.stringContaining('2026-06-11')
+      )
+      expect(mockRedisForUtils.incr).toHaveBeenCalledWith(
+        expect.stringContaining('daily_posts:u1:')
+      )
+    })
+
+    it('UTC 2026-06-10T14:00:00Z（= JST 6/10 23:00）のとき INCR キーが "2026-06-10" を含む', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-10T14:00:00.000Z'))
+      // 制限内: count=1
+      mockRedisForUtils.incr.mockResolvedValue(1)
+
+      const { checkDailyPostLimit } = await import('@/lib/actions/utils')
+      const result = await checkDailyPostLimit('u1')
+
+      expect(result).toBeNull()
+      expect(mockRedisForUtils.incr).toHaveBeenCalledWith(
+        expect.stringContaining('2026-06-10')
+      )
+      expect(mockRedisForUtils.incr).toHaveBeenCalledWith(
+        expect.stringContaining('daily_posts:u1:')
+      )
+    })
+
+    it('JST 日付境界（UTC 15:00）を挟んで日付ラベルが切り替わる', async () => {
+      vi.useFakeTimers()
+
+      // UTC 2026-06-10T14:59:59.999Z = JST 2026-06-10 23:59:59.999
+      vi.setSystemTime(new Date('2026-06-10T14:59:59.999Z'))
+      mockRedisForUtils.incr.mockResolvedValue(1)
+      {
+        const { checkDailyPostLimit } = await import('@/lib/actions/utils')
+        await checkDailyPostLimit('u1')
+        expect(mockRedisForUtils.incr).toHaveBeenLastCalledWith(
+          expect.stringContaining('2026-06-10')
+        )
+      }
+
+      mockRedisForUtils.incr.mockClear()
+
+      // UTC 2026-06-10T15:00:00.000Z = JST 2026-06-11 00:00:00
+      vi.setSystemTime(new Date('2026-06-10T15:00:00.000Z'))
+      mockRedisForUtils.incr.mockResolvedValue(1)
+      {
+        const { checkDailyPostLimit } = await import('@/lib/actions/utils')
+        await checkDailyPostLimit('u1')
+        expect(mockRedisForUtils.incr).toHaveBeenLastCalledWith(
+          expect.stringContaining('2026-06-11')
+        )
+      }
     })
   })
 })

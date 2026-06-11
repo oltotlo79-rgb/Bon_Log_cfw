@@ -69,6 +69,6 @@ describe('mapActionResult', () => {
 
   it('leaves failures untouched', () => {
     const ng: ActionResult<number> = { success: false, error: 'x' }
-    expect(mapActionResult(ng, (n) => (n ?? 0) + 1)).toEqual(ng)
+    expect(mapActionResult<number, number>(ng, (n) => (n ?? 0) + 1)).toEqual(ng)
   })
 })

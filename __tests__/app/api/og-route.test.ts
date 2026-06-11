@@ -85,14 +85,15 @@ describe('GET /api/og', () => {
   it('calls ImageResponse with correct size options (1200x630)', async () => {
     await GET(createRequest('/api/og'))
     expect(mockImageResponse).toHaveBeenCalledTimes(1)
-    const [, options] = mockImageResponse.mock.calls[0]
+    const firstCall = mockImageResponse.mock.calls[0]
+    const options = firstCall?.[1]
     expect(options).toMatchObject({ width: 1200, height: 630 })
   })
 
   it('renders default content when no title param', async () => {
     await GET(createRequest('/api/og'))
     expect(mockImageResponse).toHaveBeenCalledTimes(1)
-    const [element] = mockImageResponse.mock.calls[0]
+    const element = mockImageResponse.mock.calls[0]?.[0]
     expect(element).toBeTruthy()
   })
 
@@ -108,7 +109,7 @@ describe('GET /api/og', () => {
 
   it('uses PNG (not WebP) for OG background — Satori does not support WebP', async () => {
     await GET(createRequest('/api/og'))
-    const [element] = mockImageResponse.mock.calls[0]
+    const element = mockImageResponse.mock.calls[0]?.[0]
     const src = findImgSrc(element)
     expect(src).toBeTruthy()
     expect(src).toMatch(/^data:image\/png;base64,/)
@@ -117,7 +118,7 @@ describe('GET /api/og', () => {
 
   it('embeds the background as a filesystem data URL (not a request.url-based URL that breaks on fly standalone)', async () => {
     await GET(createRequest('/api/og'))
-    const [element] = mockImageResponse.mock.calls[0]
+    const element = mockImageResponse.mock.calls[0]?.[0]
     const src = findImgSrc(element)
     expect(src).toMatch(/^data:image\/png;base64,/)
     expect(src).not.toMatch(/0\.0\.0\.0|localhost|https?:\/\//)

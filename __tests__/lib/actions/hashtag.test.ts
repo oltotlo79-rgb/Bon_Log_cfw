@@ -129,7 +129,7 @@ describe('Hashtag Actions', async () => {
       const result = await getTrendingHashtags(5)
 
       expect(result).toHaveLength(2)
-      expect(result[0].name).toBe('盆栽')
+      expect(result[0]!.name).toBe('盆栽')
     })
 
     it('デフォルトで10件取得する', async () => {

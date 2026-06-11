@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 // Prismaモック（auth.extended固有）
 const authExtMockPrisma = {
   user: {
@@ -148,6 +149,7 @@ describe('auth actions extended tests', async () => {
         nickname: 'User',
       })
 
+      expectError(result)
       expect(result.error).toBe('このメールアドレスは既に登録されています')
     })
 
@@ -166,6 +168,7 @@ describe('auth actions extended tests', async () => {
         nickname: 'User',
       })
 
+      expectError(result)
       expect(result.error).toBe('パスワードは8文字以上で入力してください')
     })
 
@@ -181,6 +184,7 @@ describe('auth actions extended tests', async () => {
         nickname: 'User',
       })
 
+      expectError(result)
       expect(result.error).toBe('このメールアドレスは利用できません')
     })
 
@@ -197,6 +201,7 @@ describe('auth actions extended tests', async () => {
         fingerprint: 'blacklisted-fingerprint',
       })
 
+      expectError(result)
       expect(result.error).toBe('このデバイスからの登録は許可されていません')
     })
 
@@ -264,6 +269,7 @@ describe('auth actions extended tests', async () => {
       const { verifyEmailToken } = await import('@/lib/actions/auth')
       const result = await verifyEmailToken('invalid-token-long-enough')
 
+      expectError(result)
       expect(result.error).toContain('無効または期限切れ')
     })
   })
@@ -295,6 +301,7 @@ describe('auth actions extended tests', async () => {
       const { resendVerificationEmail } = await import('@/lib/actions/auth')
       const result = await resendVerificationEmail('user@example.com')
 
+      expectError(result)
       expect(result.error).toContain('再送の要求が多すぎます')
     })
 
@@ -311,7 +318,9 @@ describe('auth actions extended tests', async () => {
       const { resendVerificationEmail } = await import('@/lib/actions/auth')
       const result = await resendVerificationEmail('user@example.com')
 
+      expectError(result)
       expect(result.error).toBeDefined()
+      expectError(result)
       expect(result.error).toContain('送信に失敗')
     })
   })
@@ -361,6 +370,7 @@ describe('auth actions extended tests', async () => {
 
       const result = await requestPasswordReset('test@example.com')
 
+      expectError(result)
       expect(result.error).toContain('パスワードリセットの要求が多すぎます')
     })
 
@@ -382,6 +392,7 @@ describe('auth actions extended tests', async () => {
 
       const result = await requestPasswordReset('test@example.com')
 
+      expectError(result)
       expect(result.error).toContain('メールの送信に失敗しました')
     })
 
@@ -455,6 +466,7 @@ describe('auth actions extended tests', async () => {
         newPassword: 'short',
       })
 
+      expectError(result)
       expect(result.error).toContain('8文字以上')
     })
 
@@ -472,6 +484,7 @@ describe('auth actions extended tests', async () => {
         newPassword: '12345678',
       })
 
+      expectError(result)
       expect(result.error).toContain('アルファベットを含めて')
     })
 
@@ -489,6 +502,7 @@ describe('auth actions extended tests', async () => {
         newPassword: 'abcdefgh',
       })
 
+      expectError(result)
       expect(result.error).toContain('数字を含めて')
     })
 
@@ -503,6 +517,7 @@ describe('auth actions extended tests', async () => {
         newPassword: 'NewSecure123',
       })
 
+      expectError(result)
       expect(result.error).toContain('リセットリンクが無効または期限切れ')
     })
 
@@ -521,6 +536,7 @@ describe('auth actions extended tests', async () => {
         newPassword: 'NewSecure123',
       })
 
+      expectError(result)
       expect(result.error).toBe('ユーザーが見つかりません')
     })
 

@@ -43,7 +43,7 @@ describe('Sentry Admin API', () => {
 
   it('SENTRY_API_TOKEN未設定でエラーを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const { GET } = await import('@/app/api/admin/sentry/route')
     const response = await GET()
@@ -55,7 +55,7 @@ describe('Sentry Admin API', () => {
 
   it('Sentryからissue一覧を正常取得', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     const mockIssues = [
@@ -76,7 +76,7 @@ describe('Sentry Admin API', () => {
 
   it('Sentry APIエラー時にエラーを返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockResolvedValue({
@@ -94,7 +94,7 @@ describe('Sentry Admin API', () => {
 
   it('SENTRY_AUTH_TOKENをフォールバックとして使用する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     delete process.env.SENTRY_API_TOKEN
     process.env.SENTRY_AUTH_TOKEN = 'fallback-token'
 
@@ -120,7 +120,7 @@ describe('Sentry Admin API', () => {
 
   it('sntrys_ トークンからリージョンURLを抽出する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
 
     const payload = { region_url: 'https://eu.sentry.io' }
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64')
@@ -144,7 +144,7 @@ describe('Sentry Admin API', () => {
 
   it('不正なsntrys_トークンはデフォルトURLを使用する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'sntrys_invalid_signature'
 
     mockFetch.mockResolvedValue({
@@ -165,7 +165,7 @@ describe('Sentry Admin API', () => {
 
   it('デフォルトのorg/projectを使用する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
     delete process.env.SENTRY_ORG
     delete process.env.SENTRY_PROJECT
@@ -192,7 +192,7 @@ describe('Sentry Admin API', () => {
 
   it('SENTRY_API_URLをカスタマイズできる', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
     process.env.SENTRY_API_URL = 'https://custom.sentry.io'
 
@@ -214,7 +214,7 @@ describe('Sentry Admin API', () => {
 
   it('Sentry API 401エラーを処理する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockResolvedValue({
@@ -234,7 +234,7 @@ describe('Sentry Admin API', () => {
 
   it('Sentry API 400エラーを処理する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockResolvedValue({
@@ -254,7 +254,7 @@ describe('Sentry Admin API', () => {
 
   it('Sentry API 404エラーを処理する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockResolvedValue({
@@ -274,7 +274,7 @@ describe('Sentry Admin API', () => {
 
   it('その他のSentry APIエラーを処理する', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockResolvedValue({
@@ -293,7 +293,7 @@ describe('Sentry Admin API', () => {
 
   it('エラーレスポンスのJSONパースに失敗した場合', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockResolvedValue({
@@ -313,7 +313,7 @@ describe('Sentry Admin API', () => {
 
   it('予期しないエラー時に500を返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     mockFetch.mockRejectedValue(new Error('Network error'))
@@ -328,7 +328,7 @@ describe('Sentry Admin API', () => {
 
   it('複数のissuesをマッピングして返す', async () => {
     const { requireAdmin } = await import('@/lib/actions/utils')
-    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1' })
+    vi.mocked(requireAdmin).mockResolvedValue({ userId: 'admin-1', role: 'admin' as const })
     process.env.SENTRY_API_TOKEN = 'test-token'
 
     const mockIssues = [

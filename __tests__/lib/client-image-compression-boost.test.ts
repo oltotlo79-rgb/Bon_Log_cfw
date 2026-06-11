@@ -371,7 +371,7 @@ describe('client-image-compression カバレッジ向上テスト', () => {
     })
 
     it('画像ファイルはcompressImageを呼び出して圧縮する（本番ログ削除済み）', async () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation()
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
       // 大きな画像ファイル（圧縮対象）
       const largeData = new Uint8Array(600 * 1024)
@@ -388,7 +388,7 @@ describe('client-image-compression カバレッジ向上テスト', () => {
     })
 
     it('圧縮率が0の場合はログを出力しない', async () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation()
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
       // 小さな画像ファイル（圧縮スキップ）
       const smallData = new Uint8Array(400 * 1024)
@@ -454,8 +454,8 @@ describe('client-image-compression カバレッジ向上テスト', () => {
         // sendが呼ばれたらloadイベントを発火
         mockSend.mockImplementation(() => {
           setTimeout(() => {
-            const loadHandler = mockAddEventListener.mock.calls.find(
-              (call: [string, () => void]) => call[0] === 'load'
+            const loadHandler = (mockAddEventListener.mock.calls as Array<[string, () => void]>).find(
+              (call) => call[0] === 'load'
             )
             if (loadHandler) {
               loadHandler[1]()
@@ -503,8 +503,8 @@ describe('client-image-compression カバレッジ向上テスト', () => {
         send: vi.fn().mockImplementation(() => {
           // loadイベントを発火
           setTimeout(() => {
-            const loadHandler = mockAddEventListener.mock.calls.find(
-              (call: [string, () => void]) => call[0] === 'load'
+            const loadHandler = (mockAddEventListener.mock.calls as Array<[string, () => void]>).find(
+              (call) => call[0] === 'load'
             )
             if (loadHandler) {
               loadHandler[1]()
@@ -527,9 +527,8 @@ describe('client-image-compression カバレッジ向上テスト', () => {
       // 少し待ってからprogressイベントをシミュレート
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      const progressHandler = mockUploadAddEventListener.mock.calls.find(
-        (call: [string, (event: ProgressEvent) => void]) =>
-          call[0] === 'progress'
+      const progressHandler = (mockUploadAddEventListener.mock.calls as Array<[string, (event: ProgressEvent) => void]>).find(
+        (call) => call[0] === 'progress'
       )
 
       if (progressHandler) {
@@ -562,8 +561,8 @@ describe('client-image-compression カバレッジ向上テスト', () => {
         open: vi.fn(),
         send: vi.fn().mockImplementation(() => {
           setTimeout(() => {
-            const abortHandler = mockAddEventListener.mock.calls.find(
-              (call: [string, () => void]) => call[0] === 'abort'
+            const abortHandler = (mockAddEventListener.mock.calls as Array<[string, () => void]>).find(
+              (call) => call[0] === 'abort'
             )
             if (abortHandler) {
               abortHandler[1]()
@@ -601,8 +600,8 @@ describe('client-image-compression カバレッジ向上テスト', () => {
         open: vi.fn(),
         send: vi.fn().mockImplementation(() => {
           setTimeout(() => {
-            const loadHandler = mockAddEventListener.mock.calls.find(
-              (call: [string, () => void]) => call[0] === 'load'
+            const loadHandler = (mockAddEventListener.mock.calls as Array<[string, () => void]>).find(
+              (call) => call[0] === 'load'
             )
             if (loadHandler) {
               loadHandler[1]()
@@ -640,8 +639,8 @@ describe('client-image-compression カバレッジ向上テスト', () => {
         open: vi.fn(),
         send: vi.fn().mockImplementation(() => {
           setTimeout(() => {
-            const loadHandler = mockAddEventListener.mock.calls.find(
-              (call: [string, () => void]) => call[0] === 'load'
+            const loadHandler = (mockAddEventListener.mock.calls as Array<[string, () => void]>).find(
+              (call) => call[0] === 'load'
             )
             if (loadHandler) {
               loadHandler[1]()

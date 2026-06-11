@@ -105,11 +105,11 @@ describe('SharedMediaUploadSection - extra branches', () => {
       btn => btn.closest('.relative.aspect-video')
     )
     if (removeButtons.length > 1) {
-      fireEvent.click(removeButtons[1])
+      fireEvent.click(removeButtons[1]!)
       expect(onRemove).toHaveBeenCalledWith(1)
     } else {
       // Fallback: click first remove button
-      fireEvent.click(removeButtons[0])
+      fireEvent.click(removeButtons[0]!)
       expect(onRemove).toHaveBeenCalledWith(0)
     }
   })

@@ -78,7 +78,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
   if (result.success) {
     return ((result.data ?? {}) as unknown) as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
   }
-  return { error: result.error, posts: [], nextCursor: undefined } as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
+  return { error: result.error, posts: [], nextCursor: undefined } as unknown as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
 }
 
 beforeEach(() => {

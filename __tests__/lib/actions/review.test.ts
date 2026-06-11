@@ -152,7 +152,7 @@ describe('Review Actions', async () => {
       const result = await createReview(formData)
 
       expect(result.success).toBe(true)
-      expect(result.data?.reviewId).toBe('new-review-id')
+      expect(('data' in result ? result.data : undefined)?.reviewId).toBe('new-review-id')
     })
   })
 
@@ -269,7 +269,7 @@ describe('Review Actions', async () => {
       const result = await getReviews('test-shop-id')
 
       expect(result.reviews).toHaveLength(1)
-      expect(result.reviews[0].rating).toBe(5)
+      expect(result.reviews[0]!.rating).toBe(5)
     })
 
     it('ページネーションが動作する', async () => {

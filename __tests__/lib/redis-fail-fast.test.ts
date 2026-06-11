@@ -20,7 +20,7 @@ describe('assertRedisConfiguredInProduction', () => {
     delete process.env.UPSTASH_REDIS_REST_TOKEN
     delete process.env.VERCEL_ENV
     delete process.env.NEXT_PUBLIC_APP_URL
-    process.env.NODE_ENV = 'development'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'development'
   })
 
   afterEach(() => {
@@ -32,7 +32,7 @@ describe('assertRedisConfiguredInProduction', () => {
   })
 
   it('NODE_ENV=production + loopback URL なら CI 互換で throw しない', () => {
-    process.env.NODE_ENV = 'production'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'production'
     process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
     expect(() => assertRedisConfiguredInProduction()).not.toThrow()
   })
@@ -44,18 +44,18 @@ describe('assertRedisConfiguredInProduction', () => {
   })
 
   it('NODE_ENV=production + non-loopback URL なら throw', () => {
-    process.env.NODE_ENV = 'production'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'production'
     process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
     expect(() => assertRedisConfiguredInProduction()).toThrow(/UPSTASH/)
   })
 
   it('NODE_ENV=production で NEXT_PUBLIC_APP_URL 未設定なら throw', () => {
-    process.env.NODE_ENV = 'production'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'production'
     expect(() => assertRedisConfiguredInProduction()).toThrow(/UPSTASH/)
   })
 
   it('Upstash 設定済みなら production でも throw しない', () => {
-    process.env.NODE_ENV = 'production'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'production'
     process.env.VERCEL_ENV = 'production'
     process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
     process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example/redis'

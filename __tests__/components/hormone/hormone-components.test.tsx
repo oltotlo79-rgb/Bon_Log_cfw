@@ -508,7 +508,7 @@ describe('HormoneAnnualCalendar', () => {
     ;(tipNodes[0] as HTMLElement).click()
     expect(onMonthClick).toHaveBeenCalledTimes(1)
     // 第一引数は month (1〜12)
-    const arg = onMonthClick.mock.calls[0][0]
+    const arg = onMonthClick.mock.calls[0]?.[0]
     expect(typeof arg).toBe('number')
     expect(arg).toBeGreaterThanOrEqual(1)
     expect(arg).toBeLessThanOrEqual(12)

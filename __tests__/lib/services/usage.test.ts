@@ -83,6 +83,64 @@ describe('Usage Service', () => {
       expect(result.error).toBe('Network error')
     })
 
+    it('未知フィールド付きレスポンスでも passthrough で正常にパースできる', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+
+      const machineWithExtra = {
+        state: 'started',
+        config: { guest: { cpus: 2, memory_mb: 512 } },
+        unknownField: 'some-value',
+        nested: { deeply: { nested: true } },
+      }
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([machineWithExtra]) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) })
+
+      const result = await getFlyioUsage()
+
+      expect(result.status).toBe('ok')
+      expect(result.usage).toBeDefined()
+    })
+
+    it('machines API レスポンスが配列でない場合は throw し error を返す', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ not: 'an array' }),
+      })
+
+      const result = await getFlyioUsage()
+
+      expect(result.status).toBe('error')
+      expect(result.error).toBeTruthy()
+    })
+
+    it('volumes レスポンスが不正形の場合も吸収してマシン情報だけ返す', async () => {
+      process.env.FLY_API_TOKEN = 'test-token'
+      process.env.FLY_APP_NAME = 'bon-log'
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve([{ state: 'started', config: { guest: { cpus: 1, memory_mb: 256 } } }]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve('not-an-array'),
+        })
+
+      const result = await getFlyioUsage()
+
+      expect(result.status).toBe('ok')
+      const machineRow = result.usage?.find((u) => u.unit === '稼働マシン')
+      expect(machineRow).toBeDefined()
+      const volumeRow = result.usage?.find((u) => u.unit === 'ボリューム (GB)')
+      expect(volumeRow).toBeUndefined()
+    })
+
     it('FLY_ORG_SLUG があれば次回請求額ページを dashboardUrl にする', async () => {
       process.env.FLY_API_TOKEN = 'test-token'
       process.env.FLY_APP_NAME = 'bon-log'
@@ -133,7 +191,7 @@ describe('Usage Service', () => {
       expect(result.name).toBe('Cloudflare R2')
       expect(result.status).toBe('ok')
       expect(result.usage).toHaveLength(1)
-      expect(result.usage![0].current).toBe(2)
+      expect(result.usage![0]!.current).toBe(2)
     })
 
     it('CLOUDFLARE_ACCOUNT_IDも使用可能', async () => {

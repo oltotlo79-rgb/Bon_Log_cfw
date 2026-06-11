@@ -71,7 +71,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-intersection-observer', () => ({
   useInView: () => ({ ref: vi.fn(), inView: false }),
 }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }), { virtual: true })
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/actions/search', () => ({
   searchPosts: vi.fn(),
   searchUsers: vi.fn(),

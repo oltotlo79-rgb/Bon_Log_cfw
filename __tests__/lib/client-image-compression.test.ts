@@ -626,12 +626,12 @@ describe('client-image-compression', async () => {
 
   describe('compressImage', async () => {
     let mockDrawImage: ReturnType<typeof vi.fn>
-    let mockToBlob: ReturnType<typeof vi.fn>
+    let mockToBlob: ReturnType<typeof vi.fn<(type: string, quality: number) => void>>
     let originalCreateElement: typeof document.createElement
 
     beforeEach(() => {
       mockDrawImage = vi.fn()
-      mockToBlob = vi.fn()
+      mockToBlob = vi.fn<(type: string, quality: number) => void>()
 
       originalCreateElement = document.createElement.bind(document)
 

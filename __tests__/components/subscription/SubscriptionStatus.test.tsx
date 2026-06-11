@@ -29,17 +29,16 @@ const defaultProps = {
 }
 
 describe('SubscriptionStatus', () => {
-  let locationHrefSetter: ReturnType<typeof vi.fn>
+  let locationHrefSetter: (url: string) => void
 
   beforeEach(() => {
     vi.clearAllMocks()
-    locationHrefSetter = vi.fn()
+    locationHrefSetter = vi.fn() as unknown as (url: string) => void
     // Replace window.location so we can intercept the href setter that SubscriptionStatus.tsx uses
     // to redirect to Stripe portal. jsdom's location.href is non-configurable, so replace whole object.
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: {
-        href: 'http://localhost/',
         pathname: '/',
         search: '',
         hash: '',

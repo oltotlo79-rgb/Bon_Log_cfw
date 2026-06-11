@@ -40,10 +40,10 @@ describe('User Actions', async () => {
   // ============================================================
 
   /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
-  function unwrapOk<T>(result: { success: true; data?: T } | { success: false; error: string }): T {
+  function unwrapOk<T>(result: { success: true; data?: unknown } | { success: false; error: string }): T {
     if (!result.success) throw new Error(`Expected success, got error: ${result.error}`)
     if (!result.data) throw new Error('Expected data to be defined')
-    return result.data
+    return result.data as T
   }
 
   describe('getUser', async () => {
@@ -331,7 +331,7 @@ describe('User Actions', async () => {
 
   describe('deleteAccount', async () => {
     it('アカウントを削除できる', async () => {
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) => {
         const tx = {
           userAnalytics: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
           message: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
@@ -401,7 +401,7 @@ describe('User Actions', async () => {
       const result = await getFollowing(mockUser.id)
 
       expect(result.following).toHaveLength(2)
-      expect(result.following[0].nickname).toBe('フォロー中1')
+      expect(result.following[0]!.nickname).toBe('フォロー中1')
     })
   })
 })

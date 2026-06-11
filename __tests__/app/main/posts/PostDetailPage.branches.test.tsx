@@ -103,6 +103,14 @@ vi.mock('@/lib/logger', () => ({
   default: { error: vi.fn() },
 }))
 
+// CommentSection は Suspense 内の async Server Component。テスト環境でこの async 関数が
+// suspend すると "A component suspended inside an act scope" 警告が出るため、
+// 外部ファイルのコンポーネントとしてモック化して解消する。
+vi.mock('@/app/(main)/posts/[id]/CommentSection', () => ({
+  CommentSection: () => <div data-testid="comment-section" />,
+  CommentSectionSkeleton: () => <div data-testid="comment-section-skeleton" />,
+}))
+
 function makePost(overrides = {}) {
   return {
     id: 'post-1',

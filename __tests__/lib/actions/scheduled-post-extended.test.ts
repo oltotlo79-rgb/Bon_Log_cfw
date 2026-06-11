@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 /**
  * Extended scheduled-post tests - updateScheduledPost uncovered branches
  */
@@ -60,6 +61,7 @@ describe('updateScheduledPost', async () => {
     mockAuth.mockResolvedValue(null)
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     const result = await updateScheduledPost('sp1', makeFormData())
+    expectError(result)
     expect(result.error).toContain('認証')
   })
 
@@ -67,6 +69,7 @@ describe('updateScheduledPost', async () => {
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     ;(mockPrisma.scheduledPost.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     const result = await updateScheduledPost('sp1', makeFormData())
+    expectError(result)
     expect(result.error).toContain('見つかりません')
   })
 
@@ -74,6 +77,7 @@ describe('updateScheduledPost', async () => {
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     ;(mockPrisma.scheduledPost.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: 'other', status: 'pending' })
     const result = await updateScheduledPost('sp1', makeFormData())
+    expectError(result)
     expect(result.error).toContain('権限')
   })
 
@@ -81,6 +85,7 @@ describe('updateScheduledPost', async () => {
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     ;(mockPrisma.scheduledPost.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: 'u1', status: 'published' })
     const result = await updateScheduledPost('sp1', makeFormData())
+    expectError(result)
     expect(result.error).toContain('編集できません')
   })
 
@@ -90,6 +95,7 @@ describe('updateScheduledPost', async () => {
     const fd = new FormData()
     fd.set('content', 'test')
     const result = await updateScheduledPost('sp1', fd)
+    expectError(result)
     expect(result.error).toContain('予約日時')
   })
 
@@ -97,6 +103,7 @@ describe('updateScheduledPost', async () => {
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     ;(mockPrisma.scheduledPost.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: 'u1', status: 'pending' })
     const result = await updateScheduledPost('sp1', makeFormData({ scheduledAt: '2020-01-01T00:00:00Z' }))
+    expectError(result)
     expect(result.error).toContain('未来')
   })
 
@@ -106,6 +113,7 @@ describe('updateScheduledPost', async () => {
     const farFuture = new Date()
     farFuture.setDate(farFuture.getDate() + 31)
     const result = await updateScheduledPost('sp1', makeFormData({ scheduledAt: farFuture.toISOString() }))
+    expectError(result)
     expect(result.error).toContain('30日')
   })
 
@@ -117,6 +125,7 @@ describe('updateScheduledPost', async () => {
     futureDate.setDate(futureDate.getDate() + 1)
     fd.set('scheduledAt', futureDate.toISOString())
     const result = await updateScheduledPost('sp1', fd)
+    expectError(result)
     expect(result.error).toContain('テキストまたはメディア')
   })
 
@@ -124,6 +133,7 @@ describe('updateScheduledPost', async () => {
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     ;(mockPrisma.scheduledPost.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: 'u1', status: 'pending' })
     const result = await updateScheduledPost('sp1', makeFormData({ content: 'x'.repeat(501) }))
+    expectError(result)
     expect(result.error).toContain('文字以内')
   })
 
@@ -131,6 +141,7 @@ describe('updateScheduledPost', async () => {
     const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
     ;(mockPrisma.scheduledPost.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: 'u1', status: 'pending' })
     const result = await updateScheduledPost('sp1', makeFormData({ genreIds: ['g1', 'g2', 'g3', 'g4'] }))
+    expectError(result)
     expect(result.error).toContain('3つまで')
   })
 
@@ -141,6 +152,7 @@ describe('updateScheduledPost', async () => {
       mediaUrls: ['/1.jpg', '/2.jpg', '/3.jpg', '/4.jpg', '/5.jpg'],
       mediaTypes: ['image', 'image', 'image', 'image', 'image'],
     }))
+    expectError(result)
     expect(result.error).toContain('枚まで')
   })
 
@@ -151,6 +163,7 @@ describe('updateScheduledPost', async () => {
       mediaUrls: ['/1.mp4', '/2.mp4'],
       mediaTypes: ['video', 'video'],
     }))
+    expectError(result)
     expect(result.error).toContain('本まで')
   })
 

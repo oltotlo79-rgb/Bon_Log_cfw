@@ -152,12 +152,12 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('toggleSelect (個別イベント選択/解除)', () => {
     it('初期選択されたイベントのチェックを外して再選択する (Set add/delete)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
       // event-1 は isDuplicate=false かつ startDate あり → 初期選択済み
       const checkboxes = screen.getAllByRole('checkbox')
       // checkboxes[0] = 全選択, checkboxes[1] = event-1 行の選択, checkboxes[2] = event-1 hasSales
-      const eventCheckbox = checkboxes[1]
+      const eventCheckbox = checkboxes[1]!
       expect(eventCheckbox).toBeChecked()
 
       // クリックして解除 (next.delete 実行 → line 95)
@@ -178,7 +178,7 @@ describe('EventImportClient カバレッジブースト', () => {
       const checkboxes = screen.getAllByRole('checkbox')
       // event-2 の選択チェックボックスを探す (未チェックかつdisabledでないもの)
       // event-2 は startDate ありなので disabled ではない
-      const event2Checkbox = checkboxes[3] // 4番目: event-2 の選択チェックボックス
+      const event2Checkbox = checkboxes[3]! // 4番目: event-2 の選択チェックボックス
       expect(event2Checkbox).not.toBeChecked()
 
       // クリックで選択 (Set.add → line 97)
@@ -198,7 +198,7 @@ describe('EventImportClient カバレッジブースト', () => {
     it('選択が0件の状態でインポートするとエラーメッセージが表示される', async () => {
       const user = userEvent.setup()
       // イベントを1件表示（初期選択される）
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
       // event-1 は初期選択済み → インポートボタンが有効
       const importButton = screen.getByText(/1件をインポート/).closest('button') as HTMLButtonElement
@@ -219,7 +219,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // 最終手段: React の内部を利用して disabled を回避
       // まず選択解除
-      const allCheckbox = screen.getAllByRole('checkbox')[0]
+      const allCheckbox = screen.getAllByRole('checkbox')[0]!
       await user.click(allCheckbox) // toggleSelectAll → 全解除
 
       await waitFor(() => {
@@ -253,14 +253,14 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('テーブルのインライン日付編集', () => {
     it('開始日をインライン編集する (startDate onChange, line 373)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
       // date input を探す (type="date" の input)
       const dateInputs = document.querySelectorAll('input[type="date"]')
       expect(dateInputs.length).toBeGreaterThanOrEqual(2)
 
       // 最初の date input は startDate
-      const startDateInput = dateInputs[0] as HTMLInputElement
+      const startDateInput = dateInputs[0]! as HTMLInputElement
       expect(startDateInput.value).toBe('2025-03-01')
 
       // 日付を変更 → line 373: handleInlineUpdate(event.id, 'startDate', ...)
@@ -274,11 +274,11 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('終了日をインライン編集する (endDate onChange, line 382)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
       const dateInputs = document.querySelectorAll('input[type="date"]')
       // 2番目の date input は endDate
-      const endDateInput = dateInputs[1] as HTMLInputElement
+      const endDateInput = dateInputs[1]! as HTMLInputElement
       expect(endDateInput.value).toBe('2025-03-02')
 
       // 日付を変更 → line 382: handleInlineUpdate(event.id, 'endDate', ...)
@@ -292,7 +292,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('startDate が null のイベントは opacity-50 で表示されチェックボックスが disabled', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEventNoStartDate, mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEventNoStartDate, mockEvents[0]!])
 
       // opacity-50 クラスの行が存在する
       const rows = document.querySelectorAll('tr')
@@ -315,20 +315,20 @@ describe('EventImportClient カバレッジブースト', () => {
 
       const dateInputs = document.querySelectorAll('input[type="date"]')
       // startDate input
-      const startDateInput = dateInputs[0] as HTMLInputElement
+      const startDateInput = dateInputs[0]! as HTMLInputElement
       expect(startDateInput.value).toBe('')
 
       // endDate input
-      const endDateInput = dateInputs[1] as HTMLInputElement
+      const endDateInput = dateInputs[1]! as HTMLInputElement
       expect(endDateInput.value).toBe('')
     })
 
     it('endDate が null のイベントの終了日 input は空文字で表示される', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[1]]) // endDate: null
+      await scrapeAndShowEvents(user, [mockEvents[1]!]) // endDate: null
 
       const dateInputs = document.querySelectorAll('input[type="date"]')
-      const endDateInput = dateInputs[1] as HTMLInputElement
+      const endDateInput = dateInputs[1]! as HTMLInputElement
       expect(endDateInput.value).toBe('')
 
       // 終了日を設定する
@@ -367,10 +367,10 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('EventEditForm - Dialog 表示と日付関数', () => {
     it('詳細ボタンで Dialog が開き、formatDateForInput が日付をフォーマットする', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
       // 詳細ボタンをクリック → line 576: Dialog open={!!editingEvent}
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -379,40 +379,40 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // モーダル内の日付入力: formatDateForInput が ISO → YYYY-MM-DD に変換 (line 621-624)
       const dateInputs = screen.getByTestId('dialog').querySelectorAll('input[type="date"]')
-      const startDateInput = dateInputs[0] as HTMLInputElement
+      const startDateInput = dateInputs[0]! as HTMLInputElement
       expect(startDateInput.value).toBe('2025-03-01')
 
-      const endDateInput = dateInputs[1] as HTMLInputElement
+      const endDateInput = dateInputs[1]! as HTMLInputElement
       expect(endDateInput.value).toBe('2025-03-02')
     })
 
     it('endDate が null のイベントで formatDateForInput が空文字を返す', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[1]]) // endDate: null
+      await scrapeAndShowEvents(user, [mockEvents[1]!]) // endDate: null
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
       })
 
       const dateInputs = screen.getByTestId('dialog').querySelectorAll('input[type="date"]')
-      const endDateInput = dateInputs[1] as HTMLInputElement
+      const endDateInput = dateInputs[1]! as HTMLInputElement
       expect(endDateInput.value).toBe('') // formatDateForInput(null) → ''
     })
 
     it('モーダルで開始日を変更する (parseDateInput, line 629-630)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
       })
 
       const dateInputs = screen.getByTestId('dialog').querySelectorAll('input[type="date"]')
-      const startDateInput = dateInputs[0] as HTMLInputElement
+      const startDateInput = dateInputs[0]! as HTMLInputElement
 
       // 日付を変更 → parseDateInput('2025-10-01') → new Date('2025-10-01').toISOString()
       fireEvent.change(startDateInput, { target: { value: '2025-10-01' } })
@@ -425,9 +425,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('Dialog の onOpenChange で false が渡されるとモーダルが閉じる (line 576)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -448,9 +448,9 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('EventEditForm - 終了日・都道府県・市区町村', () => {
     it('モーダルで終了日を変更する (line 664)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -458,7 +458,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
       const dialogEl = screen.getByTestId('dialog')
       const dateInputs = dialogEl.querySelectorAll('input[type="date"]')
-      const endDateInput = dateInputs[1] as HTMLInputElement
+      const endDateInput = dateInputs[1]! as HTMLInputElement
 
       // 終了日を変更 (line 664: updateField('endDate', parseDateInput(e.target.value)))
       fireEvent.change(endDateInput, { target: { value: '2025-12-31' } })
@@ -473,9 +473,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで都道府県を変更する (line 676)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -484,7 +484,7 @@ describe('EventImportClient カバレッジブースト', () => {
       const dialogEl = screen.getByTestId('dialog')
       // モーダル内の都道府県 select を探す
       const selects = dialogEl.querySelectorAll('select')
-      const prefSelect = selects[0] as HTMLSelectElement
+      const prefSelect = selects[0]! as HTMLSelectElement
 
       // 都道府県を変更 (line 676: updateField('prefecture', e.target.value || null))
       fireEvent.change(prefSelect, { target: { value: '大阪府' } })
@@ -497,9 +497,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで市区町村を変更する (line 692)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -526,9 +526,9 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('EventEditForm - 主催者・入場料・即売・説明・外部URL', () => {
     it('モーダルで主催者を変更する (line 715)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -549,9 +549,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで入場料を変更する (line 727)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -573,9 +573,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで即売チェックボックスを変更する (line 737)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -588,7 +588,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // モーダル内のチェックボックスを探す
       const checkboxes = dialogEl.querySelectorAll('input[type="checkbox"]')
-      const hasSalesCheckbox = checkboxes[0] as HTMLInputElement
+      const hasSalesCheckbox = checkboxes[0]! as HTMLInputElement
       expect(hasSalesCheckbox.checked).toBe(true) // event-1 は hasSales: true
 
       // 即売を解除 (line 737: updateField('hasSales', e.target.checked))
@@ -602,9 +602,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで説明を変更する (line 750)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -622,9 +622,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで外部URLを変更する (line 762)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -646,9 +646,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('モーダルで全フィールドを変更して保存する (統合テスト)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -658,11 +658,11 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // 終了日を変更
       const dateInputs = dialogEl.querySelectorAll('input[type="date"]')
-      fireEvent.change(dateInputs[1], { target: { value: '2025-12-25' } })
+      fireEvent.change(dateInputs[1]!, { target: { value: '2025-12-25' } })
 
       // 都道府県を変更
       const selects = dialogEl.querySelectorAll('select')
-      fireEvent.change(selects[0], { target: { value: '北海道' } })
+      fireEvent.change(selects[0]!, { target: { value: '北海道' } })
 
       // 市区町村を変更
       const cityInput = dialogEl.querySelector('input[value="台東区"]') as HTMLInputElement
@@ -678,7 +678,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // 即売チェックを変更
       const checkboxes = dialogEl.querySelectorAll('input[type="checkbox"]')
-      fireEvent.click(checkboxes[0])
+      fireEvent.click(checkboxes[0]!)
 
       // 説明を変更
       const textarea = dialogEl.querySelector('textarea') as HTMLTextAreaElement
@@ -703,9 +703,9 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('EventEditForm - null フィールドの編集', () => {
     it('null フィールドを持つイベントのモーダルで各フィールドが空で表示される', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[1]]) // city, venue, organizer 等が null
+      await scrapeAndShowEvents(user, [mockEvents[1]!]) // city, venue, organizer 等が null
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -715,7 +715,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // 市区町村が空
       const textInputs = dialogEl.querySelectorAll('input[type="text"]')
-      const cityInput = textInputs[1] as HTMLInputElement // title の次
+      const cityInput = textInputs[1]! as HTMLInputElement // title の次
       expect(cityInput.value).toBe('')
 
       // textarea が空
@@ -733,9 +733,9 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('null フィールドを持つイベントで各フィールドに値を入力して保存する', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[1]])
+      await scrapeAndShowEvents(user, [mockEvents[1]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()
@@ -745,18 +745,18 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // 終了日を設定 (parseDateInput 呼出し)
       const dateInputs = dialogEl.querySelectorAll('input[type="date"]')
-      fireEvent.change(dateInputs[1], { target: { value: '2025-05-15' } })
+      fireEvent.change(dateInputs[1]!, { target: { value: '2025-05-15' } })
 
       // 都道府県を変更
       const selects = dialogEl.querySelectorAll('select')
-      fireEvent.change(selects[0], { target: { value: '東京都' } })
+      fireEvent.change(selects[0]!, { target: { value: '東京都' } })
 
       // 市区町村を入力
       const textInputs = dialogEl.querySelectorAll('input[type="text"]')
-      fireEvent.change(textInputs[1], { target: { value: '新宿区' } })
+      fireEvent.change(textInputs[1]!, { target: { value: '新宿区' } })
 
       // 主催者を入力
-      fireEvent.change(textInputs[3], { target: { value: '新しい主催' } })
+      fireEvent.change(textInputs[3]!, { target: { value: '新しい主催' } })
 
       // 入場料を入力
       const feeInput = dialogEl.querySelector('input[placeholder="例: 無料、500円"]') as HTMLInputElement
@@ -764,7 +764,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
       // 即売チェック
       const checkboxes = dialogEl.querySelectorAll('input[type="checkbox"]')
-      fireEvent.click(checkboxes[0])
+      fireEvent.click(checkboxes[0]!)
 
       // 説明を入力
       const textarea = dialogEl.querySelector('textarea') as HTMLTextAreaElement
@@ -800,7 +800,7 @@ describe('EventImportClient カバレッジブースト', () => {
       // カードビュー内のチェックボックス
       const checkboxes = screen.getAllByRole('checkbox')
       // [0] = 全選択, [1] = event-1, [2] = event-2
-      const event1Checkbox = checkboxes[1]
+      const event1Checkbox = checkboxes[1]!
 
       // event-1 は初期選択済み → 解除
       expect(event1Checkbox).toBeChecked()
@@ -814,7 +814,7 @@ describe('EventImportClient カバレッジブースト', () => {
 
     it('カードビューで startDate が null のイベントのチェックボックスが disabled', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEventNoStartDate, mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEventNoStartDate, mockEvents[0]!])
 
       // カードビューに切替
       await user.click(screen.getByText('🗂️ カード'))
@@ -849,9 +849,9 @@ describe('EventImportClient カバレッジブースト', () => {
   describe('EventEditForm - 会場変更', () => {
     it('モーダルで会場を変更する (line 704)', async () => {
       const user = userEvent.setup()
-      await scrapeAndShowEvents(user, [mockEvents[0]])
+      await scrapeAndShowEvents(user, [mockEvents[0]!])
 
-      await user.click(screen.getAllByText('詳細')[0])
+      await user.click(screen.getAllByText('詳細')[0]!)
 
       await waitFor(() => {
         expect(screen.getByTestId('dialog')).toBeInTheDocument()

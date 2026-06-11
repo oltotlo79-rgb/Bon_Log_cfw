@@ -78,7 +78,7 @@ describe('ShopList', () => {
   })
 
   it('盆栽園が1件の場合も正しく表示する', () => {
-    render(<ShopList shops={[mockShops[0]]} />)
+    render(<ShopList shops={[mockShops[0]!]} />)
 
     expect(screen.getByTestId('shop-shop-1')).toBeInTheDocument()
     expect(screen.queryByText('盆栽園が見つかりません')).not.toBeInTheDocument()

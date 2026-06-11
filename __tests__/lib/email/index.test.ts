@@ -144,7 +144,7 @@ describe('Email Module', async () => {
       await sendVerificationEmail('user@example.com', verifyUrl)
 
       expect(mockResendSend).toHaveBeenCalled()
-      const call = mockResendSend.mock.calls[0][0]
+      const call = mockResendSend.mock.calls[0]?.[0]
       expect(call?.html).toContain(verifyUrl)
       expect(call?.text).toContain(verifyUrl)
     })

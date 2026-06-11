@@ -595,7 +595,7 @@ describe('fulltext.ts coverage boost', async () => {
 
       // Should have at least one index (the second one that returned true)
       expect(result.length).toBeGreaterThanOrEqual(1)
-      expect(result[0].name).toBe('users_nickname_trgm_idx')
+      expect(result[0]!.name).toBe('users_nickname_trgm_idx')
     })
 
     it('should return indexes that exist, skipping non-existent ones', async () => {

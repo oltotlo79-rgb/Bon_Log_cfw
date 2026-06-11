@@ -112,11 +112,11 @@ describe('MediaPreviewGrid', () => {
     expect(removeButtons).toHaveLength(2)
 
     // 2番目の削除ボタンをクリック
-    removeButtons[1].click()
+    removeButtons[1]!.click()
     expect(mockOnRemove).toHaveBeenCalledWith(1)
 
     // 1番目の削除ボタンをクリック
-    removeButtons[0].click()
+    removeButtons[0]!.click()
     expect(mockOnRemove).toHaveBeenCalledWith(0)
   })
 

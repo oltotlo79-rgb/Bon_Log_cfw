@@ -154,7 +154,8 @@ describe('ReportActionsDropdown', () => {
     render(<ReportActionsDropdown {...defaultProps} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByText('投稿を削除'))
-    fireEvent.click(screen.getAllByText('削除')[0])
+    const _el0 = screen.getAllByText('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(mockDeleteReportedContent).toHaveBeenCalledWith('post', 'post-1')
     })
@@ -165,7 +166,8 @@ describe('ReportActionsDropdown', () => {
     render(<ReportActionsDropdown {...defaultProps} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByText('投稿を削除'))
-    fireEvent.click(screen.getAllByText('削除')[0])
+    const _el0 = screen.getAllByText('削除')[0]
+    if (_el0) fireEvent.click(_el0)
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除エラー', variant: 'destructive' }))
     })

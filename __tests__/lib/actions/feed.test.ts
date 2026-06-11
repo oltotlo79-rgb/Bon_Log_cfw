@@ -64,7 +64,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
     posts: [],
     nextCursor: undefined,
     isGuest: false,
-  } as (T extends object ? T : Record<string, never>) & FeedLegacyShape
+  } as unknown as (T extends object ? T : Record<string, never>) & FeedLegacyShape
 }
 
 describe('Feed Actions', async () => {
@@ -114,11 +114,11 @@ describe('Feed Actions', async () => {
       const result = unwrap(await getTimeline())
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].likeCount).toBe(10)
-      expect(result.posts[0].commentCount).toBe(5)
-      expect(result.posts[0].isLiked).toBe(true)
-      expect(result.posts[0].isBookmarked).toBe(false)
-      expect(result.posts[0].genres[0].name).toBe('黒松')
+      expect(result.posts[0]!.likeCount).toBe(10)
+      expect(result.posts[0]!.commentCount).toBe(5)
+      expect(result.posts[0]!.isLiked).toBe(true)
+      expect(result.posts[0]!.isBookmarked).toBe(false)
+      expect(result.posts[0]!.genres[0]!.name).toBe('黒松')
     })
 
     it('未認証の場合、エラーを返す', async () => {
@@ -258,8 +258,8 @@ describe('Feed Actions', async () => {
       const result = await getRecommendedUsers()
 
       expect(result.users).toHaveLength(2)
-      expect(result.users[0].followersCount).toBe(100)
-      expect(result.users[1].followersCount).toBe(50)
+      expect(result.users[0]!.followersCount).toBe(100)
+      expect(result.users[1]!.followersCount).toBe(50)
     })
 
     it('未認証の場合、空配列を返す', async () => {

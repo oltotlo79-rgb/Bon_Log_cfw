@@ -74,8 +74,8 @@ describe('AdvancedSearchFilters - branch coverage boost', () => {
 
     // Set dateFrom and dateTo via date inputs
     const dateInputs = document.querySelectorAll('input[type="date"]')
-    fireEvent.change(dateInputs[0], { target: { value: '2024-01-01' } })
-    fireEvent.change(dateInputs[1], { target: { value: '2024-12-31' } })
+    fireEvent.change(dateInputs[0]!, { target: { value: '2024-01-01' } })
+    fireEvent.change(dateInputs[1]!, { target: { value: '2024-12-31' } })
 
     // Set minLikes
     const minLikesInput = screen.getByPlaceholderText('0')
@@ -99,8 +99,8 @@ describe('AdvancedSearchFilters - branch coverage boost', () => {
 
     // Clear all fields
     const dateInputs = container.querySelectorAll('input[type="date"]')
-    fireEvent.change(dateInputs[0], { target: { value: '' } })
-    fireEvent.change(dateInputs[1], { target: { value: '' } })
+    fireEvent.change(dateInputs[0]!, { target: { value: '' } })
+    fireEvent.change(dateInputs[1]!, { target: { value: '' } })
 
     const numberInput = container.querySelector('input[type="number"]') as HTMLInputElement
     fireEvent.change(numberInput, { target: { value: '' } })
@@ -109,7 +109,7 @@ describe('AdvancedSearchFilters - branch coverage boost', () => {
     await user.click(screen.getByText('適用'))
 
     expect(mockPush).toHaveBeenCalled()
-    const url = mockPush.mock.calls[0][0] as string
+    const url = mockPush.mock.calls[0]![0]! as string
     expect(url).not.toContain('dateFrom')
     expect(url).not.toContain('minLikes')
     expect(url).not.toContain('mediaType')
@@ -130,7 +130,7 @@ describe('AdvancedSearchFilters - branch coverage boost', () => {
     await user.click(screen.getByText('リセット'))
 
     expect(mockPush).toHaveBeenCalled()
-    const url = mockPush.mock.calls[0][0] as string
+    const url = mockPush.mock.calls[0]![0]! as string
     expect(url).not.toContain('dateFrom')
     expect(url).not.toContain('dateTo')
     expect(url).not.toContain('minLikes')
@@ -162,7 +162,7 @@ describe('AdvancedSearchFilters - branch coverage boost', () => {
     await user.click(screen.getByText('適用'))
 
     expect(mockPush).toHaveBeenCalled()
-    const url = mockPush.mock.calls[0][0] as string
+    const url = mockPush.mock.calls[0]![0]! as string
     expect(url).not.toContain('minLikes')
   })
 

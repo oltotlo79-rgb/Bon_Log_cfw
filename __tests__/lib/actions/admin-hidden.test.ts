@@ -72,9 +72,9 @@ describe('Admin Hidden Content Actions', async () => {
       const { getHiddenContent } = await import('@/lib/actions/admin/hidden')
       const result = await getHiddenContent()
 
-      expect(result.items).toBeDefined()
-      expect(result.items).toHaveLength(1)
-      expect(result.items![0].type).toBe('post')
+      expect(('items' in result ? result.items : undefined)).toBeDefined()
+      expect(('items' in result ? result.items : undefined)).toHaveLength(1)
+      expect(('items' in result ? result.items : undefined)![0]!.type).toBe('post')
     })
 
     it('タイプでフィルタリングできる', async () => {
@@ -260,8 +260,8 @@ describe('Admin Hidden Content Actions', async () => {
       const { getAdminNotifications } = await import('@/lib/actions/admin/hidden')
       const result = await getAdminNotifications()
 
-      expect(result.notifications).toHaveLength(1)
-      expect(result.unreadCount).toBe(1)
+      expect(('notifications' in result ? result.notifications : undefined)).toHaveLength(1)
+      expect(('unreadCount' in result ? result.unreadCount : undefined)).toBe(1)
     })
 
     it('未読のみフィルタリングできる', async () => {

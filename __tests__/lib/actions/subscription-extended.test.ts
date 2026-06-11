@@ -102,7 +102,7 @@ describe('Subscription Actions Extended', async () => {
       const { createCheckoutSession } = await import('@/lib/actions/subscription')
       const result = await createCheckoutSession('monthly')
 
-      expect(result.url).toBe('https://checkout.stripe.com/session')
+      expect(('url' in result ? result.url : undefined)).toBe('https://checkout.stripe.com/session')
       expect(mockStripe.checkout.sessions.create).toHaveBeenCalledWith(
         expect.objectContaining({
           line_items: [{ price: 'price_monthly', quantity: 1 }],
@@ -175,7 +175,7 @@ describe('Subscription Actions Extended', async () => {
       const { createCustomerPortalSession } = await import('@/lib/actions/subscription')
       const result = await createCustomerPortalSession()
 
-      expect(result.url).toBe('https://billing.stripe.com/portal')
+      expect(('url' in result ? result.url : undefined)).toBe('https://billing.stripe.com/portal')
     })
 
     it('Stripe顧客IDがない場合はエラーを返す', async () => {
@@ -225,8 +225,8 @@ describe('Subscription Actions Extended', async () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.isPremium).toBe(true)
-      expect(result.subscription?.status).toBe('active')
+      expect(('isPremium' in result ? result.isPremium : undefined)).toBe(true)
+      expect(('subscription' in result ? result.subscription : undefined)?.status).toBe('active')
     })
 
     it('非プレミアムステータスを返す', async () => {
@@ -240,8 +240,8 @@ describe('Subscription Actions Extended', async () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.isPremium).toBe(false)
-      expect(result.subscription).toBeNull()
+      expect(('isPremium' in result ? result.isPremium : undefined)).toBe(false)
+      expect(('subscription' in result ? result.subscription : undefined)).toBeNull()
     })
   })
 
@@ -269,7 +269,7 @@ describe('Subscription Actions Extended', async () => {
       const { getPaymentHistory } = await import('@/lib/actions/subscription')
       const result = await getPaymentHistory()
 
-      expect(result.payments).toHaveLength(2)
+      expect(('payments' in result ? result.payments : undefined)).toHaveLength(2)
     })
 
     it('空の支払い履歴を返す', async () => {
@@ -278,7 +278,7 @@ describe('Subscription Actions Extended', async () => {
       const { getPaymentHistory } = await import('@/lib/actions/subscription')
       const result = await getPaymentHistory()
 
-      expect(result.payments).toHaveLength(0)
+      expect(('payments' in result ? result.payments : undefined)).toHaveLength(0)
     })
   })
 

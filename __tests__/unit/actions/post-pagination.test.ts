@@ -52,7 +52,7 @@ describe('getPosts pagination', () => {
 
     const result = await getPosts()
     expect(result.posts).toHaveLength(1)
-    expect(result.posts[0].id).toBe(mockPost.id)
+    expect(result.posts[0]?.id).toBe(mockPost.id)
   })
 
   it('returns posts with cursor (subsequent pages)', async () => {
@@ -112,7 +112,7 @@ describe('getPosts pagination', () => {
     mockPrisma.bookmark.findMany.mockResolvedValue([])
 
     const result = await getPosts()
-    expect(result.posts[0].isLiked).toBe(true)
-    expect(result.posts[0].isBookmarked).toBe(false)
+    expect(result.posts[0]?.isLiked).toBe(true)
+    expect(result.posts[0]?.isBookmarked).toBe(false)
   })
 })

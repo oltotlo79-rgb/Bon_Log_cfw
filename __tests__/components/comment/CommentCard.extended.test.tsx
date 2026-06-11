@@ -928,7 +928,7 @@ describe('CommentCard 拡張テスト', () => {
         btn.querySelector('svg.lucide-trash-2')
       )
       if (deleteButtons.length > 0) {
-        await user.click(deleteButtons[0])
+        await user.click(deleteButtons[0]!)
         await waitFor(() => {
           const confirmButton = screen.queryByRole('button', { name: '削除' })
           if (confirmButton) {
@@ -976,7 +976,7 @@ describe('CommentCard 拡張テスト', () => {
         btn.querySelector('svg.lucide-trash-2')
       )
       if (deleteButtons.length > 0) {
-        await user.click(deleteButtons[0])
+        await user.click(deleteButtons[0]!)
         await waitFor(() => {
           const confirmButton = screen.queryByRole('button', { name: '削除' })
           if (confirmButton) {

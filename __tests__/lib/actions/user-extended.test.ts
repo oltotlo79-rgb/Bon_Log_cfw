@@ -1,4 +1,6 @@
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
+import { createMockPrismaClient } from '../../utils/test-utils'
 /**
  * Extended user action tests - uploadAvatar, uploadHeader uncovered branches
  */
@@ -16,11 +18,7 @@ vi.mock('@/lib/file-validation', () => ({
   generateSafeFileName: (...args: unknown[]) => mockGenerateSafeFileName(...args),
 }))
 
-const mockPrisma: Record<string, Record<string, unknown>> = {
-  user: { findUnique: vi.fn(), update: vi.fn() },
-  follow: { findFirst: vi.fn() },
-  block: { findFirst: vi.fn() },
-}
+const mockPrisma = createMockPrismaClient()
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
@@ -48,6 +46,7 @@ describe('uploadAvatar', async () => {
     const { uploadAvatar } = await import('@/lib/actions/user')
     const fd = new FormData()
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toContain('認証')
   })
 
@@ -55,6 +54,7 @@ describe('uploadAvatar', async () => {
     const { uploadAvatar } = await import('@/lib/actions/user')
     const fd = new FormData()
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -63,6 +63,7 @@ describe('uploadAvatar', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('big.jpg', 'image/jpeg', 5 * 1024 * 1024))
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toContain('4MB')
   })
 
@@ -71,6 +72,7 @@ describe('uploadAvatar', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('file.txt', 'text/plain'))
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -80,6 +82,7 @@ describe('uploadAvatar', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('fake.jpg', 'image/jpeg'))
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -89,6 +92,7 @@ describe('uploadAvatar', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('fake.jpg', 'image/jpeg'))
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -107,7 +111,9 @@ describe('uploadAvatar', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('photo.jpg', 'image/jpeg'))
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
+    expectError(result)
     expect(result.error).toBe('アップロードに失敗しました')
   })
 
@@ -117,6 +123,7 @@ describe('uploadAvatar', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('photo.jpg', 'image/jpeg'))
     const result = await uploadAvatar(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 })
@@ -127,6 +134,7 @@ describe('uploadHeader', async () => {
     const { uploadHeader } = await import('@/lib/actions/user')
     const fd = new FormData()
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toContain('認証')
   })
 
@@ -134,6 +142,7 @@ describe('uploadHeader', async () => {
     const { uploadHeader } = await import('@/lib/actions/user')
     const fd = new FormData()
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -142,6 +151,7 @@ describe('uploadHeader', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('big.jpg', 'image/jpeg', 5 * 1024 * 1024))
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toContain('4MB')
   })
 
@@ -150,6 +160,7 @@ describe('uploadHeader', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('file.gif', 'image/gif'))
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -159,6 +170,7 @@ describe('uploadHeader', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('fake.jpg', 'image/jpeg'))
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -177,7 +189,9 @@ describe('uploadHeader', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('header.jpg', 'image/jpeg'))
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
+    expectError(result)
     expect(result.error).toBe('アップロードに失敗しました')
   })
 
@@ -187,6 +201,7 @@ describe('uploadHeader', async () => {
     const fd = new FormData()
     fd.append('file', makeFile('header.jpg', 'image/jpeg'))
     const result = await uploadHeader(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 })

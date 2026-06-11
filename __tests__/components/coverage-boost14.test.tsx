@@ -390,7 +390,7 @@ describe('PostForm - Coverage Boost', async () => {
       })
 
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         triggerXhrLoad(xhr, 400, 'Bad Request')
       })
 
@@ -411,7 +411,7 @@ describe('PostForm - Coverage Boost', async () => {
       })
 
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         triggerXhrError(xhr)
       })
 
@@ -432,7 +432,7 @@ describe('PostForm - Coverage Boost', async () => {
       })
 
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         triggerXhrLoad(xhr, 200, 'not-valid-json{{{')
       })
 
@@ -472,7 +472,7 @@ describe('PostForm - Coverage Boost', async () => {
 
       // After compression completes, the XHR will be set up
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         if (xhr) {
           triggerXhrLoad(xhr, 200, JSON.stringify({ url: '/img.jpg', type: 'image' }))
         }
@@ -491,7 +491,7 @@ describe('PostForm - Coverage Boost', async () => {
       })
 
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         triggerXhrProgress(xhr, 50, 100)
       })
 
@@ -502,7 +502,7 @@ describe('PostForm - Coverage Boost', async () => {
 
       // Complete the upload
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         triggerXhrLoad(xhr, 200, JSON.stringify({ url: '/img.jpg', type: 'image' }))
       })
     })
@@ -582,7 +582,7 @@ describe('PostForm - Coverage Boost', async () => {
       })
 
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         triggerXhrLoad(xhr, 200, JSON.stringify({ url: '/uploaded.jpg', type: 'image' }))
       })
 
@@ -594,7 +594,7 @@ describe('PostForm - Coverage Boost', async () => {
 
       await waitFor(() => {
         expect(mockCreatePost).toHaveBeenCalled()
-        const formData = mockCreatePost.mock.calls[0][0] as FormData
+        const formData = mockCreatePost.mock.calls[0]![0]! as FormData
         expect(formData.get('content')).toBe('Test post with poll')
         expect(formData.get('mediaUrls')).toBe('/uploaded.jpg')
         expect(formData.get('mediaTypes')).toBe('image')
@@ -636,7 +636,7 @@ describe('PostForm - Coverage Boost', async () => {
 
       await waitFor(() => {
         expect(mockCreatePost).toHaveBeenCalled()
-        const formData = mockCreatePost.mock.calls[0][0] as FormData
+        const formData = mockCreatePost.mock.calls[0]![0]! as FormData
         const urls = formData.getAll('mediaUrls')
         const types = formData.getAll('mediaTypes')
         expect(urls).toEqual(['/img0.jpg', '/img1.jpg'])
@@ -915,7 +915,7 @@ describe('CommentForm - Coverage Boost', async () => {
       })
 
       await act(async () => {
-        const xhr = xhrInstances[0]
+        const xhr = xhrInstances[0]!
         if (xhr) {
           triggerXhrLoad(xhr, 200, JSON.stringify({ url: '/img.jpg', type: 'image' }))
         }
@@ -1700,7 +1700,7 @@ describe('PostForm - Additional Coverage', async () => {
 
       await waitFor(() => {
         expect(mockSaveDraft).toHaveBeenCalled()
-        const callArg = mockSaveDraft.mock.calls[0][0]
+        const callArg = mockSaveDraft.mock.calls[0]![0]!
         expect(callArg.content).toBe('Draft content check')
         expect(callArg.mediaUrls).toEqual([])
         expect(callArg.genreIds).toEqual([])
@@ -1803,7 +1803,7 @@ describe('CommentForm - Additional Coverage', async () => {
 
       await waitFor(() => {
         expect(mockCreateComment).toHaveBeenCalled()
-        const formData = mockCreateComment.mock.calls[0][0] as FormData
+        const formData = mockCreateComment.mock.calls[0]![0]! as FormData
         expect(formData.get('parentId')).toBe('parent-comment-1')
       })
     })
@@ -1851,7 +1851,7 @@ describe('PostCard - Click Handlers Coverage', async () => {
       link => link.getAttribute('href') === '/users/user-1'
     )
     // Avatar link should be the first one (has the img)
-    const avatarLink = avatarLinks[0]
+    const avatarLink = avatarLinks[0]!
 
     mockPush.mockClear()
     await act(async () => {

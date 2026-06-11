@@ -52,12 +52,12 @@ vi.mock('@/lib/redis', () => ({
   },
 }))
 
-function makeRequest(body: unknown): Request {
+function makeRequest(body: unknown): import('next/server').NextRequest {
   return new Request('http://localhost/api/analytics/view', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: typeof body === 'string' ? body : JSON.stringify(body),
-  })
+  }) as never
 }
 
 describe('POST /api/analytics/view', () => {
@@ -81,7 +81,7 @@ describe('POST /api/analytics/view', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{not json',
-    })
+    }) as never
     const res = await POST(req)
     expect(res.status).toBe(400)
   })

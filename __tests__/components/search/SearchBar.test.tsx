@@ -232,7 +232,7 @@ describe('SearchBar', () => {
     expect(localStorageMock.setItem).toHaveBeenCalled()
 
     // 保存されたデータを検証
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData.length).toBeLessThanOrEqual(10)
     expect(savedData[0]).toBe('新しい検索')
   })
@@ -247,7 +247,7 @@ describe('SearchBar', () => {
     await user.keyboard('{Enter}')
 
     // setItemが呼ばれたことを確認
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData[0]).toBe('盆栽') // 盆栽が先頭に
     expect(savedData.filter((s: string) => s === '盆栽').length).toBe(1) // 重複なし
   })
@@ -294,10 +294,10 @@ describe('SearchBar', () => {
     // 検索履歴の各項目にはXIconの個別削除ボタンがある
     const listItems = screen.getAllByRole('listitem')
     if (listItems.length > 0) {
-      const innerButtons = listItems[0].querySelectorAll('button')
+      const innerButtons = listItems[0]!.querySelectorAll('button')
       // 内側のbutton（削除ボタン）をクリック
       if (innerButtons.length > 1) {
-        await user.click(innerButtons[1])
+        await user.click(innerButtons[1]!)
         expect(localStorageMock.setItem.mock.calls.length).toBeGreaterThan(callsBefore)
       }
     }
@@ -313,7 +313,7 @@ describe('SearchBar', () => {
     // setItemは空白のみの場合呼ばれない（または空配列で呼ばれる）
     // 実際の実装ではtrim()チェックがあるので保存されない
     if (localStorageMock.setItem.mock.calls.length > 0) {
-      const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+      const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
       expect(savedData.includes('   ')).toBe(false)
     }
   })

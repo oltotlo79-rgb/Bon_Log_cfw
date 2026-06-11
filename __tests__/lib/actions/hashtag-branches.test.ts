@@ -185,7 +185,7 @@ describe('getPostsByHashtag', () => {
     const result = await getPostsByHashtag('盆栽')
 
     expect(result.posts).toEqual(mockPosts)
-    expect(result.hashtag.name).toBe('盆栽')
+    expect(result.hashtag!.name).toBe('盆栽')
   })
 
   it('DB失敗時は空結果を返す', async () => {

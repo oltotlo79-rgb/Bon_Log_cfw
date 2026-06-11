@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 
 // Prismaモック
 const mockPrisma = {
@@ -147,7 +148,7 @@ describe('Auth Actions - Coverage Boost', () => {
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('notfound@example.com', 'Password123')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('メールアドレスまたはパスワードが間違っています')
     })
 
@@ -162,7 +163,7 @@ describe('Auth Actions - Coverage Boost', () => {
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('user@example.com', 'Password123')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('メールアドレスまたはパスワードが間違っています')
     })
 
@@ -177,7 +178,7 @@ describe('Auth Actions - Coverage Boost', () => {
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('suspended@example.com', 'Password123')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('アカウントが停止されています')
     })
 
@@ -210,7 +211,7 @@ describe('Auth Actions - Coverage Boost', () => {
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('user@example.com', 'WrongPassword123')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('メールアドレスまたはパスワードが間違っています')
       // 2FA 有無に依らず、通常ログイン失敗がサーバー側で必ず記録されること（旧バグの回帰防止）
       expect(recordFailedLogin).toHaveBeenCalled()
@@ -237,7 +238,7 @@ describe('Auth Actions - Coverage Boost', () => {
       const { verifyCredentials } = await import('@/lib/actions/auth')
       const result = await verifyCredentials('user@example.com', 'Password123')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('ログイン中にエラーが発生しました')
     })
   })
@@ -254,7 +255,7 @@ describe('Auth Actions - Coverage Boost', () => {
 
     it('GUEST_PASSWORDが未設定の場合はエラーを返す', async () => {
       delete process.env.GUEST_PASSWORD
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       const { signInAsGuest } = await import('@/lib/actions/auth')
       const result = await signInAsGuest()

@@ -696,8 +696,8 @@ describe('DraftEditForm', () => {
       await waitFor(() => {
         expect(mockSaveDraft).toHaveBeenCalled()
         expect(mockPublishDraft).toHaveBeenCalledWith('draft-1')
-        const saveCallOrder = mockSaveDraft.mock.invocationCallOrder[0]
-        const publishCallOrder = mockPublishDraft.mock.invocationCallOrder[0]
+        const saveCallOrder = mockSaveDraft.mock.invocationCallOrder[0]!
+        const publishCallOrder = mockPublishDraft.mock.invocationCallOrder[0]!
         expect(saveCallOrder).toBeLessThan(publishCallOrder)
       })
     })

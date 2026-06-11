@@ -78,7 +78,7 @@ describe('verifyBackupCode', () => {
     const codes = generateBackupCodes()
     const hashedCodes = codes.map(hashBackupCode)
 
-    const index = verifyBackupCode(codes[0], hashedCodes)
+    const index = verifyBackupCode(codes[0]!, hashedCodes)
     expect(index).toBe(0)
   })
 

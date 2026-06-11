@@ -24,9 +24,9 @@ describe('HiddenContentPage', async () => {
 
   it('エラー時にエラーメッセージを表示', async () => {
      
-    getHiddenContent.mockResolvedValue({ error: 'データ取得エラー' } as any)
+    vi.mocked(getHiddenContent).mockResolvedValue({ error: 'データ取得エラー' } as any)
      
-    getAdminNotifications.mockResolvedValue({ notifications: [], unreadCount: 0 } as any)
+    vi.mocked(getAdminNotifications).mockResolvedValue({ notifications: [], unreadCount: 0 } as any)
 
     const { default: Page } = await import('@/app/admin/hidden/page')
     const result = await Page()
@@ -37,9 +37,9 @@ describe('HiddenContentPage', async () => {
 
   it('非表示コンテンツがない場合は空メッセージを表示', async () => {
      
-    getHiddenContent.mockResolvedValue({ items: [] } as any)
+    vi.mocked(getHiddenContent).mockResolvedValue({ items: [] } as any)
      
-    getAdminNotifications.mockResolvedValue({ notifications: [], unreadCount: 0 } as any)
+    vi.mocked(getAdminNotifications).mockResolvedValue({ notifications: [], unreadCount: 0 } as any)
 
     const { default: Page } = await import('@/app/admin/hidden/page')
     const result = await Page()
@@ -56,8 +56,8 @@ describe('HiddenContentPage', async () => {
       { type: 'event', id: '3' },
     ]
      
-    getHiddenContent.mockResolvedValue({ items } as any)
-    getAdminNotifications.mockResolvedValue({
+    vi.mocked(getHiddenContent).mockResolvedValue({ items } as any)
+    vi.mocked(getAdminNotifications).mockResolvedValue({
       notifications: [{ id: '1' }],
       unreadCount: 5,
      
@@ -81,9 +81,9 @@ describe('HiddenContentPage', async () => {
       { type: 'review', id: '6' },
     ]
      
-    getHiddenContent.mockResolvedValue({ items } as any)
+    vi.mocked(getHiddenContent).mockResolvedValue({ items } as any)
      
-    getAdminNotifications.mockResolvedValue({ notifications: [], unreadCount: 0 } as any)
+    vi.mocked(getAdminNotifications).mockResolvedValue({ notifications: [], unreadCount: 0 } as any)
 
     const { default: Page } = await import('@/app/admin/hidden/page')
     const result = await Page()

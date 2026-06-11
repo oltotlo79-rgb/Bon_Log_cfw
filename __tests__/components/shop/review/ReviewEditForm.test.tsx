@@ -258,7 +258,7 @@ describe('ReviewEditForm', () => {
 
       const deleteButtons = container.querySelectorAll('.bg-destructive.text-destructive-foreground.rounded-full')
       if (deleteButtons.length > 0) {
-        fireEvent.click(deleteButtons[0])
+        fireEvent.click(deleteButtons[0]!)
         expect(mockOnDeleteExistingImage).toHaveBeenCalled()
       }
     })

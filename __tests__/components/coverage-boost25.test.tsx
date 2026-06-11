@@ -492,7 +492,7 @@ describe('coverage-boost25', () => {
       render(<ImageGallery images={images} />)
 
       const buttons = screen.getAllByRole('button')
-      fireEvent.click(buttons[0])
+      fireEvent.click(buttons[0]!)
 
       // モーダルが開いたことを確認（閉じるボタンの存在で確認）
       const modal = document.querySelector('.fixed.inset-0.z-50')
@@ -544,7 +544,7 @@ describe('coverage-boost25', () => {
 
       // 2番目の画像をクリックして開く
       const buttons = screen.getAllByRole('button')
-      fireEvent.click(buttons[1])
+      fireEvent.click(buttons[1]!)
 
       // 前へボタンが表示されることを確認
       const prevButton = document.querySelector('.absolute.left-4')
@@ -566,7 +566,7 @@ describe('coverage-boost25', () => {
       render(<ImageGallery images={images} />)
 
       const buttons = screen.getAllByRole('button')
-      fireEvent.click(buttons[0])
+      fireEvent.click(buttons[0]!)
 
       // 次へボタンが表示されることを確認
       const nextButton = document.querySelector('.absolute.right-4.top-1\\/2')
@@ -589,7 +589,7 @@ describe('coverage-boost25', () => {
       render(<ImageGallery images={images} />)
 
       const buttons = screen.getAllByRole('button')
-      fireEvent.click(buttons[0])
+      fireEvent.click(buttons[0]!)
 
       // ナビゲーションドットを取得
       const dots = screen.getAllByRole('button').filter(btn =>
@@ -598,7 +598,7 @@ describe('coverage-boost25', () => {
       expect(dots).toHaveLength(3)
 
       // 3番目のドットをクリック
-      fireEvent.click(dots[2])
+      fireEvent.click(dots[2]!)
 
       // 3番目が選択されたことを確認（前へボタンが表示される）
       const prevButton = document.querySelector('.absolute.left-4')

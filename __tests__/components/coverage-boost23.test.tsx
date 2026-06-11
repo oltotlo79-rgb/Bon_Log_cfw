@@ -338,7 +338,7 @@ describe('ShopSearchForm', async () => {
     )
 
     const selects = screen.getAllByRole('combobox')
-    const regionSelect = selects[1] // 0: ジャンル, 1: 地方, 2: 都道府県, 3: ソート
+    const regionSelect = selects[1]! // 0: ジャンル, 1: 地方, 2: 都道府県, 3: ソート
     fireEvent.change(regionSelect, { target: { value: 'kanto' } })
 
     await waitFor(() => {
@@ -357,8 +357,8 @@ describe('ShopSearchForm', async () => {
     )
 
     const selects = screen.getAllByRole('combobox')
-    const prefectureSelect = selects[2] // 0: ジャンル, 1: 地方, 2: 都道府県, 3: ソート
-    const options = Array.from(prefectureSelect.querySelectorAll('option')).map((opt) => opt.textContent)
+    const prefectureSelect = selects[2]! // 0: ジャンル, 1: 地方, 2: 都道府県, 3: ソート
+    const options = Array.from(prefectureSelect!.querySelectorAll('option')).map((opt) => opt.textContent)
 
     expect(options).toContain('東京都')
     expect(options).toContain('神奈川県')
@@ -375,8 +375,8 @@ describe('ShopSearchForm', async () => {
     )
 
     const selects = screen.getAllByRole('combobox')
-    const prefectureSelect = selects[2] // 0: ジャンル, 1: 地方, 2: 都道府県, 3: ソート
-    const options = Array.from(prefectureSelect.querySelectorAll('option')).map((opt) => opt.textContent)
+    const prefectureSelect = selects[2]! // 0: ジャンル, 1: 地方, 2: 都道府県, 3: ソート
+    const options = Array.from(prefectureSelect!.querySelectorAll('option')).map((opt) => opt.textContent)
 
     expect(options).toContain('東京都')
     expect(options).toContain('大阪府')
@@ -392,7 +392,7 @@ describe('ShopSearchForm', async () => {
     )
 
     const selects = screen.getAllByRole('combobox')
-    const prefectureSelect = selects[2]
+    const prefectureSelect = selects[2]!
     fireEvent.change(prefectureSelect, { target: { value: '東京都' } })
 
     await waitFor(() => {
@@ -404,7 +404,7 @@ describe('ShopSearchForm', async () => {
     render(<ShopSearchForm genres={genres} initialSort="newest" />)
 
     const selects = screen.getAllByRole('combobox')
-    const sortSelect = selects[3]
+    const sortSelect = selects[3]!
     fireEvent.change(sortSelect, { target: { value: 'rating' } })
 
     await waitFor(() => {
@@ -416,7 +416,7 @@ describe('ShopSearchForm', async () => {
     render(<ShopSearchForm genres={genres} initialSort="newest" />)
 
     const selects = screen.getAllByRole('combobox')
-    const sortSelect = selects[3]
+    const sortSelect = selects[3]!
     fireEvent.change(sortSelect, { target: { value: 'location' } })
 
     await waitFor(() => {
@@ -453,7 +453,7 @@ describe('ShopSearchForm', async () => {
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalled()
-      const lastCall = mockPush.mock.calls[mockPush.mock.calls.length - 1][0]
+      const lastCall = mockPush.mock.calls[mockPush.mock.calls.length - 1]![0]!
       expect(lastCall).toContain('search=')
     })
   })
@@ -462,7 +462,7 @@ describe('ShopSearchForm', async () => {
     render(<ShopSearchForm genres={genres} />)
 
     const selects = screen.getAllByRole('combobox')
-    const genreSelect = selects[0]
+    const genreSelect = selects[0]!
     fireEvent.change(genreSelect, { target: { value: 'bonsai' } })
 
     await waitFor(() => {
@@ -474,7 +474,7 @@ describe('ShopSearchForm', async () => {
     render(<ShopSearchForm genres={genres} initialGenre="bonsai" />)
 
     const selects = screen.getAllByRole('combobox')
-    const genreSelect = selects[0]
+    const genreSelect = selects[0]!
     fireEvent.change(genreSelect, { target: { value: '' } })
 
     await waitFor(() => {
@@ -819,7 +819,7 @@ describe('MentionTextarea', async () => {
 
     // bg-muted クラスが2番目の要素に適用されるか確認
     const buttons = screen.getAllByRole('button').filter((btn) => btn.textContent?.includes('@'))
-    expect(buttons[1].className).toContain('bg-muted')
+    expect(buttons[1]!.className).toContain('bg-muted')
   })
 
   it('ArrowUp キーで選択がラップする', async () => {
@@ -842,7 +842,7 @@ describe('MentionTextarea', async () => {
 
     // 最初の要素から上に行くと最後の要素に移動
     const buttons = screen.getAllByRole('button').filter((btn) => btn.textContent?.includes('@'))
-    expect(buttons[1].className).toContain('bg-muted')
+    expect(buttons[1]!.className).toContain('bg-muted')
   })
 
   it('Enter キーで選択が確定される', async () => {

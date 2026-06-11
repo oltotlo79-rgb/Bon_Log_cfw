@@ -84,7 +84,7 @@ describe('ShopSearchForm', () => {
   it('空の検索でsearchパラメータを削除する', () => {
     render(<ShopSearchForm genres={mockGenres} initialSearch="" />)
     fireEvent.click(screen.getByText('検索'))
-    const call = mockPush.mock.calls[0][0] as string
+    const call = mockPush.mock.calls[0]?.[0] as string
     expect(call).not.toContain('search=')
   })
 
@@ -92,14 +92,15 @@ describe('ShopSearchForm', () => {
     render(<ShopSearchForm genres={mockGenres} />)
     const selects = screen.getAllByRole('combobox')
     const genreSelect = selects[0]
-    fireEvent.change(genreSelect, { target: { value: 'g1' } })
+    if (genreSelect) fireEvent.change(genreSelect, { target: { value: 'g1' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
   it('ジャンルを空にするとgenreパラメータを削除する', () => {
     render(<ShopSearchForm genres={mockGenres} initialGenre="g1" />)
     const selects = screen.getAllByRole('combobox')
-    fireEvent.change(selects[0], { target: { value: '' } })
+    const genreSelectEmpty = selects[0]
+    if (genreSelectEmpty) fireEvent.change(genreSelectEmpty, { target: { value: '' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
@@ -107,14 +108,15 @@ describe('ShopSearchForm', () => {
     render(<ShopSearchForm genres={mockGenres} />)
     const selects = screen.getAllByRole('combobox')
     const regionSelect = selects[1]
-    fireEvent.change(regionSelect, { target: { value: 'kanto' } })
+    if (regionSelect) fireEvent.change(regionSelect, { target: { value: 'kanto' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
   it('地方を空にするとregionパラメータを削除する', () => {
     render(<ShopSearchForm genres={mockGenres} initialRegion="kanto" />)
     const selects = screen.getAllByRole('combobox')
-    fireEvent.change(selects[1], { target: { value: '' } })
+    const regionSelectEmpty = selects[1]
+    if (regionSelectEmpty) fireEvent.change(regionSelectEmpty, { target: { value: '' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
@@ -122,14 +124,15 @@ describe('ShopSearchForm', () => {
     render(<ShopSearchForm genres={mockGenres} initialRegion="kanto" />)
     const selects = screen.getAllByRole('combobox')
     const prefSelect = selects[2]
-    fireEvent.change(prefSelect, { target: { value: '東京都' } })
+    if (prefSelect) fireEvent.change(prefSelect, { target: { value: '東京都' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
   it('都道府県を空にするとprefectureパラメータを削除する', () => {
     render(<ShopSearchForm genres={mockGenres} initialPrefecture="東京都" />)
     const selects = screen.getAllByRole('combobox')
-    fireEvent.change(selects[2], { target: { value: '' } })
+    const prefSelectEmpty = selects[2]
+    if (prefSelectEmpty) fireEvent.change(prefSelectEmpty, { target: { value: '' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
@@ -137,14 +140,15 @@ describe('ShopSearchForm', () => {
     render(<ShopSearchForm genres={mockGenres} />)
     const selects = screen.getAllByRole('combobox')
     const sortSelect = selects[3]
-    fireEvent.change(sortSelect, { target: { value: 'rating' } })
+    if (sortSelect) fireEvent.change(sortSelect, { target: { value: 'rating' } })
     expect(mockPush).toHaveBeenCalled()
   })
 
   it('ソートをlocationにするとsortパラメータを削除する', () => {
     render(<ShopSearchForm genres={mockGenres} initialSort="rating" />)
     const selects = screen.getAllByRole('combobox')
-    fireEvent.change(selects[3], { target: { value: 'location' } })
+    const sortSelectLoc = selects[3]
+    if (sortSelectLoc) fireEvent.change(sortSelectLoc, { target: { value: 'location' } })
     expect(mockPush).toHaveBeenCalled()
   })
 

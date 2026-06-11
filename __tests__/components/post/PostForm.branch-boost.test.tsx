@@ -228,7 +228,7 @@ describe('PostForm - branch boost (poll without trimmed options)', () => {
 
     await waitFor(() => {
       expect(mockCreatePost).toHaveBeenCalled()
-      const formData = mockCreatePost.mock.calls[0][0] as FormData
+      const formData = mockCreatePost.mock.calls[0]![0]! as FormData
       // pollOptions should not be included since all options are empty/whitespace
       expect(formData.get('pollOptions')).toBeNull()
     })

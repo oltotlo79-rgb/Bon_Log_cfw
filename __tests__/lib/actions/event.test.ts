@@ -50,7 +50,7 @@ describe('Event Actions', async () => {
       const result = await getEvents()
 
       expect(result.events).toHaveLength(1)
-      expect(result.events[0].title).toBe('テストイベント')
+      expect(result.events[0]!.title).toBe('テストイベント')
     })
 
     it('非表示イベントは除外される', async () => {

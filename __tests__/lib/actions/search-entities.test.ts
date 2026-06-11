@@ -115,7 +115,7 @@ describe('search-entities actions', () => {
         avgRating: 4.5,
       })
       // genres should be flattened (sg.genre)
-      expect(result.shops[0].genres).toEqual([{ id: 'g1', name: '松柏類', category: '盆栽' }])
+      expect(result.shops[0]!.genres).toEqual([{ id: 'g1', name: '松柏類', category: '盆栽' }])
       expect(result.error).toBeUndefined()
     })
 
@@ -199,7 +199,7 @@ describe('search-entities actions', () => {
       const action = await importAction()
 
       const result = await action('Shop')
-      expect(result.shops[0].avgRating).toBe(0)
+      expect(result.shops[0]!.avgRating).toBe(0)
     })
 
     it('過大な limit は MAX_PAGE_LIMIT に clamp する', async () => {
@@ -271,8 +271,8 @@ describe('search-entities actions', () => {
 
       const result = await action('盆栽展')
       expect(result.events).toHaveLength(1)
-      expect(result.events[0].title).toBe('盆栽展')
-      expect(result.events[0].creator).toMatchObject({ id: 'u1', nickname: 'Creator' })
+      expect(result.events[0]!.title).toBe('盆栽展')
+      expect(result.events[0]!.creator).toMatchObject({ id: 'u1', nickname: 'Creator' })
       expect(result.error).toBeUndefined()
     })
 
@@ -414,7 +414,7 @@ describe('search-entities actions', () => {
         recordCount: 5,
         postCount: 2,
       })
-      expect(result.bonsais[0].user).toMatchObject({ id: 'u1', nickname: 'Owner' })
+      expect(result.bonsais[0]!.user).toMatchObject({ id: 'u1', nickname: 'Owner' })
       expect(result.error).toBeUndefined()
     })
 

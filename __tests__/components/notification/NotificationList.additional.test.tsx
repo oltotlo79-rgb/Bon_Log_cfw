@@ -1,3 +1,4 @@
+import type { Notification } from '@/components/notification/NotificationItem'
 import { vi } from 'vitest'
 /**
  * NotificationListコンポーネントの追加テスト
@@ -89,7 +90,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       await waitFor(() => {
         expect(mockFetchNextPage).toHaveBeenCalled()
@@ -108,7 +109,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       expect(mockFetchNextPage).not.toHaveBeenCalled()
     })
@@ -125,7 +126,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       expect(mockFetchNextPage).not.toHaveBeenCalled()
     })
@@ -143,7 +144,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       const markAllButton = screen.getByText('すべて既読にする')
       fireEvent.click(markAllButton)
@@ -164,7 +165,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       const markAllButton = screen.getByText('すべて既読にする')
       fireEvent.click(markAllButton)
@@ -185,7 +186,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       const markAllButton = screen.getByText('すべて既読にする')
       fireEvent.click(markAllButton)
@@ -234,7 +235,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       expect(screen.getByTestId('notification-1')).toHaveAttribute('data-type', 'like')
     })
@@ -250,7 +251,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       expect(screen.getByTestId('notification-2')).toHaveAttribute('data-type', 'follow')
     })
@@ -266,7 +267,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       expect(screen.getByTestId('notification-3')).toHaveAttribute('data-type', 'comment')
     })
@@ -282,7 +283,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       expect(screen.getByTestId('notification-4')).toHaveAttribute('data-type', 'mention')
     })
@@ -308,7 +309,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
       const markAllButton = screen.getByText('すべて既読にする').parentElement
       expect(markAllButton?.querySelector('svg')).toBeInTheDocument()
@@ -325,7 +326,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
 
       mockUseInfiniteQuery.mockImplementation((config: { initialData: { pages: Array<{ nextCursor: string | undefined }> } }) => {
         // initialDataの検証
-        expect(config.initialData.pages[0].nextCursor).toBe('20')
+        expect(config.initialData.pages[0]!.nextCursor).toBe('20')
         return {
           data: { pages: [{ notifications, nextCursor: '20' }] },
           fetchNextPage: mockFetchNextPage,
@@ -336,7 +337,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         }
       })
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
     })
 
     it('20件未満の初期データがある場合nextCursorはundefined', () => {
@@ -348,7 +349,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
 
       mockUseInfiniteQuery.mockImplementation((config: { initialData: { pages: Array<{ nextCursor: string | undefined }> } }) => {
         // initialDataの検証
-        expect(config.initialData.pages[0].nextCursor).toBeUndefined()
+        expect(config.initialData.pages[0]!.nextCursor).toBeUndefined()
         return {
           data: { pages: [{ notifications, nextCursor: undefined }] },
           fetchNextPage: mockFetchNextPage,
@@ -359,7 +360,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         }
       })
 
-      render(<NotificationList initialNotifications={notifications} />)
+      render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
     })
   })
 
@@ -401,7 +402,7 @@ describe('NotificationList - 追加カバレッジテスト', () => {
         refetch: mockRefetch,
       }))
 
-      render(<NotificationList initialNotifications={page1} />)
+      render(<NotificationList initialNotifications={page1 as unknown as Notification[]} />)
 
       expect(screen.getByTestId('notification-1')).toBeInTheDocument()
       expect(screen.getByTestId('notification-2')).toBeInTheDocument()

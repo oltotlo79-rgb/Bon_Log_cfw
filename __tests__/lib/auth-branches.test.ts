@@ -165,7 +165,7 @@ async function sessionCallback({ session, token }: { session: { user: Record<str
  * auth.ts の createUser event (lines 407-417) を再現
  */
 async function createUserEvent({ user }: { user: Record<string, unknown> }) {
-  if (user.id && user.name) {
+  if (typeof user.id === 'string' && typeof user.name === 'string') {
     const { prisma } = await import('@/lib/db')
     await prisma.user.update({
       where: { id: user.id },

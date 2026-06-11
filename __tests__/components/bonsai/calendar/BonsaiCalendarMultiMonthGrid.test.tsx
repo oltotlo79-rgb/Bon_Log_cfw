@@ -98,8 +98,8 @@ describe('BonsaiCalendarMultiMonthGrid', () => {
     )
     const headers = screen.getAllByRole('columnheader')
     // 2025-11, 2025-12, 2026-01, 2026-02, 2026-03, 2026-04
-    expect(headers[0].textContent).toContain('2025年11月')
-    expect(headers[5].textContent).toContain('2026年4月')
+    expect(headers[0]!.textContent).toContain('2025年11月')
+    expect(headers[5]!.textContent).toContain('2026年4月')
   })
 
   it('クリックで onSelectDate が呼ばれる', () => {
@@ -115,7 +115,7 @@ describe('BonsaiCalendarMultiMonthGrid', () => {
       />,
     )
     const cells = screen.getAllByRole('gridcell')
-    fireEvent.click(cells[10])
+    fireEvent.click(cells[10]!)
     expect(onSelectDate).toHaveBeenCalledTimes(1)
   })
 

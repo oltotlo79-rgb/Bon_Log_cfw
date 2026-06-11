@@ -19,7 +19,7 @@ test.describe('ユーザープロフィールアクション', () => {
       const href = await profileLink.getAttribute('href')
       if (href) {
         const match = href.match(/\/users\/([^/]+)/)
-        if (match) return match[1]
+        if (match?.[1]) return match[1]
       }
     }
     return null

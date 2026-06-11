@@ -59,7 +59,11 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
 }))
 
+import type { BookmarkPostList as BookmarkPostListType } from '@/app/(main)/bookmarks/BookmarkPostList'
 import { BookmarkPostList } from '@/app/(main)/bookmarks/BookmarkPostList'
+
+type BookmarkPostListProps = React.ComponentProps<typeof BookmarkPostListType>
+type BookmarkedPost = BookmarkPostListProps['initialPosts'][number]
 
 const createPost = (id: string, content: string = `投稿内容${id}`) => ({
   id,
@@ -72,7 +76,7 @@ const createPost = (id: string, content: string = `投稿内容${id}`) => ({
   commentCount: 0,
   isLiked: false,
   isBookmarked: true,
-})
+}) as unknown as BookmarkedPost
 
 describe('BookmarkPostList', () => {
   beforeEach(() => {

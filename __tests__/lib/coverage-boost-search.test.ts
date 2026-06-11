@@ -205,9 +205,9 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
         const posts = result.data?.posts as Array<{ genres: unknown; likeCount: number; commentCount: number }>
         expect(posts).toHaveLength(1)
         // The genres should be mapped from pg.genre (flattened)
-        expect(posts[0].genres).toEqual([genreObj])
-        expect(posts[0].likeCount).toBe(2)
-        expect(posts[0].commentCount).toBe(1)
+        expect(posts[0]!.genres).toEqual([genreObj])
+        expect(posts[0]!.likeCount).toBe(2)
+        expect(posts[0]!.commentCount).toBe(1)
       }
     })
   })
@@ -269,8 +269,8 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
       if (result.success) {
         const posts = result.data?.posts as Array<{ genres: unknown; likeCount: number }>
         expect(posts).toHaveLength(1)
-        expect(posts[0].genres).toEqual([genreObj])
-        expect(posts[0].likeCount).toBe(5)
+        expect(posts[0]!.genres).toEqual([genreObj])
+        expect(posts[0]!.likeCount).toBe(5)
       }
     })
   })
@@ -323,9 +323,9 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
       const result = await searchShops('テスト')
 
       expect(result.shops).toHaveLength(1)
-      expect(result.shops[0].genres).toEqual([shopGenre])
-      expect(result.shops[0].avgRating).toBe(4.5)
-      expect(result.shops[0].reviewCount).toBe(3)
+      expect(result.shops[0]!.genres).toEqual([shopGenre])
+      expect(result.shops[0]!.avgRating).toBe(4.5)
+      expect(result.shops[0]!.reviewCount).toBe(3)
     })
   })
 
@@ -379,7 +379,7 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
       const result = await searchShops('フルテキスト')
 
       expect(result.shops).toHaveLength(1)
-      expect(result.shops[0].genres).toEqual([shopGenre])
+      expect(result.shops[0]!.genres).toEqual([shopGenre])
     })
   })
 
@@ -602,7 +602,7 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
 
       expect(result.shops).toHaveLength(2)
       // Shop A (has lat) should come first
-      expect(result.shops[0].id).toBe('shop-a')
+      expect(result.shops[0]!.id).toBe('shop-a')
     })
 
     it('should handle location sort where b has lat but a does not', async () => {
@@ -736,7 +736,8 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('shop-1')
 
-      expect(result.shop).toBeDefined()
+      expect('shop' in result && result.shop).toBeDefined()
+      if (!('shop' in result)) throw new Error('expected shop in result')
       expect(result.shop.latitude).toBe(35.681)
       expect(result.shop.longitude).toBe(139.767)
       expect(result.shop.isOwner).toBe(true)
@@ -775,7 +776,8 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('shop-2')
 
-      expect(result.shop).toBeDefined()
+      expect('shop' in result && result.shop).toBeDefined()
+      if (!('shop' in result)) throw new Error('expected shop in result')
       expect(result.shop.latitude).toBeNull()
       expect(result.shop.longitude).toBeNull()
       expect(result.shop.isOwner).toBe(false)
@@ -885,6 +887,7 @@ describe('Coverage Boost - Search & Library uncovered branches', async () => {
       const { getShopChangeRequests } = await import('@/lib/actions/shop')
       const result = await getShopChangeRequests({ status: 'pending', cursor: 'req-cursor', limit: 20 })
 
+      if (!('requests' in result)) throw new Error('expected requests in result')
       expect(result.requests).toHaveLength(20)
       expect(result.nextCursor).toBe('req-19')
     })

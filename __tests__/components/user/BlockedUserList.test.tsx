@@ -100,7 +100,7 @@ describe('BlockedUserList', () => {
     render(<BlockedUserList users={mockUsers} />)
 
     const unblockButtons = screen.getAllByRole('button', { name: 'ブロック解除' })
-    await user.click(unblockButtons[0])
+    await user.click(unblockButtons[0]!)
 
     await waitFor(() => {
       expect(mockUnblockUser).toHaveBeenCalledWith('user-1')
@@ -113,7 +113,7 @@ describe('BlockedUserList', () => {
     render(<BlockedUserList users={mockUsers} />)
 
     const unblockButtons = screen.getAllByRole('button', { name: 'ブロック解除' })
-    await user.click(unblockButtons[0])
+    await user.click(unblockButtons[0]!)
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
@@ -129,7 +129,7 @@ describe('BlockedUserList', () => {
     render(<BlockedUserList users={mockUsers} />)
 
     const unblockButtons = screen.getAllByRole('button', { name: 'ブロック解除' })
-    await user.click(unblockButtons[0])
+    await user.click(unblockButtons[0]!)
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
@@ -146,7 +146,7 @@ describe('BlockedUserList', () => {
     render(<BlockedUserList users={mockUsers} />)
 
     const unblockButtons = screen.getAllByRole('button', { name: 'ブロック解除' })
-    await user.click(unblockButtons[0])
+    await user.click(unblockButtons[0]!)
 
     await waitFor(() => {
       expect(mockRefresh).toHaveBeenCalled()
@@ -161,7 +161,7 @@ describe('BlockedUserList', () => {
     render(<BlockedUserList users={mockUsers} />)
 
     const unblockButtons = screen.getAllByRole('button', { name: 'ブロック解除' })
-    await user.click(unblockButtons[0])
+    await user.click(unblockButtons[0]!)
 
     await waitFor(() => {
       expect(screen.getByText('...')).toBeInTheDocument()

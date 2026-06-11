@@ -293,9 +293,9 @@ describe('AdminDashboardPage', async () => {
           .getByRole('tablist', { name: 'アクセス推移の表示期間' })
           .querySelectorAll('a[role="tab"]'),
       ) as HTMLAnchorElement[]
-      expect(tabs[0].getAttribute('href')).toBe('/admin?range=30')
-      expect(tabs[1].getAttribute('href')).toBe('/admin?range=90')
-      expect(tabs[2].getAttribute('href')).toBe('/admin?range=180')
+      expect(tabs[0]?.getAttribute('href')).toBe('/admin?range=30')
+      expect(tabs[1]?.getAttribute('href')).toBe('/admin?range=90')
+      expect(tabs[2]?.getAttribute('href')).toBe('/admin?range=180')
     })
 
     it('延べ訪問者数とピーク値は選択中の期間のデータから集計される', async () => {

@@ -66,7 +66,7 @@ describe('UserList', () => {
   })
 
   it('ユーザーが1人の場合も正しく表示する', () => {
-    render(<UserList users={[mockUsers[0]]} />)
+    render(<UserList users={[mockUsers[0]!]} />)
 
     expect(screen.getByTestId('user-card-user-1')).toBeInTheDocument()
     expect(screen.queryByText('ユーザーがいません')).not.toBeInTheDocument()

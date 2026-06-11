@@ -1,41 +1,52 @@
 import { vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import type { Session } from 'next-auth'
+import type { MaintenanceSettings } from '@/lib/actions/maintenance'
 
-// モック
+const mockAuth = vi.fn<() => Promise<Session | null>>()
+const mockGetMaintenanceSettings = vi.fn<() => Promise<MaintenanceSettings>>()
+
 vi.mock('@/lib/auth', () => ({
-  auth: vi.fn(),
+  auth: () => mockAuth(),
 }))
 
 vi.mock('@/lib/actions/maintenance', () => ({
-  getMaintenanceSettings: vi.fn(),
+  getMaintenanceSettings: () => mockGetMaintenanceSettings(),
 }))
 
 vi.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href }: any) => <a href={href}>{children}</a>,
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }))
 
 vi.mock('@/app/maintenance/logout-button', () => ({
   MaintenanceLogoutButton: () => <button data-testid="logout-button">ログアウト</button>,
 }))
 
-describe('MaintenancePage', async () => {
-  const { auth } = await import('@/lib/auth')
-  const { getMaintenanceSettings } = await import('@/lib/actions/maintenance')
+const SESSION: Session = {
+  user: { id: 'user1' },
+  expires: '2099-01-01',
+}
 
+const SETTINGS_BASE: MaintenanceSettings = {
+  enabled: true,
+  message: 'メンテナンス中です',
+  startTime: null,
+  endTime: null,
+}
+
+describe('MaintenancePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetModules()
   })
 
   it('ログイン済みの場合はログアウトボタンを表示', async () => {
-     
-    auth.mockResolvedValue({ user: { id: 'user1' } } as any)
-    getMaintenanceSettings.mockResolvedValue({
+    mockAuth.mockResolvedValue(SESSION)
+    mockGetMaintenanceSettings.mockResolvedValue({
+      ...SETTINGS_BASE,
       message: 'メンテナンス中です',
-      startTime: null,
-      endTime: null,
-     
-    } as any)
+    })
 
     const { default: Page } = await import('@/app/maintenance/page')
     const result = await Page()
@@ -47,14 +58,11 @@ describe('MaintenancePage', async () => {
   })
 
   it('未ログインの場合はログアウトボタンを非表示', async () => {
-     
-    auth.mockResolvedValue(null as any)
-    getMaintenanceSettings.mockResolvedValue({
+    mockAuth.mockResolvedValue(null)
+    mockGetMaintenanceSettings.mockResolvedValue({
+      ...SETTINGS_BASE,
       message: 'システムメンテナンス実施中',
-      startTime: null,
-      endTime: null,
-     
-    } as any)
+    })
 
     const { default: Page } = await import('@/app/maintenance/page')
     const result = await Page()
@@ -65,14 +73,13 @@ describe('MaintenancePage', async () => {
   })
 
   it('メンテナンス期間を表示', async () => {
-     
-    auth.mockResolvedValue(null as any)
-    getMaintenanceSettings.mockResolvedValue({
+    mockAuth.mockResolvedValue(null)
+    mockGetMaintenanceSettings.mockResolvedValue({
+      ...SETTINGS_BASE,
       message: 'メンテナンス実施中',
       startTime: '2024-01-01T00:00:00.000Z',
       endTime: '2024-01-01T03:00:00.000Z',
-     
-    } as any)
+    })
 
     const { default: Page } = await import('@/app/maintenance/page')
     const result = await Page()
@@ -84,14 +91,11 @@ describe('MaintenancePage', async () => {
   })
 
   it('デフォルトメッセージを表示', async () => {
-     
-    auth.mockResolvedValue(null as any)
-    getMaintenanceSettings.mockResolvedValue({
-      message: null,
-      startTime: null,
-      endTime: null,
-     
-    } as any)
+    mockAuth.mockResolvedValue(null)
+    mockGetMaintenanceSettings.mockResolvedValue({
+      ...SETTINGS_BASE,
+      message: '',
+    })
 
     const { default: Page } = await import('@/app/maintenance/page')
     const result = await Page()
@@ -101,14 +105,11 @@ describe('MaintenancePage', async () => {
   })
 
   it('BON-LOGリンクを表示', async () => {
-     
-    auth.mockResolvedValue(null as any)
-    getMaintenanceSettings.mockResolvedValue({
+    mockAuth.mockResolvedValue(null)
+    mockGetMaintenanceSettings.mockResolvedValue({
+      ...SETTINGS_BASE,
       message: 'メンテナンス中',
-      startTime: null,
-      endTime: null,
-     
-    } as any)
+    })
 
     const { default: Page } = await import('@/app/maintenance/page')
     const result = await Page()

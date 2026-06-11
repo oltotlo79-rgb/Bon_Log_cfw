@@ -90,7 +90,8 @@ describe('ShopRequestActions', () => {
   it('承認ダイアログをキャンセルする', () => {
     render(<ShopRequestActions {...defaultProps} />)
     fireEvent.click(screen.getByText('承認'))
-    fireEvent.click(screen.getAllByText('キャンセル')[0])
+    const _el0 = screen.getAllByText('キャンセル')[0]
+    if (_el0) fireEvent.click(_el0)
     expect(screen.queryByText('変更リクエストを承認')).not.toBeInTheDocument()
   })
 
@@ -123,11 +124,13 @@ describe('ShopRequestActions', () => {
   it('却下ダイアログをキャンセルする', () => {
     render(<ShopRequestActions {...defaultProps} />)
     fireEvent.click(screen.getByText('却下'))
-    fireEvent.click(screen.getAllByText('キャンセル')[0])
+    const _el0 = screen.getAllByText('キャンセル')[0]
+    if (_el0) fireEvent.click(_el0)
     expect(screen.queryByText('変更リクエストを却下')).not.toBeInTheDocument()
   })
 
   it('不明なフィールドラベルはフィールド名をそのまま表示する', () => {
+    // @ts-expect-error ShopChangeRequestData の閉じた型に存在しないキーを渡してフォールバック挙動を検証する
     render(<ShopRequestActions {...defaultProps} changes={{ unknownField: 'value' }} />)
     fireEvent.click(screen.getByText('承認'))
     expect(screen.getByText('unknownField:')).toBeInTheDocument()

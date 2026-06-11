@@ -160,7 +160,7 @@ describe('Block Actions', async () => {
       const result = await getBlockedUsers()
 
       expect(result.users).toHaveLength(2)
-      expect(result.users[0].nickname).toBe('ブロックユーザー1')
+      expect(result.users[0]!.nickname).toBe('ブロックユーザー1')
     })
 
     it('未認証の場合、空配列を返す', async () => {

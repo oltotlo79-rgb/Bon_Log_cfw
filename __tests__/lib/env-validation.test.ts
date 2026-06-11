@@ -29,7 +29,7 @@ describe('validateEnv', () => {
 
   describe('正常系（必須変数が揃っている）', () => {
     it('開発環境: 全て揃っていればエラーも警告も出ない', async () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
       const { validateEnv } = await import('@/lib/env-validation')
@@ -39,7 +39,7 @@ describe('validateEnv', () => {
     })
 
     it('本番環境: 必須＋オプショナル全て揃っていれば警告なし', async () => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
       process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
@@ -57,7 +57,7 @@ describe('validateEnv', () => {
 
   describe('DISABLE_RATE_LIMIT の fail-closed ガード', () => {
     beforeEach(() => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
     })
@@ -86,7 +86,7 @@ describe('validateEnv', () => {
 
   describe('本番のオプショナル変数欠落警告', () => {
     beforeEach(() => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
       // NEXT_PUBLIC_APP_URL は production で必須 (canonical / OG / sitemap 生成に使う)。
@@ -121,7 +121,7 @@ describe('validateEnv', () => {
     })
 
     it('開発環境ではオプショナル変数の警告は出ない', async () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
       delete process.env.SENTRY_DSN
       delete process.env.STRIPE_SECRET_KEY
       const { validateEnv } = await import('@/lib/env-validation')
@@ -135,7 +135,7 @@ describe('validateEnv', () => {
 
   describe('必須変数欠落時の挙動', () => {
     it('本番環境で DATABASE_URL 欠落時は例外を投げる', async () => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       delete process.env.DATABASE_URL
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
       process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
@@ -144,7 +144,7 @@ describe('validateEnv', () => {
     })
 
     it('本番環境で NEXTAUTH_SECRET 欠落時は例外を投げる', async () => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       delete process.env.NEXTAUTH_SECRET
       process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
@@ -153,7 +153,7 @@ describe('validateEnv', () => {
     })
 
     it('開発環境では必須変数欠落でも例外を投げず警告のみ', async () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
       delete process.env.DATABASE_URL
       delete process.env.NEXTAUTH_SECRET
       const { validateEnv } = await import('@/lib/env-validation')
@@ -164,7 +164,7 @@ describe('validateEnv', () => {
 
   describe('NEXT_PUBLIC_APP_URL の本番制約', () => {
     beforeEach(() => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
     })
@@ -211,7 +211,7 @@ describe('validateEnv', () => {
     })
 
     it('開発環境では未設定でも例外にならない', async () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
       delete process.env.NEXT_PUBLIC_APP_URL
       const { validateEnv } = await import('@/lib/env-validation')
       expect(() => validateEnv()).not.toThrow()
@@ -220,7 +220,7 @@ describe('validateEnv', () => {
 
   describe('値が不正な場合', () => {
     it('NEXTAUTH_SECRET が短すぎる場合は本番で例外', async () => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = 'short'
       process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
@@ -229,7 +229,7 @@ describe('validateEnv', () => {
     })
 
     it('STRIPE_SECRET_KEY が sk_ で始まらない場合はエラーログ出力', async () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
       process.env.DATABASE_URL = 'postgresql://test'
       process.env.NEXTAUTH_SECRET = '0123456789abcdef0123'
       process.env.STRIPE_SECRET_KEY = 'invalid_format'

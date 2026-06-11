@@ -162,8 +162,8 @@ describe('post-visibility', () => {
       ]
       const result = await redactNonVisibleNestedPosts(VIEWER, posts)
       expect(result).toHaveLength(2)
-      expect(result[0].quotePost).toEqual({ id: 'visible-quote' })
-      expect(result[1].quotePost).toBeNull()
+      expect(result[0]!.quotePost).toEqual({ id: 'visible-quote' })
+      expect(result[1]!.quotePost).toBeNull()
     })
 
     it('純粋リポストで対象が不可視なら一覧から除外する', async () => {

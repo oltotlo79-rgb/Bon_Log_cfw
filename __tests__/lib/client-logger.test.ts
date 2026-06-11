@@ -45,19 +45,17 @@ describe('client-logger', () => {
     // client-logger.ts checks process.env.NODE_ENV === 'development' at module load time.
     // We need to test with development NODE_ENV by re-importing.
 
-    let originalNodeEnv: string | undefined
-
-    beforeEach(() => {
-      originalNodeEnv = process.env.NODE_ENV
-    })
+    function setNodeEnv(value: string) {
+      ;(process.env as { NODE_ENV: string }).NODE_ENV = value
+    }
 
     afterEach(() => {
-      process.env.NODE_ENV = originalNodeEnv
+      setNodeEnv('test')
       vi.resetModules()
     })
 
     it('development環境ではconsole.errorが呼ばれる', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       vi.resetModules()
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -69,7 +67,7 @@ describe('client-logger', () => {
     })
 
     it('development環境ではconsole.logが呼ばれる', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       vi.resetModules()
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -81,7 +79,7 @@ describe('client-logger', () => {
     })
 
     it('development環境ではconsole.warnが呼ばれる', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       vi.resetModules()
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -93,7 +91,7 @@ describe('client-logger', () => {
     })
 
     it('test環境ではconsole.logが呼ばれない', async () => {
-      process.env.NODE_ENV = 'test'
+      setNodeEnv('test')
       vi.resetModules()
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -105,7 +103,7 @@ describe('client-logger', () => {
     })
 
     it('test環境ではconsole.warnが呼ばれない', async () => {
-      process.env.NODE_ENV = 'test'
+      setNodeEnv('test')
       vi.resetModules()
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -118,19 +116,17 @@ describe('client-logger', () => {
   })
 
   describe('本番環境でのSentry送信', () => {
-    let originalNodeEnv: string | undefined
-
-    beforeEach(() => {
-      originalNodeEnv = process.env.NODE_ENV
-    })
+    function setNodeEnv(value: string) {
+      ;(process.env as { NODE_ENV: string }).NODE_ENV = value
+    }
 
     afterEach(() => {
-      process.env.NODE_ENV = originalNodeEnv
+      setNodeEnv('test')
       vi.resetModules()
     })
 
     it('production環境でerrorを呼ぶとSentryに送信しようとする', async () => {
-      process.env.NODE_ENV = 'production'
+      setNodeEnv('production')
       vi.resetModules()
 
       // window is defined in jsdom
@@ -149,7 +145,7 @@ describe('client-logger', () => {
     })
 
     it('production環境でErrorオブジェクトを渡すとそのErrorがSentryに送信される', async () => {
-      process.env.NODE_ENV = 'production'
+      setNodeEnv('production')
       vi.resetModules()
 
       const mockCaptureException = vi.fn()

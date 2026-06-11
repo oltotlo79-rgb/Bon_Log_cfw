@@ -89,7 +89,7 @@ describe('ContentInputSection', () => {
 
   it('メディアファイルがある場合はプレビューが表示される', () => {
     const mediaFiles: MediaFile[] = [
-      { url: '/test.jpg', type: 'image', file: new File([''], 'test.jpg') },
+      { url: '/test.jpg', type: 'image' },
     ]
     const { container } = render(
       <ContentInputSection
@@ -103,7 +103,7 @@ describe('ContentInputSection', () => {
   it('メディア削除ボタンをクリックするとonMediaRemoveが呼ばれる', () => {
     const onMediaRemove = vi.fn()
     const mediaFiles: MediaFile[] = [
-      { url: '/test.jpg', type: 'image', file: new File([''], 'test.jpg') },
+      { url: '/test.jpg', type: 'image' },
     ]
     const { container } = render(
       <ContentInputSection

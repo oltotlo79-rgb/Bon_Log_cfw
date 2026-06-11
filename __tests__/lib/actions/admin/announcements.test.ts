@@ -585,7 +585,7 @@ describe('管理者向けお知らせ管理アクション', () => {
       const result = await getActiveAnnouncements()
 
       expect(result).toHaveLength(1)
-      expect(result[0].endsAt).toBeNull()
+      expect(result[0]!.endsAt).toBeNull()
     })
 
     it('最大5件まで取得する', async () => {

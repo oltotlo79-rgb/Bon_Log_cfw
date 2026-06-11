@@ -98,7 +98,7 @@ describe('Hormone Actions', () => {
 
       expect(result).toEqual(hormone)
       expect(result?.effects).toHaveLength(1)
-      expect(result?.effects[0].effectName).toBe('細胞伸長')
+      expect(result?.effects[0]!.effectName).toBe('細胞伸長')
       expect(mockPrisma.hormoneType.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { slug: 'auxin' },

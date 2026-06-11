@@ -8,9 +8,9 @@ describe('Security Logger Module', async () => {
 
   beforeAll(() => {
     // vitest.setup.tsxのグローバルセットアップ後にスパイを設定
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation()
-    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation()
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation()
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
   })
 
   beforeEach(() => {
@@ -243,7 +243,9 @@ describe('Security Logger Module', async () => {
       logLoginSuccess('user-abc')
 
       expect(sink).toHaveBeenCalledTimes(1)
-      const [entry, formatted] = sink.mock.calls[0]
+      const call = sink.mock.calls[0]
+      expect(call).toBeDefined()
+      const [entry, formatted] = call!
       expect(entry).toMatchObject({
         type: 'LOGIN_SUCCESS',
         userId: 'user-abc',
@@ -356,7 +358,7 @@ describe('Security Logger Module', async () => {
       logUnauthorizedAccess('/admin', '127.0.0.1', 'user-1')
 
       expect(sink).toHaveBeenCalledTimes(1)
-      expect(sink.mock.calls[0][0]).toMatchObject({
+      expect(sink.mock.calls[0]![0]).toMatchObject({
         type: 'UNAUTHORIZED_ACCESS',
         severity: 'high',
       })

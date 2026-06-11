@@ -137,8 +137,8 @@ describe('Bookmark Actions', async () => {
       const result = await getBookmarkedPosts()
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].id).toBe(mockPost.id)
-      expect(result.posts[0].isBookmarked).toBe(true)
+      expect(result.posts[0]!.id).toBe(mockPost.id)
+      expect(result.posts[0]!.isBookmarked).toBe(true)
     })
 
     it('空のブックマーク一覧を取得できる', async () => {

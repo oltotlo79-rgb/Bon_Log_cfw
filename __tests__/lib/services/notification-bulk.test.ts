@@ -339,7 +339,6 @@ describe('createSystemNotificationsBulk', () => {
     await expect(
       createSystemNotificationsBulk({
         recipientIds: ['user-1'],
-        // @ts-expect-error: 非システムタイプを意図的に渡す
         type: 'like',
       }),
     ).rejects.toThrow(/non-system type/)

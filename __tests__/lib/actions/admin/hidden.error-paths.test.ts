@@ -66,7 +66,7 @@ describe('admin/hidden - catch ブランチ', async () => {
   it('getHiddenContent: Promise.all が throw → ERR_OPERATION_FAILED', async () => {
     mockPrisma.post.findMany.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getHiddenContent()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getHiddenContent failed', expect.any(Object))
   })
 
@@ -87,7 +87,7 @@ describe('admin/hidden - catch ブランチ', async () => {
   it('getAdminNotifications: findMany が throw → ERR_OPERATION_FAILED', async () => {
     mockPrisma.adminNotification.findMany.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getAdminNotifications()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getAdminNotifications failed', expect.any(Object))
   })
 

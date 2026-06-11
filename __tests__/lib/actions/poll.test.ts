@@ -359,7 +359,7 @@ describe('Poll Actions', () => {
       const result = await getPollResults('poll-1')
       const data = unwrapOk<PollResult>(result)
       expect(data.poll.totalVotes).toBe(0)
-      expect(data.poll.options[0].voteCount).toBe(0)
+      expect(data.poll.options[0]!.voteCount).toBe(0)
     })
 
     it('pollIdが正しくクエリに渡される', async () => {

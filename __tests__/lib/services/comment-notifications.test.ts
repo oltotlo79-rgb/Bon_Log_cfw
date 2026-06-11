@@ -93,7 +93,7 @@ describe('comment-notifications service', async () => {
       await notifyCommentParticipants('post-1', 'comment-2', 'actor-1', 'parent-comment')
 
       expect(mockCreateNotificationsBulk).toHaveBeenCalledTimes(1)
-      const callArg = mockCreateNotificationsBulk.mock.calls[0][0]
+      const callArg = mockCreateNotificationsBulk.mock.calls[0]![0]!
       expect(callArg.type).toBe('reply')
       expect(callArg.actorId).toBe('actor-1')
       expect(callArg.postId).toBe('post-1')
@@ -111,7 +111,7 @@ describe('comment-notifications service', async () => {
       const { notifyCommentParticipants } = await import('@/lib/services/comment-notifications')
       await notifyCommentParticipants('post-1', 'comment-2', 'actor-1', 'parent-comment')
 
-      const callArg = mockCreateNotificationsBulk.mock.calls[0][0]
+      const callArg = mockCreateNotificationsBulk.mock.calls[0]![0]!
       expect(callArg.recipientIds).not.toContain('actor-1')
     })
 
@@ -127,7 +127,7 @@ describe('comment-notifications service', async () => {
       const { notifyCommentParticipants } = await import('@/lib/services/comment-notifications')
       await notifyCommentParticipants('post-1', 'comment-2', 'actor-1', 'parent-comment')
 
-      const callArg = mockCreateNotificationsBulk.mock.calls[0][0]
+      const callArg = mockCreateNotificationsBulk.mock.calls[0]![0]!
       expect(callArg.recipientIds).not.toContain('participant-1')
     })
 

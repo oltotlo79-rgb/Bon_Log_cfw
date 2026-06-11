@@ -176,7 +176,7 @@ describe('HormoneInteractionDiagram - ノード選択', () => {
     const { container } = renderDiagram()
     // 最初のノード（h1=オーキシン）をクリック
     const groups = container.querySelectorAll('svg > g')
-    fireEvent.click(groups[0])
+    fireEvent.click(groups[0]!)
 
     // h2-h4 のエッジ（オーキシン関連でない）の opacity が 0.15
     const lines = container.querySelectorAll('line')
@@ -214,7 +214,7 @@ describe('HormoneInteractionDiagram - エッジホバー', () => {
     const { container } = renderDiagram()
     // 3 番目の interaction（h2-h4）が description: null
     const lines = container.querySelectorAll('line')
-    fireEvent.mouseEnter(lines[2])
+    fireEvent.mouseEnter(lines[2]!)
     // ジベレリン ↔ ストリゴラクトン がパネル <p> に出る
     const panelHeader = container.querySelector('div.bg-muted\\/50 p.font-medium')
     expect(panelHeader?.textContent).toContain('ジベレリン')

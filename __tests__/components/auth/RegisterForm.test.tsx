@@ -271,14 +271,14 @@ describe('RegisterForm', () => {
     expect(passwordInput).toHaveAttribute('type', 'password')
 
     // トグルボタンをクリック
-    const toggleButton = screen.getAllByRole('button', { name: /パスワードを表示/i })[0]
+    const toggleButton = screen.getAllByRole('button', { name: /パスワードを表示/i })[0]!
     await user.click(toggleButton)
 
     // パスワードが表示される
     expect(passwordInput).toHaveAttribute('type', 'text')
 
     // もう一度クリックして非表示に戻す
-    const hideButton = screen.getAllByRole('button', { name: /パスワードを隠す/i })[0]
+    const hideButton = screen.getAllByRole('button', { name: /パスワードを隠す/i })[0]!
     await user.click(hideButton)
 
     expect(passwordInput).toHaveAttribute('type', 'password')
@@ -294,7 +294,7 @@ describe('RegisterForm', () => {
 
     // トグルボタンをクリック（2番目のトグルボタン）
     const toggleButtons = screen.getAllByRole('button', { name: /パスワードを表示/i })
-    await user.click(toggleButtons[1])
+    await user.click(toggleButtons[1]!)
 
     // パスワードが表示される
     expect(confirmPasswordInput).toHaveAttribute('type', 'text')

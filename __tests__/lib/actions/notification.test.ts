@@ -57,7 +57,7 @@ describe('Notification Actions', async () => {
       const result = await getNotifications()
 
       expect(result.notifications).toHaveLength(1)
-      expect(result.notifications[0].actor.nickname).toBe('他のユーザー')
+      expect(result.notifications[0]!.actor.nickname).toBe('他のユーザー')
     })
 
     it('未認証の場合、空配列を返す', async () => {

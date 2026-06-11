@@ -55,7 +55,8 @@ describe('セキュリティイベント管理アクション', () => {
     ;(mockPrisma as Record<string, unknown>).$queryRaw = vi.fn().mockResolvedValue([])
   })
 
-  const getSecurityEvent = () => (mockPrisma as Record<string, unknown>).securityEvent as Record<string, ReturnType<typeof vi.fn>>
+  type SecurityEventMethods = { create: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn>; groupBy: ReturnType<typeof vi.fn> }
+  const getSecurityEvent = () => (mockPrisma as Record<string, unknown>).securityEvent as SecurityEventMethods
 
   // ============================================================
   // logSecurityEvent
@@ -278,7 +279,7 @@ describe('セキュリティイベント管理アクション', () => {
       const { getSecurityEvents } = await import('@/lib/actions/admin/security')
       await getSecurityEvents()
 
-      const call = getSecurityEvent().findMany.mock.calls[0][0]
+      const call = getSecurityEvent().findMany.mock.calls[0]![0]
       expect(call.take).toBe(20)
       expect(call.cursor).toBeUndefined()
       expect(call.skip).toBeUndefined()
@@ -387,8 +388,8 @@ describe('セキュリティイベント管理アクション', () => {
       const result = await getSecurityDashboard()
 
       if ('error' in result) throw new Error('Expected dashboard, got error')
-      expect(result.topFailedIps[0].count).toBe(999)
-      expect(typeof result.topFailedIps[0].count).toBe('number')
+      expect(result.topFailedIps[0]!.count).toBe(999)
+      expect(typeof result.topFailedIps[0]!.count).toBe('number')
     })
 
     it('eventsByTypeの_countがcount名に変換される', async () => {
@@ -423,7 +424,7 @@ describe('セキュリティイベント管理アクション', () => {
         details: complexDetails,
       })
 
-      const createCall = getSecurityEvent().create.mock.calls[0][0]
+      const createCall = getSecurityEvent().create.mock.calls[0]![0]
       // details is passed through JSON.parse(JSON.stringify(...)) in implementation
       const storedDetails = createCall.data.details
       expect(() => JSON.parse(JSON.stringify(storedDetails))).not.toThrow()
@@ -482,12 +483,12 @@ describe('セキュリティイベント管理アクション', () => {
       const countCalls = getSecurityEvent().count.mock.calls
 
       // 1st call: failedLoginsToday (24h ago)
-      const todayFilter = countCalls[0][0].where.createdAt.gte
+      const todayFilter = countCalls[0]![0].where.createdAt.gte
       expect(todayFilter).toBeInstanceOf(Date)
       expect(todayFilter.getTime()).toBeCloseTo(now - 24 * 60 * 60 * 1000, -2)
 
       // 2nd call: failedLoginsWeek (7 days ago)
-      const weekFilter = countCalls[1][0].where.createdAt.gte
+      const weekFilter = countCalls[1]![0].where.createdAt.gte
       expect(weekFilter).toBeInstanceOf(Date)
       expect(weekFilter.getTime()).toBeCloseTo(now - 7 * 24 * 60 * 60 * 1000, -2)
 
@@ -579,7 +580,7 @@ describe('セキュリティイベント管理アクション', () => {
       const { getSecurityEvents } = await import('@/lib/actions/admin/security')
       await getSecurityEvents({ dateTo: '2024-12-31' })
 
-      const call = getSecurityEvent().findMany.mock.calls[0][0]
+      const call = getSecurityEvent().findMany.mock.calls[0]![0]
       expect(call.where.createdAt).not.toHaveProperty('gte')
       expect(call.where.createdAt.lte).toBeInstanceOf(Date)
     })

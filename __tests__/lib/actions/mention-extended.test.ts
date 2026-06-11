@@ -84,8 +84,8 @@ describe('searchMentionUsers', async () => {
 
     const result = await searchMentionUsers('o')
 
-    expect(result[0].id).toBe('u2')
-    expect(result[0].isFollowing).toBe(true)
+    expect(result[0]!.id).toBe('u2')
+    expect(result[0]!.isFollowing).toBe(true)
   })
 
   it('handles db error', async () => {

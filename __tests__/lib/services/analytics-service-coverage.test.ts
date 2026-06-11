@@ -88,8 +88,8 @@ describe('Analytics Service - Coverage Boost (lines 257-388)', () => {
       const { fetchGenrePerformance } = await import('@/lib/services/analytics-service')
       const result = await fetchGenrePerformance('user-1')
 
-      expect(result.genres[0].name).toBe('High')
-      expect(result.genres[1].name).toBe('Low')
+      expect(result.genres[0]!.name).toBe('High')
+      expect(result.genres[1]!.name).toBe('Low')
     })
   })
 

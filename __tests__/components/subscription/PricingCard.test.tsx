@@ -28,17 +28,16 @@ const defaultProps = {
 }
 
 describe('PricingCard', () => {
-  let locationHrefSetter: ReturnType<typeof vi.fn>
+  let locationHrefSetter: (url: string) => void
 
   beforeEach(() => {
     vi.clearAllMocks()
-    locationHrefSetter = vi.fn()
+    locationHrefSetter = vi.fn() as unknown as (url: string) => void
     // Replace window.location so we can intercept the href setter that PricingCard.tsx uses to
     // redirect to Stripe. jsdom's location.href is non-configurable so we replace the whole object.
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: {
-        href: 'http://localhost/',
         pathname: '/',
         search: '',
         hash: '',

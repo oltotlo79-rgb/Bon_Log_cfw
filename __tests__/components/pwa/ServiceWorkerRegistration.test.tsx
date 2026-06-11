@@ -139,14 +139,14 @@ describe('ServiceWorkerRegistration', () => {
     }
 
     // Restore NODE_ENV
-    process.env.NODE_ENV = originalEnv
+    processEnv.NODE_ENV = originalEnv
   })
 
   /**
    * 共通セットアップ: production + serviceWorkerコンテナ設定済みの状態を作る
    */
   function setupProductionSW() {
-    process.env.NODE_ENV = 'production'
+    processEnv.NODE_ENV = 'production'
 
     const swContainer = createMockServiceWorkerContainer()
     Object.defineProperty(navigator, 'serviceWorker', { value: swContainer, configurable: true, writable: true })
@@ -163,7 +163,7 @@ describe('ServiceWorkerRegistration', () => {
     it('オンライン時・更新なしでは何も表示しない', () => {
       Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
       // Use development mode to skip SW registration entirely, avoiding side effects
-      process.env.NODE_ENV = 'development'
+      processEnv.NODE_ENV = 'development'
       const swContainer = createMockServiceWorkerContainer()
       Object.defineProperty(navigator, 'serviceWorker', { value: swContainer, configurable: true, writable: true })
 
@@ -173,7 +173,7 @@ describe('ServiceWorkerRegistration', () => {
 
     it('オフライン時にオフラインバナーを表示する', () => {
       Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
-      process.env.NODE_ENV = 'development'
+      processEnv.NODE_ENV = 'development'
       const swContainer = createMockServiceWorkerContainer()
       Object.defineProperty(navigator, 'serviceWorker', { value: swContainer, configurable: true, writable: true })
 
@@ -186,7 +186,7 @@ describe('ServiceWorkerRegistration', () => {
 
     it('オフラインバナーにaria-live="assertive"がある', () => {
       Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
-      process.env.NODE_ENV = 'development'
+      processEnv.NODE_ENV = 'development'
       const swContainer = createMockServiceWorkerContainer()
       Object.defineProperty(navigator, 'serviceWorker', { value: swContainer, configurable: true, writable: true })
 
@@ -300,7 +300,7 @@ describe('ServiceWorkerRegistration', () => {
 
   describe('Service Worker未サポート', () => {
     it('serviceWorkerがnavigatorに存在しない場合は何もしない', () => {
-      process.env.NODE_ENV = 'production'
+      processEnv.NODE_ENV = 'production'
 
       // Remove serviceWorker entirely via delete so that 'serviceWorker' in navigator === false
       // We need to make it configurable first
@@ -342,7 +342,7 @@ describe('ServiceWorkerRegistration', () => {
 
   describe('Service Worker登録 (readyState=loading)', () => {
     it('document.readyState が loading のとき load イベントを待つ', async () => {
-      process.env.NODE_ENV = 'production'
+      processEnv.NODE_ENV = 'production'
       const swContainer = createMockServiceWorkerContainer()
       Object.defineProperty(navigator, 'serviceWorker', { value: swContainer, configurable: true, writable: true })
       Object.defineProperty(document, 'readyState', { value: 'loading', configurable: true })
@@ -421,7 +421,7 @@ describe('ServiceWorkerRegistration', () => {
       await act(async () => {
         const cbs = registration.__listeners['updatefound']
         expect(cbs).toBeDefined()
-        cbs.forEach(cb => cb())
+        cbs!.forEach(cb => cb())
       })
 
       // Simulate the new worker transitioning to 'installed'
@@ -429,7 +429,7 @@ describe('ServiceWorkerRegistration', () => {
       await act(async () => {
         const cbs = newWorker.__listeners['statechange']
         expect(cbs).toBeDefined()
-        cbs.forEach(cb => cb())
+        cbs!.forEach(cb => cb())
       })
 
       expect(consoleLogSpy).toHaveBeenCalledWith('[SW] New version available')
@@ -452,13 +452,13 @@ describe('ServiceWorkerRegistration', () => {
 
       // fire updatefound
       await act(async () => {
-        registration.__listeners['updatefound'].forEach(cb => cb())
+        registration.__listeners['updatefound']!.forEach(cb => cb())
       })
 
       // worker installed but no controller
       newWorker.state = 'installed'
       await act(async () => {
-        newWorker.__listeners['statechange'].forEach(cb => cb())
+        newWorker.__listeners['statechange']!.forEach(cb => cb())
       })
 
       expect(screen.queryByText('アップデートがあります')).not.toBeInTheDocument()
@@ -480,13 +480,13 @@ describe('ServiceWorkerRegistration', () => {
 
       // fire updatefound
       await act(async () => {
-        registration.__listeners['updatefound'].forEach(cb => cb())
+        registration.__listeners['updatefound']!.forEach(cb => cb())
       })
 
       // Worker is still in 'installing' state, not 'installed'
       newWorker.state = 'activating'
       await act(async () => {
-        newWorker.__listeners['statechange'].forEach(cb => cb())
+        newWorker.__listeners['statechange']!.forEach(cb => cb())
       })
 
       expect(screen.queryByText('アップデートがあります')).not.toBeInTheDocument()
@@ -506,7 +506,7 @@ describe('ServiceWorkerRegistration', () => {
 
       // fire updatefound - should not crash even though installing is null
       await act(async () => {
-        registration.__listeners['updatefound'].forEach(cb => cb())
+        registration.__listeners['updatefound']!.forEach(cb => cb())
       })
 
       // No crash, no update prompt
@@ -708,10 +708,10 @@ describe('ServiceWorkerRegistration', () => {
       // Trigger controllerchange
       const cbs = swContainer.__listeners['controllerchange']
       expect(cbs).toBeDefined()
-      expect(cbs.length).toBeGreaterThan(0)
+      expect(cbs!.length).toBeGreaterThan(0)
 
       await act(async () => {
-        cbs.forEach(cb => cb())
+        cbs!.forEach(cb => cb())
       })
 
       // window.location.reload is called but cannot be mocked in jsdom;
@@ -734,9 +734,9 @@ describe('ServiceWorkerRegistration', () => {
       const cbs = swContainer.__listeners['controllerchange']
 
       await act(async () => {
-        cbs.forEach(cb => cb())
-        cbs.forEach(cb => cb())
-        cbs.forEach(cb => cb())
+        cbs!.forEach(cb => cb())
+        cbs!.forEach(cb => cb())
+        cbs!.forEach(cb => cb())
       })
 
       // refreshing flag should prevent multiple executions; log should appear only once

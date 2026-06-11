@@ -6,7 +6,7 @@ import { createMockPrismaClient, mockUser, mockShop } from '../../utils/test-uti
 // Prismaモック
 const mockPrisma = createMockPrismaClient()
 // Add aggregate mock for shopReview (not in createMockPrismaClient)
-;(mockPrisma.shopReview as any).aggregate = vi.fn()
+;(mockPrisma.shopReview as Record<string, unknown>).aggregate = vi.fn()
 vi.mock('@/lib/db', () => ({
   prisma: mockPrisma,
 }))
@@ -73,8 +73,8 @@ describe('Shop Actions', async () => {
       const result = await getShops()
 
       expect(result.shops).toHaveLength(1)
-      expect(result.shops[0].name).toBe('テスト盆栽園')
-      expect(result.shops[0].averageRating).toBe(4.5)
+      expect(result.shops[0]!.name).toBe('テスト盆栽園')
+      expect(result.shops[0]!.averageRating).toBe(4.5)
     })
 
     it('非表示盆栽園は除外される', async () => {
@@ -131,8 +131,8 @@ describe('Shop Actions', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('test-shop-id')
 
-      expect(result.shop).toBeDefined()
-      expect(result.shop?.name).toBe('テスト盆栽園')
+      expect(('shop' in result ? result.shop : undefined)).toBeDefined()
+      expect(('shop' in result ? result.shop : undefined)?.name).toBe('テスト盆栽園')
     })
 
     it('存在しない盆栽園はエラーを返す', async () => {
@@ -145,7 +145,8 @@ describe('Shop Actions', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('non-existent')
 
-      expect(result.error).toBe('盆栽園が見つかりません')
+      expect(('success' in result ? result.success : undefined)).toBe(false)
+      expect(('error' in result ? result.error : undefined)).toBe('盆栽園が見つかりません')
     })
 
     it('自分の盆栽園はisOwner=trueを返す', async () => {
@@ -162,7 +163,7 @@ describe('Shop Actions', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('test-shop-id')
 
-      expect(result.shop?.isOwner).toBe(true)
+      expect(('shop' in result ? result.shop : undefined)?.isOwner).toBe(true)
     })
   })
 
@@ -433,8 +434,8 @@ describe('Shop Actions', async () => {
       const result = await getShops({ sortBy: 'rating' })
 
       // 評価の高い方が先
-      expect(result.shops[0].averageRating).toBe(5)
-      expect(result.shops[1].averageRating).toBe(3)
+      expect(result.shops[0]!.averageRating).toBe(5)
+      expect(result.shops[1]!.averageRating).toBe(3)
     })
 
     it('レビューがない盆栽園は評価順ソートで後ろになる', async () => {
@@ -459,8 +460,8 @@ describe('Shop Actions', async () => {
       const { getShops } = await import('@/lib/actions/shop')
       const result = await getShops({ sortBy: 'rating' })
 
-      expect(result.shops[0].averageRating).toBe(3)
-      expect(result.shops[1].averageRating).toBeNull()
+      expect(result.shops[0]!.averageRating).toBe(3)
+      expect(result.shops[1]!.averageRating).toBeNull()
     })
   })
 
@@ -533,9 +534,9 @@ describe('Shop Actions', async () => {
       const { geocodeAddress } = await import('@/lib/actions/shop')
       const result = await geocodeAddress('東京都渋谷区')
 
-      expect(result.latitude).toBe(35.6762)
-      expect(result.longitude).toBe(139.6503)
-      expect(result.displayName).toBe('東京都渋谷区代々木1-1-1')
+      expect('latitude' in result ? result.latitude : undefined).toBe(35.6762)
+      expect('longitude' in result ? result.longitude : undefined).toBe(139.6503)
+      expect('displayName' in result ? result.displayName : undefined).toBe('東京都渋谷区代々木1-1-1')
     })
 
     it('住所が見つからない場合はエラーを返す', async () => {
@@ -547,7 +548,8 @@ describe('Shop Actions', async () => {
       const { geocodeAddress } = await import('@/lib/actions/shop')
       const result = await geocodeAddress('存在しない住所')
 
-      expect(result.error).toBe('住所が見つかりませんでした')
+      expect(('success' in result ? result.success : undefined)).toBe(false)
+      expect(('error' in result ? result.error : undefined)).toBe('住所が見つかりませんでした')
     })
 
     it('APIエラーの場合はエラーを返す', async () => {
@@ -558,7 +560,8 @@ describe('Shop Actions', async () => {
       const { geocodeAddress } = await import('@/lib/actions/shop')
       const result = await geocodeAddress('東京都')
 
-      expect(result.error).toBe('住所の検索に失敗しました')
+      expect(('success' in result ? result.success : undefined)).toBe(false)
+      expect(('error' in result ? result.error : undefined)).toBe('住所の検索に失敗しました')
     })
 
     it('例外発生時はエラーを返す', async () => {
@@ -567,7 +570,8 @@ describe('Shop Actions', async () => {
       const { geocodeAddress } = await import('@/lib/actions/shop')
       const result = await geocodeAddress('東京都')
 
-      expect(result.error).toBe('住所の検索中にエラーが発生しました')
+      expect(('success' in result ? result.success : undefined)).toBe(false)
+      expect(('error' in result ? result.error : undefined)).toBe('住所の検索中にエラーが発生しました')
     })
   })
 
@@ -591,7 +595,7 @@ describe('Shop Actions', async () => {
       const result = await searchAddressSuggestions('東京都')
 
       expect(result.suggestions).toHaveLength(2)
-      expect(result.suggestions[0].displayName).toBe('東京都渋谷区')
+      expect(result.suggestions[0]!.displayName).toBe('東京都渋谷区')
     })
 
     it('クエリが2文字未満の場合は空を返す', async () => {
@@ -852,7 +856,7 @@ describe('Shop Actions', async () => {
       const { getShopChangeRequests } = await import('@/lib/actions/shop')
       const result = await getShopChangeRequests()
 
-      expect(result.requests).toHaveLength(1)
+      expect(('requests' in result ? result.requests : undefined)).toHaveLength(1)
     })
 
     it('ステータスでフィルタリングできる', async () => {
@@ -1055,8 +1059,8 @@ describe('Shop Actions', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('test-shop-id')
 
-      expect(result.shop).toBeDefined()
-      expect(result.shop?.genres).toBeDefined()
+      expect(('shop' in result ? result.shop : undefined)).toBeDefined()
+      expect(('shop' in result ? result.shop : undefined)?.genres).toBeDefined()
     })
 
     it('レビューなしの盆栽園は平均評価がnull', async () => {
@@ -1069,8 +1073,8 @@ describe('Shop Actions', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('test-shop-id')
 
-      expect(result.shop).toBeDefined()
-      expect(result.shop?.averageRating).toBeNull()
+      expect(('shop' in result ? result.shop : undefined)).toBeDefined()
+      expect(('shop' in result ? result.shop : undefined)?.averageRating).toBeNull()
     })
 
     it('未認証でも盆栽園詳細を取得できる', async () => {
@@ -1084,8 +1088,8 @@ describe('Shop Actions', async () => {
       const { getShop } = await import('@/lib/actions/shop')
       const result = await getShop('test-shop-id')
 
-      expect(result.shop).toBeDefined()
-      expect(result.shop?.isOwner).toBe(false)
+      expect(('shop' in result ? result.shop : undefined)).toBeDefined()
+      expect(('shop' in result ? result.shop : undefined)?.isOwner).toBe(false)
     })
   })
 
@@ -1329,8 +1333,8 @@ describe('Shop Actions', async () => {
       const { getShopChangeRequest } = await import('@/lib/actions/shop')
       const result = await getShopChangeRequest('request-id')
 
-      expect(result.request).toBeDefined()
-      expect(result.request?.id).toBe('request-id')
+      expect(('request' in result ? result.request : undefined)).toBeDefined()
+      expect(('request' in result ? result.request : undefined)?.id).toBe('request-id')
     })
   })
 })

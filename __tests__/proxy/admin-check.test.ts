@@ -128,7 +128,7 @@ describe('proxy admin route protection', () => {
 
     // /admin is in PROTECTED_PATHS and user is not logged in
     expect(mockRedirect).toHaveBeenCalled()
-    const redirectCall = mockRedirect.mock.calls[0]
+    const redirectCall = mockRedirect.mock.calls[0]!
     const redirectUrl = redirectCall[0] as URL
     expect(redirectUrl.pathname).toBe('/login')
     expect(redirectUrl.searchParams.get('callbackUrl')).toBe('/admin')
@@ -206,7 +206,7 @@ describe('proxy admin route protection', () => {
     await authCallback!(req)
 
     expect(mockRedirect).toHaveBeenCalled()
-    const redirectCall = mockRedirect.mock.calls[0]
+    const redirectCall = mockRedirect.mock.calls[0]!
     const redirectUrl = redirectCall[0] as URL
     expect(redirectUrl.pathname).toBe('/login')
   })

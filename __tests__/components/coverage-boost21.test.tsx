@@ -502,7 +502,7 @@ describe('PostFormModal', () => {
 
       // Close button (first button in header)
       const buttons = screen.getAllByRole('button')
-      const closeButton = buttons[0]
+      const closeButton = buttons[0]!
       await userEvent.click(closeButton)
 
       // Should close immediately without confirmation
@@ -526,7 +526,7 @@ describe('PostFormModal', () => {
 
       // Try to close (first button in header)
       const buttons = screen.getAllByRole('button')
-      const closeButton = buttons[0]
+      const closeButton = buttons[0]!
       await userEvent.click(closeButton)
 
       // ConfirmDialog should appear (discard variant uses "続けて編集" as cancel)
@@ -555,7 +555,7 @@ describe('PostFormModal', () => {
 
       // Try to close (first button in header)
       const buttons = screen.getAllByRole('button')
-      const closeButton = buttons[0]
+      const closeButton = buttons[0]!
       await userEvent.click(closeButton)
 
       // ConfirmDialog should appear

@@ -194,8 +194,8 @@ describe('SIMULATOR constants', () => {
   })
 
   it('MAGNITUDE_DELTA は strong > moderate > mild の順で大きい', () => {
-    expect(SIMULATOR_MAGNITUDE_DELTA.strong).toBeGreaterThan(SIMULATOR_MAGNITUDE_DELTA.moderate)
-    expect(SIMULATOR_MAGNITUDE_DELTA.moderate).toBeGreaterThan(SIMULATOR_MAGNITUDE_DELTA.mild)
+    expect(SIMULATOR_MAGNITUDE_DELTA['strong']).toBeGreaterThan(SIMULATOR_MAGNITUDE_DELTA['moderate']!)
+    expect(SIMULATOR_MAGNITUDE_DELTA['moderate']).toBeGreaterThan(SIMULATOR_MAGNITUDE_DELTA['mild']!)
   })
 
   it('MAGNITUDE_DELTA すべて正の値（減少は呼び出し側で符号反転）', () => {
@@ -206,12 +206,12 @@ describe('SIMULATOR constants', () => {
 
   it('LEVEL_THRESHOLDS は min が降順で並んでいる（カットオフ判定の前提）', () => {
     for (let i = 1; i < SIMULATOR_LEVEL_THRESHOLDS.length; i++) {
-      expect(SIMULATOR_LEVEL_THRESHOLDS[i].min).toBeLessThan(SIMULATOR_LEVEL_THRESHOLDS[i - 1].min)
+      expect(SIMULATOR_LEVEL_THRESHOLDS[i]!.min).toBeLessThan(SIMULATOR_LEVEL_THRESHOLDS[i - 1]!.min)
     }
   })
 
   it('LEVEL_THRESHOLDS の最小 min は 0（minimal の境界）', () => {
-    const last = SIMULATOR_LEVEL_THRESHOLDS[SIMULATOR_LEVEL_THRESHOLDS.length - 1]
+    const last = SIMULATOR_LEVEL_THRESHOLDS[SIMULATOR_LEVEL_THRESHOLDS.length - 1]!
     expect(last.min).toBe(0)
     expect(last.level).toBe('minimal')
   })

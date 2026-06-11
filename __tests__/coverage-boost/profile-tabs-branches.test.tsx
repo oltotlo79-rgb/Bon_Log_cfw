@@ -29,6 +29,7 @@ vi.mock('@/lib/actions/like', () => ({ toggleLike: vi.fn() }))
 vi.mock('@/lib/actions/hide-post', () => ({ hidePost: vi.fn() }))
 
 import { ProfileTabs } from '@/components/user/ProfileTabs'
+import type { Post } from '@/types/post'
 
 function createComment(overrides: Record<string, unknown> = {}) {
   return {
@@ -57,14 +58,14 @@ describe('ProfileTabs ブランチカバレッジ', () => {
       const posts = [
         { id: 'post-1', content: '最初の投稿' },
         { id: 'post-2', content: '2番目の投稿' },
-      ]
+      ] as unknown as Post[]
       render(<ProfileTabs posts={posts} comments={[]} />)
       expect(screen.getByTestId('post-card-post-1')).toBeInTheDocument()
       expect(screen.getByTestId('post-card-post-2')).toBeInTheDocument()
     })
 
     it('currentUserIdをPostCardに渡す', () => {
-      const posts = [{ id: 'post-1', content: '投稿' }]
+      const posts = [{ id: 'post-1', content: '投稿' }] as unknown as Post[]
       render(<ProfileTabs posts={posts} comments={[]} currentUserId="user-1" />)
       expect(screen.getByTestId('post-card-post-1')).toBeInTheDocument()
     })

@@ -44,11 +44,11 @@ describe('spray-parser', () => {
     it('スプレー製品を抽出する', () => {
       const result = extractPesticidesFromSpray(SAMPLE_SPRAY_SRC)
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('benica-x-fine-spray')
-      expect(result[0].name).toBe('ベニカXファインスプレー')
-      expect(result[0].registrationNumber).toBe('22506')
-      expect(result[0].pesticideType).toBe('compound')
-      expect(result[0].source).toBe('spray')
+      expect(result[0]!.slug).toBe('benica-x-fine-spray')
+      expect(result[0]!.name).toBe('ベニカXファインスプレー')
+      expect(result[0]!.registrationNumber).toBe('22506')
+      expect(result[0]!.pesticideType).toBe('compound')
+      expect(result[0]!.source).toBe('spray')
     })
   })
 
@@ -56,9 +56,9 @@ describe('spray-parser', () => {
     it('ensureActiveIngredient形式の成分を抽出する', () => {
       const result = extractIngredientsFromSpray(SAMPLE_SPRAY_SRC)
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('mepanipyrim')
-      expect(result[0].nameEn).toBe('Mepanipyrim')
-      expect(result[0].fracCode).toBe('9')
+      expect(result[0]!.slug).toBe('mepanipyrim')
+      expect(result[0]!.nameEn).toBe('Mepanipyrim')
+      expect(result[0]!.fracCode).toBe('9')
     })
   })
 
@@ -79,12 +79,12 @@ describe('spray-parser', () => {
     it('スプレー製品の効果データを抽出する', () => {
       const result = extractEffectsFromSpray(SAMPLE_SPRAY_SRC)
       expect(result).toHaveLength(2)
-      expect(result[0].pesticideSlug).toBe('benica-x-fine-spray')
-      expect(result[0].diseasePestSlug).toBe('udonko-byo')
-      expect(result[0].preventionLevel).toBe('good')
-      expect(result[1].diseasePestSlug).toBe('aburamushi')
-      expect(result[1].efficacyLevel).toBe('excellent')
-      expect(result[0].source).toBe('spray')
+      expect(result[0]!.pesticideSlug).toBe('benica-x-fine-spray')
+      expect(result[0]!.diseasePestSlug).toBe('udonko-byo')
+      expect(result[0]!.preventionLevel).toBe('good')
+      expect(result[1]!.diseasePestSlug).toBe('aburamushi')
+      expect(result[1]!.efficacyLevel).toBe('excellent')
+      expect(result[0]!.source).toBe('spray')
     })
   })
 

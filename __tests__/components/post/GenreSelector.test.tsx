@@ -102,9 +102,9 @@ describe('GenreSelector', () => {
     const kuromatsus = screen.getAllByText('黒松')
     // 複数ある場合は後の要素がドロップダウン内のはず
     if (kuromatsus.length > 1) {
-      await user.click(kuromatsus[1])
+      await user.click(kuromatsus[1]!)
     } else {
-      await user.click(kuromatsus[0])
+      await user.click(kuromatsus[0]!)
     }
 
     await waitFor(() => {

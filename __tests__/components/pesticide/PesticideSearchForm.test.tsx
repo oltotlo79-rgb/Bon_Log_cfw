@@ -133,7 +133,7 @@ describe('PesticideSearchForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '検索' }))
 
     expect(mockPush).toHaveBeenCalledWith(expect.stringMatching(/search=/))
-    const url = mockPush.mock.calls[0][0]
+    const url = mockPush.mock.calls[0]?.[0]
     expect(url).not.toContain('diseasePest')
   })
 })

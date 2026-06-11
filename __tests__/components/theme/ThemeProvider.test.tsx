@@ -6,9 +6,9 @@ import { act } from 'react'
 // localStorageモック
 type MockLocalStorage = {
   store: Record<string, string>
-  getItem: ReturnType<typeof vi.fn>
-  setItem: ReturnType<typeof vi.fn>
-  clear: ReturnType<typeof vi.fn>
+  getItem: (key: string) => string | null
+  setItem: (key: string, value: string) => void
+  clear: () => void
 }
 
 const mockLocalStorage: MockLocalStorage = {

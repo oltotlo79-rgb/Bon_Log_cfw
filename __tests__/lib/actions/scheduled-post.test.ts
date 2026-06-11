@@ -318,7 +318,7 @@ describe('Scheduled Post Actions', async () => {
 
       const successResult = result as { success: true; data: { scheduledPosts: Array<{ genres: Array<{ name: string }> }> } }
       expect(successResult.data.scheduledPosts).toHaveLength(1)
-      expect(successResult.data.scheduledPosts[0].genres[0].name).toBe('黒松')
+      expect(successResult.data.scheduledPosts[0]!.genres[0]!.name).toBe('黒松')
     })
 
     it('未認証の場合、エラーを返す', async () => {
@@ -602,154 +602,6 @@ describe('Scheduled Post Actions', async () => {
   })
 
   // ============================================================
-  // publishScheduledPosts
-  // ============================================================
-
-  describe('publishScheduledPosts', async () => {
-    // publishScheduledPosts は fail-closed。公開ロジックのテストでは正規のシークレットで認証する。
-    const originalCronSecret = process.env.CRON_SECRET
-    beforeEach(() => {
-      process.env.CRON_SECRET = 'test-secret'
-    })
-    afterEach(() => {
-      if (originalCronSecret === undefined) delete process.env.CRON_SECRET
-      else process.env.CRON_SECRET = originalCronSecret
-    })
-
-    it('予約投稿を公開できる', async () => {
-      const now = new Date()
-      const pastDate = new Date(now.getTime() - 60000) // 1分前
-
-      mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([{
-        id: mockScheduledPost.id,
-        userId: mockUser.id,
-        content: '予約投稿の内容',
-        scheduledAt: pastDate,
-        status: 'pending',
-        media: [],
-        genres: [],
-      }])
-      mockPrisma.post.create.mockResolvedValueOnce({ id: 'new-post-id' })
-      mockPrisma.scheduledPost.update.mockResolvedValueOnce({
-        ...mockScheduledPost,
-        status: 'published',
-      })
-
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('test-secret')
-
-      expect(result.success).toBe(true)
-      if (result.success) {
-        expect(result.data?.published).toBe(1)
-        expect(result.data?.failed).toBe(0)
-      }
-    })
-
-    it('公開対象がない場合、0件を返す', async () => {
-      mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([])
-
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('test-secret')
-
-      expect(result).toMatchObject({ success: true, data: { published: 0, failed: 0 } })
-    })
-
-    it('エラーが発生した場合、failedをカウントする', async () => {
-      const now = new Date()
-      const pastDate = new Date(now.getTime() - 60000)
-
-      mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([{
-        id: mockScheduledPost.id,
-        userId: mockUser.id,
-        content: '予約投稿の内容',
-        scheduledAt: pastDate,
-        status: 'pending',
-        media: [],
-        genres: [],
-      }])
-      // $transaction itself rejects to simulate a DB error inside the transaction
-      mockPrisma.$transaction.mockRejectedValueOnce(new Error('Database error'))
-      mockPrisma.scheduledPost.update.mockResolvedValueOnce({
-        ...mockScheduledPost,
-        status: 'failed',
-      })
-
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('test-secret')
-
-      expect(result.success).toBe(true)
-      if (result.success) {
-        expect(result.data?.published).toBe(0)
-        expect(result.data?.failed).toBe(1)
-      }
-    })
-
-    it('メディアとジャンル付きの予約投稿を公開できる', async () => {
-      const now = new Date()
-      const pastDate = new Date(now.getTime() - 60000)
-
-      mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([{
-        id: mockScheduledPost.id,
-        userId: mockUser.id,
-        content: '予約投稿の内容',
-        scheduledAt: pastDate,
-        status: 'pending',
-        media: [
-          { url: 'https://example.com/image.jpg', type: 'image', sortOrder: 0 },
-        ],
-        genres: [
-          { genreId: 'genre-1' },
-        ],
-      }])
-
-      // $transactionのコールバックで tx.post.create が呼ばれるため、
-      // $transaction 自体をモックして呼び出し内容を検証する
-      let capturedCallback: ((tx: unknown) => Promise<string>) | null = null
-      mockPrisma.$transaction.mockImplementationOnce((cb: (tx: unknown) => Promise<string>) => {
-        capturedCallback = cb
-        // tx.post.create が data を受け取れるようにモックして実行
-        const txMock = {
-          post: { create: vi.fn().mockResolvedValue({ id: 'new-post-id' }) },
-          scheduledPost: { update: vi.fn().mockResolvedValue({}) },
-          scheduledPostMedia: { deleteMany: vi.fn().mockResolvedValue({}) },
-          scheduledPostGenre: { deleteMany: vi.fn().mockResolvedValue({}) },
-        }
-        return cb(txMock).then((result) => {
-          // tx.post.create の呼び出し内容を検証
-          expect(txMock.post.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-              data: expect.objectContaining({
-                content: '予約投稿の内容',
-                media: expect.objectContaining({
-                  create: expect.arrayContaining([
-                    expect.objectContaining({ url: 'https://example.com/image.jpg' }),
-                  ]),
-                }),
-                genres: expect.objectContaining({
-                  create: expect.arrayContaining([
-                    expect.objectContaining({ genreId: 'genre-1' }),
-                  ]),
-                }),
-              }),
-            })
-          )
-          return result
-        })
-      })
-
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('test-secret')
-
-      expect(result.success).toBe(true)
-      if (result.success) {
-        expect(result.data?.published).toBe(1)
-        expect(result.data?.failed).toBe(0)
-      }
-      expect(capturedCallback).not.toBeNull()
-    })
-  })
-
-  // ============================================================
   // deleteScheduledPost - 追加テスト
   // ============================================================
 
@@ -928,60 +780,63 @@ describe('Scheduled Post Actions', async () => {
   })
 
   // ============================================================
-  // publishScheduledPosts - 追加テスト
+  // T2: 空文字 id による ERR_INVALID_INPUT（scheduledPostIdSchema）
   // ============================================================
 
-  describe('publishScheduledPosts - additional', async () => {
-    it('CRON_SECRETが設定されている場合、不正なシークレットでエラーを返す', async () => {
-      const originalEnv = process.env.CRON_SECRET
-      process.env.CRON_SECRET = 'test-secret'
+  describe('getScheduledPost - Zod id バリデーション', async () => {
+    it('空文字 id の場合 ERR_INVALID_INPUT を返す', async () => {
+      const { getScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await getScheduledPost('')
 
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('wrong-secret')
-
-      expect(result).toMatchObject({ error: '認証エラー' })
-
-      process.env.CRON_SECRET = originalEnv
+      expect(result).toMatchObject({ error: '入力データが不正です' })
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
     })
 
-    it('CRON_SECRETが未設定の場合、fail-closed で拒否し公開処理を実行しない', async () => {
-      const originalEnv = process.env.CRON_SECRET
-      delete process.env.CRON_SECRET
+    it('レート制限超過時はエラーを返し DB 探索もしない', async () => {
+      mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
 
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('any-secret')
+      const { getScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await getScheduledPost(mockScheduledPost.id)
 
-      expect(result).toMatchObject({ error: '認証エラー' })
-      expect(mockPrisma.scheduledPost.findMany).not.toHaveBeenCalled()
-
-      if (originalEnv === undefined) delete process.env.CRON_SECRET
-      else process.env.CRON_SECRET = originalEnv
-    })
-
-    it('CRON_SECRETが設定されている場合、正しいシークレットで実行できる', async () => {
-      const originalEnv = process.env.CRON_SECRET
-      process.env.CRON_SECRET = 'test-secret'
-      mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([])
-
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('test-secret')
-
-      expect(result).toMatchObject({ success: true, data: { published: 0, failed: 0 } })
-
-      process.env.CRON_SECRET = originalEnv
-    })
-
-    it('公開対象がない場合CRON_SECRET認証後に0件を返す', async () => {
-      const originalEnv = process.env.CRON_SECRET
-      process.env.CRON_SECRET = 'test-secret'
-      mockPrisma.scheduledPost.findMany.mockResolvedValueOnce([])
-
-      const { publishScheduledPosts } = await import('@/lib/actions/scheduled-post')
-      const result = await publishScheduledPosts('test-secret')
-
-      expect(result).toMatchObject({ success: true, data: { published: 0, failed: 0 } })
-
-      process.env.CRON_SECRET = originalEnv
+      expect(result).toMatchObject({ error: expect.stringContaining('操作が多すぎます') })
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
     })
   })
+
+  describe('updateScheduledPost - Zod id バリデーション', async () => {
+    it('空文字 id の場合 ERR_INVALID_INPUT を返す', async () => {
+      const formData = new FormData()
+      formData.set('content', 'テスト')
+      const futureDate = new Date()
+      futureDate.setDate(futureDate.getDate() + 1)
+      formData.set('scheduledAt', futureDate.toISOString())
+
+      const { updateScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await updateScheduledPost('', formData)
+
+      expect(result).toMatchObject({ error: '入力データが不正です' })
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('deleteScheduledPost - Zod id バリデーション', async () => {
+    it('空文字 id の場合 ERR_INVALID_INPUT を返しレート制限前にブロック', async () => {
+      const { deleteScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await deleteScheduledPost('')
+
+      expect(result).toMatchObject({ error: '入力データが不正です' })
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('cancelScheduledPost - Zod id バリデーション', async () => {
+    it('空文字 id の場合 ERR_INVALID_INPUT を返しレート制限前にブロック', async () => {
+      const { cancelScheduledPost } = await import('@/lib/actions/scheduled-post')
+      const result = await cancelScheduledPost('')
+
+      expect(result).toMatchObject({ error: '入力データが不正です' })
+      expect(mockPrisma.scheduledPost.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
 })

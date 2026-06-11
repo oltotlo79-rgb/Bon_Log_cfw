@@ -315,10 +315,10 @@ describe('bonsai-record actions', () => {
     }
 
     /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
-    function unwrap<T>(result: { success: true; data?: T } | { success: false; error: string }): T {
+    function unwrap<T>(result: { success: true; data?: unknown } | { success: false; error: string }): T {
       if (!result.success) throw new Error(`Expected success, got error: ${result.error}`)
       if (!result.data) throw new Error('Expected data to be defined')
-      return result.data
+      return result.data as T
     }
 
     it('記録一覧を取得できる', async () => {
@@ -397,10 +397,10 @@ describe('bonsai-record actions', () => {
     }
 
     /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
-    function unwrap<T>(result: { success: true; data?: T } | { success: false; error: string }): T {
+    function unwrap<T>(result: { success: true; data?: unknown } | { success: false; error: string }): T {
       if (!result.success) throw new Error(`Expected success, got error: ${result.error}`)
       if (!result.data) throw new Error('Expected data to be defined')
-      return result.data
+      return result.data as T
     }
 
     it('指定盆栽の記録一覧を取得できる', async () => {
@@ -555,7 +555,7 @@ describe('bonsai-record actions', () => {
     it('レート制限に達した場合エラーを返す', async () => {
       mockRequireActiveNonGuestUser.mockResolvedValue({ userId: 'user-1' })
       const { checkUserRateLimit: mockRL } = await import('@/lib/rate-limit')
-      vi.mocked(mockRL).mockResolvedValueOnce({ success: false, remaining: 0, reset: Date.now() })
+      vi.mocked(mockRL).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: Date.now() })
       const updateBonsaiRecord = await importAction()
 
       const result = await updateBonsaiRecord('rec-1', { content: 'updated' })
@@ -600,7 +600,7 @@ describe('bonsai-record actions', () => {
     it('レート制限に達した場合エラーを返す', async () => {
       mockRequireActiveNonGuestUser.mockResolvedValue({ userId: 'user-1' })
       const { checkUserRateLimit: mockRL } = await import('@/lib/rate-limit')
-      vi.mocked(mockRL).mockResolvedValueOnce({ success: false, remaining: 0, reset: Date.now() })
+      vi.mocked(mockRL).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: Date.now() })
       const deleteBonsaiRecord = await importAction()
 
       const result = await deleteBonsaiRecord('rec-1')

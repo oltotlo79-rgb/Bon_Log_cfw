@@ -66,6 +66,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={null}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -87,6 +90,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={null}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -102,6 +108,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={null}
         engagementTrend={baseEngagementTrend}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -117,6 +126,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={null}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -131,6 +143,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={null}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -146,6 +161,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={null}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -160,6 +178,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={null}
         keywordAnalytics={baseKeywordAnalytics}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -175,6 +196,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={baseQuoteAnalytics}
         keywordAnalytics={null}
         engagementTrend={null}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 
@@ -190,6 +214,9 @@ describe('AnalyticsDashboard', () => {
         quoteAnalytics={baseQuoteAnalytics}
         keywordAnalytics={baseKeywordAnalytics}
         engagementTrend={baseEngagementTrend}
+        genrePerformance={null}
+        followerGrowth={null}
+        periodComparison={null}
       />
     )
 

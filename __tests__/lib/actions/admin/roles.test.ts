@@ -98,7 +98,7 @@ describe('管理者ロール管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected admins, got error')
       expect(result.admins).toHaveLength(2)
-      expect(result.admins[0].user.nickname).toBe('管理者A')
+      expect(result.admins[0]!.user.nickname).toBe('管理者A')
     })
 
     it('管理者が0人の場合は空配列を返す', async () => {

@@ -21,10 +21,10 @@ function setLocation(href: string) {
 }
 
 describe('HomeUrlCleaner', () => {
-  let replaceState: ReturnType<typeof vi.fn>
+  let replaceState: (data: unknown, unused: string, url?: string | URL | null) => void
 
   beforeEach(() => {
-    replaceState = vi.fn()
+    replaceState = vi.fn() as unknown as (data: unknown, unused: string, url?: string | URL | null) => void
     vi.spyOn(window.history, 'replaceState').mockImplementation(replaceState)
   })
 

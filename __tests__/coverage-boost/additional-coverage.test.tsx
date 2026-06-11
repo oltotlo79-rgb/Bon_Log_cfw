@@ -431,7 +431,7 @@ describe('BlockedUserList - 追加テスト', () => {
       render(<BlockedUserList users={blockedUsers} />)
 
       const unblockButtons = screen.getAllByRole('button', { name: /ブロック解除/i })
-      await user.click(unblockButtons[0])
+      await user.click(unblockButtons[0]!)
 
       await waitFor(() => {
         expect(mockUnblockUser).toHaveBeenCalledWith('user-1')
@@ -486,7 +486,7 @@ describe('MutedUserList - 追加テスト', () => {
       render(<MutedUserList users={mutedUsers} />)
 
       const unmuteButtons = screen.getAllByRole('button', { name: /ミュート解除/i })
-      await user.click(unmuteButtons[0])
+      await user.click(unmuteButtons[0]!)
 
       await waitFor(() => {
         expect(mockUnmuteUser).toHaveBeenCalledWith('user-1')

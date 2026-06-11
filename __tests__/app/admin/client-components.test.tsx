@@ -162,11 +162,8 @@ describe('NgWordList', () => {
     render(
       <NgWordList
         words={[]}
-        total={0}
         search=""
         category=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('NGワードが見つかりません')).toBeInTheDocument()
@@ -194,11 +191,8 @@ describe('NgWordList', () => {
     render(
       <NgWordList
         words={words}
-        total={2}
         search=""
         category=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('bad-word')).toBeInTheDocument()
@@ -215,11 +209,8 @@ describe('NgWordList', () => {
     render(
       <NgWordList
         words={[]}
-        total={0}
         search=""
         category=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('NGワードを追加')).toBeInTheDocument()
@@ -237,10 +228,6 @@ describe('ModerationQueueList', () => {
     render(
       <ModerationQueueList
         items={[]}
-        total={0}
-        currentPage={1}
-        totalPages={1}
-        currentStatus="pending"
       />
     )
     expect(screen.getByText('モデレーション対象が見つかりません')).toBeInTheDocument()
@@ -274,10 +261,6 @@ describe('ModerationQueueList', () => {
     render(
       <ModerationQueueList
         items={items}
-        total={2}
-        currentPage={1}
-        totalPages={1}
-        currentStatus="pending"
       />
     )
     expect(screen.getByText('未対応')).toBeInTheDocument()
@@ -308,10 +291,6 @@ describe('ModerationQueueList', () => {
     render(
       <ModerationQueueList
         items={items}
-        total={1}
-        currentPage={1}
-        totalPages={1}
-        currentStatus=""
       />
     )
     expect(screen.getByText('イベント')).toBeInTheDocument()
@@ -333,8 +312,6 @@ describe('WarningsList', () => {
         total={0}
         activeWarnings={0}
         levelCounts={{}}
-        totalPages={1}
-        currentPage={1}
       />
     )
     expect(screen.getByText('警告が見つかりません')).toBeInTheDocument()
@@ -380,8 +357,6 @@ describe('WarningsList', () => {
         total={2}
         activeWarnings={1}
         levelCounts={{ notice: 1, permanent_ban: 1 }}
-        totalPages={1}
-        currentPage={1}
       />
     )
     expect(screen.getByText('テストユーザー')).toBeInTheDocument()
@@ -399,8 +374,6 @@ describe('WarningsList', () => {
         total={10}
         activeWarnings={3}
         levelCounts={{ notice: 2, warning: 3, temp_suspend: 1, permanent_ban: 4 }}
-        totalPages={1}
-        currentPage={1}
       />
     )
     expect(screen.getByText('総警告数')).toBeInTheDocument()
@@ -468,9 +441,6 @@ describe('SegmentBuilder', () => {
     render(
       <SegmentBuilder
         segments={[]}
-        total={0}
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('セグメントがありません')).toBeInTheDocument()
@@ -499,9 +469,6 @@ describe('SegmentBuilder', () => {
     render(
       <SegmentBuilder
         segments={segments}
-        total={2}
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('アクティブユーザー')).toBeInTheDocument()
@@ -512,7 +479,7 @@ describe('SegmentBuilder', () => {
 
   it('renders create button', () => {
     render(
-      <SegmentBuilder segments={[]} total={0} page={1} limit={20} />
+      <SegmentBuilder segments={[]} />
     )
     expect(screen.getByText('セグメント作成')).toBeInTheDocument()
   })
@@ -528,13 +495,10 @@ describe('SecurityEventList', () => {
     render(
       <SecurityEventList
         events={[]}
-        total={0}
         eventType=""
         ipAddress=""
         dateFrom=""
         dateTo=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('該当するイベントはありません')).toBeInTheDocument()
@@ -565,13 +529,10 @@ describe('SecurityEventList', () => {
     render(
       <SecurityEventList
         events={events}
-        total={2}
         eventType=""
         ipAddress=""
         dateFrom=""
         dateTo=""
-        page={1}
-        limit={20}
       />
     )
     // Event type labels appear in both the table and the filter dropdown
@@ -584,13 +545,10 @@ describe('SecurityEventList', () => {
     render(
       <SecurityEventList
         events={[]}
-        total={0}
         eventType=""
         ipAddress=""
         dateFrom=""
         dateTo=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByPlaceholderText('IPアドレスで検索')).toBeInTheDocument()
@@ -611,8 +569,6 @@ describe('IpManagementClient', () => {
         total={0}
         suspiciousIps={[]}
         search=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('データがありません')).toBeInTheDocument()
@@ -650,8 +606,6 @@ describe('IpManagementClient', () => {
         total={2}
         suspiciousIps={[]}
         search=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('10.0.0.1')).toBeInTheDocument()
@@ -691,8 +645,6 @@ describe('IpManagementClient', () => {
         total={0}
         suspiciousIps={suspiciousIps}
         search=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('複数アカウント検出')).toBeInTheDocument()
@@ -785,11 +737,8 @@ describe('PesticideTable', () => {
     render(
       <PesticideTable
         pesticides={[]}
-        total={0}
         search=""
         pesticideType=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('該当する農薬データはありません')).toBeInTheDocument()
@@ -822,11 +771,8 @@ describe('PesticideTable', () => {
     render(
       <PesticideTable
         pesticides={pesticides}
-        total={2}
         search=""
         pesticideType=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByText('テスト殺菌剤')).toBeInTheDocument()
@@ -842,11 +788,8 @@ describe('PesticideTable', () => {
     render(
       <PesticideTable
         pesticides={[]}
-        total={0}
         search=""
         pesticideType=""
-        page={1}
-        limit={20}
       />
     )
     expect(screen.getByPlaceholderText('農薬名・登録番号で検索')).toBeInTheDocument()

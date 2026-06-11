@@ -41,28 +41,28 @@ describe('logger', async () => {
 
   describe('development mode', () => {
     it('log calls console.log', async () => {
-      const spy = vi.spyOn(console, 'log').mockImplementation()
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
       const logger = await freshLogger('development')
       logger.log('test message', { data: 1 })
       expect(spy).toHaveBeenCalledWith('test message', { data: 1 })
     })
 
     it('warn calls console.warn', async () => {
-      const spy = vi.spyOn(console, 'warn').mockImplementation()
+      const spy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       const logger = await freshLogger('development')
       logger.warn('warning message')
       expect(spy).toHaveBeenCalledWith('warning message')
     })
 
     it('error calls console.error in development', async () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation()
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const logger = await freshLogger('development')
       logger.error('error occurred')
       expect(spy).toHaveBeenCalledWith('error occurred')
     })
 
     it('debug calls console.debug with [DEBUG] prefix', async () => {
-      const spy = vi.spyOn(console, 'debug').mockImplementation()
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
       const logger = await freshLogger('development')
       logger.debug('debug info')
       expect(spy).toHaveBeenCalledWith('[DEBUG]', 'debug info')
@@ -71,21 +71,21 @@ describe('logger', async () => {
 
   describe('non-development mode - suppressed methods', () => {
     it('log does NOT call console.log', async () => {
-      const spy = vi.spyOn(console, 'log').mockImplementation()
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
       logger.log('suppressed')
       expect(spy).not.toHaveBeenCalled()
     })
 
     it('warn does NOT call console.warn', async () => {
-      const spy = vi.spyOn(console, 'warn').mockImplementation()
+      const spy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
       logger.warn('suppressed')
       expect(spy).not.toHaveBeenCalled()
     })
 
     it('debug does NOT call console.debug', async () => {
-      const spy = vi.spyOn(console, 'debug').mockImplementation()
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
       logger.debug('suppressed')
       expect(spy).not.toHaveBeenCalled()
@@ -94,7 +94,7 @@ describe('logger', async () => {
 
   describe('non-development error', () => {
     it('does NOT call console.error in production', async () => {
-      vi.spyOn(console, 'error').mockImplementation()
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
       logger.error('prod error')
       // production環境ではconsole.errorは呼ばれない（Sentryに送信）
@@ -102,7 +102,7 @@ describe('logger', async () => {
     })
 
     it('error does not throw even without Sentry', async () => {
-      vi.spyOn(console, 'error').mockImplementation()
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
       // エラーが投げられないことを確認
       expect(() => {
@@ -113,14 +113,14 @@ describe('logger', async () => {
 
   describe('test environment', () => {
     it('log is suppressed', async () => {
-      const spy = vi.spyOn(console, 'log').mockImplementation()
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
       const logger = await freshLogger('test')
       logger.log('test env')
       expect(spy).not.toHaveBeenCalled()
     })
 
     it('debug is suppressed', async () => {
-      const spy = vi.spyOn(console, 'debug').mockImplementation()
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
       const logger = await freshLogger('test')
       logger.debug('test env')
       expect(spy).not.toHaveBeenCalled()

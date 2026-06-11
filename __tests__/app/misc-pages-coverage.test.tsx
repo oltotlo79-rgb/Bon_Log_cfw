@@ -112,8 +112,8 @@ describe('PushNotificationToggle', () => {
       writable: true,
     })
     // Ensure PushManager is also missing
-    const origPM = (window as Record<string, unknown>).PushManager
-    delete (window as Record<string, unknown>).PushManager
+    const origPM = (window as unknown as Record<string, unknown>).PushManager
+    delete (window as unknown as Record<string, unknown>).PushManager
 
     render(<PushNotificationToggle />)
 
@@ -127,7 +127,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = origPM
+    ;(window as unknown as Record<string, unknown>).PushManager = origPM
   })
 
   it('renders toggle when push is supported and shows OFF state', async () => {
@@ -140,7 +140,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     render(<PushNotificationToggle />)
 
@@ -165,7 +165,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     render(<PushNotificationToggle />)
 
@@ -190,7 +190,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     render(<PushNotificationToggle />)
 
@@ -219,7 +219,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -262,7 +262,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch
 
@@ -303,7 +303,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -365,7 +365,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -409,7 +409,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     // fetch をネットワークエラーにしてcatch節に到達させる
     const originalFetch = global.fetch
@@ -447,7 +447,7 @@ describe('PushNotificationToggle', () => {
       configurable: true,
       writable: true,
     })
-    ;(window as Record<string, unknown>).PushManager = class {}
+    ;(window as unknown as Record<string, unknown>).PushManager = class {}
 
     render(<PushNotificationToggle />)
 
@@ -780,7 +780,8 @@ describe('MediaUploadSection', () => {
     // The remove button is inside the media preview - it's a button with type="button"
     const removeButtons = screen.getAllByRole('button')
     // First button is the X remove button on the media item
-    fireEvent.click(removeButtons[0])
+    const removeBtn = removeButtons[0]
+    if (removeBtn) fireEvent.click(removeBtn)
     expect(onRemove).toHaveBeenCalledWith(0)
   })
 

@@ -76,7 +76,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
     messages: [],
     count: 0,
     capReached: false,
-  } as (T extends object ? T : Record<string, never>) & LegacyShape
+  } as unknown as (T extends object ? T : Record<string, never>) & LegacyShape
 }
 
 describe('Coverage Boost - Message & Analytics uncovered branches', async () => {
@@ -160,8 +160,8 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
       const { getConversations } = await import('@/lib/actions/message')
       const result = unwrap(await getConversations())
 
-      expect(result.conversations[0].lastMessage).toBeNull()
-      expect(result.conversations[0].hasUnread).toBe(false)
+      expect(result.conversations[0]!.lastMessage).toBeNull()
+      expect(result.conversations[0]!.hasUnread).toBe(false)
     })
 
     it('lastReadAtがnullでメッセージがあるとhasUnread=true', async () => {
@@ -180,7 +180,7 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
       const { getConversations } = await import('@/lib/actions/message')
       const result = unwrap(await getConversations())
 
-      expect(result.conversations[0].hasUnread).toBe(true)
+      expect(result.conversations[0]!.hasUnread).toBe(true)
     })
 
     it('lastReadAt後にメッセージがない場合hasUnread=false', async () => {
@@ -200,7 +200,7 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
       const { getConversations } = await import('@/lib/actions/message')
       const result = unwrap(await getConversations())
 
-      expect(result.conversations[0].hasUnread).toBe(false)
+      expect(result.conversations[0]!.hasUnread).toBe(false)
     })
 
     it('自分が最後に送信した会話は未読扱いしない（hasUnread=false）', async () => {
@@ -219,7 +219,7 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
       const { getConversations } = await import('@/lib/actions/message')
       const result = unwrap(await getConversations())
 
-      expect(result.conversations[0].hasUnread).toBe(false)
+      expect(result.conversations[0]!.hasUnread).toBe(false)
     })
 
     it('otherParticipantが見つからない場合otherUserはnull', async () => {
@@ -237,7 +237,7 @@ describe('Coverage Boost - Message & Analytics uncovered branches', async () => 
       const { getConversations } = await import('@/lib/actions/message')
       const result = unwrap(await getConversations())
 
-      expect(result.conversations[0].otherUser).toBeNull()
+      expect(result.conversations[0]!.otherUser).toBeNull()
     })
   })
 

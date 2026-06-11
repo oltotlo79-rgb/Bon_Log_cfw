@@ -90,7 +90,7 @@ describe('Subscription Actions', async () => {
       const { createCheckoutSession } = await import('@/lib/actions/subscription')
       const result = await createCheckoutSession('monthly')
 
-      expect(result.url).toBe('https://checkout.stripe.com/session')
+      expect(('url' in result ? result.url : undefined)).toBe('https://checkout.stripe.com/session')
       expect(mockStripe.checkout.sessions.create).toHaveBeenCalledWith(
         expect.objectContaining({
           customer: 'cus_existing',
@@ -125,7 +125,7 @@ describe('Subscription Actions', async () => {
         where: { id: mockUser.id },
         data: { stripeCustomerId: 'cus_new' },
       })
-      expect(result.url).toBeDefined()
+      expect(('url' in result ? result.url : undefined)).toBeDefined()
     })
 
     it('年額プランを選択できる', async () => {
@@ -196,7 +196,7 @@ describe('Subscription Actions', async () => {
       const { createCustomerPortalSession } = await import('@/lib/actions/subscription')
       const result = await createCustomerPortalSession()
 
-      expect(result.url).toBe('https://billing.stripe.com/portal')
+      expect(('url' in result ? result.url : undefined)).toBe('https://billing.stripe.com/portal')
     })
 
     it('未認証の場合、エラーを返す', async () => {
@@ -244,9 +244,9 @@ describe('Subscription Actions', async () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.isPremium).toBe(true)
-      expect(result.subscription?.status).toBe('active')
-      expect(result.subscription?.cancelAtPeriodEnd).toBe(false)
+      expect(('isPremium' in result ? result.isPremium : undefined)).toBe(true)
+      expect(('subscription' in result ? result.subscription : undefined)?.status).toBe('active')
+      expect(('subscription' in result ? result.subscription : undefined)?.cancelAtPeriodEnd).toBe(false)
     })
 
     it('未認証の場合、エラーを返す', async () => {
@@ -278,8 +278,8 @@ describe('Subscription Actions', async () => {
       const { getSubscriptionStatus } = await import('@/lib/actions/subscription')
       const result = await getSubscriptionStatus()
 
-      expect(result.isPremium).toBe(false)
-      expect(result.subscription).toBeNull()
+      expect(('isPremium' in result ? result.isPremium : undefined)).toBe(false)
+      expect(('subscription' in result ? result.subscription : undefined)).toBeNull()
     })
   })
 
@@ -298,7 +298,7 @@ describe('Subscription Actions', async () => {
       const { getPaymentHistory } = await import('@/lib/actions/subscription')
       const result = await getPaymentHistory()
 
-      expect(result.payments).toHaveLength(2)
+      expect(('payments' in result ? result.payments : undefined)).toHaveLength(2)
     })
 
     it('未認証の場合、エラーを返す', async () => {

@@ -40,6 +40,7 @@ async function loadServiceWorker() {
     }),
   )
   vi.resetModules()
+  // @ts-expect-error public/sw.js は plain JS で型定義なし
   await import('../../public/sw.js')
   fetchHandler = handlers.fetch![0]!
 }

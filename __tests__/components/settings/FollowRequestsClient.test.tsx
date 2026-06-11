@@ -128,7 +128,7 @@ describe('FollowRequestsClient', () => {
     const user = userEvent.setup()
     render(<FollowRequestsClient {...defaultProps} />)
     const approveButtons = screen.getAllByText('承認')
-    await user.click(approveButtons[0])
+    await user.click(approveButtons[0]!)
 
     await waitFor(() => {
       expect(mockApproveFollowRequest).toHaveBeenCalledWith('req-1')
@@ -140,7 +140,7 @@ describe('FollowRequestsClient', () => {
     const user = userEvent.setup()
     render(<FollowRequestsClient {...defaultProps} />)
     const rejectButtons = screen.getAllByText('拒否')
-    await user.click(rejectButtons[0])
+    await user.click(rejectButtons[0]!)
 
     await waitFor(() => {
       expect(mockRejectFollowRequest).toHaveBeenCalledWith('req-1')
@@ -163,7 +163,7 @@ describe('FollowRequestsClient', () => {
   it('承認成功でトースト通知を表示する', async () => {
     const user = userEvent.setup()
     render(<FollowRequestsClient {...defaultProps} />)
-    await user.click(screen.getAllByText('承認')[0])
+    await user.click(screen.getAllByText('承認')[0]!)
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
@@ -177,7 +177,7 @@ describe('FollowRequestsClient', () => {
     mockApproveFollowRequest.mockResolvedValue({ error: '承認に失敗しました' })
     const user = userEvent.setup()
     render(<FollowRequestsClient {...defaultProps} />)
-    await user.click(screen.getAllByText('承認')[0])
+    await user.click(screen.getAllByText('承認')[0]!)
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
@@ -192,7 +192,7 @@ describe('FollowRequestsClient', () => {
     render(<FollowRequestsClient {...defaultProps} />)
     expect(screen.getByText('テストユーザー1')).toBeInTheDocument()
 
-    await user.click(screen.getAllByText('承認')[0])
+    await user.click(screen.getAllByText('承認')[0]!)
 
     await waitFor(() => {
       expect(screen.queryByText('テストユーザー1')).not.toBeInTheDocument()
@@ -205,7 +205,7 @@ describe('FollowRequestsClient', () => {
     render(<FollowRequestsClient {...defaultProps} />)
     expect(screen.getByText('テストユーザー1')).toBeInTheDocument()
 
-    await user.click(screen.getAllByText('拒否')[0])
+    await user.click(screen.getAllByText('拒否')[0]!)
 
     await waitFor(() => {
       expect(screen.queryByText('テストユーザー1')).not.toBeInTheDocument()
@@ -271,7 +271,7 @@ describe('FollowRequestsClient', () => {
   it('アクション後にrouter.refreshが呼ばれる', async () => {
     const user = userEvent.setup()
     render(<FollowRequestsClient {...defaultProps} />)
-    await user.click(screen.getAllByText('承認')[0])
+    await user.click(screen.getAllByText('承認')[0]!)
 
     await waitFor(() => {
       expect(mockRefresh).toHaveBeenCalled()

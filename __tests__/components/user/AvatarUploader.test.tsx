@@ -325,7 +325,7 @@ describe('アバター圧縮設定', () => {
 
 describe('圧縮成功時のログ', () => {
   it('圧縮によってファイルサイズが減少してもログが出力されない（本番ログ削除済み）', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     // 圧縮後のファイルサイズを元のファイルより小さくモック
     const originalFile = new File(['x'.repeat(10000)], 'avatar.jpg', { type: 'image/jpeg' })

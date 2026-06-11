@@ -64,13 +64,13 @@ describe('prefectures', () => {
     })
 
     it('北海道・東北地方が最初', () => {
-      expect(REGIONS[0].id).toBe('hokkaido-tohoku')
-      expect(REGIONS[0].name).toBe('北海道・東北')
+      expect(REGIONS[0]!.id).toBe('hokkaido-tohoku')
+      expect(REGIONS[0]!.name).toBe('北海道・東北')
     })
 
     it('九州・沖縄地方が最後', () => {
-      expect(REGIONS[REGIONS.length - 1].id).toBe('kyushu-okinawa')
-      expect(REGIONS[REGIONS.length - 1].name).toBe('九州・沖縄')
+      expect(REGIONS[REGIONS.length - 1]!.id).toBe('kyushu-okinawa')
+      expect(REGIONS[REGIONS.length - 1]!.name).toBe('九州・沖縄')
     })
   })
 

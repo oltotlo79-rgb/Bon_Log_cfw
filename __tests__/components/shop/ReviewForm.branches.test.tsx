@@ -71,8 +71,7 @@ function createMockXHR(options: { status?: number; responseText?: string; trigge
 
   mockXHR.send.mockImplementation(() => {
     const eventName = options.triggerError ? 'error' : 'load'
-    const handler = mockXHR.addEventListener.mock.calls.find(
-      (c: [string, () => void]) => c[0] === eventName
+    const handler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === eventName
     )?.[1]
     if (handler) handler()
   })
@@ -92,7 +91,7 @@ describe('ReviewForm - branch coverage', () => {
 
   it('XHR load with invalid JSON shows error', async () => {
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     createMockXHR({ status: 200, responseText: 'not json' })
 
@@ -109,7 +108,7 @@ describe('ReviewForm - branch coverage', () => {
 
   it('XHR result with error field shows error message', async () => {
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     createMockXHR({ status: 200, responseText: JSON.stringify({ error: 'カスタムエラー' }) })
 
@@ -126,7 +125,7 @@ describe('ReviewForm - branch coverage', () => {
 
   it('image removal works via X button', async () => {
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     createMockXHR({ status: 200, responseText: JSON.stringify({ url: '/uploaded.jpg' }) })
 
@@ -151,7 +150,7 @@ describe('ReviewForm - branch coverage', () => {
 
   it('submitting with images includes imageUrls in FormData', async () => {
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     createMockXHR({ status: 200, responseText: JSON.stringify({ url: '/uploaded.jpg' }) })
 
@@ -172,7 +171,7 @@ describe('ReviewForm - branch coverage', () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.getAll('imageUrls')).toContain('/uploaded.jpg')
     })
   })

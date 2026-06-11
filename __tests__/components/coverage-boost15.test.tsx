@@ -624,7 +624,7 @@ describe('Admin Layout coverage boost', async () => {
   it('renders AdminLayout with all nav items and icon functions', async () => {
      
     const { isAdmin } = await import('@/lib/actions/admin')
-    isAdmin.mockResolvedValue(true)
+    vi.mocked(isAdmin).mockResolvedValue(true)
 
     // Mock prisma.user.count to return non-zero
      
@@ -632,9 +632,8 @@ describe('Admin Layout coverage boost', async () => {
     prisma.user.count = vi.fn().mockResolvedValue(5)
 
     // Mock auth to return a session
-     
-    const { auth } = await import('@/lib/auth')
-    auth.mockResolvedValue({ user: { id: 'admin-user-id' } })
+    const authModule1 = await import('@/lib/auth')
+    ;(authModule1.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'admin-user-id' } })
 
     const AdminLayout = (await import('@/app/admin/layout')).default
 
@@ -688,7 +687,7 @@ describe('Admin Layout coverage boost', async () => {
 
      
     const { signOut } = await import('@/lib/auth')
-    signOut.mockResolvedValue(undefined)
+    vi.mocked(signOut).mockResolvedValue(undefined)
 
     const redirect = mockRedirect
 
@@ -705,8 +704,8 @@ describe('Admin Layout coverage boost', async () => {
     prisma.user.count = vi.fn().mockResolvedValue(5)
 
      
-    const { auth } = await import('@/lib/auth')
-    auth.mockResolvedValue(null)
+    const authModule2 = await import('@/lib/auth')
+    ;(authModule2.auth as unknown as import('vitest').MockInstance).mockResolvedValue(null)
 
     const redirect = mockRedirect
 
@@ -722,12 +721,12 @@ describe('Admin Layout coverage boost', async () => {
     prisma.user.count = vi.fn().mockResolvedValue(5)
 
      
-    const { auth } = await import('@/lib/auth')
-    auth.mockResolvedValue({ user: { id: 'regular-user-id' } })
+    const authModule3 = await import('@/lib/auth')
+    ;(authModule3.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'regular-user-id' } })
 
      
     const { isAdmin } = await import('@/lib/actions/admin')
-    isAdmin.mockResolvedValue(false)
+    vi.mocked(isAdmin).mockResolvedValue(false)
 
     const redirect = mockRedirect
 
@@ -753,7 +752,7 @@ describe('ReviewCard coverage boost', async () => {
     it('removes a newly uploaded image from the list', async () => {
        
       const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-      prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+      vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
       // Mock XHR for upload success
       const mockXHR = {
@@ -765,8 +764,7 @@ describe('ReviewCard coverage boost', async () => {
       }
       vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
       mockXHR.send.mockImplementation(() => {
-        const loadHandler = mockXHR.addEventListener.mock.calls.find(
-          (c: [string, () => void]) => c[0] === 'load'
+        const loadHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'load'
         )?.[1]
         if (loadHandler) loadHandler()
       })
@@ -814,7 +812,7 @@ describe('ReviewCard coverage boost', async () => {
     it('shows error when XHR returns non-200 status', async () => {
        
       const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-      prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+      vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
       const mockXHR = {
         open: vi.fn(),
@@ -825,8 +823,7 @@ describe('ReviewCard coverage boost', async () => {
       }
       vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
       mockXHR.send.mockImplementation(() => {
-        const loadHandler = mockXHR.addEventListener.mock.calls.find(
-          (c: [string, () => void]) => c[0] === 'load'
+        const loadHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'load'
         )?.[1]
         if (loadHandler) loadHandler()
       })
@@ -856,7 +853,7 @@ describe('ReviewCard coverage boost', async () => {
     it('shows error when XHR returns 200 with invalid JSON', async () => {
        
       const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-      prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+      vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
       const mockXHR = {
         open: vi.fn(),
@@ -867,8 +864,7 @@ describe('ReviewCard coverage boost', async () => {
       }
       vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
       mockXHR.send.mockImplementation(() => {
-        const loadHandler = mockXHR.addEventListener.mock.calls.find(
-          (c: [string, () => void]) => c[0] === 'load'
+        const loadHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'load'
         )?.[1]
         if (loadHandler) loadHandler()
       })

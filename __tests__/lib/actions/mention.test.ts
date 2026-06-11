@@ -58,8 +58,8 @@ describe('Mention Actions', async () => {
 
       expect(result).toHaveLength(2)
       // フォロー中のユーザーが先に来る
-      expect(result[0].id).toBe('following-user-1')
-      expect(result[0].isFollowing).toBe(true)
+      expect(result[0]!.id).toBe('following-user-1')
+      expect(result[0]!.isFollowing).toBe(true)
     })
 
     it('未認証の場合、空配列を返す', async () => {

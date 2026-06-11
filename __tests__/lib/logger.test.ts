@@ -26,10 +26,10 @@ describe('Logger Module', async () => {
       vi.resetModules()
       setNodeEnv('development')
       // 各テストの前にスパイを設定
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation()
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation()
-      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation()
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation()
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
     })
 
     afterEach(() => {
@@ -83,9 +83,9 @@ describe('Logger Module', async () => {
     beforeEach(() => {
       vi.resetModules()
       setNodeEnv('production')
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation()
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation()
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation()
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
     })
 
     afterEach(() => {
@@ -178,7 +178,7 @@ describe('Logger Module', async () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
-      const [message] = mockCaptureMessage.mock.calls[0]
+      const [message] = mockCaptureMessage.mock.calls[0]!
       expect(message).not.toContain('[object Object]')
       expect(message).toBe(
         'getActiveAnnouncements failed {"error":"Connection terminated due to connection timeout"}'
@@ -287,7 +287,7 @@ describe('Logger Module', async () => {
     beforeEach(() => {
       vi.resetModules()
       setNodeEnv('test')
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation()
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     })
 
     afterEach(() => {

@@ -145,7 +145,7 @@ describe('usage service', async () => {
       const result = await getCloudflareR2Usage()
       expect(result.status).toBe('ok')
       expect(result.usage).toBeDefined()
-      expect(result.usage![0].current).toBe(1)
+      expect(result.usage![0]!.current).toBe(1)
     })
 
     it('returns error on fetch failure', async () => {

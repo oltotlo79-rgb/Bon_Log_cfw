@@ -52,10 +52,10 @@ vi.mock('next/headers', () => ({
 }))
 
 /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
-function unwrapOk<T>(result: { success: true; data?: T } | { success: false; error: string }): T {
+function unwrapOk<T>(result: { success: true; data?: unknown } | { success: false; error: string }): T {
   if (!result.success) throw new Error(`Expected success, got error: ${result.error}`)
   if (!result.data) throw new Error('Expected data to be defined')
-  return result.data
+  return result.data as T
 }
 
 describe('Bonsai Actions - Extended', async () => {

@@ -436,7 +436,7 @@ describe('管理者セグメントアクション', () => {
       })
 
       expect(result).toEqual({ success: true, data: mockSegment })
-      expect((result as { data: typeof mockSegment }).data.id).toBe('created-seg-id')
+      expect((result as unknown as { data: typeof mockSegment }).data.id).toBe('created-seg-id')
     })
 
     it('evaluateSegmentのcountが正しい数値を返す', async () => {

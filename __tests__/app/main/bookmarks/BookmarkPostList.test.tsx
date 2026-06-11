@@ -2,6 +2,9 @@ import { vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BookmarkPostList } from '@/app/(main)/bookmarks/BookmarkPostList'
+import type { getBookmarkedPosts } from '@/lib/actions/bookmark'
+
+type BookmarkedPost = Awaited<ReturnType<typeof getBookmarkedPosts>>['posts'][number]
 
 const mockGetBookmarkedPosts = vi.fn()
 
@@ -26,7 +29,7 @@ const createMockPost = (id: string, content: string) => ({
   commentCount: 0,
   isLiked: false,
   isBookmarked: true,
-})
+} as unknown as BookmarkedPost)
 
 describe('BookmarkPostList', () => {
   beforeEach(() => {

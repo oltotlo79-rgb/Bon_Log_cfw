@@ -246,11 +246,11 @@ describe('AddressGeocodingSection', () => {
       })
 
       const useButtons = screen.getAllByText('この位置を使用')
-      fireEvent.click(useButtons[0])
+      fireEvent.click(useButtons[0]!)
 
       expect(mockOnLocationSet).toHaveBeenCalledWith(
-        mockSuggestions[0].latitude,
-        mockSuggestions[0].longitude,
+        mockSuggestions[0]!.latitude,
+        mockSuggestions[0]!.longitude,
         expect.any(String)
       )
     })
@@ -318,8 +318,8 @@ describe('AddressGeocodingSection', () => {
 
       await waitFor(() => {
         expect(mockOnLocationSet).toHaveBeenCalledWith(
-          mockSuggestions[0].latitude,
-          mockSuggestions[0].longitude,
+          mockSuggestions[0]!.latitude,
+          mockSuggestions[0]!.longitude,
           '東京都新宿区'
         )
       })

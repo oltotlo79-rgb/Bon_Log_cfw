@@ -39,7 +39,7 @@ describe('NotificationBadgeServer', async () => {
     const result = await NotificationBadgeServer()
 
     expect(result).not.toBeNull()
-    expect(result.type).toBe('span')
+    expect(result!.type).toBe('span')
   })
 
   it('未読数が100以上の場合は99+を表示する', async () => {
@@ -48,7 +48,7 @@ describe('NotificationBadgeServer', async () => {
     const { NotificationBadgeServer } = await loadModule()
     const result = await NotificationBadgeServer()
 
-    expect(result.props.children).toBe('99+')
+    expect(result!.props.children).toBe('99+')
   })
 
   it('未読数が99の場合は99を表示する', async () => {
@@ -57,7 +57,7 @@ describe('NotificationBadgeServer', async () => {
     const { NotificationBadgeServer } = await loadModule()
     const result = await NotificationBadgeServer()
 
-    expect(result.props.children).toBe(99)
+    expect(result!.props.children).toBe(99)
   })
 
   it('未読数が1の場合は1を表示する', async () => {
@@ -66,7 +66,7 @@ describe('NotificationBadgeServer', async () => {
     const { NotificationBadgeServer } = await loadModule()
     const result = await NotificationBadgeServer()
 
-    expect(result.props.children).toBe(1)
+    expect(result!.props.children).toBe(1)
   })
 
   it('spanにbg-red-500クラスを持つ', async () => {
@@ -75,7 +75,7 @@ describe('NotificationBadgeServer', async () => {
     const { NotificationBadgeServer } = await loadModule()
     const result = await NotificationBadgeServer()
 
-    expect(result.props.className).toContain('bg-foreground')
+    expect(result!.props.className).toContain('bg-foreground')
   })
 
   it('spanにrounded-fullクラスを持つ', async () => {
@@ -84,7 +84,7 @@ describe('NotificationBadgeServer', async () => {
     const { NotificationBadgeServer } = await loadModule()
     const result = await NotificationBadgeServer()
 
-    expect(result.props.className).toContain('rounded-full')
+    expect(result!.props.className).toContain('rounded-full')
   })
 
   it('getUnreadCountが呼ばれる', async () => {

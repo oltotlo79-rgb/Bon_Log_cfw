@@ -126,7 +126,7 @@ vi.mock('./AdBanner', () => ({
   AdBanner: () => <div data-testid="ad-banner" />,
   InFeedAd: () => <div data-testid="infeed-ad" />,
   SidebarAd: () => <div data-testid="sidebar-ad" />,
-}), { virtual: true })
+}))
 vi.mock('@/components/ads/AdBanner', () => ({
   AdBanner: () => <div data-testid="ad-banner" />,
   InFeedAd: () => <div data-testid="infeed-ad" />,
@@ -136,7 +136,7 @@ vi.mock('./NinjaAdMax', () => ({
   NinjaAd: () => <div data-testid="ninja-ad" />,
   NinjaInFeedAd: () => <div data-testid="ninja-infeed" />,
   NinjaSidebarAd: () => <div data-testid="ninja-sidebar" />,
-}), { virtual: true })
+}))
 vi.mock('@/components/ads/NinjaAdMax', () => ({
   NinjaAd: () => <div data-testid="ninja-ad" />,
   NinjaInFeedAd: () => <div data-testid="ninja-infeed" />,
@@ -144,7 +144,7 @@ vi.mock('@/components/ads/NinjaAdMax', () => ({
 }))
 vi.mock('./GoogleAdSense', () => ({
   GoogleAdSense: () => <div data-testid="google-adsense" />,
-}), { virtual: true })
+}))
 vi.mock('@/components/ads/GoogleAdSense', () => ({
   GoogleAdSense: () => <div data-testid="google-adsense" />,
 }))
@@ -381,7 +381,7 @@ describe('ImageGallery (real)', () => {
     fireEvent.click(container.querySelector('button')!)
     // Find nav dots (bottom area)
     const dots = container.querySelectorAll('.fixed .rounded-full.w-2')
-    if (dots.length > 1) fireEvent.click(dots[1])
+    if (dots.length > 1) fireEvent.click(dots[1]!)
   })
 })
 

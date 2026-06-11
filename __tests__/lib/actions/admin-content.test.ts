@@ -176,7 +176,7 @@ describe('getAdminReviews', async () => {
     expect(result.success).toBe(true)
     if (!result.success) throw new Error('expected success')
     expect(result.data!.total).toBe(1)
-    expect(result.data!.reviews[0].reportCount).toBe(3)
+    expect(result.data!.reviews[0]!.reportCount).toBe(3)
   })
 
   it('filters reviews by search term', async () => {
@@ -255,7 +255,7 @@ describe('getAdminReviews', async () => {
     const result = await getAdminReviews()
     expect(result.success).toBe(true)
     if (!result.success) throw new Error('expected success')
-    expect(result.data!.reviews[0].reportCount).toBe(0)
+    expect(result.data!.reviews[0]!.reportCount).toBe(0)
   })
 })
 

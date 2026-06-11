@@ -142,23 +142,23 @@ describe('listDisplayMonths', () => {
   it('1ヶ月モード: anchor のみ', () => {
     const months = listDisplayMonths(CALENDAR_MODE_MONTH, new Date(2026, 3, 1))
     expect(months).toHaveLength(1)
-    expect(months[0].getMonth()).toBe(3)
+    expect(months[0]!.getMonth()).toBe(3)
   })
 
   it('6ヶ月モード: 古い順 6 個', () => {
     const months = listDisplayMonths(CALENDAR_MODE_HALF_YEAR, new Date(2026, 3, 1))
     expect(months).toHaveLength(6)
-    expect(months[0].getMonth()).toBe(10) // 2025-11
-    expect(months[0].getFullYear()).toBe(2025)
-    expect(months[5].getMonth()).toBe(3) // 2026-04
-    expect(months[5].getFullYear()).toBe(2026)
+    expect(months[0]!.getMonth()).toBe(10) // 2025-11
+    expect(months[0]!.getFullYear()).toBe(2025)
+    expect(months[5]!.getMonth()).toBe(3) // 2026-04
+    expect(months[5]!.getFullYear()).toBe(2026)
   })
 
   it('12ヶ月モード: 古い順 12 個', () => {
     const months = listDisplayMonths(CALENDAR_MODE_YEAR, new Date(2026, 3, 1))
     expect(months).toHaveLength(12)
-    expect(months[0].getMonth()).toBe(4) // 2025-05
-    expect(months[11].getMonth()).toBe(3) // 2026-04
+    expect(months[0]!.getMonth()).toBe(4) // 2025-05
+    expect(months[11]!.getMonth()).toBe(3) // 2026-04
   })
 
   it('全要素が月初日', () => {

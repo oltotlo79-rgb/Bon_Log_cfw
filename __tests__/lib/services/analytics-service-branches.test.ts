@@ -67,8 +67,8 @@ describe('fetchPostAnalytics', () => {
     const { fetchPostAnalytics } = await import('@/lib/services/analytics-service')
     const result = await fetchPostAnalytics('user-1', 7)
 
-    expect(result.posts[0].content).toBeNull()
-    expect(result.topPosts[0].content).toBeNull()
+    expect(result.posts[0]!.content).toBeNull()
+    expect(result.topPosts[0]!.content).toBeNull()
   })
 
   it('エンゲージメント降順で topPosts をソートする', async () => {
@@ -97,7 +97,7 @@ describe('fetchPostAnalytics', () => {
     const { fetchPostAnalytics } = await import('@/lib/services/analytics-service')
     const result = await fetchPostAnalytics('user-1', 7)
 
-    expect(result.posts[0].content?.length).toBeLessThan(long.length)
+    expect(result.posts[0]!.content?.length).toBeLessThan(long.length)
   })
 })
 
@@ -194,11 +194,11 @@ describe('fetchQuoteAnalytics', () => {
 
     expect(result.totalQuotes).toBe(2)
     expect(result.totalReposts).toBe(7)
-    expect(result.quotes[0].content).toBeNull()
-    expect(result.quotes[0].originalPostId).toBeNull()
-    expect(result.quotes[0].originalContent).toBeNull()
-    expect(result.quotes[1].originalPostId).toBe('orig')
-    expect(result.quotes[1].originalContent).toBeNull()
+    expect(result.quotes[0]!.content).toBeNull()
+    expect(result.quotes[0]!.originalPostId).toBeNull()
+    expect(result.quotes[0]!.originalContent).toBeNull()
+    expect(result.quotes[1]!.originalPostId).toBe('orig')
+    expect(result.quotes[1]!.originalContent).toBeNull()
   })
 
   it('引用も再投稿もゼロのケース', async () => {

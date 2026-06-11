@@ -8,6 +8,13 @@ vi.mock('next/server', () => ({
       status: init?.status ?? 200,
     }),
   },
+  NextRequest: class MockNextRequest {
+    headers: { get: (name: string) => string | null }
+    constructor(_url: string, init?: { headers?: Record<string, string> }) {
+      const h = init?.headers ?? {}
+      this.headers = { get: (name: string) => h[name.toLowerCase()] ?? null }
+    }
+  },
 }))
 
 const mockExecuteRawUnsafe = vi.fn()
@@ -24,10 +31,16 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
 
-function createRequest(headers: Record<string, string> = {}) {
-  return {
-    headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
-  } as Request
+class MockNextRequest {
+  headers: { get: (name: string) => string | null }
+  constructor(_url: string, init?: { headers?: Record<string, string> }) {
+    const h = init?.headers ?? {}
+    this.headers = { get: (name: string) => h[name.toLowerCase()] ?? null }
+  }
+}
+
+function createRequest(headers: Record<string, string> = {}): import('next/server').NextRequest {
+  return new MockNextRequest('http://localhost', { headers }) as never
 }
 
 describe('POST /api/admin/seed-pesticide - IP allowlist', () => {

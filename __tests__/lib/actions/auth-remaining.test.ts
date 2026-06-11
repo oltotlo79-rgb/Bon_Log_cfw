@@ -87,7 +87,7 @@ vi.mock('@/lib/sanitize', () => ({
 
 const mockRateLimit = vi.fn().mockResolvedValue({ success: true })
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
+  rateLimit: mockRateLimit,
   RATE_LIMITS: {},
 }))
 
@@ -114,7 +114,7 @@ vi.mock('@/lib/constants/reserved', () => ({
 
 const mockSignIn = vi.fn()
 vi.mock('@/lib/auth', () => ({
-  signIn: (...args: unknown[]) => mockSignIn(...args),
+  signIn: mockSignIn,
   auth: vi.fn().mockResolvedValue(null),
 }))
 
@@ -122,7 +122,7 @@ const mockRedirect = vi.fn((url: string) => {
   throw new Error(`NEXT_REDIRECT:${url}`)
 })
 vi.mock('next/navigation', () => ({
-  redirect: (...args: unknown[]) => mockRedirect(...args),
+  redirect: mockRedirect,
 }))
 
 vi.mock('@/lib/redis', () => ({
@@ -192,7 +192,7 @@ describe('Auth Actions - Remaining Branch Coverage', () => {
       // actionError immediately, so signInAsGuestFormAction should redirect
       // to /?guest_error=1
       delete process.env.GUEST_PASSWORD
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       const { signInAsGuestFormAction } = await import('@/lib/actions/auth')
 

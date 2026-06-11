@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 /**
  * Extended comment action tests - uploadCommentMedia, comment edge cases
  */
@@ -46,6 +47,7 @@ describe('uploadCommentMedia', async () => {
     const { uploadCommentMedia } = await import('@/lib/actions/comment')
     const formData = new FormData()
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -53,6 +55,7 @@ describe('uploadCommentMedia', async () => {
     const { uploadCommentMedia } = await import('@/lib/actions/comment')
     const formData = new FormData()
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -62,6 +65,7 @@ describe('uploadCommentMedia', async () => {
     const formData = new FormData()
     formData.append('file', largeFile)
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toContain('4MB')
   })
 
@@ -73,6 +77,7 @@ describe('uploadCommentMedia', async () => {
     const formData = new FormData()
     formData.append('file', file)
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toContain('256MB')
   })
 
@@ -119,7 +124,9 @@ describe('uploadCommentMedia', async () => {
     const formData = new FormData()
     formData.append('file', file)
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toBeDefined()
+    expectError(result)
     expect(result.error).toBe('メディアのアップロードに失敗しました')
   })
 
@@ -133,6 +140,7 @@ describe('uploadCommentMedia', async () => {
     const formData = new FormData()
     formData.append('file', file)
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -146,6 +154,7 @@ describe('uploadCommentMedia', async () => {
     const formData = new FormData()
     formData.append('file', file)
     const result = await uploadCommentMedia(formData)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 })

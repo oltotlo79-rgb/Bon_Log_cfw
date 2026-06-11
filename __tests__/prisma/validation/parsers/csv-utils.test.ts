@@ -48,7 +48,7 @@ describe('csv-utils', () => {
       ]
       const result = dedup(rows, 'slug')
       expect(result).toHaveLength(2)
-      expect(result[0].name).toBe('1')
+      expect(result[0]!.name).toBe('1')
     })
 
     it('複合キー（カンマ区切り）で重複を除去する', () => {
@@ -76,16 +76,16 @@ describe('csv-utils', () => {
       const csv = '\uFEFFname,slug\nテスト,test\n'
       const result = parseCsv(csv)
       expect(result).toHaveLength(1)
-      expect(result[0].name).toBe('テスト')
-      expect(result[0].slug).toBe('test')
+      expect(result[0]!.name).toBe('テスト')
+      expect(result[0]!.slug).toBe('test')
     })
 
     it('BOMなしCSVもパースする', () => {
       const csv = 'a,b\n1,2\n3,4\n'
       const result = parseCsv(csv)
       expect(result).toHaveLength(2)
-      expect(result[0].a).toBe('1')
-      expect(result[1].b).toBe('4')
+      expect(result[0]!.a).toBe('1')
+      expect(result[1]!.b).toBe('4')
     })
 
     it('ヘッダーのみの場合は空配列を返す', () => {

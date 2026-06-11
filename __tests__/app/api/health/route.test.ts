@@ -22,7 +22,7 @@ describe('Health Check API', async () => {
   })
 
   it('正常時に200とhealthyを返す', async () => {
-    prisma.$queryRaw.mockResolvedValue([{ '?column?': 1 }] as { '?column?': number }[])
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as { '?column?': number }[])
 
     const { GET } = await import('@/app/api/health/route')
     const response = await GET(new Request('http://localhost/api/health') as unknown as import('next/server').NextRequest)
@@ -36,7 +36,7 @@ describe('Health Check API', async () => {
 
   it('DBエラー時に503とunhealthyを返す', async () => {
     const error = new Error('Connection failed')
-    prisma.$queryRaw.mockRejectedValue(error)
+    vi.mocked(prisma.$queryRaw).mockRejectedValue(error)
 
     const { GET } = await import('@/app/api/health/route')
     const response = await GET(new Request('http://localhost/api/health') as unknown as import('next/server').NextRequest)
@@ -49,7 +49,7 @@ describe('Health Check API', async () => {
   })
 
   it('不明なエラー時も503を返す', async () => {
-    prisma.$queryRaw.mockRejectedValue('Unknown error')
+    vi.mocked(prisma.$queryRaw).mockRejectedValue('Unknown error')
 
     const { GET } = await import('@/app/api/health/route')
     const response = await GET(new Request('http://localhost/api/health') as unknown as import('next/server').NextRequest)
@@ -61,7 +61,7 @@ describe('Health Check API', async () => {
   })
 
   it('タイムスタンプがISO形式で返される', async () => {
-    prisma.$queryRaw.mockResolvedValue([{ '?column?': 1 }] as { '?column?': number }[])
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as { '?column?': number }[])
 
     const { GET } = await import('@/app/api/health/route')
     const response = await GET(new Request('http://localhost/api/health') as unknown as import('next/server').NextRequest)
@@ -73,7 +73,7 @@ describe('Health Check API', async () => {
   })
 
   it('Content-Typeがapplication/jsonである', async () => {
-    prisma.$queryRaw.mockResolvedValue([{ '?column?': 1 }] as { '?column?': number }[])
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as { '?column?': number }[])
 
     const { GET } = await import('@/app/api/health/route')
     const response = await GET(new Request('http://localhost/api/health') as unknown as import('next/server').NextRequest)
@@ -82,7 +82,7 @@ describe('Health Check API', async () => {
   })
 
   it('503レスポンスでもContent-Typeがapplication/jsonである', async () => {
-    prisma.$queryRaw.mockRejectedValue(new Error('DB error'))
+    vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error('DB error'))
 
     const { GET } = await import('@/app/api/health/route')
     const response = await GET(new Request('http://localhost/api/health') as unknown as import('next/server').NextRequest)

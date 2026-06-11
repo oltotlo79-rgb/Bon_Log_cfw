@@ -116,7 +116,7 @@ describe('PollSection', () => {
         onToggle={onToggle}
       />
     )
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     await user.click(closeButton)
     expect(onToggle).toHaveBeenCalledTimes(1)
   })
@@ -133,7 +133,7 @@ describe('PollSection', () => {
       />
     )
     const allButtons = screen.getAllByRole('button')
-    await user.click(allButtons[1])
+    await user.click(allButtons[1]!)
     expect(onOptionsChange).toHaveBeenCalledWith(['B', 'C'])
   })
 

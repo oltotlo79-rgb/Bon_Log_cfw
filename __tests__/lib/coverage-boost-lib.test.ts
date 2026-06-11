@@ -14,39 +14,39 @@ describe('logger', async () => {
   })
 
   it('log does not output in non-development (test env)', async () => {
-    const spy = vi.spyOn(console, 'log').mockImplementation()
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
     const { logger } = await import('@/lib/logger')
     logger.log('hello')
     expect(spy).not.toHaveBeenCalled()
   })
 
   it('warn does not output in non-development', async () => {
-    const spy = vi.spyOn(console, 'warn').mockImplementation()
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { logger } = await import('@/lib/logger')
     logger.warn('warning')
     expect(spy).not.toHaveBeenCalled()
   })
 
   it('error does not console.error in non-development but tries Sentry', async () => {
-    vi.spyOn(console, 'error').mockImplementation()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { logger } = await import('@/lib/logger')
     expect(() => logger.error('err')).not.toThrow()
   })
 
   it('error with Error object tries Sentry captureException', async () => {
-    vi.spyOn(console, 'error').mockImplementation()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { logger } = await import('@/lib/logger')
     expect(() => logger.error(new Error('test error'))).not.toThrow()
   })
 
   it('error with non-Error args tries Sentry captureMessage', async () => {
-    vi.spyOn(console, 'error').mockImplementation()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { logger } = await import('@/lib/logger')
     expect(() => logger.error('string error', 123, { extra: true })).not.toThrow()
   })
 
   it('debug does not output in non-development', async () => {
-    const spy = vi.spyOn(console, 'debug').mockImplementation()
+    const spy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
     const { logger } = await import('@/lib/logger')
     logger.debug('info')
     expect(spy).not.toHaveBeenCalled()

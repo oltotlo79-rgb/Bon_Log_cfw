@@ -5,7 +5,6 @@ import { MediaUploadSection } from '@/components/post/form/MediaUploadSection'
 
 function makeRef(el: HTMLInputElement | null = null) {
   const ref = createRef<HTMLInputElement | null>()
-  // @ts-expect-error - setting current directly for testing
   ref.current = el
   return ref
 }

@@ -167,7 +167,7 @@ describe('getPostsByHashtag', async () => {
     const result = await getPostsByHashtag('盆栽')
 
     expect(result.posts).toEqual(posts)
-    expect(result.hashtag.name).toBe('盆栽')
+    expect(result.hashtag!.name).toBe('盆栽')
   })
 
   it('supports pagination with limit', async () => {

@@ -48,10 +48,10 @@ vi.mock('next/headers', () => ({
 }))
 
 /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
-function unwrapOk<T>(result: { success: true; data?: T } | { success: false; error: string }): T {
+function unwrapOk<T>(result: { success: true; data?: unknown } | { success: false; error: string }): T {
   if (!result.success) throw new Error(`Expected success, got error: ${result.error}`)
   if (!result.data) throw new Error('Expected data to be defined')
-  return result.data
+  return result.data as T
 }
 
 describe('Bonsai Actions', async () => {
@@ -76,7 +76,7 @@ describe('Bonsai Actions', async () => {
 
       const data = unwrapOk<{ bonsais: typeof mockBonsais }>(result)
       expect(data.bonsais).toHaveLength(1)
-      expect(data.bonsais[0].name).toBe(mockBonsai.name)
+      expect(data.bonsais[0]!.name).toBe(mockBonsai.name)
     })
 
     it('引数 userId を信用せず認証済み本人の盆栽のみ取得する', async () => {
@@ -635,7 +635,7 @@ describe('Bonsai Actions', async () => {
 
     it('レート制限に達した場合、エラーを返す', async () => {
       const { checkUserRateLimit } = await import('@/lib/rate-limit')
-      vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, reset: Date.now() })
+      vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: Date.now() })
 
       const { createBonsai } = await import('@/lib/actions/bonsai')
       const result = await createBonsai({ name: '黒松' })
@@ -658,7 +658,7 @@ describe('Bonsai Actions', async () => {
 
     it('レート制限に達した場合、エラーを返す', async () => {
       const { checkUserRateLimit } = await import('@/lib/rate-limit')
-      vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, reset: Date.now() })
+      vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: Date.now() })
 
       const { updateBonsai } = await import('@/lib/actions/bonsai')
       const result = await updateBonsai(mockBonsai.id, { name: '更新' })
@@ -691,7 +691,7 @@ describe('Bonsai Actions', async () => {
 
     it('レート制限に達した場合、エラーを返す', async () => {
       const { checkUserRateLimit } = await import('@/lib/rate-limit')
-      vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, reset: Date.now() })
+      vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: Date.now() })
 
       const { deleteBonsai } = await import('@/lib/actions/bonsai')
       const result = await deleteBonsai(mockBonsai.id)

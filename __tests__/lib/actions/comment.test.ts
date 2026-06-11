@@ -360,7 +360,7 @@ describe('Comment Actions', async () => {
       const result = await getComments('post-id')
 
       expect(result.comments).toHaveLength(1)
-      expect(result.comments[0].id).toBe(mockComment.id)
+      expect(result.comments[0]!.id).toBe(mockComment.id)
     })
 
     it('ブロックしたユーザーのコメントは除外される', async () => {
@@ -413,8 +413,8 @@ describe('Comment Actions', async () => {
       const { getComments } = await import('@/lib/actions/comment')
       const result = await getComments('post-id')
 
-      expect(result.comments[0].isLiked).toBe(true)
-      expect(result.comments[1].isLiked).toBe(false)
+      expect(result.comments[0]!.isLiked).toBe(true)
+      expect(result.comments[1]!.isLiked).toBe(false)
     })
 
     it('未認証でもコメント一覧を取得できる', async () => {
@@ -432,7 +432,7 @@ describe('Comment Actions', async () => {
       const result = await getComments('post-id')
 
       expect(result.comments).toHaveLength(1)
-      expect(result.comments[0].isLiked).toBe(false)
+      expect(result.comments[0]!.isLiked).toBe(false)
     })
   })
 
@@ -579,7 +579,7 @@ describe('Comment Actions', async () => {
       const result = await getReplies('comment-id')
 
       expect(result.replies).toHaveLength(2)
-      expect(result.replies[0].parentId).toBe('comment-id')
+      expect(result.replies[0]!.parentId).toBe('comment-id')
     })
 
     it('ブロックしたユーザーの返信は除外される', async () => {
@@ -730,8 +730,8 @@ describe('Comment Actions', async () => {
       const { getReplies } = await import('@/lib/actions/comment')
       const result = await getReplies('comment-id')
 
-      expect(result.replies[0].isLiked).toBe(true)
-      expect(result.replies[1].isLiked).toBe(false)
+      expect(result.replies[0]!.isLiked).toBe(true)
+      expect(result.replies[1]!.isLiked).toBe(false)
     })
 
     it('エラー発生時は空の配列を返す', async () => {
@@ -765,7 +765,7 @@ describe('Comment Actions', async () => {
       const result = await getReplies('comment-id')
 
       expect(result.replies).toHaveLength(1)
-      expect(result.replies[0].isLiked).toBe(false)
+      expect(result.replies[0]!.isLiked).toBe(false)
     })
 
     it('hasMoreが正しく判定される（limitと同数の場合）', async () => {
@@ -1094,6 +1094,42 @@ describe('Comment Actions', async () => {
       const result = await getComments('post-id', undefined, 3)
 
       expect(result.nextCursor).toBeUndefined()
+    })
+  })
+
+  // ============================================================
+  // T4: orderBy 2キー配列アサーション
+  // ============================================================
+
+  describe('getComments - orderBy 2キー配列', async () => {
+    it('orderBy が [{ createdAt: desc }, { id: desc }] の 2 キー配列で呼ばれる', async () => {
+      mockPrisma.block.findMany.mockResolvedValue([])
+      mockPrisma.comment.findMany.mockResolvedValue([])
+
+      const { getComments } = await import('@/lib/actions/comment')
+      await getComments('post-id')
+
+      expect(mockPrisma.comment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })
+      )
+    })
+  })
+
+  describe('getReplies - orderBy 2キー配列', async () => {
+    it('orderBy が [{ createdAt: asc }, { id: asc }] の 2 キー配列で呼ばれる', async () => {
+      mockPrisma.block.findMany.mockResolvedValue([])
+      mockPrisma.comment.findMany.mockResolvedValue([])
+
+      const { getReplies } = await import('@/lib/actions/comment')
+      await getReplies('comment-id')
+
+      expect(mockPrisma.comment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        })
+      )
     })
   })
 })

@@ -151,7 +151,7 @@ describe('ContactForm', () => {
   describe('フォーム送信', () => {
     it('正常に送信できる', async () => {
       // Deferred promise to control when submitContactInquiry resolves
-      let resolveSubmit!: (value: { success: boolean }) => void
+      let resolveSubmit!: (value: { success: true } | { success: false; error: string }) => void
       const { submitContactInquiry } = await import('@/lib/actions/contact')
       vi.mocked(submitContactInquiry).mockImplementation(
         () => new Promise((resolve) => { resolveSubmit = resolve })

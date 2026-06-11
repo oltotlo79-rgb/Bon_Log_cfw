@@ -25,7 +25,7 @@ vi.mock('@/lib/logger', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
-  delete process.env.NODE_ENV
+  ;(process.env as { NODE_ENV: string | undefined }).NODE_ENV = undefined
 })
 
 describe('LocalStorageProvider.delete: path traversal ガード', () => {

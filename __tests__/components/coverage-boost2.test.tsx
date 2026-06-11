@@ -1,3 +1,5 @@
+import type { Notification } from '@/components/notification/NotificationItem'
+import type { Post } from '@/components/post/PostCard.types'
  
 import { vi } from 'vitest'
  
@@ -261,7 +263,7 @@ describe('SearchBar', () => {
 
     const deleteButtons = document.querySelectorAll('li button button')
     if (deleteButtons.length > 0) {
-      fireEvent.click(deleteButtons[0])
+      fireEvent.click(deleteButtons[0]!)
     }
   })
 
@@ -320,7 +322,7 @@ describe('NotificationList', () => {
       { id: 'n2', type: 'follow', isRead: true },
     ]
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.getByTestId('notification-n1')).toBeInTheDocument()
     expect(screen.getByTestId('notification-n2')).toBeInTheDocument()
@@ -331,7 +333,7 @@ describe('NotificationList', () => {
       { id: 'n1', type: 'like', isRead: false },
     ]
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.getByText('すべて既読にする')).toBeInTheDocument()
   })
@@ -341,13 +343,13 @@ describe('NotificationList', () => {
       { id: 'n1', type: 'like', isRead: true },
     ]
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.queryByText('すべて既読にする')).not.toBeInTheDocument()
   })
 
   it('calls markAllAsRead on mount', async () => {
-    render(<NotificationList initialNotifications={[{ id: 'n1', type: 'like', isRead: false }]} />)
+    render(<NotificationList initialNotifications={[{ id: 'n1', type: 'like', isRead: false } as unknown as Notification]} />)
 
     await waitFor(() => {
       expect(markAllAsRead).toHaveBeenCalled()
@@ -357,7 +359,7 @@ describe('NotificationList', () => {
   it('handles mark all as read button click', async () => {
     const notifications = [{ id: 'n1', type: 'like', isRead: false }]
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     fireEvent.click(screen.getByText('すべて既読にする'))
 
@@ -371,7 +373,7 @@ describe('NotificationList', () => {
   it('shows "no more notifications" when all loaded', () => {
     const notifications = [{ id: 'n1', type: 'like', isRead: true }]
 
-    render(<NotificationList initialNotifications={notifications} />)
+    render(<NotificationList initialNotifications={notifications as unknown as Notification[]} />)
 
     expect(screen.getByText('これ以上通知はありません')).toBeInTheDocument()
   })
@@ -461,7 +463,7 @@ describe('Timeline - coverage boost', () => {
       isLoading: false,
     })
 
-    render(<Timeline initialPosts={mockPosts} currentUserId="u1" />)
+    render(<Timeline initialPosts={mockPosts as unknown as Post[]} currentUserId="u1" />)
     expect(screen.getByText('投稿を読み込んでいます...')).toBeInTheDocument()
   })
 
@@ -478,12 +480,12 @@ describe('Timeline - coverage boost', () => {
       isLoading: false,
     })
 
-    render(<Timeline initialPosts={mockPosts} currentUserId="u1" />)
+    render(<Timeline initialPosts={mockPosts as unknown as Post[]} currentUserId="u1" />)
     expect(screen.getByText('1件の投稿を表示中')).toBeInTheDocument()
   })
 
   it('renders without currentUserId', () => {
-    render(<Timeline initialPosts={mockPosts} />)
+    render(<Timeline initialPosts={mockPosts as unknown as Post[]} />)
     expect(screen.getByText('投稿1')).toBeInTheDocument()
   })
 
@@ -506,7 +508,7 @@ describe('Timeline - coverage boost', () => {
       isLoading: false,
     })
 
-    render(<Timeline initialPosts={fivePosts} currentUserId="u1" />)
+    render(<Timeline initialPosts={fivePosts as unknown as Post[]} currentUserId="u1" />)
     // All 5 posts should be rendered
     expect(screen.getByText('投稿0')).toBeInTheDocument()
     expect(screen.getByText('投稿4')).toBeInTheDocument()

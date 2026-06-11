@@ -43,7 +43,7 @@ describe('RegionFilter 拡張テスト', () => {
     await user.click(kantoButton)
 
     expect(mockPush).toHaveBeenCalled()
-    const calledUrl = mockPush.mock.calls[0][0]
+    const calledUrl = mockPush.mock.calls[0]![0]!
     expect(decodeURIComponent(calledUrl)).toBe('/events?region=関東')
   })
 
@@ -55,7 +55,7 @@ describe('RegionFilter 拡張テスト', () => {
     await user.selectOptions(select, '東京都')
 
     expect(mockPush).toHaveBeenCalled()
-    const calledUrl = mockPush.mock.calls[0][0]
+    const calledUrl = mockPush.mock.calls[0]![0]!
     expect(decodeURIComponent(calledUrl)).toBe('/events?prefecture=東京都')
   })
 

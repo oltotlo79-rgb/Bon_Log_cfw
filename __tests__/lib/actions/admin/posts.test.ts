@@ -231,7 +231,7 @@ describe('管理者向け投稿管理アクション', () => {
       const result = await getAdminPosts()
 
       if ('error' in result) throw new Error('Expected posts, got error')
-      expect(result.posts[0].reportCount).toBe(3)
+      expect(result.posts[0]!.reportCount).toBe(3)
     })
 
     it('通報件数のないポストはreportCount=0になる', async () => {
@@ -243,7 +243,7 @@ describe('管理者向け投稿管理アクション', () => {
       const result = await getAdminPosts()
 
       if ('error' in result) throw new Error('Expected posts, got error')
-      expect(result.posts[0].reportCount).toBe(0)
+      expect(result.posts[0]!.reportCount).toBe(0)
     })
 
     it('cursor ページネーションが正しく動作する', async () => {
@@ -300,7 +300,7 @@ describe('管理者向け投稿管理アクション', () => {
 
     it('トランザクションで投稿削除と管理ログを同時実行する', async () => {
       mockPrisma.post.findUnique.mockResolvedValue(mockPost)
-      mockTransaction.mockImplementation((ops: unknown[]) => Promise.all(ops as Promise<unknown>[]))
+      mockTransaction.mockImplementation((ops: unknown) => Promise.all(ops as Promise<unknown>[]))
       mockPrisma.post.delete.mockResolvedValue({ id: 'post-id' })
       mockPrisma.adminLog.create.mockResolvedValue({ id: 'log-id' })
 
@@ -312,7 +312,7 @@ describe('管理者向け投稿管理アクション', () => {
 
     it('削除理由を管理ログのdetailsに記録する', async () => {
       mockPrisma.post.findUnique.mockResolvedValue(mockPost)
-      mockTransaction.mockImplementation(async (_ops: unknown[]) => {
+      mockTransaction.mockImplementation(async (_ops: unknown) => {
         // prisma.adminLog.createの呼び出しを確認するため、手動実行
         return Promise.resolve([{}, {}])
       })

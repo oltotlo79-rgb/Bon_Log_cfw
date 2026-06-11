@@ -88,7 +88,7 @@ describe('Event Import Actions', async () => {
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data!.events).toHaveLength(1)
-        expect(result.data!.events[0].title).toBe('盆栽展')
+        expect(result.data!.events[0]!.title).toBe('盆栽展')
       }
     })
 
@@ -145,7 +145,7 @@ describe('Event Import Actions', async () => {
 
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data!.events[0].isDuplicate).toBe(true)
+        expect(result.data!.events[0]!.isDuplicate).toBe(true)
       }
     })
   })
@@ -393,7 +393,7 @@ describe('Event Import Actions', async () => {
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data!.events).toHaveLength(1)
-        expect(result.data!.events[0].isDuplicate).toBe(false)
+        expect(result.data!.events[0]!.isDuplicate).toBe(false)
       }
     })
 
@@ -432,7 +432,7 @@ describe('Event Import Actions', async () => {
 
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data!.events[0].isDuplicate).toBe(false)
+        expect(result.data!.events[0]!.isDuplicate).toBe(false)
       }
     })
 
@@ -471,7 +471,7 @@ describe('Event Import Actions', async () => {
 
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data!.events[0].isDuplicate).toBe(true)
+        expect(result.data!.events[0]!.isDuplicate).toBe(true)
       }
     })
 
@@ -551,7 +551,7 @@ describe('Event Import Actions', async () => {
 
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data!.events[0].isDuplicate).toBe(true)
+        expect(result.data!.events[0]!.isDuplicate).toBe(true)
       }
     })
   })
@@ -562,8 +562,8 @@ describe('Event Import Actions', async () => {
       const result = await getAvailableRegions()
 
       expect(result.regions).toHaveLength(2)
-      expect(result.regions[0].name).toBe('関東')
-      expect(result.regions[1].name).toBe('近畿')
+      expect(result.regions[0]!.name).toBe('関東')
+      expect(result.regions[1]!.name).toBe('近畿')
     })
   })
 })

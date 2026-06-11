@@ -138,6 +138,22 @@ vi.mock('@/components/search/SearchResults', () => ({
   PopularTags: () => <div data-testid="popular-tags" />,
 }))
 
+// SearchResultsContent は Suspense 内の async Server Component。テスト環境でこの async 関数が
+// suspend すると "A component suspended inside an act scope" 警告が出るため、
+// 外部ファイルのコンポーネントとしてモック化して解消する。
+// props を data-* 属性に記録することでページからの props 受け渡しを検証できる。
+vi.mock('@/app/(main)/search/SearchResultsContent', () => ({
+  SearchResultsContent: (props: Record<string, unknown>) => (
+    <div
+      data-testid="search-results-content"
+      data-tab={props.tab as string}
+      data-query={props.query as string}
+      data-genre-ids={JSON.stringify(props.genreIds)}
+    />
+  ),
+  SearchResultsLoading: () => <div data-testid="search-results-loading" />,
+}))
+
 /**
  * Next.js内部モジュールのMock
  *
@@ -634,15 +650,16 @@ describe('Coverage Boost Tests', async () => {
      * - URL から取得した文字列が正しく配列に変換されているか確認
      */
     it('should handle single genre parameter', async () => {
-      const { searchPosts } = await import('@/lib/actions/search')
-
       const jsx = await SearchPage({
         searchParams: Promise.resolve({ tab: 'posts', genre: 'genre1' }),
       })
       render(jsx)
 
-      // searchPosts が、第1引数：検索キー（空），第2引数：ジャンル配列 で呼ばれたか確認
-      expect(searchPosts).toHaveBeenCalledWith('', ['genre1'], undefined, 20, undefined)
+      // SearchResultsContent に genreIds が正しく渡されることを確認
+      // （SearchResultsContent はモック化されているため searchPosts の呼び出しではなく
+      //   props の受け渡しで確認する）
+      const content = screen.getByTestId('search-results-content')
+      expect(JSON.parse(content.getAttribute('data-genre-ids') || '[]')).toEqual(['genre1'])
     })
 
     /**
@@ -655,14 +672,14 @@ describe('Coverage Boost Tests', async () => {
      * 複数ジャンルで絞り込みできることが重要
      */
     it('should handle multiple genre parameters', async () => {
-      const { searchPosts } = await import('@/lib/actions/search')
-
       const jsx = await SearchPage({
         searchParams: Promise.resolve({ tab: 'posts', genre: ['genre1', 'genre2'] }),
       })
       render(jsx)
 
-      expect(searchPosts).toHaveBeenCalledWith('', ['genre1', 'genre2'], undefined, 20, undefined)
+      // SearchResultsContent に複数の genreIds が正しく渡されることを確認
+      const content = screen.getByTestId('search-results-content')
+      expect(JSON.parse(content.getAttribute('data-genre-ids') || '[]')).toEqual(['genre1', 'genre2'])
     })
 
     /**

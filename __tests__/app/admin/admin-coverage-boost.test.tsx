@@ -226,7 +226,7 @@ describe('Admin Pages Coverage Boost', async () => {
     it('renders page when admin', async () => {
       // isAdminモックを取得して、返り値をtrueに設定
       const { isAdmin } = await import('@/lib/actions/admin')
-      isAdmin.mockResolvedValue(true)
+      vi.mocked(isAdmin).mockResolvedValue(true)
 
       // 動的インポート: import文では実行時のモックが反映されないため、require/await importを使う
       // .defaultで、デフォルトエクスポートのコンポーネント関数を取得
@@ -262,7 +262,7 @@ describe('Admin Pages Coverage Boost', async () => {
       const redirect = _mockRedirect as unknown as ReturnType<typeof vi.fn>
 
       // 非管理者を模擬
-      isAdmin.mockResolvedValue(false)
+      vi.mocked(isAdmin).mockResolvedValue(false)
 
       const AdminEventImportPage = (
         await import('@/app/admin/events/import/page')
@@ -295,7 +295,7 @@ describe('Admin Pages Coverage Boost', async () => {
       const { getMaintenanceSettings } = await import('@/lib/actions/maintenance')
 
       // メンテナンス無効のデータをモック
-      getMaintenanceSettings.mockResolvedValue({
+      vi.mocked(getMaintenanceSettings).mockResolvedValue({
         enabled: false,
         message: 'Test message',
         startTime: null,
@@ -340,11 +340,11 @@ describe('Admin Pages Coverage Boost', async () => {
       const endTime = new Date('2026-02-01T12:00:00Z')
 
       // メンテナンス有効のデータをモック
-      getMaintenanceSettings.mockResolvedValue({
+      vi.mocked(getMaintenanceSettings).mockResolvedValue({
         enabled: true,
         message: 'Maintenance in progress',
-        startTime: new Date('2026-01-31T12:00:00Z'),
-        endTime,
+        startTime: '2026-01-31T12:00:00Z',
+        endTime: endTime.toISOString(),
       })
 
       const MaintenancePage = (

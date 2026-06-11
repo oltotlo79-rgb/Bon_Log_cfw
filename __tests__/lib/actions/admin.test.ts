@@ -105,8 +105,8 @@ describe('Admin Actions', async () => {
       const { getAdminUsers } = await import('@/lib/actions/admin/users')
       const result = await getAdminUsers()
 
-      expect(result.users).toHaveLength(1)
-      expect(result.total).toBe(1)
+      expect(('users' in result ? result.users : undefined)).toHaveLength(1)
+      expect(('total' in result ? result.total : undefined)).toBe(1)
     })
 
     it('検索とフィルターが適用される', async () => {
@@ -156,8 +156,8 @@ describe('Admin Actions', async () => {
       const { getAdminUserDetail } = await import('@/lib/actions/admin/users')
       const result = await getAdminUserDetail(mockUser.id)
 
-      expect(result.user).toBeDefined()
-      expect(result.reportCount).toBe(2)
+      expect(('user' in result ? result.user : undefined)).toBeDefined()
+      expect(('reportCount' in result ? result.reportCount : undefined)).toBe(2)
     })
 
     it('ユーザーが見つからない場合、エラーを返す', async () => {
@@ -413,8 +413,8 @@ describe('Admin Actions', async () => {
       const { getAdminLogs } = await import('@/lib/actions/admin/logs')
       const result = await getAdminLogs()
 
-      expect(result.logs).toHaveLength(1)
-      expect(result.total).toBe(1)
+      expect(('logs' in result ? result.logs : undefined)).toHaveLength(1)
+      expect(('total' in result ? result.total : undefined)).toBe(1)
     })
 
     it('アクションでフィルターできる', async () => {

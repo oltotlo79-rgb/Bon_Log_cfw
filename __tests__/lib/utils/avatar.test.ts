@@ -30,7 +30,7 @@ describe('getDefaultAvatarPath', () => {
       const path = getDefaultAvatarPath(id)
       const match = path.match(/enso-avatar-(\d+)\.webp$/)
       expect(match).not.toBeNull()
-      const index = parseInt(match![1], 10)
+      const index = parseInt(match![1]!, 10)
       expect(index).toBeGreaterThanOrEqual(1)
       expect(index).toBeLessThanOrEqual(5)
     }

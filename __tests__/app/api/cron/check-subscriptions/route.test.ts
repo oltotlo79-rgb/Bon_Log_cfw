@@ -350,7 +350,7 @@ describe('Cron Check Subscriptions API', () => {
       expect(sendSubscriptionExpiringEmail).toHaveBeenCalledWith(
         'user1@test.com',
         'User1',
-        expiringUsers[0].premiumExpiresAt,
+        expiringUsers[0]!.premiumExpiresAt,
       )
 
       // Verify batch notification lookup (no existing notifications)

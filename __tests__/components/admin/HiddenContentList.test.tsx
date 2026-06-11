@@ -90,7 +90,7 @@ describe('HiddenContentList', () => {
     render(<HiddenContentList items={mixedItems} />)
 
     const postFilters = screen.getAllByText(/投稿/)
-    await user.click(postFilters[0])
+    await user.click(postFilters[0]!)
 
     expect(screen.getByText('投稿コンテンツ')).toBeInTheDocument()
     expect(screen.queryByText('コメントコンテンツ')).not.toBeInTheDocument()
@@ -101,7 +101,7 @@ describe('HiddenContentList', () => {
     render(<HiddenContentList items={mixedItems} />)
 
     const commentFilters = screen.getAllByText(/コメント/)
-    await user.click(commentFilters[0])
+    await user.click(commentFilters[0]!)
 
     expect(screen.getByText('コメントコンテンツ')).toBeInTheDocument()
     expect(screen.queryByText('投稿コンテンツ')).not.toBeInTheDocument()
@@ -112,7 +112,7 @@ describe('HiddenContentList', () => {
     render(<HiddenContentList items={mixedItems} />)
 
     // まず投稿フィルター
-    await user.click(screen.getAllByText(/投稿/)[0])
+    await user.click(screen.getAllByText(/投稿/)[0]!)
     expect(screen.queryByText('コメントコンテンツ')).not.toBeInTheDocument()
 
     // すべてに戻す

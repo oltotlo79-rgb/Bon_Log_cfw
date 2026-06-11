@@ -139,7 +139,7 @@ describe('PostForm - media files in draft save (lines 188, 428)', () => {
 
     await waitFor(() => {
       expect(mockSaveDraft).toHaveBeenCalled()
-      const lastCall = mockSaveDraft.mock.calls[mockSaveDraft.mock.calls.length - 1][0]
+      const lastCall = mockSaveDraft.mock.calls[mockSaveDraft.mock.calls.length - 1]![0]!
       expect(lastCall.id).toBe('draft-media-1')
       // mediaUrls should contain the uploaded image URL
       expect(lastCall.mediaUrls).toEqual(['https://r2.example.com/test.jpg'])
@@ -180,7 +180,7 @@ describe('PostForm - media files in draft save (lines 188, 428)', () => {
 
     await waitFor(() => {
       expect(mockSaveDraft).toHaveBeenCalled()
-      const callArgs = mockSaveDraft.mock.calls[0][0]
+      const callArgs = mockSaveDraft.mock.calls[0]![0]!
       expect(callArgs.mediaUrls).toEqual(['https://r2.example.com/uploaded.jpg'])
     })
   })

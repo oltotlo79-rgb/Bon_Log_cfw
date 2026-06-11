@@ -4,7 +4,7 @@ import { vi } from 'vitest'
  * @description 盆栽詳細ページ、投稿詳細ページ、DraftEditForm、ScheduledPostFormの分岐網羅率向上テスト
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // ============================================================
@@ -84,6 +84,14 @@ vi.mock('@/components/common/Breadcrumb', () => ({
   Breadcrumb: () => <div data-testid="breadcrumb">Breadcrumb</div>,
 }))
 
+// CommentSection は Suspense 内の async Server Component。テスト環境でこの async 関数が
+// suspend すると "A component suspended by an uncached promise" 警告が出るため、
+// 外部ファイルのコンポーネントとしてモック化して解消する。
+vi.mock('@/app/(main)/posts/[id]/CommentSection', () => ({
+  CommentSection: () => <div data-testid="comment-section" />,
+  CommentSectionSkeleton: () => <div data-testid="comment-section-skeleton" />,
+}))
+
 vi.mock('@/lib/client-image-compression', () => ({
   prepareFileForUpload: vi.fn((file: unknown) => Promise.resolve(file)),
   isVideoFile: vi.fn().mockReturnValue(false),
@@ -130,7 +138,9 @@ import { getBonsai } from '@/lib/actions/bonsai'
 import { getPostsByBonsai } from '@/lib/actions/post'
 import { getPost } from '@/lib/actions/post'
 import { getComments, getCommentCount } from '@/lib/actions/comment'
-import { recordPostView } from '@/lib/actions/analytics'
+// recordPostView is defined in the vi.mock factory above; the module type doesn't export it
+const _analyticsModule = await import('@/lib/actions/analytics')
+const recordPostView = (_analyticsModule as unknown as { recordPostView: ReturnType<typeof vi.fn> }).recordPostView
 import { saveDraft, publishDraft } from '@/lib/actions/draft'
 import { createScheduledPost, updateScheduledPost } from '@/lib/actions/scheduled-post'
 import { prisma } from '@/lib/db'
@@ -228,7 +238,7 @@ describe('Bonsai Detail Page - 未カバー分岐テスト', () => {
       expect(result.description).toContain(shortDescription)
     })
 
-    it('recordsやimagesがない場合はogImageにデフォルトを使用', async () => {
+    it('盆栽詳細は noindex ポリシーのため OG images を出力しない', async () => {
       ;(getBonsai as ReturnType<typeof vi.fn>).mockResolvedValue(ok({
         bonsai: {
           id: 'b1',
@@ -245,14 +255,9 @@ describe('Bonsai Detail Page - 未カバー分岐テスト', () => {
         params: Promise.resolve({ id: 'b1' }),
       })
 
-      expect(result.openGraph?.images).toEqual([
-        {
-          url: '/api/og',
-          width: 1200,
-          height: 630,
-          alt: 'テスト盆栽',
-        },
-      ])
+      // /bonsai/* は認証必須リソース。robots: { index: false } を明示し OG tags は出力しない。
+      expect(result.openGraph?.images).toBeUndefined()
+      expect(result.robots).toMatchObject({ index: false })
     })
   })
 
@@ -477,7 +482,7 @@ describe('Post Detail Page - 未カバー分岐テスト', () => {
       const Component = await PostDetailPage({
         params: Promise.resolve({ id: 'p1' }),
       })
-      render(Component)
+      await act(async () => { render(Component) })
 
       expect(prisma.commentThreadMute.findMany).not.toHaveBeenCalled()
       expect(recordPostView).not.toHaveBeenCalled()
@@ -499,7 +504,7 @@ describe('Post Detail Page - 未カバー分岐テスト', () => {
       const Component = await PostDetailPage({
         params: Promise.resolve({ id: 'p1' }),
       })
-      render(Component)
+      await act(async () => { render(Component) })
 
       expect(recordPostView).not.toHaveBeenCalled()
     })
@@ -521,7 +526,7 @@ describe('Post Detail Page - 未カバー分岐テスト', () => {
       const Component = await PostDetailPage({
         params: Promise.resolve({ id: 'p1' }),
       })
-      render(Component)
+      await act(async () => { render(Component) })
 
       expect(prisma.commentThreadMute.findMany).not.toHaveBeenCalled()
     })
@@ -543,7 +548,7 @@ describe('Post Detail Page - 未カバー分岐テスト', () => {
       const Component = await PostDetailPage({
         params: Promise.resolve({ id: 'p1' }),
       })
-      render(Component)
+      await act(async () => { render(Component) })
 
       expect(prisma.commentThreadMute.findMany).not.toHaveBeenCalled()
     })
@@ -564,7 +569,7 @@ describe('Post Detail Page - 未カバー分岐テスト', () => {
       const Component = await PostDetailPage({
         params: Promise.resolve({ id: 'p1' }),
       })
-      render(Component)
+      await act(async () => { render(Component) })
 
       const shareButtons = screen.getByTestId('share-buttons')
       expect(shareButtons.getAttribute('data-text')).toBe(shortContent)
@@ -589,7 +594,7 @@ describe('Post Detail Page - 未カバー分岐テスト', () => {
       const Component = await PostDetailPage({
         params: Promise.resolve({ id: 'p1' }),
       })
-      render(Component)
+      await act(async () => { render(Component) })
 
       const shareButtons = screen.getByTestId('share-buttons')
       expect(shareButtons.getAttribute('data-text')).toBe('')
@@ -673,7 +678,7 @@ describe('DraftEditForm - 未カバー分岐テスト', () => {
   })
 
   it('画像圧縮でratio === 0の場合、console.logをスキップ', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const mockXHR = {
       open: vi.fn(),

@@ -1,8 +1,10 @@
 // @vitest-environment node
 import { vi, describe, it, expect, beforeEach } from 'vitest'
+import type { Session } from 'next-auth'
 
+const mockAuth = vi.fn<() => Promise<Session | null>>()
 vi.mock('@/lib/auth', () => ({
-  auth: vi.fn(),
+  auth: () => mockAuth(),
 }))
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -34,6 +36,16 @@ function createMockRequest(file?: File) {
   } as unknown as import('next/server').NextRequest
 }
 
+const SESSION: Session = {
+  user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
+  expires: '2099-01-01',
+}
+
+const RATE_OK = { success: true as const, remaining: 4, resetTime: 0 }
+const RATE_FAIL = { success: false as const, remaining: 0, resetTime: 0 }
+const DAILY_OK = { allowed: true as const, count: 0, limit: 50 }
+const DAILY_FAIL = { allowed: false as const, count: 50, limit: 50 }
+
 describe('Upload API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -41,8 +53,7 @@ describe('Upload API', () => {
   })
 
   it('未認証で401を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue(null)
+    mockAuth.mockResolvedValue(null)
 
     const { POST } = await import('@/app/api/upload/route')
     const response = await POST(createMockRequest())
@@ -50,19 +61,13 @@ describe('Upload API', () => {
   })
 
   it('レート制限超過で429を返す', async () => {
-    // 監査 P0 対応で auth → file 検証 → rate-limit → daily-limit の順序になったため、
-    // rate-limit を確認するには valid file (実 JPEG マジックバイト) を渡す必要がある
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { validateImageFile } = await import('@/lib/file-validation')
     vi.mocked(validateImageFile).mockReturnValue({ valid: true })
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: false, remaining: 0 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_FAIL)
 
     const jpegHeader = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
     const file = new File([jpegHeader], 'a.jpg', { type: 'image/jpeg' })
@@ -72,20 +77,16 @@ describe('Upload API', () => {
   })
 
   it('日次制限超過で429を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { validateImageFile } = await import('@/lib/file-validation')
     vi.mocked(validateImageFile).mockReturnValue({ valid: true })
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: false, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_FAIL)
 
     const jpegHeader = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
     const file = new File([jpegHeader], 'a.jpg', { type: 'image/jpeg' })
@@ -95,17 +96,13 @@ describe('Upload API', () => {
   })
 
   it('ファイル未選択で400を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { POST } = await import('@/app/api/upload/route')
     const response = await POST(createMockRequest())
@@ -113,17 +110,13 @@ describe('Upload API', () => {
   })
 
   it('不正なファイルタイプで400を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
@@ -133,17 +126,13 @@ describe('Upload API', () => {
   })
 
   it('サイズ超過の画像で400を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const file = new File([Buffer.alloc(5 * 1024 * 1024)], 'test.jpg', { type: 'image/jpeg' })
 
@@ -153,17 +142,13 @@ describe('Upload API', () => {
   })
 
   it('画像バリデーション失敗で400を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { validateImageFile } = await import('@/lib/file-validation')
     vi.mocked(validateImageFile).mockReturnValue({ valid: false, error: '無効な画像ファイル' } as ReturnType<typeof validateImageFile>)
@@ -176,17 +161,13 @@ describe('Upload API', () => {
   })
 
   it('動画バリデーション失敗で400を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { validateVideoFile } = await import('@/lib/file-validation')
     vi.mocked(validateVideoFile).mockReturnValue({ valid: false, error: '無効な動画ファイル' } as ReturnType<typeof validateVideoFile>)
@@ -199,17 +180,13 @@ describe('Upload API', () => {
   })
 
   it('アップロード失敗で500を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { validateImageFile } = await import('@/lib/file-validation')
     vi.mocked(validateImageFile).mockReturnValue({ valid: true } as ReturnType<typeof validateImageFile>)
@@ -225,17 +202,13 @@ describe('Upload API', () => {
   })
 
   it('アップロード結果にURLがない場合500を返す', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { validateImageFile } = await import('@/lib/file-validation')
     vi.mocked(validateImageFile).mockReturnValue({ valid: true } as ReturnType<typeof validateImageFile>)
@@ -251,17 +224,13 @@ describe('Upload API', () => {
   })
 
   it('画像アップロード成功', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { validateImageFile } = await import('@/lib/file-validation')
     vi.mocked(validateImageFile).mockReturnValue({ valid: true } as ReturnType<typeof validateImageFile>)
@@ -283,17 +252,13 @@ describe('Upload API', () => {
   })
 
   it('動画アップロード成功', async () => {
-    const { auth } = await import('@/lib/auth')
-    vi.mocked(auth).mockResolvedValue({
-      user: { id: 'user-1', name: 'Test', email: 'test@test.com' },
-      expires: '2099-01-01',
-    })
+    mockAuth.mockResolvedValue(SESSION)
 
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValue({ success: true, remaining: 4 })
+    vi.mocked(checkUserRateLimit).mockResolvedValue(RATE_OK)
 
     const { checkDailyLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkDailyLimit).mockResolvedValue({ allowed: true, limit: 50 })
+    vi.mocked(checkDailyLimit).mockResolvedValue(DAILY_OK)
 
     const { validateVideoFile } = await import('@/lib/file-validation')
     vi.mocked(validateVideoFile).mockReturnValue({ valid: true } as ReturnType<typeof validateVideoFile>)

@@ -1,5 +1,6 @@
-import { vi } from 'vitest'
+import { vi, type Mocked } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import type * as StatsActions from '@/lib/actions/admin/stats'
 
 // StatsChartsWrapper は内部で next/dynamic (ssr: false) を使うためスタブ化
 vi.mock('@/app/admin/stats/StatsChartsWrapper', () => ({
@@ -12,7 +13,8 @@ vi.mock('@/lib/actions/admin/stats', () => ({
 }))
 
 describe('AdminStatsPage', async () => {
-  const { getStatsHistory, getStatsSummary } = await import('@/lib/actions/admin/stats')
+  const statsModule = await import('@/lib/actions/admin/stats') as unknown as Mocked<typeof StatsActions>
+  const { getStatsHistory, getStatsSummary } = statsModule
 
   beforeEach(() => {
     vi.clearAllMocks()

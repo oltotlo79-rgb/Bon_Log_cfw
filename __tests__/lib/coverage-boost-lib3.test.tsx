@@ -448,7 +448,7 @@ describe('lib/services/usage - uncovered branches', async () => {
     const { getCloudflareR2Usage } = await import('@/lib/services/usage')
     const result = await getCloudflareR2Usage()
     expect(result.status).toBe('ok')
-    expect(result.usage?.[0].current).toBe(0)
+    expect(result.usage?.[0]!.current).toBe(0)
   })
 
   it('Resend: exactly 100 emails continues pagination, then <100 stops', async () => {
@@ -468,7 +468,7 @@ describe('lib/services/usage - uncovered branches', async () => {
     const { getResendUsage } = await import('@/lib/services/usage')
     const result = await getResendUsage()
     expect(mockFetch).toHaveBeenCalledTimes(2)
-    expect(result.usage?.[0].current).toBe(150)
+    expect(result.usage?.[0]!.current).toBe(150)
   })
 
   it('Resend: emailsData.data is not an array stops pagination', async () => {
@@ -482,7 +482,7 @@ describe('lib/services/usage - uncovered branches', async () => {
     const { getResendUsage } = await import('@/lib/services/usage')
     const result = await getResendUsage()
     expect(result.status).toBe('ok')
-    expect(result.usage?.[0].current).toBe(0)
+    expect(result.usage?.[0]!.current).toBe(0)
   })
 
   it('Resend: emailsData.data is null stops pagination', async () => {
@@ -496,7 +496,7 @@ describe('lib/services/usage - uncovered branches', async () => {
     const { getResendUsage } = await import('@/lib/services/usage')
     const result = await getResendUsage()
     expect(result.status).toBe('ok')
-    expect(result.usage?.[0].current).toBe(0)
+    expect(result.usage?.[0]!.current).toBe(0)
   })
 
   it('Resend: non-Error exception in catch', async () => {
@@ -567,9 +567,9 @@ describe('lib/services/usage - uncovered branches', async () => {
     const { getFlyioUsage } = await import('@/lib/services/usage')
     const result = await getFlyioUsage()
     expect(result.status).toBe('ok')
-    expect(result.usage?.[0].current).toBe(2) // started 2件
-    expect(result.usage?.[0].limit).toBe(3) // 総数3件
-    expect(result.usage?.[0].unit).toContain('マシン')
+    expect(result.usage?.[0]!.current).toBe(2) // started 2件
+    expect(result.usage?.[0]!.limit).toBe(3) // 総数3件
+    expect(result.usage?.[0]!.unit).toContain('マシン')
   })
 })
 

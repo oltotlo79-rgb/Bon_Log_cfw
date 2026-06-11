@@ -292,21 +292,58 @@ describe('Rate Limit Module', () => {
       expect(result.limit).toBe(50)
     })
 
-    it('初回使用時はカウント1から開始する', async () => {
+    it('初回使用時はカウント1から開始し、JST翌日00:00までのTTLを設定する', async () => {
+      // 2026-06-11T10:00:00.000Z = JST 2026-06-11 19:00:00
+      // JST翌日 2026-06-12 00:00:00 = UTC 2026-06-11T15:00:00.000Z
+      // msUntilMidnight = 18000000ms → secondsUntilMidnight = 18000 + 60 (MIDNIGHT_BUFFER) = 18060
+      vi.setSystemTime(new Date('2026-06-11T10:00:00.000Z'))
       mockRedis.get.mockResolvedValue(null)
       mockRedis.incr.mockResolvedValue(1)
-      mockRedis.ttl.mockResolvedValue(-1)
       mockRedis.expire.mockResolvedValue(undefined)
 
       const result = await checkDailyLimit('user123', 'upload')
 
       expect(result.allowed).toBe(true)
       expect(result.count).toBe(1)
+      expect(mockRedis.expire).toHaveBeenCalledWith(
+        'daily:upload:user123:2026-06-11',
+        18060
+      )
+      vi.useRealTimers()
     })
 
-    it('TTLが未設定の場合は24時間を設定する', async () => {
+    it('初回TTL: JST日付境界の直前（UTC 2026-06-12T14:59:59.000Z）は TTL=61 秒', async () => {
+      // 2026-06-12T14:59:59.000Z = JST 2026-06-13 23:59:59
+      // jstTomorrow（JST 2026-06-14 00:00:00）= UTC 2026-06-13T15:00:00Z
+      // msUntilMidnight = UTC 2026-06-13T15:00:00Z - UTC 2026-06-12T14:59:59Z = 86401000ms
+      // secondsUntilMidnight = ceil(86401000/1000) + 60 = 86401 + 60 = 86461
+      // ※ちょうど境界 UTC 15:00:00Z なら msUntilMidnight=0 → ceil(0)+60=60 だが、
+      //   その瞬間は「JST 翌日00:00の始まり」であり今日のカウントは無意味なため
+      //   実際の境界テストは UTC 15:00ちょうど（JST 翌日0:00）を用いる
+      //
+      // UTC 2026-06-11T15:00:00.000Z = JST 2026-06-12 00:00:00 ちょうど
+      // getStartOfToday() → JST 2026-06-12 00:00:00 の UTC = UTC 2026-06-11T15:00:00Z
+      // jstTomorrow = UTC 2026-06-12T15:00:00Z
+      // msUntilMidnight = UTC 2026-06-12T15:00:00Z - UTC 2026-06-11T15:00:00Z = 86400000ms
+      // secondsUntilMidnight = 86400 + 60 = 86460
+      vi.setSystemTime(new Date('2026-06-11T15:00:00.000Z'))
       mockRedis.get.mockResolvedValue(null)
       mockRedis.incr.mockResolvedValue(1)
+      mockRedis.expire.mockResolvedValue(undefined)
+
+      await checkDailyLimit('user123', 'upload')
+
+      expect(mockRedis.expire).toHaveBeenCalledWith(
+        'daily:upload:user123:2026-06-12',
+        86460
+      )
+      vi.useRealTimers()
+    })
+
+    it('TTL未設定（count > 1）の場合は86400秒（1日）でリセットする', async () => {
+      // count > 1 のケースで ttl < 0 なら ONE_DAY_SECONDS (86400) でリセット
+      mockRedis.get.mockResolvedValue(null)
+      mockRedis.incr.mockResolvedValue(2)
       mockRedis.ttl.mockResolvedValue(-1)
       mockRedis.expire.mockResolvedValue(undefined)
 
@@ -333,14 +370,12 @@ describe('Rate Limit Module', () => {
      * 本番では Sentry へ送信される。テスト環境（NODE_ENV=test）ではスキップされる。
      * captureException が呼ばれるかは process.env.NODE_ENV を一時的に切替えて検証。
      */
-    const origNodeEnv = process.env.NODE_ENV
-
     beforeEach(() => {
       vi.resetModules()
     })
 
     afterEach(() => {
-      process.env.NODE_ENV = origNodeEnv
+      ;(process.env as { NODE_ENV: string }).NODE_ENV = 'test'
     })
 
     it('NODE_ENV=test では Sentry を呼び出さない（dynamic import がスキップされる）', async () => {

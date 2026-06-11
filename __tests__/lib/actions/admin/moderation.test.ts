@@ -970,7 +970,7 @@ describe('管理者向けモデレーションアクション', () => {
 
       // $transaction はバッチ配列（Promise[]）で呼ばれる
       expect(mockTransaction).toHaveBeenCalledTimes(1)
-      const callArgs = mockTransaction.mock.calls[0][0]
+      const callArgs = mockTransaction.mock.calls[0]![0]
       // バッチ配列として2つのPromiseが渡される
       expect(callArgs).toHaveLength(2)
     })
@@ -985,7 +985,7 @@ describe('管理者向けモデレーションアクション', () => {
       await deleteNgWord('ng-word-1')
 
       expect(mockTransaction).toHaveBeenCalledTimes(1)
-      const callArgs = mockTransaction.mock.calls[0][0]
+      const callArgs = mockTransaction.mock.calls[0]![0]
       expect(callArgs).toHaveLength(2)
     })
 
@@ -999,7 +999,7 @@ describe('管理者向けモデレーションアクション', () => {
       await reviewModerationItem('mod-item-1', 'approved')
 
       expect(mockTransaction).toHaveBeenCalledTimes(1)
-      const callArgs = mockTransaction.mock.calls[0][0]
+      const callArgs = mockTransaction.mock.calls[0]![0]
       expect(callArgs).toHaveLength(2)
     })
   })

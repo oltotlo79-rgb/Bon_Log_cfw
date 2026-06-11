@@ -1,4 +1,17 @@
 import { vi } from 'vitest'
+
+/**
+ * createMockPrismaClient の戻り値型。
+ * vi.fn() 戻り値を ReturnType<typeof vi.fn> として型付けし、
+ * 各モデルデリゲートのプロパティが undefined にならないことを保証する。
+ * これにより noUncheckedIndexedAccess 下での TS18048 を防ぐ。
+ *
+ * テストファイル側での独自 mockPrisma 定義にも使用可能:
+ * ```typescript
+ * const mockPrisma: MockPrismaClient = createMockPrismaClient()
+ * ```
+ */
+export type MockPrismaClient = ReturnType<typeof createMockPrismaClient>
 /**
  * ============================================================
  * テストユーティリティファイル

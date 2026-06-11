@@ -359,7 +359,7 @@ describe('ReviewCard', async () => {
       // Click the X button on first image
       const deleteButtons = container.querySelectorAll('.bg-destructive.text-destructive-foreground.rounded-full')
       if (deleteButtons.length > 0) {
-        fireEvent.click(deleteButtons[0])
+        fireEvent.click(deleteButtons[0]!)
       }
 
       await waitFor(() => {
@@ -381,7 +381,7 @@ describe('ReviewCard', async () => {
       // Delete mark an image
       const deleteButtons = container.querySelectorAll('.bg-destructive.text-destructive-foreground.rounded-full')
       if (deleteButtons.length > 0) {
-        fireEvent.click(deleteButtons[0])
+        fireEvent.click(deleteButtons[0]!)
       }
 
       await waitFor(() => {
@@ -489,7 +489,7 @@ describe('ReviewCard', async () => {
     it('画像アップロード成功時に新規画像が追加される', async () => {
        
       const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-      prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+      vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
       // Mock XHR
       const mockXHR = {
@@ -501,8 +501,8 @@ describe('ReviewCard', async () => {
       }
       vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
       mockXHR.send.mockImplementation(() => {
-        const loadHandler = mockXHR.addEventListener.mock.calls.find(
-          (c: [string, () => void]) => c[0] === 'load'
+        const loadHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find(
+          (c) => c[0] === 'load'
         )?.[1]
         if (loadHandler) loadHandler()
       })
@@ -531,7 +531,7 @@ describe('ReviewCard', async () => {
     it('画像アップロードXHRエラー時にエラーを表示する', async () => {
        
       const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-      prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+      vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
       const mockXHR = {
         open: vi.fn(),
@@ -540,8 +540,8 @@ describe('ReviewCard', async () => {
       }
       vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
       mockXHR.send.mockImplementation(() => {
-        const errorHandler = mockXHR.addEventListener.mock.calls.find(
-          (c: [string, () => void]) => c[0] === 'error'
+        const errorHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find(
+          (c) => c[0] === 'error'
         )?.[1]
         if (errorHandler) errorHandler()
       })
@@ -570,7 +570,7 @@ describe('ReviewCard', async () => {
     it('圧縮エラー時にエラーを表示する', async () => {
        
       const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-      prepareFileForUpload.mockRejectedValue(new Error('compression failed'))
+      vi.mocked(prepareFileForUpload).mockRejectedValue(new Error('compression failed'))
 
       const user = userEvent.setup()
       const { container } = render(<ReviewCard review={mockReview} currentUserId="user-1" />)
@@ -604,7 +604,7 @@ describe('ReviewCard', async () => {
       // Delete mark one image
       const deleteButtons = container.querySelectorAll('.bg-destructive.text-destructive-foreground.rounded-full')
       if (deleteButtons.length > 0) {
-        fireEvent.click(deleteButtons[0])
+        fireEvent.click(deleteButtons[0]!)
       }
 
       // Cancel editing

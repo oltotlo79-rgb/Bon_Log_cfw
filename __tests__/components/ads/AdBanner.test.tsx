@@ -52,7 +52,6 @@ describe('AdBanner', () => {
   describe('AdSense広告表示', () => {
     beforeEach(() => {
       process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID = 'ca-pub-test'
-      // @ts-expect-error - adsbygooleをモック
       window.adsbygoogle = []
     })
 
@@ -188,7 +187,6 @@ describe('InFeedAd', () => {
   it('adSlotを渡せる', () => {
     const originalEnv = process.env
     process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID = 'ca-pub-test'
-    // @ts-expect-error - adsbygooleをモック
     window.adsbygoogle = []
 
     const { container } = render(<InFeedAd adSlot="test-slot" />)
@@ -216,7 +214,6 @@ describe('SidebarAd', () => {
   it('adSlotを渡せる', () => {
     const originalEnv = process.env
     process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID = 'ca-pub-test'
-    // @ts-expect-error - adsbygooleをモック
     window.adsbygoogle = []
 
     const { container } = render(<SidebarAd adSlot="test-slot" />)

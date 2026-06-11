@@ -124,7 +124,7 @@ describe('AdminShopsPage', () => {
     const result = await AdminShopsPage({ searchParams: Promise.resolve({}) })
 
     expect(result).toBeDefined()
-    const call = mockFindMany.mock.calls[0][0]
+    const call = mockFindMany.mock.calls[0]![0]
     expect(call.cursor).toBeUndefined()
     expect(call.skip).toBeUndefined()
   })

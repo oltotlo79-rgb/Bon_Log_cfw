@@ -104,7 +104,7 @@ describe('NotificationBadge - coverage boost', async () => {
 
     // Execute the queryFn to cover the async arrow function
     const { getUnreadCount } = await import('@/lib/actions/notification')
-    getUnreadCount.mockResolvedValue({ count: 7 })
+    vi.mocked(getUnreadCount).mockResolvedValue({ count: 7 })
     const result = await capturedQueryFn()
     expect(result).toEqual({ count: 7 })
   })

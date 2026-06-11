@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 import { submitContactInquiry, getContactInquiries, getContactStats, getContactInquiry, updateInquiryStatus, deleteInquiry } from '@/lib/actions/contact'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
@@ -115,70 +116,70 @@ describe('contact actions', () => {
 
     it('returns error for empty name', async () => {
       const result = await submitContactInquiry({ ...validData, name: '' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お名前を入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for empty name (whitespace)', async () => {
       const result = await submitContactInquiry({ ...validData, name: '   ' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お名前を入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for empty email', async () => {
       const result = await submitContactInquiry({ ...validData, email: '' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('メールアドレスを入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for invalid email format', async () => {
       const result = await submitContactInquiry({ ...validData, email: 'invalid-email' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('有効なメールアドレスを入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for invalid email format (missing @)', async () => {
       const result = await submitContactInquiry({ ...validData, email: 'test.example.com' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('有効なメールアドレスを入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for invalid email format (missing domain)', async () => {
       const result = await submitContactInquiry({ ...validData, email: 'test@' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('有効なメールアドレスを入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for invalid category', async () => {
       const result = await submitContactInquiry({ ...validData, category: 'invalid' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('カテゴリを選択してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for empty subject', async () => {
       const result = await submitContactInquiry({ ...validData, subject: '' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('件名を入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for message less than 10 chars', async () => {
       const result = await submitContactInquiry({ ...validData, message: '短い' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お問い合わせ内容は10文字以上で入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
 
     it('returns error for empty message', async () => {
       const result = await submitContactInquiry({ ...validData, message: '' })
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お問い合わせ内容は10文字以上で入力してください')
       expect(prisma.contactInquiry.create).not.toHaveBeenCalled()
     })
@@ -288,7 +289,7 @@ describe('contact actions', () => {
 
       const result = await submitContactInquiry(validData)
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('送信に失敗しました。しばらく経ってからお試しください。')
     })
 
@@ -297,7 +298,7 @@ describe('contact actions', () => {
 
       const result = await submitContactInquiry(validData)
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('送信に失敗しました。しばらく経ってからお試しください。')
     })
   })
@@ -319,7 +320,7 @@ describe('contact actions', () => {
 
       const result = await getContactInquiries()
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
       expect(prisma.contactInquiry.findMany).not.toHaveBeenCalled()
     })
@@ -329,7 +330,7 @@ describe('contact actions', () => {
 
       const result = await getContactInquiries()
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('管理者権限が必要です')
       expect(prisma.contactInquiry.findMany).not.toHaveBeenCalled()
     })
@@ -494,7 +495,7 @@ describe('contact actions', () => {
 
       const result = await getContactStats()
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
       expect(prisma.contactInquiry.count).not.toHaveBeenCalled()
     })
@@ -504,7 +505,7 @@ describe('contact actions', () => {
 
       const result = await getContactStats()
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('管理者権限が必要です')
       expect(prisma.contactInquiry.count).not.toHaveBeenCalled()
     })
@@ -569,7 +570,7 @@ describe('contact actions', () => {
 
       const result = await getContactInquiry('inquiry-1')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
       expect(prisma.contactInquiry.findUnique).not.toHaveBeenCalled()
     })
@@ -579,7 +580,7 @@ describe('contact actions', () => {
 
       const result = await getContactInquiry('inquiry-1')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('管理者権限が必要です')
       expect(prisma.contactInquiry.findUnique).not.toHaveBeenCalled()
     })
@@ -598,7 +599,7 @@ describe('contact actions', () => {
 
       const result = await getContactInquiry('inquiry-1')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お問い合わせが見つかりません')
     })
   })
@@ -621,7 +622,7 @@ describe('contact actions', () => {
 
       const result = await updateInquiryStatus('inquiry-1', 'in_progress')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
       expect(prisma.contactInquiry.update).not.toHaveBeenCalled()
     })
@@ -631,7 +632,7 @@ describe('contact actions', () => {
 
       const result = await updateInquiryStatus('inquiry-1', 'in_progress')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('管理者権限が必要です')
       expect(prisma.contactInquiry.update).not.toHaveBeenCalled()
     })
@@ -639,7 +640,7 @@ describe('contact actions', () => {
     it('returns error for invalid status', async () => {
       const result = await updateInquiryStatus('inquiry-1', 'invalid')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('無効なステータスです')
       expect(prisma.contactInquiry.update).not.toHaveBeenCalled()
     })
@@ -649,7 +650,7 @@ describe('contact actions', () => {
 
       const result = await updateInquiryStatus('inquiry-1', 'in_progress')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お問い合わせが見つかりません')
       expect(prisma.contactInquiry.update).not.toHaveBeenCalled()
     })
@@ -784,7 +785,7 @@ describe('contact actions', () => {
 
       const result = await deleteInquiry('inquiry-1')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
       expect(prisma.contactInquiry.delete).not.toHaveBeenCalled()
     })
@@ -794,7 +795,7 @@ describe('contact actions', () => {
 
       const result = await deleteInquiry('inquiry-1')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('管理者権限が必要です')
       expect(prisma.contactInquiry.delete).not.toHaveBeenCalled()
     })
@@ -804,7 +805,7 @@ describe('contact actions', () => {
 
       const result = await deleteInquiry('inquiry-1')
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('お問い合わせが見つかりません')
       expect(prisma.contactInquiry.delete).not.toHaveBeenCalled()
     })

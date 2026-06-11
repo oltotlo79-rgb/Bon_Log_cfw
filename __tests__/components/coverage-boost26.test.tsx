@@ -102,7 +102,7 @@ describe('AnalyticsPage', async () => {
 
   it('非プレミアムの場合はアップグレード案内を表示', async () => {
     const { isPremiumUser } = await import('@/lib/premium')
-    isPremiumUser.mockResolvedValue(false)
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
 
     const jsx = await AnalyticsPage({ searchParams: Promise.resolve({}) })
     render(jsx)
@@ -111,7 +111,7 @@ describe('AnalyticsPage', async () => {
 
   it('プレミアムの場合はダッシュボードを表示', async () => {
     const { isPremiumUser } = await import('@/lib/premium')
-    isPremiumUser.mockResolvedValue(true)
+    vi.mocked(isPremiumUser).mockResolvedValue(true)
     mockGetPostAnalytics.mockResolvedValue({ success: true, data: { totalPosts: 10 } })
     mockGetLikeAnalytics.mockResolvedValue({ success: true, data: { totalLikes: 5 } })
     mockGetQuoteAnalytics.mockResolvedValue({ success: true, data: { totalQuotes: 2 } })
@@ -129,7 +129,7 @@ describe('AnalyticsPage', async () => {
 
   it('分析結果にエラーがある場合もページ自体はレンダリングされる', async () => {
     const { isPremiumUser } = await import('@/lib/premium')
-    isPremiumUser.mockResolvedValue(true)
+    vi.mocked(isPremiumUser).mockResolvedValue(true)
     mockGetPostAnalytics.mockResolvedValue({ success: false, error: 'err' })
     mockGetLikeAnalytics.mockResolvedValue({ success: false, error: 'err' })
     mockGetQuoteAnalytics.mockResolvedValue({ success: false, error: 'err' })

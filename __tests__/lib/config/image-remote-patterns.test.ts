@@ -21,7 +21,7 @@ describe('buildImageRemotePatterns', () => {
       const patterns = buildImageRemotePatterns({
         VERCEL_ENV: 'production',
         R2_PUBLIC_HOSTNAME: 'cdn.bon-log.example.com',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'cdn.bon-log.example.com')).toBe(true)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(false)
       expect(patterns.some((p) => p.hostname === '*.r2.cloudflarestorage.com')).toBe(false)
@@ -31,7 +31,7 @@ describe('buildImageRemotePatterns', () => {
       const patterns = buildImageRemotePatterns({
         VERCEL_ENV: 'production',
         R2_PUBLIC_URL: 'https://cdn.bon-log.example.com',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'cdn.bon-log.example.com')).toBe(true)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(false)
     })
@@ -41,7 +41,7 @@ describe('buildImageRemotePatterns', () => {
         VERCEL_ENV: 'production',
         R2_PUBLIC_HOSTNAME: 'explicit.example.com',
         R2_PUBLIC_URL: 'https://from-url.example.com',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'explicit.example.com')).toBe(true)
       expect(patterns.some((p) => p.hostname === 'from-url.example.com')).toBe(false)
     })
@@ -52,7 +52,7 @@ describe('buildImageRemotePatterns', () => {
         VERCEL_ENV: 'production',
         R2_BUCKET_NAME: 'mybucket',
         R2_ACCOUNT_ID: 'abc123',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'mybucket.abc123.r2.dev')).toBe(true)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(false)
     })
@@ -63,7 +63,7 @@ describe('buildImageRemotePatterns', () => {
       // 実害はない (R2 の URL は本番には現れない)。
       const patterns = buildImageRemotePatterns({
         VERCEL_ENV: 'production',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(true)
       expect(patterns.some((p) => p.hostname === '*.r2.cloudflarestorage.com')).toBe(true)
     })
@@ -72,7 +72,7 @@ describe('buildImageRemotePatterns', () => {
       const patterns = buildImageRemotePatterns({
         VERCEL_ENV: 'production',
         R2_PUBLIC_URL: 'not-a-url',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(true)
     })
 
@@ -81,7 +81,7 @@ describe('buildImageRemotePatterns', () => {
         VERCEL_ENV: 'production',
         R2_PUBLIC_URL: 'https://cdn.example.com',
         R2_CUSTOM_HOSTNAME: 'custom.r2.example.com',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'cdn.example.com')).toBe(true)
       expect(patterns.some((p) => p.hostname === 'custom.r2.example.com')).toBe(true)
       expect(patterns.some((p) => p.hostname === '*.r2.cloudflarestorage.com')).toBe(false)
@@ -95,14 +95,14 @@ describe('buildImageRemotePatterns', () => {
       expect(() =>
         buildImageRemotePatterns({
           NODE_ENV: 'production',
-        } as NodeJS.ProcessEnv),
+        } as unknown as NodeJS.ProcessEnv),
       ).not.toThrow()
     })
 
     it('R2 環境変数なし: wildcard fallback で build が通る', () => {
       const patterns = buildImageRemotePatterns({
         NODE_ENV: 'production',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(true)
       expect(patterns.some((p) => p.hostname === '*.r2.cloudflarestorage.com')).toBe(true)
     })
@@ -110,14 +110,14 @@ describe('buildImageRemotePatterns', () => {
     it('VERCEL_ENV=preview: wildcard fallback を許容する', () => {
       const patterns = buildImageRemotePatterns({
         VERCEL_ENV: 'preview',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === '*.r2.dev')).toBe(true)
     })
 
     it('R2_PUBLIC_HOSTNAME 設定時は wildcard より優先するが、custom 側の wildcard fallback は残す', () => {
       const patterns = buildImageRemotePatterns({
         R2_PUBLIC_HOSTNAME: 'cdn.example.com',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'cdn.example.com')).toBe(true)
       // R2_CUSTOM_HOSTNAME は未設定なので fallback wildcard が残る (非本番は柔軟性優先)
       expect(patterns.some((p) => p.hostname === '*.r2.cloudflarestorage.com')).toBe(true)
@@ -128,19 +128,19 @@ describe('buildImageRemotePatterns', () => {
     it('SUPABASE_STORAGE_HOSTNAME を環境変数から拾う', () => {
       const patterns = buildImageRemotePatterns({
         SUPABASE_STORAGE_HOSTNAME: 'project.supabase.co',
-      } as NodeJS.ProcessEnv)
+      } as unknown as NodeJS.ProcessEnv)
       const supabase = patterns.find((p) => p.hostname === 'project.supabase.co')
       expect(supabase).toBeDefined()
       expect(supabase?.pathname).toBe('/storage/v1/object/public/**')
     })
 
     it('SUPABASE_STORAGE_HOSTNAME 未設定なら *.supabase.co にフォールバック', () => {
-      const patterns = buildImageRemotePatterns({} as NodeJS.ProcessEnv)
+      const patterns = buildImageRemotePatterns({} as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === '*.supabase.co')).toBe(true)
     })
 
     it('Unsplash パターンを常に含む (ランディングページ用の静的 photo URL)', () => {
-      const patterns = buildImageRemotePatterns({} as NodeJS.ProcessEnv)
+      const patterns = buildImageRemotePatterns({} as unknown as NodeJS.ProcessEnv)
       expect(patterns.some((p) => p.hostname === 'images.unsplash.com')).toBe(true)
     })
   })

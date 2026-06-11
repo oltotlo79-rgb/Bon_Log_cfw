@@ -1,30 +1,29 @@
 import { vi } from 'vitest'
+import { createMockPrismaClient, MockPrismaClient } from '../../utils/test-utils'
 /**
  * Extended tests for shop actions - covering uncovered branches
  * Targets: rating sort, location sort, getPendingShopChangeRequestsCount, and more
  */
- export {};
+export {};
 
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
-const mockPrisma: Record<string, Record<string, unknown>> = {
-  bonsaiShop: {
-    findMany: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    count: vi.fn(),
-  },
-  shopGenre: { findMany: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
-  shopReview: { findMany: vi.fn(), count: vi.fn(), aggregate: vi.fn(), groupBy: vi.fn() },
-  shopChangeRequest: { count: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-  adminUser: { findUnique: vi.fn() },
-  user: { findUnique: vi.fn() },
-  shopFavorite: { findUnique: vi.fn(), create: vi.fn(), delete: vi.fn(), count: vi.fn() },
-  adminLog: { create: vi.fn() },
+const mockPrisma = createMockPrismaClient() as MockPrismaClient & {
+  shopFavorite: {
+    findUnique: ReturnType<typeof vi.fn>
+    create: ReturnType<typeof vi.fn>
+    delete: ReturnType<typeof vi.fn>
+    count: ReturnType<typeof vi.fn>
+  }
 }
+mockPrisma.shopFavorite = {
+  findUnique: vi.fn(),
+  create: vi.fn(),
+  delete: vi.fn(),
+  count: vi.fn(),
+}
+
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 vi.mock('@/lib/logger', () => ({ __esModule: true, default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn() } }))
@@ -37,7 +36,7 @@ vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue({ get: vi.fn
 
 beforeEach(() => {
   vi.clearAllMocks()
-  ;(mockPrisma.shopReview.groupBy as ReturnType<typeof vi.fn>).mockResolvedValue([])
+  vi.mocked(mockPrisma.shopReview.groupBy).mockResolvedValue([] as never)
 })
 
 describe('getShops - rating sort', async () => {
@@ -48,18 +47,18 @@ describe('getShops - rating sort', async () => {
       { id: 's2', name: 'B', address: '東京都', latitude: '35.6', longitude: '139.7', genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's3', name: 'C', address: '東京都', latitude: '35.6', longitude: '139.7', genres: [], _count: { reviews: 1 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
-    ;(mockPrisma.shopReview.groupBy as ReturnType<typeof vi.fn>).mockResolvedValue([
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
+    vi.mocked(mockPrisma.shopReview.groupBy).mockResolvedValue([
       { shopId: 's1', _avg: { rating: 3 }, _count: { rating: 1 } },
       { shopId: 's3', _avg: { rating: 5 }, _count: { rating: 1 } },
-    ])
+    ] as never)
 
     const result = await getShops({ sortBy: 'rating' })
     expect(result.shops).toBeDefined()
     if (result.shops) {
-      expect(result.shops[0].id).toBe('s3') // rating 5
-      expect(result.shops[1].id).toBe('s1') // rating 3
-      expect(result.shops[2].id).toBe('s2') // no rating (null)
+      expect(result.shops[0]!.id).toBe('s3') // rating 5
+      expect(result.shops[1]!.id).toBe('s1') // rating 3
+      expect(result.shops[2]!.id).toBe('s2') // no rating (null)
     }
   })
 
@@ -69,7 +68,7 @@ describe('getShops - rating sort', async () => {
       { id: 's1', name: 'A', address: '東京都', latitude: '35.6', longitude: '139.7', genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's2', name: 'B', address: '大阪府', latitude: '34.6', longitude: '135.5', genres: [], _count: { reviews: 0 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
 
     const result = await getShops({ sortBy: 'rating' })
     expect(result.shops).toHaveLength(2)
@@ -81,15 +80,15 @@ describe('getShops - rating sort', async () => {
       { id: 's1', name: 'A', address: '東京都', latitude: '35.6', longitude: '139.7', genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's2', name: 'B', address: '東京都', latitude: '35.6', longitude: '139.7', genres: [], _count: { reviews: 1 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
-    ;(mockPrisma.shopReview.groupBy as ReturnType<typeof vi.fn>).mockResolvedValue([
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
+    vi.mocked(mockPrisma.shopReview.groupBy).mockResolvedValue([
       { shopId: 's2', _avg: { rating: 4 }, _count: { rating: 1 } },
-    ])
+    ] as never)
 
     const result = await getShops({ sortBy: 'rating' })
     if (result.shops) {
-      expect(result.shops[0].id).toBe('s2')
-      expect(result.shops[1].id).toBe('s1')
+      expect(result.shops[0]!.id).toBe('s2')
+      expect(result.shops[1]!.id).toBe('s1')
     }
   })
 })
@@ -101,7 +100,7 @@ describe('getShops - location sort', async () => {
       { id: 's1', name: 'South', address: '大阪府大阪市', latitude: '34.6', longitude: '135.5', genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's2', name: 'North', address: '北海道札幌市', latitude: '43.0', longitude: '141.3', genres: [], _count: { reviews: 0 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
 
     await getShops({ sortBy: 'location' })
 
@@ -121,12 +120,12 @@ describe('getShops - location sort', async () => {
       { id: 's1', name: 'South', address: '大阪府大阪市', latitude: '34.6', longitude: '135.5', genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's2', name: 'North', address: '北海道札幌市', latitude: '43.0', longitude: '141.3', genres: [], _count: { reviews: 0 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
 
     const result = await getShops({ sortBy: 'location' })
     expect(result.shops).toHaveLength(2)
     if (result.shops) {
-      expect(typeof result.shops[0].latitude).toBe('number')
+      expect(typeof result.shops[0]!.latitude).toBe('number')
     }
   })
 
@@ -136,7 +135,7 @@ describe('getShops - location sort', async () => {
       { id: 's1', name: 'NoCoord', address: '不明', latitude: null, longitude: null, genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's2', name: 'WithCoord', address: '東京都', latitude: '35.6', longitude: '139.7', genres: [], _count: { reviews: 0 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
 
     const result = await getShops({ sortBy: 'location' })
     expect(result.shops).toHaveLength(2)
@@ -151,7 +150,7 @@ describe('getShops - location sort', async () => {
       { id: 's1', name: 'A', address: '不明1', latitude: null, longitude: null, genres: [], _count: { reviews: 0 }, isHidden: false },
       { id: 's2', name: 'B', address: '不明2', latitude: null, longitude: null, genres: [], _count: { reviews: 0 }, isHidden: false },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
 
     const result = await getShops({ sortBy: 'location' })
     expect(result.shops).toHaveLength(2)
@@ -169,14 +168,14 @@ describe('getShops - genre mapping', async () => {
         isHidden: false,
       },
     ]
-    ;(mockPrisma.bonsaiShop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(shops)
-    ;(mockPrisma.shopReview.groupBy as ReturnType<typeof vi.fn>).mockResolvedValue([
+    vi.mocked(mockPrisma.bonsaiShop.findMany).mockResolvedValue(shops as never)
+    vi.mocked(mockPrisma.shopReview.groupBy).mockResolvedValue([
       { shopId: 's1', _avg: { rating: 4 }, _count: { rating: 1 } },
-    ])
+    ] as never)
 
     const result = await getShops({})
     if (result.shops) {
-      expect(result.shops[0].genres).toEqual([{ id: 'g1', name: '松柏類' }])
+      expect(result.shops[0]!.genres).toEqual([{ id: 'g1', name: '松柏類' }])
     }
   })
 })
@@ -185,8 +184,8 @@ describe('getPendingShopChangeRequestsCount', async () => {
   it('returns count for admin', async () => {
     const { getPendingShopChangeRequestsCount } = await import('@/lib/actions/shop')
     mockAuth.mockResolvedValue({ user: { id: 'admin1' } })
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'a1', userId: 'admin1', role: 'admin' })
-    ;(mockPrisma.shopChangeRequest.count as ReturnType<typeof vi.fn>).mockResolvedValue(5)
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ id: 'a1', userId: 'admin1', role: 'admin' } as never)
+    vi.mocked(mockPrisma.shopChangeRequest.count).mockResolvedValue(5)
 
     const result = await getPendingShopChangeRequestsCount()
     expect(result).toEqual({ count: 5 })
@@ -203,7 +202,7 @@ describe('getPendingShopChangeRequestsCount', async () => {
   it('returns 0 when not admin', async () => {
     const { getPendingShopChangeRequestsCount } = await import('@/lib/actions/shop')
     mockAuth.mockResolvedValue({ user: { id: 'u1' } })
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue(null)
 
     const result = await getPendingShopChangeRequestsCount()
     expect(result).toEqual({ count: 0 })

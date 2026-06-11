@@ -11,7 +11,7 @@ vi.mock('next/font/google', () => ({
   Shippori_Mincho: () => ({ className: 'shippori-mincho', variable: '--font-shippori-mincho' }),
 }))
 vi.mock('next/font/local', () => () => ({ className: 'geist-mono', variable: '--font-geist-mono' }))
-vi.mock('next-themes', () => ({ ThemeProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="theme-provider">{children}</div>, useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }), { virtual: true })
+vi.mock('next-themes', () => ({ ThemeProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="theme-provider">{children}</div>, useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }))
 vi.mock('@tanstack/react-query', () => ({
   QueryClient: class MockQueryClient {},
   QueryClientProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="query-provider">{children}</div>,
@@ -42,7 +42,7 @@ vi.mock('next-auth/react', () => ({
 }))
 vi.mock('@/lib/auth', () => ({ auth: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/lib/db', () => ({ prisma: { user: { count: vi.fn().mockResolvedValue(1) }, systemSetting: { findUnique: vi.fn().mockResolvedValue(null) } } }))
-vi.mock('sonner', () => ({ Toaster: () => <div data-testid="toaster" />, toast: { success: vi.fn(), error: vi.fn() } }), { virtual: true })
+vi.mock('sonner', () => ({ Toaster: () => <div data-testid="toaster" />, toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/components/common/LoadingScreen', () => ({ LoadingScreen: ({ message }: { message?: string }) => <div data-testid="loading-screen">{message}</div> }))
 vi.mock('@/components/theme/ThemeProvider', () => ({ ThemeProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="theme-provider">{children}</div> }))
 vi.mock('@/components/pwa/ServiceWorkerRegistration', () => ({ ServiceWorkerRegistration: () => null }))
@@ -103,7 +103,7 @@ describe('sitemap', async () => {
   it('returns sitemap array', async () => {
     const db = await import('@/lib/db')
     const p = db.prisma as unknown as Record<string, Record<string, unknown>>
-    p.user.findMany = vi.fn().mockResolvedValue([])
+    p['user'] = { ...p['user'], findMany: vi.fn().mockResolvedValue([]) }
     p.post = { findMany: vi.fn().mockResolvedValue([]) }
     p.bonsaiShop = { findMany: vi.fn().mockResolvedValue([]) }
     p.event = { findMany: vi.fn().mockResolvedValue([]) }

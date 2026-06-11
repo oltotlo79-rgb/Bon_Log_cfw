@@ -223,7 +223,7 @@ describe('DraftEditForm', () => {
     expect(removeButtons.length).toBeGreaterThanOrEqual(2)
 
     // Click the first remove button
-    fireEvent.click(removeButtons[0])
+    fireEvent.click(removeButtons[0]!)
 
     // One media item should be removed, check by counting remove buttons again
     const remainingButtons = screen.getAllByRole('button').filter(btn =>

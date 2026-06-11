@@ -61,9 +61,9 @@ describe('AdminPremiumPage', async () => {
     }
 
      
-    getPremiumUsers.mockResolvedValue({ users: mockUsers, total: 2 } as any)
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: mockUsers, total: 2 } as any)
      
-    getPremiumStats.mockResolvedValue(mockStats as any)
+    vi.mocked(getPremiumStats).mockResolvedValue(mockStats as any)
 
     const { default: Page } = await import('@/app/admin/premium/page')
      
@@ -93,8 +93,8 @@ describe('AdminPremiumPage', async () => {
 
   it('ユーザーがいない場合', async () => {
      
-    getPremiumUsers.mockResolvedValue({ users: [], total: 0 } as any)
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: [], total: 0 } as any)
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 0,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -112,8 +112,8 @@ describe('AdminPremiumPage', async () => {
 
   it('検索パラメータを反映', async () => {
      
-    getPremiumUsers.mockResolvedValue({ users: [], total: 0 } as any)
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: [], total: 0 } as any)
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 0,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -145,8 +145,8 @@ describe('AdminPremiumPage', async () => {
     }))
 
 
-    getPremiumUsers.mockResolvedValue({ users: mockUsers, total: 50, nextCursor: 'next-id' } as any)
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: mockUsers, total: 50, nextCursor: 'next-id' } as any)
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 50,
       newThisMonth: 5,
       expiringIn7Days: 2,

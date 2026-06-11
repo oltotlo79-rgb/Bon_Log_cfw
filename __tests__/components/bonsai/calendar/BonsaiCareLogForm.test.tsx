@@ -123,7 +123,7 @@ describe('BonsaiCareLogForm', () => {
     await waitFor(() => {
       expect(mockAddBonsaiCareLog).toHaveBeenCalledTimes(1)
     })
-    expect(mockAddBonsaiCareLog.mock.calls[0][0]).toMatchObject({
+    expect(mockAddBonsaiCareLog.mock.calls[0]![0]!).toMatchObject({
       type: BonsaiCareType.shading,
     })
     expect(onSaved).toHaveBeenCalled()
@@ -204,7 +204,7 @@ describe('BonsaiCareLogForm', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await waitFor(() => {
-      expect(mockAddBonsaiCareLog.mock.calls[0][0].note).toBeUndefined()
+      expect(mockAddBonsaiCareLog.mock.calls[0]![0]!.note).toBeUndefined()
     })
   })
 })

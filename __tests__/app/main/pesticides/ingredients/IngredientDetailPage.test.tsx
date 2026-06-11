@@ -96,7 +96,7 @@ describe('IngredientDetailPage', () => {
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'triflumizole' }) })
     expect(meta.openGraph?.title).toBe('トリフルミゾール - 原体詳細')
     expect(meta.openGraph).toHaveProperty('images')
-    expect(meta.twitter?.card).toBe('summary_large_image')
+    expect((meta.twitter as Record<string, unknown> | undefined)?.card).toBe('summary_large_image')
   })
 
   it('パンくず・DefinedTerm の構造化データを出力する', async () => {

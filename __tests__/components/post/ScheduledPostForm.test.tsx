@@ -534,7 +534,7 @@ describe('ScheduledPostForm', async () => {
     it('画像上限に達するとエラーを表示する', async () => {
        
       const { isVideoFile } = await import('@/lib/client-image-compression')
-      isVideoFile.mockReturnValue(false)
+      vi.mocked(isVideoFile).mockReturnValue(false)
 
       const editData = {
         id: 'scheduled-1',
@@ -563,7 +563,7 @@ describe('ScheduledPostForm', async () => {
     it('動画上限に達するとエラーを表示する', async () => {
        
       const { isVideoFile } = await import('@/lib/client-image-compression')
-      isVideoFile.mockReturnValue(true)
+      vi.mocked(isVideoFile).mockReturnValue(true)
 
       const editData = {
         id: 'scheduled-1',
@@ -587,7 +587,7 @@ describe('ScheduledPostForm', async () => {
     it('動画サイズ超過でエラーを表示する', async () => {
        
       const { isVideoFile } = await import('@/lib/client-image-compression')
-      isVideoFile.mockReturnValue(true)
+      vi.mocked(isVideoFile).mockReturnValue(true)
 
       render(<ScheduledPostForm genres={mockGenres} limits={mockLimits} />)
 
@@ -604,7 +604,7 @@ describe('ScheduledPostForm', async () => {
     it('画像サイズ超過でエラーを表示する', async () => {
        
       const { isVideoFile } = await import('@/lib/client-image-compression')
-      isVideoFile.mockReturnValue(false)
+      vi.mocked(isVideoFile).mockReturnValue(false)
 
       render(<ScheduledPostForm genres={mockGenres} limits={mockLimits} />)
 
@@ -631,8 +631,8 @@ describe('ScheduledPostForm', async () => {
     it('動画アップロード成功時にメディアリストに追加する', async () => {
        
       const { isVideoFile, uploadVideoToR2 } = await import('@/lib/client-image-compression')
-      isVideoFile.mockReturnValue(true)
-      uploadVideoToR2.mockResolvedValue({ url: '/uploaded-video.mp4' })
+      vi.mocked(isVideoFile).mockReturnValue(true)
+      vi.mocked(uploadVideoToR2).mockResolvedValue({ url: '/uploaded-video.mp4' })
 
       render(<ScheduledPostForm genres={mockGenres} limits={mockLimits} />)
 
@@ -649,8 +649,8 @@ describe('ScheduledPostForm', async () => {
     it('動画アップロードエラー時にエラーを表示する', async () => {
        
       const { isVideoFile, uploadVideoToR2 } = await import('@/lib/client-image-compression')
-      isVideoFile.mockReturnValue(true)
-      uploadVideoToR2.mockResolvedValue({ error: 'アップロード失敗' })
+      vi.mocked(isVideoFile).mockReturnValue(true)
+      vi.mocked(uploadVideoToR2).mockResolvedValue({ error: 'アップロード失敗' })
 
       render(<ScheduledPostForm genres={mockGenres} limits={mockLimits} />)
 
@@ -696,7 +696,7 @@ describe('ScheduledPostForm', async () => {
 
       await waitFor(() => {
         expect(mockUpdateScheduledPost).toHaveBeenCalled()
-        const formData = mockUpdateScheduledPost.mock.calls[0][1] as FormData
+        const formData = mockUpdateScheduledPost.mock.calls[0]![1]! as FormData
         expect(formData.get('mediaUrls')).toBe('/image.jpg')
         expect(formData.get('mediaTypes')).toBe('image')
       })

@@ -17,6 +17,21 @@ vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }))
 
+// TermList は Suspense 内の async Server Component。テスト環境でこの async 関数が
+// suspend すると "A component suspended inside an act scope" 警告が出るため、
+// 外部ファイルのコンポーネントとしてモック化して解消する。
+// props を data-* 属性に記録することでページからの props 受け渡しを検証できる。
+vi.mock('@/app/(main)/dictionary/TermList', () => ({
+  TermList: (props: Record<string, unknown>) => (
+    <div
+      data-testid="term-list"
+      data-search={props.search ?? ''}
+      data-category={props.category ?? ''}
+      data-row={props.row ?? ''}
+    />
+  ),
+}))
+
 import { getTerms } from '@/lib/actions/dictionary'
 
 const mockGetTerms = getTerms as ReturnType<typeof vi.fn>
@@ -54,15 +69,15 @@ describe('DictionaryPage', async () => {
     expect(screen.getByTestId('dictionary-search')).toBeInTheDocument()
   }, 20000)
 
-  it('Suspenseフォールバック（スケルトン）が表示される', async () => {
+  it('Suspense境界内のTermListが表示される', async () => {
     mockGetTerms.mockResolvedValue({ terms: [] })
 
     const result = await Page({ searchParams: Promise.resolve({}) })
     render(result)
 
-    // Suspense内のasyncコンポーネントはテスト環境ではフォールバックが表示される
-    const skeletons = document.querySelectorAll('.animate-pulse')
-    expect(skeletons.length).toBeGreaterThan(0)
+    // TermListはモック化されているため同期的に解決される。
+    // Suspense境界内にTermListコンポーネントが配置されていることを確認する。
+    expect(screen.getByTestId('term-list')).toBeInTheDocument()
   }, 20000)
 
   it('カテゴリフィルタが適用される', async () => {
@@ -105,17 +120,19 @@ describe('DictionaryPage', async () => {
     expect(search).not.toHaveAttribute('data-row', '無効行')
   }, 20000)
 
-  it('searchパラメータがDictionarySearchに渡される', async () => {
+  it('searchパラメータがTermListに渡される', async () => {
     mockGetTerms.mockResolvedValue({ terms: [] })
 
     const result = await Page({ searchParams: Promise.resolve({ search: 'テスト' }) })
     render(result)
 
-    // getTerms にsearchが渡されたことを検証
-    expect(mockGetTerms).toHaveBeenCalledWith(expect.objectContaining({ search: 'テスト' }))
+    // TermList へ search が渡されることを検証（TermListはモック化されているため
+    // getTerms の呼び出しではなく props 受け渡しで確認する）
+    const termList = screen.getByTestId('term-list')
+    expect(termList).toHaveAttribute('data-search', 'テスト')
   }, 20000)
 
-  it('行フィルタが用語のreadingに基づいてフィルタリングする', async () => {
+  it('行フィルタがTermListに渡される', async () => {
     mockGetTerms.mockResolvedValue({
       terms: [
         makeTerm({ id: 'term-ka', term: '株立', reading: 'かぶだち', slug: 'kabudachi' }),
@@ -126,28 +143,31 @@ describe('DictionaryPage', async () => {
     const result = await Page({ searchParams: Promise.resolve({ row: 'か行' }) })
     render(result)
 
-    // か行フィルタが適用されるので、か行の用語のみ表示される
-    // TermListはasync Server Componentなので、Suspenseフォールバックが表示される可能性あり
-    expect(mockGetTerms).toHaveBeenCalledWith(expect.objectContaining({ search: undefined }))
+    // TermList に row が渡されることを検証
+    const termList = screen.getByTestId('term-list')
+    expect(termList).toHaveAttribute('data-row', 'か行')
   }, 20000)
 
-  it('searchパラメータの前後空白がトリムされる', async () => {
+  it('searchパラメータの前後空白がトリムされてTermListに渡される', async () => {
     mockGetTerms.mockResolvedValue({ terms: [] })
 
     const result = await Page({ searchParams: Promise.resolve({ search: '  テスト  ' }) })
     render(result)
 
-    expect(mockGetTerms).toHaveBeenCalledWith(expect.objectContaining({ search: 'テスト' }))
+    // DictionaryPage で trim() された値が TermList に渡されることを検証
+    const termList = screen.getByTestId('term-list')
+    expect(termList).toHaveAttribute('data-search', 'テスト')
   }, 20000)
 
-  it('空文字列のsearchパラメータはundefinedとして扱われる', async () => {
+  it('空白のみのsearchパラメータはtrimmingされてTermListに渡される', async () => {
     mockGetTerms.mockResolvedValue({ terms: [] })
 
     const result = await Page({ searchParams: Promise.resolve({ search: '   ' }) })
     render(result)
 
-    // trim() results in empty string which is falsy → undefined
-    expect(mockGetTerms).toHaveBeenCalledWith(expect.objectContaining({ search: '' }))
+    // trim() 後に空文字列 → TermList に data-search="" が渡される
+    const termList = screen.getByTestId('term-list')
+    expect(termList).toHaveAttribute('data-search', '')
   }, 20000)
 
   it('categoryとrowの両方が指定された場合、両方がDictionarySearchに渡される', async () => {
@@ -163,12 +183,16 @@ describe('DictionaryPage', async () => {
     expect(search).toHaveAttribute('data-row', 'さ行')
   }, 20000)
 
-  it('search・category・row全てが未指定の場合、undefinedが渡される', async () => {
+  it('search・category・row全てが未指定の場合、TermListに空props が渡される', async () => {
     mockGetTerms.mockResolvedValue({ terms: [] })
 
     const result = await Page({ searchParams: Promise.resolve({}) })
     render(result)
 
-    expect(mockGetTerms).toHaveBeenCalledWith({ search: undefined, category: undefined })
+    // search/category/row が未指定の場合、TermList の各 data-* 属性が空になる
+    const termList = screen.getByTestId('term-list')
+    expect(termList).toHaveAttribute('data-search', '')
+    expect(termList).toHaveAttribute('data-category', '')
+    expect(termList).toHaveAttribute('data-row', '')
   }, 20000)
 })

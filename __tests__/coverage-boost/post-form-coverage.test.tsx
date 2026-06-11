@@ -237,7 +237,7 @@ describe('PostForm - coverage boost', () => {
 
       await waitFor(() => {
         expect(mockCreatePost).toHaveBeenCalled()
-        const formData = mockCreatePost.mock.calls[0][0] as FormData
+        const formData = mockCreatePost.mock.calls[0]![0] as FormData
         const pollOptions = formData.get('pollOptions')
         expect(pollOptions).toBeTruthy()
         const parsed = JSON.parse(pollOptions as string)
@@ -321,7 +321,7 @@ describe('PostForm - coverage boost', () => {
 
   describe('画像圧縮率が0の場合（ログ出力されない分岐）', () => {
     it('圧縮後にサイズが変わらない場合はログが出力されない', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
       // 同じサイズのファイルを返す
       const originalFile = new File(['abc'], 'test.jpg', { type: 'image/jpeg' })
@@ -710,7 +710,7 @@ describe('PostFormModal - coverage boost', () => {
 
       await waitFor(() => {
         expect(mockCreatePost).toHaveBeenCalled()
-        const formData = mockCreatePost.mock.calls[0][0] as FormData
+        const formData = mockCreatePost.mock.calls[0]![0] as FormData
         const pollOptions = formData.get('pollOptions')
         expect(pollOptions).toBeTruthy()
         const parsed = JSON.parse(pollOptions as string)
@@ -739,7 +739,7 @@ describe('PostFormModal - coverage boost', () => {
 
       await waitFor(() => {
         expect(mockCreatePost).toHaveBeenCalled()
-        const formData = mockCreatePost.mock.calls[0][0] as FormData
+        const formData = mockCreatePost.mock.calls[0]![0] as FormData
         expect(formData.get('bonsaiId')).toBe('b1')
       })
     })
@@ -770,7 +770,7 @@ describe('PostFormModal - coverage boost', () => {
       })
 
       // 閉じるボタンをクリック → ConfirmDialog (upload variant) が開く
-      const closeButton = screen.getAllByRole('button')[0]
+      const closeButton = screen.getAllByRole('button')[0]!
       await user.click(closeButton)
 
       await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
@@ -802,7 +802,7 @@ describe('PostFormModal - coverage boost', () => {
         expect(screen.queryByText(/圧縮中/i)).toBeInTheDocument()
       })
 
-      const closeButton = screen.getAllByRole('button')[0]
+      const closeButton = screen.getAllByRole('button')[0]!
       await user.click(closeButton)
 
       await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
@@ -822,7 +822,7 @@ describe('PostFormModal - coverage boost', () => {
       const user = userEvent.setup()
       render(<PostFormModal {...modalDefaultProps} onClose={onClose} />)
 
-      const closeButton = screen.getAllByRole('button')[0]
+      const closeButton = screen.getAllByRole('button')[0]!
       await user.click(closeButton)
 
       expect(mockConfirm).not.toHaveBeenCalled()
@@ -861,7 +861,7 @@ describe('PostFormModal - coverage boost', () => {
 
   describe('圧縮率が0の場合（ログ出力されない分岐）', () => {
     it('圧縮後にサイズが変わらない場合はログが出力されない', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
       const originalFile = new File(['abc'], 'test.jpg', { type: 'image/jpeg' })
       const sameFile = new File(['abc'], 'test.jpg', { type: 'image/jpeg' })
@@ -948,7 +948,7 @@ describe('PostFormModal - coverage boost', () => {
 
       await waitFor(() => {
         expect(mockCreatePost).toHaveBeenCalled()
-        const formData = mockCreatePost.mock.calls[0][0] as FormData
+        const formData = mockCreatePost.mock.calls[0]![0] as FormData
         expect(formData.get('mediaUrls')).toBe('/uploaded.jpg')
         expect(formData.get('mediaTypes')).toBe('image')
       })
@@ -1077,7 +1077,7 @@ describe('PostFormModal - coverage boost', () => {
 
       // 最初のメディアの削除ボタンをクリック
       const removeButtons = container.querySelectorAll('.relative.aspect-video button')
-      fireEvent.click(removeButtons[0])
+      fireEvent.click(removeButtons[0]!)
 
       await waitFor(() => {
         expect(container.querySelectorAll('.relative.aspect-video').length).toBe(1)

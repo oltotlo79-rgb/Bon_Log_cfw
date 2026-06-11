@@ -316,7 +316,7 @@ describe('AdvancedSearchFilters', () => {
 
     fireEvent.click(screen.getByText('適用'))
 
-    const pushArg = mockPush.mock.calls[0][0] as string
+    const pushArg = mockPush.mock.calls[0]![0]! as string
     expect(pushArg).not.toContain('minLikes')
   })
 
@@ -329,7 +329,7 @@ describe('AdvancedSearchFilters', () => {
 
     fireEvent.click(screen.getByText('適用'))
 
-    const pushArg = mockPush.mock.calls[0][0] as string
+    const pushArg = mockPush.mock.calls[0]![0]! as string
     expect(pushArg).not.toContain('minLikes')
   })
 
@@ -341,7 +341,7 @@ describe('AdvancedSearchFilters', () => {
 
     fireEvent.click(screen.getByText('リセット'))
 
-    const pushArg = mockPush.mock.calls[0][0] as string
+    const pushArg = mockPush.mock.calls[0]![0]! as string
     expect(pushArg).not.toContain('dateFrom')
     expect(pushArg).not.toContain('dateTo')
     expect(pushArg).not.toContain('minLikes')
@@ -370,7 +370,7 @@ describe('AdvancedSearchFilters', () => {
     // Apply with empty values (defaults)
     fireEvent.click(screen.getByText('適用'))
 
-    const pushArg = mockPush.mock.calls[0][0] as string
+    const pushArg = mockPush.mock.calls[0]![0]! as string
     expect(pushArg).not.toContain('dateFrom')
     expect(pushArg).not.toContain('dateTo')
   })
@@ -494,7 +494,7 @@ describe('BonsaiRecordForm', () => {
   })
 
   it('should not log compression when ratio is 0', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const file = new File(['data'], 'test.jpg', { type: 'image/jpeg' })
     Object.defineProperty(file, 'size', { value: 5000 })
@@ -832,7 +832,7 @@ describe('ShopForm', () => {
 
     // Click cancel in delete dialog - find all cancel buttons and click the last one (delete dialog's)
     const cancelButtons = screen.getAllByText('キャンセル')
-    fireEvent.click(cancelButtons[cancelButtons.length - 1])
+    fireEvent.click(cancelButtons[cancelButtons.length - 1]!)
     expect(screen.queryByText(/を削除しますか/)).not.toBeInTheDocument()
   })
 
@@ -840,7 +840,7 @@ describe('ShopForm', () => {
     render(<ShopForm genres={genres} mode="create" />)
     // Find the cancel button (not the delete dialog one)
     const cancelBtns = screen.getAllByText('キャンセル')
-    fireEvent.click(cancelBtns[0])
+    fireEvent.click(cancelBtns[0]!)
     expect(mockBack).toHaveBeenCalled()
   })
 
@@ -867,7 +867,7 @@ describe('ShopForm', () => {
 
     // Click "この位置を使用" (keepOriginalAddress=true)
     const usePositionBtns = screen.getAllByText('この位置を使用')
-    fireEvent.click(usePositionBtns[0])
+    fireEvent.click(usePositionBtns[0]!)
 
     // Address should remain 東京 (original), not replaced
     expect(addressInput).toHaveValue('東京')
@@ -900,7 +900,7 @@ describe('ShopChangeRequestForm', () => {
     render(<ShopChangeRequestForm shop={mockShop} onClose={mockOnClose} />)
 
     // Check name field
-    const nameCheckbox = screen.getAllByRole('checkbox')[0]
+    const nameCheckbox = screen.getAllByRole('checkbox')[0]!
     fireEvent.click(nameCheckbox)
 
     // Don't change the value (same as original)
@@ -918,7 +918,7 @@ describe('ShopChangeRequestForm', () => {
     render(<ShopChangeRequestForm shop={mockShop} onClose={mockOnClose} />)
 
     // Check name field and change value
-    const nameCheckbox = screen.getAllByRole('checkbox')[0]
+    const nameCheckbox = screen.getAllByRole('checkbox')[0]!
     fireEvent.click(nameCheckbox)
 
     const nameInput = screen.getByPlaceholderText('新しい名称を入力')
@@ -941,7 +941,7 @@ describe('ShopChangeRequestForm', () => {
     render(<ShopChangeRequestForm shop={mockShop} onClose={mockOnClose} />)
 
     // Check name field and change value
-    const nameCheckbox = screen.getAllByRole('checkbox')[0]
+    const nameCheckbox = screen.getAllByRole('checkbox')[0]!
     fireEvent.click(nameCheckbox)
 
     const nameInput = screen.getByPlaceholderText('新しい名称を入力')
@@ -973,7 +973,7 @@ describe('ShopChangeRequestForm', () => {
     // Find close button (the X button in header)
     const closeButtons = screen.getAllByRole('button')
     // First button should be the X close button
-    fireEvent.click(closeButtons[0])
+    fireEvent.click(closeButtons[0]!)
 
     expect(mockOnClose).toHaveBeenCalled()
   })
@@ -983,7 +983,7 @@ describe('ShopChangeRequestForm', () => {
 
     // Toggle businessHours checkbox (5th checkbox)
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[4]) // businessHours
+    fireEvent.click(checkboxes[4]!) // businessHours
 
     // Should render a textarea (not input) for businessHours
     const textarea = screen.getByPlaceholderText('新しい営業時間を入力')
@@ -1005,7 +1005,7 @@ describe('ShopChangeRequestForm', () => {
 
     // Check phone field
     const checkboxes = screen.getAllByRole('checkbox')
-    fireEvent.click(checkboxes[2]) // phone
+    fireEvent.click(checkboxes[2]!) // phone
 
     expect(screen.getByText(/（未設定）/)).toBeInTheDocument()
   })

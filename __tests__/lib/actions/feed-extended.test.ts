@@ -72,7 +72,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
     posts: [],
     nextCursor: undefined,
     isGuest: false,
-  } as (T extends object ? T : Record<string, never>) & FeedLegacyShape
+  } as unknown as (T extends object ? T : Record<string, never>) & FeedLegacyShape
 }
 
 beforeEach(() => {
@@ -238,7 +238,7 @@ describe('getTimeline', () => {
     const { getTimeline } = await importModule()
     const result = unwrap(await getTimeline())
 
-    expect(result.posts[0].genres).toEqual([
+    expect(result.posts[0]!.genres).toEqual([
       { id: 'g1', name: 'Pine' },
       { id: 'g2', name: 'Maple' },
     ])

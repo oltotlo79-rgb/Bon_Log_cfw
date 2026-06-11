@@ -43,6 +43,14 @@ vi.mock('@/components/post/ShareButtons', () => ({
 vi.mock('@/components/comment', () => ({
   CommentThread: () => <div data-testid="comment-thread" />,
 }))
+
+// CommentSection は Suspense 内の async Server Component。テスト環境でこの async 関数が
+// suspend すると "A component suspended inside an act scope" 警告が出るため、
+// 外部ファイルのコンポーネントとしてモック化して解消する。
+vi.mock('@/app/(main)/posts/[id]/CommentSection', () => ({
+  CommentSection: () => <div data-testid="comment-section" />,
+  CommentSectionSkeleton: () => <div data-testid="comment-section-skeleton" />,
+}))
 vi.mock('@/components/ads', () => ({
   PostDetailAdUnit: () => <div data-testid="ad-banner" />,
 }))

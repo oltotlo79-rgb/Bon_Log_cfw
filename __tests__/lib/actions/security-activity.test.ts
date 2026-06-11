@@ -27,7 +27,7 @@ describe('getMySecurityEvents', () => {
     const result = await getMySecurityEvents()
 
     expect(result.events).toEqual(events)
-    const call = mockSecurityEventFindMany.mock.calls[0][0]
+    const call = mockSecurityEventFindMany.mock.calls[0]![0]
     expect(call.where).toEqual({ userId: 'user-1' })
     expect(call.orderBy).toEqual({ createdAt: 'desc' })
     // details は機微情報を含みうるため select に含めない

@@ -144,8 +144,8 @@ describe('WeatherLocationSetting', () => {
     const select = screen.getByLabelText('都道府県') as HTMLSelectElement
     // 「選択してください」+ 5都道府県 = 6 options
     expect(select.options.length).toBe(6)
-    expect(select.options[1].value).toBe('北海道')
-    expect(select.options[2].value).toBe('東京都')
+    expect(select.options[1]!.value).toBe('北海道')
+    expect(select.options[2]!.value).toBe('東京都')
   })
 
   it('都道府県未選択時は登録ボタンが無効', async () => {
@@ -219,7 +219,7 @@ describe('WeatherLocationSetting', () => {
       // geolocation プロパティを削除して 'geolocation' in navigator を false にする
       const originalGeolocation = navigator.geolocation
       const geoDescriptor = Object.getOwnPropertyDescriptor(navigator, 'geolocation')
-      delete (navigator as Record<string, unknown>).geolocation
+      delete (navigator as unknown as Record<string, unknown>).geolocation
 
       render(<WeatherLocationSetting />)
 

@@ -382,7 +382,7 @@ describe('PostForm - 未カバー分岐', () => {
 
     await waitFor(() => {
       expect(mockCreatePost).toHaveBeenCalled()
-      const formData = mockCreatePost.mock.calls[0][0] as FormData
+      const formData = mockCreatePost.mock.calls[0]![0]! as FormData
       expect(formData.get('pollOptions')).toBeTruthy()
       expect(formData.get('pollDuration')).toBeTruthy()
     })

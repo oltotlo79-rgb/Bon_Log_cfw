@@ -140,7 +140,7 @@ describe('BlacklistTabs', () => {
     // モーダル内の追加ボタンをクリック
     const buttons = screen.getAllByText('追加')
     const modalAddBtn = buttons[buttons.length - 1]
-    await user.click(modalAddBtn)
+    await user.click(modalAddBtn!)
 
     await waitFor(() => {
       expect(mockAddEmail).toHaveBeenCalledWith('new@example.com', undefined)
@@ -151,7 +151,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
   })
 
@@ -159,7 +159,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => { expect(mockRemoveEmail).toHaveBeenCalledWith('e1') })
@@ -169,7 +169,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRemoveEmail).not.toHaveBeenCalled()
@@ -197,7 +197,7 @@ describe('BlacklistTabs', () => {
     await user.click(screen.getByText('追加'))
     await user.type(screen.getByPlaceholderText('フィンガープリント'), 'fp123')
     const buttons = screen.getAllByText('追加')
-    await user.click(buttons[buttons.length - 1])
+    await user.click(buttons[buttons.length - 1]!)
 
     await waitFor(() => {
       expect(mockAddDevice).toHaveBeenCalledWith('fp123', undefined, undefined)
@@ -208,7 +208,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
   })
 
@@ -216,7 +216,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => { expect(mockRemoveDevice).toHaveBeenCalledWith('d1') })
@@ -239,7 +239,7 @@ describe('BlacklistTabs', () => {
     await user.click(screen.getByText('追加'))
     await user.type(screen.getByPlaceholderText('example@example.com'), 'dup@example.com')
     const buttons = screen.getAllByText('追加')
-    await user.click(buttons[buttons.length - 1])
+    await user.click(buttons[buttons.length - 1]!)
 
     await waitFor(() => {
       expect(screen.getByText('登録済みです')).toBeInTheDocument()
@@ -251,7 +251,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
 
@@ -280,7 +280,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: '削除する' }))
 
@@ -296,7 +296,7 @@ describe('BlacklistTabs', () => {
     await user.click(screen.getByText('追加'))
     await user.type(screen.getByPlaceholderText('フィンガープリント'), 'dupfingerprint')
     const buttons = screen.getAllByText('追加')
-    await user.click(buttons[buttons.length - 1])
+    await user.click(buttons[buttons.length - 1]!)
 
     await waitFor(() => {
       expect(screen.getByText('フィンガープリントは既に登録されています')).toBeInTheDocument()
@@ -345,7 +345,7 @@ describe('BlacklistTabs', () => {
     const user = userEvent.setup()
     render(<BlacklistTabs {...defaultProps} tab="device" />)
     const deleteButtons = screen.getAllByTitle('削除')
-    await user.click(deleteButtons[0])
+    await user.click(deleteButtons[0]!)
     await waitFor(() => { expect(screen.getByRole('alertdialog')).toBeInTheDocument() })
     await user.click(screen.getByRole('button', { name: 'キャンセル' }))
     expect(mockRemoveDevice).not.toHaveBeenCalled()

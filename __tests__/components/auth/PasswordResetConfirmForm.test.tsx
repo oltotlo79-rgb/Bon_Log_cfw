@@ -268,12 +268,12 @@ describe('PasswordResetConfirmForm', () => {
     const passwordInput = getPasswordInput()
     expect(passwordInput).toHaveAttribute('type', 'password')
 
-    const toggleButton = screen.getAllByRole('button', { name: /パスワードを表示/i })[0]
+    const toggleButton = screen.getAllByRole('button', { name: /パスワードを表示/i })[0]!
     await user.click(toggleButton)
 
     expect(passwordInput).toHaveAttribute('type', 'text')
 
-    const hideButton = screen.getAllByRole('button', { name: /パスワードを隠す/i })[0]
+    const hideButton = screen.getAllByRole('button', { name: /パスワードを隠す/i })[0]!
     await user.click(hideButton)
 
     expect(passwordInput).toHaveAttribute('type', 'password')

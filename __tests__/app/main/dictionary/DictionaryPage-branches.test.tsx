@@ -70,11 +70,12 @@ async function resolveAsyncJsx(element: React.ReactElement): Promise<React.React
   if (!element || typeof element !== 'object') return element
 
   const { type, props } = element
+  const typedProps = props as Record<string, unknown>
 
   // If this is an async function component, call it and await
   if (typeof type === 'function') {
     try {
-      const result = (type as (props: Record<string, unknown>) => Promise<React.ReactElement>)(props)
+      const result = (type as (props: Record<string, unknown>) => Promise<React.ReactElement>)(typedProps)
       if (result && typeof result === 'object' && 'then' in result) {
         const resolved = await result
         return resolveAsyncJsx(resolved)
@@ -86,9 +87,9 @@ async function resolveAsyncJsx(element: React.ReactElement): Promise<React.React
   }
 
   // Recursively resolve children
-  if (props?.children) {
-    const children = Array.isArray(props.children)
-      ? await Promise.all(props.children.map(async (child: React.ReactNode, i: number) => {
+  if (typedProps?.children) {
+    const children = Array.isArray(typedProps.children)
+      ? await Promise.all((typedProps.children as React.ReactNode[]).map(async (child: React.ReactNode, i: number) => {
           if (!React.isValidElement(child)) return child
           const resolved = await resolveAsyncJsx(child)
           // cloneElement で静的 children を明示配列にすると React が key を要求するため、
@@ -97,11 +98,11 @@ async function resolveAsyncJsx(element: React.ReactElement): Promise<React.React
             ? React.cloneElement(resolved, { key: `__rk${i}` })
             : resolved
         }))
-      : React.isValidElement(props.children)
-        ? await resolveAsyncJsx(props.children)
-        : props.children
+      : React.isValidElement(typedProps.children)
+        ? await resolveAsyncJsx(typedProps.children as React.ReactElement)
+        : typedProps.children
 
-    return React.cloneElement(element, { ...props, children })
+    return React.cloneElement(element, { ...typedProps, children } as React.Attributes)
   }
 
   return element

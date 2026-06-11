@@ -536,8 +536,8 @@ describe('Like Actions', async () => {
 
       expect(result.posts).toHaveLength(1)
       // isLiked は閲覧者基準。未認証なので閲覧者の like は無く false（対象ユーザーの like 一覧でも閲覧者は未いいね扱い）
-      expect(result.posts[0].isLiked).toBe(false)
-      expect(result.posts[0].isBookmarked).toBe(false)
+      expect(result.posts[0]!.isLiked).toBe(false)
+      expect(result.posts[0]!.isBookmarked).toBe(false)
     })
 
     it('ページネーションが動作する', async () => {
@@ -583,7 +583,7 @@ describe('Like Actions', async () => {
       const result = await getLikedPosts(mockUser.id)
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].id).toBe('post-1')
+      expect(result.posts[0]!.id).toBe('post-1')
     })
 
     it('いいね/ブックマーク状態が閲覧者基準で設定される', async () => {
@@ -612,8 +612,8 @@ describe('Like Actions', async () => {
       const result = await getLikedPosts('other-user-id')
 
       // 閲覧者が実際に like / bookmark しているので true
-      expect(result.posts[0].isLiked).toBe(true)
-      expect(result.posts[0].isBookmarked).toBe(true)
+      expect(result.posts[0]!.isLiked).toBe(true)
+      expect(result.posts[0]!.isBookmarked).toBe(true)
     })
 
     it('エラー発生時は空の配列を返す', async () => {
@@ -674,9 +674,9 @@ describe('Like Actions', async () => {
       const result = await getLikedPosts(mockUser.id)
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].genres).toBeDefined()
-      expect(result.posts[0].likeCount).toBe(5)
-      expect(result.posts[0].commentCount).toBe(3)
+      expect(result.posts[0]!.genres).toBeDefined()
+      expect(result.posts[0]!.likeCount).toBe(5)
+      expect(result.posts[0]!.commentCount).toBe(3)
     })
 
     it('空のpostIdsの場合はいいね/ブックマーク状態取得をスキップ', async () => {

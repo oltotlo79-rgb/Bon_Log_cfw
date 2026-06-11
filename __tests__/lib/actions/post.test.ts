@@ -349,7 +349,7 @@ describe('Post Actions', async () => {
       const result = await getPosts()
 
       expect(result.posts).toHaveLength(1)
-      expect(result.posts[0].id).toBe(mockPost.id)
+      expect(result.posts[0]!.id).toBe(mockPost.id)
     })
 
     it('ブロック/ミュートしたユーザーの投稿は除外される', async () => {

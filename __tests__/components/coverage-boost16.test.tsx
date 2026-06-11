@@ -323,7 +323,7 @@ describe('PostFormModal - coverage boost', () => {
     })
 
     // Click close button — should open ConfirmDialog (upload cancel)
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     await user.click(closeButton)
 
     // Confirm dialog should be open
@@ -358,7 +358,7 @@ describe('PostFormModal - coverage boost', () => {
     // But we need to wait for the state to be set
     await new Promise(r => setTimeout(r, 50))
 
-    const closeButton = screen.getAllByRole('button')[0]
+    const closeButton = screen.getAllByRole('button')[0]!
     fireEvent.click(closeButton)
 
     // If uploading and confirm returns false, onClose should NOT be called from the click
@@ -427,7 +427,7 @@ describe('PostFormModal - coverage boost', () => {
 
     await waitFor(() => {
       expect(mockCreatePost).toHaveBeenCalled()
-      const formData = mockCreatePost.mock.calls[0][0] as FormData
+      const formData = mockCreatePost.mock.calls[0]![0]! as FormData
       expect(formData.get('bonsaiId')).toBe('b1')
       expect(formData.getAll('mediaUrls').length).toBeGreaterThan(0)
       expect(formData.getAll('mediaTypes').length).toBeGreaterThan(0)
@@ -570,7 +570,7 @@ describe('PostFormModal - coverage boost', () => {
 
     await waitFor(() => {
       expect(mockCreatePost).toHaveBeenCalled()
-      const formData = mockCreatePost.mock.calls[0][0] as FormData
+      const formData = mockCreatePost.mock.calls[0]![0]! as FormData
       expect(formData.get('pollOptions')).toBeTruthy()
       expect(formData.get('pollDuration')).toBeTruthy()
     })
@@ -697,7 +697,7 @@ describe('DraftEditForm - coverage boost', () => {
   })
 
   it('compression log is not triggered (production logs removed)', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const originalFile = new File(['x'.repeat(10000)], 'test.jpg', { type: 'image/jpeg' })
     const compressedFile = new File(['x'.repeat(5000)], 'test.jpg', { type: 'image/jpeg' })
@@ -1011,13 +1011,13 @@ describe('ReviewForm - coverage boost', () => {
 
     await waitFor(() => {
       expect(mockCreateReview).toHaveBeenCalled()
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.getAll('imageUrls')).toContain('/review-img.jpg')
     })
   })
 
   it('compression log does not fire (production logs removed)', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const originalFile = new File(['x'.repeat(10000)], 'test.jpg', { type: 'image/jpeg' })
     Object.defineProperty(originalFile, 'size', { value: 10000 })

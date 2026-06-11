@@ -90,7 +90,7 @@ vi.mock('@/lib/sanitize', () => ({
 
 const mockRateLimit = vi.fn().mockResolvedValue({ success: true })
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
+  rateLimit: mockRateLimit,
   RATE_LIMITS: {},
 }))
 
@@ -117,7 +117,7 @@ vi.mock('@/lib/constants/reserved', () => ({
 
 const mockSignIn = vi.fn()
 vi.mock('@/lib/auth', () => ({
-  signIn: (...args: unknown[]) => mockSignIn(...args),
+  signIn: mockSignIn,
   auth: vi.fn().mockResolvedValue(null),
 }))
 
@@ -125,7 +125,7 @@ const mockRedirect = vi.fn((url: string) => {
   throw new Error(`NEXT_REDIRECT:${url}`)
 })
 vi.mock('next/navigation', () => ({
-  redirect: (...args: unknown[]) => mockRedirect(...args),
+  redirect: mockRedirect,
 }))
 
 vi.mock('@/lib/redis', () => ({
@@ -165,7 +165,7 @@ describe('Auth Actions - Final Coverage', () => {
   describe('signInAsGuest - development mode fallback', () => {
     it('uses "GuestPass1!" when GUEST_PASSWORD is unset and NODE_ENV is development', async () => {
       delete process.env.GUEST_PASSWORD
-      process.env.NODE_ENV = 'development'
+      vi.stubEnv('NODE_ENV', 'development')
       mockSignIn.mockResolvedValueOnce({ ok: false })
 
       const { signInAsGuest } = await import('@/lib/actions/auth')
@@ -180,7 +180,7 @@ describe('Auth Actions - Final Coverage', () => {
 
     it('returns error when GUEST_PASSWORD is unset and NODE_ENV is production (empty password)', async () => {
       delete process.env.GUEST_PASSWORD
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       const { signInAsGuest } = await import('@/lib/actions/auth')
       const result = await signInAsGuest()
@@ -318,7 +318,7 @@ describe('Auth Actions - Final Coverage', () => {
         'user@example.com',
         expect.stringContaining('password-reset/confirm?token=')
       )
-      const emailUrl = mockSendPasswordResetEmail.mock.calls[0][1] as string
+      const emailUrl = mockSendPasswordResetEmail.mock.calls[0]![1] as string
       expect(emailUrl).toContain(encodeURIComponent('user@example.com'))
     })
   })

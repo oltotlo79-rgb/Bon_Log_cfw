@@ -17,7 +17,7 @@ describe('auth.config callbacks - jwt & session (lines 152-167)', () => {
       const token = { id: 'user-1', email: 'test@example.com', isAdmin: true }
       const result = authConfig.callbacks?.jwt?.({
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.jwt>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.jwt>>[0])
 
       expect(result).toBe(token)
     })
@@ -26,7 +26,7 @@ describe('auth.config callbacks - jwt & session (lines 152-167)', () => {
       const token = {}
       const result = authConfig.callbacks?.jwt?.({
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.jwt>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.jwt>>[0])
 
       expect(result).toBe(token)
     })
@@ -46,7 +46,7 @@ describe('auth.config callbacks - jwt & session (lines 152-167)', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       expect(result).toEqual(
         expect.objectContaining({
@@ -68,7 +68,7 @@ describe('auth.config callbacks - jwt & session (lines 152-167)', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       expect(result).toEqual(
         expect.objectContaining({
@@ -90,10 +90,10 @@ describe('auth.config callbacks - jwt & session (lines 152-167)', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       // session.user が falsy なので変更されずそのまま返る
-      expect((result as { user: null }).user).toBeNull()
+      expect((result as unknown as { user: null }).user).toBeNull()
     })
 
     it('token.isAdminが0の場合、isAdminがfalseになる', () => {
@@ -106,7 +106,7 @@ describe('auth.config callbacks - jwt & session (lines 152-167)', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       expect(result).toEqual(
         expect.objectContaining({

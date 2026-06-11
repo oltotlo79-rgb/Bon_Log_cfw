@@ -120,7 +120,7 @@ describe('ReviewForm', async () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.get('shopId')).toBe('shop-xyz')
     })
   })
@@ -131,7 +131,7 @@ describe('ReviewForm', async () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.get('rating')).toBe('3')
     })
   })
@@ -145,7 +145,7 @@ describe('ReviewForm', async () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.get('content')).toBe('テストコメント')
     })
   })
@@ -274,7 +274,7 @@ describe('ReviewForm', async () => {
   it('アップロードエラー時にエラーメッセージを表示する', async () => {
      
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockRejectedValue(new Error('compression failed'))
+    vi.mocked(prepareFileForUpload).mockRejectedValue(new Error('compression failed'))
 
     render(<ReviewForm shopId="shop-1" />)
 
@@ -297,7 +297,7 @@ describe('ReviewForm', async () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.get('content')).toBeNull()
     })
   })
@@ -320,7 +320,7 @@ describe('ReviewForm', async () => {
   it('画像アップロード成功時に画像プレビューが表示される', async () => {
      
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     const mockXHR = {
       open: vi.fn(),
@@ -332,8 +332,7 @@ describe('ReviewForm', async () => {
     }
     vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
     mockXHR.send.mockImplementation(() => {
-      const loadHandler = mockXHR.addEventListener.mock.calls.find(
-        (c: [string, () => void]) => c[0] === 'load'
+      const loadHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'load'
       )?.[1]
       if (loadHandler) loadHandler()
     })
@@ -355,7 +354,7 @@ describe('ReviewForm', async () => {
   it('画像アップロードXHRエラー時にエラーを表示する', async () => {
      
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     const mockXHR = {
       open: vi.fn(),
@@ -365,8 +364,7 @@ describe('ReviewForm', async () => {
     }
     vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
     mockXHR.send.mockImplementation(() => {
-      const errorHandler = mockXHR.addEventListener.mock.calls.find(
-        (c: [string, () => void]) => c[0] === 'error'
+      const errorHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'error'
       )?.[1]
       if (errorHandler) errorHandler()
     })
@@ -388,7 +386,7 @@ describe('ReviewForm', async () => {
   it('画像アップロードで非200レスポンス時にエラーを表示する', async () => {
      
     const { prepareFileForUpload } = await import('@/lib/client-image-compression')
-    prepareFileForUpload.mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File(['compressed'], 'c.jpg', { type: 'image/jpeg' }))
 
     const mockXHR = {
       open: vi.fn(),
@@ -400,8 +398,7 @@ describe('ReviewForm', async () => {
     }
     vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
     mockXHR.send.mockImplementation(() => {
-      const loadHandler = mockXHR.addEventListener.mock.calls.find(
-        (c: [string, () => void]) => c[0] === 'load'
+      const loadHandler = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'load'
       )?.[1]
       if (loadHandler) loadHandler()
     })

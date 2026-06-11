@@ -47,8 +47,8 @@ describe('ThemedHeroImage', () => {
     )
     const imgs = container.querySelectorAll('img')
     expect(imgs).toHaveLength(2)
-    expect(imgs[0].getAttribute('src')).toBe(FERTILIZER_IMAGES.header.light)
-    expect(imgs[1].getAttribute('src')).toBe(FERTILIZER_IMAGES.header.dark)
+    expect(imgs[0]!.getAttribute('src')).toBe(FERTILIZER_IMAGES.header.light)
+    expect(imgs[1]!.getAttribute('src')).toBe(FERTILIZER_IMAGES.header.dark)
   })
 
   it('ライト版は dark:hidden、ダーク版は hidden dark:block クラスを持つ', () => {
@@ -60,10 +60,10 @@ describe('ThemedHeroImage', () => {
         sizes={IMAGE_SIZES.HEADER}
       />
     )
-    const [lightImg, darkImg] = container.querySelectorAll('img')
-    expect(lightImg.className).toContain('dark:hidden')
-    expect(lightImg.className).not.toContain('hidden dark:block')
-    expect(darkImg.className).toContain('hidden dark:block')
+    const [lightImg, darkImg] = Array.from(container.querySelectorAll('img'))
+    expect(lightImg!.className).toContain('dark:hidden')
+    expect(lightImg!.className).not.toContain('hidden dark:block')
+    expect(darkImg!.className).toContain('hidden dark:block')
   })
 
   it('コンテナに aspect クラスと追加 className を適用する', () => {
@@ -95,10 +95,10 @@ describe('ThemedHeroImage', () => {
       />
     )
     const imgs = container.querySelectorAll('img')
-    expect(imgs[0].getAttribute('data-loading')).toBe('eager')
-    expect(imgs[0].getAttribute('data-fetch-priority')).toBe('high')
-    expect(imgs[1].getAttribute('data-loading')).toBe('eager')
-    expect(imgs[1].getAttribute('data-fetch-priority')).toBe('high')
+    expect(imgs[0]!.getAttribute('data-loading')).toBe('eager')
+    expect(imgs[0]!.getAttribute('data-fetch-priority')).toBe('high')
+    expect(imgs[1]!.getAttribute('data-loading')).toBe('eager')
+    expect(imgs[1]!.getAttribute('data-fetch-priority')).toBe('high')
   })
 
   it('preload デフォルトは false (eager / fetchPriority が付かない)', () => {
@@ -111,10 +111,10 @@ describe('ThemedHeroImage', () => {
       />
     )
     const imgs = container.querySelectorAll('img')
-    expect(imgs[0].getAttribute('data-loading')).toBe('')
-    expect(imgs[0].getAttribute('data-fetch-priority')).toBe('')
-    expect(imgs[1].getAttribute('data-loading')).toBe('')
-    expect(imgs[1].getAttribute('data-fetch-priority')).toBe('')
+    expect(imgs[0]!.getAttribute('data-loading')).toBe('')
+    expect(imgs[0]!.getAttribute('data-fetch-priority')).toBe('')
+    expect(imgs[1]!.getAttribute('data-loading')).toBe('')
+    expect(imgs[1]!.getAttribute('data-fetch-priority')).toBe('')
   })
 
   it('sizes 属性を両画像に伝播する', () => {
@@ -127,8 +127,8 @@ describe('ThemedHeroImage', () => {
       />
     )
     const imgs = container.querySelectorAll('img')
-    expect(imgs[0].getAttribute('data-sizes')).toBe(IMAGE_SIZES.CARD)
-    expect(imgs[1].getAttribute('data-sizes')).toBe(IMAGE_SIZES.CARD)
+    expect(imgs[0]!.getAttribute('data-sizes')).toBe(IMAGE_SIZES.CARD)
+    expect(imgs[1]!.getAttribute('data-sizes')).toBe(IMAGE_SIZES.CARD)
   })
 
   it('両画像の alt は同一（スクリーンリーダーで二重読み上げ抑止のためのセマンティック要件は呼び出し側責務）', () => {
@@ -141,7 +141,7 @@ describe('ThemedHeroImage', () => {
       />
     )
     const imgs = container.querySelectorAll('img')
-    expect(imgs[0].getAttribute('alt')).toBe(IMAGE_ALT.fertilizerHeader)
-    expect(imgs[1].getAttribute('alt')).toBe(IMAGE_ALT.fertilizerHeader)
+    expect(imgs[0]!.getAttribute('alt')).toBe(IMAGE_ALT.fertilizerHeader)
+    expect(imgs[1]!.getAttribute('alt')).toBe(IMAGE_ALT.fertilizerHeader)
   })
 })

@@ -15,7 +15,7 @@ export {}
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
-const mockPrisma: Record<string, Record<string, any>> = {
+const mockPrisma = {
   comment: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), count: vi.fn() },
   post: { findUnique: vi.fn() },
   user: { findUnique: vi.fn(), findMany: vi.fn() },
@@ -51,7 +51,7 @@ const mockValidateImageFile = vi.fn()
 const mockGenerateSafeFileName = vi.fn((name: string) => name)
 vi.mock('@/lib/file-validation', () => ({
   validateImageFile: (...args: unknown[]) => mockValidateImageFile(...args),
-  generateSafeFileName: (...args: unknown[]) => mockGenerateSafeFileName(...args),
+  generateSafeFileName: (...args: unknown[]) => mockGenerateSafeFileName(...(args as [string])),
 }))
 
 vi.mock('@/lib/storage', () => ({
@@ -142,7 +142,7 @@ describe('uploadCommentMedia - image validation error without error message (lin
 
     const result = await uploadCommentMedia(formData)
 
-    expect(result.error).toBe('画像または動画ファイルを選択してください')
+    expect('error' in result && result.error).toBe('画像または動画ファイルを選択してください')
   })
 
   it('returns the specific validation error when validateImageFile provides one', async () => {
@@ -156,6 +156,6 @@ describe('uploadCommentMedia - image validation error without error message (lin
 
     const result = await uploadCommentMedia(formData)
 
-    expect(result.error).toBe('ファイル形式が不正です')
+    expect('error' in result && result.error).toBe('ファイル形式が不正です')
   })
 })

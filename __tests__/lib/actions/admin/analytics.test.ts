@@ -80,7 +80,7 @@ describe('管理者分析アクション', () => {
       const result = await getCohortAnalysis()
       const data = result as { cohorts: { cohort: string; total: number }[]; retention: unknown[] }
       expect(data.cohorts.length).toBe(1) // 同月なので1コホート
-      expect(data.cohorts[0].total).toBe(2)
+      expect(data.cohorts[0]!.total).toBe(2)
       expect(data.retention).toEqual([])
     })
 
@@ -103,10 +103,10 @@ describe('管理者分析アクション', () => {
         retention: { cohort: string; activeMonth: string; activeUsers: number }[]
       }
       expect(data.cohorts.length).toBe(2)
-      expect(data.cohorts[0].cohort).toBe('2024-01')
-      expect(data.cohorts[0].total).toBe(1)
-      expect(data.cohorts[1].cohort).toBe('2024-02')
-      expect(data.cohorts[1].total).toBe(1)
+      expect(data.cohorts[0]!.cohort).toBe('2024-01')
+      expect(data.cohorts[0]!.total).toBe(1)
+      expect(data.cohorts[1]!.cohort).toBe('2024-02')
+      expect(data.cohorts[1]!.total).toBe(1)
       expect(data.retention.length).toBeGreaterThan(0)
     })
 
@@ -134,7 +134,7 @@ describe('管理者分析アクション', () => {
       const data = result as { cohorts: { cohort: string; total: number }[] }
       // weeklyの場合 YYYY-Wxx形式
       expect(data.cohorts.length).toBeGreaterThan(0)
-      expect(data.cohorts[0].cohort).toMatch(/^\d{4}-W\d{2}$/)
+      expect(data.cohorts[0]!.cohort).toMatch(/^\d{4}-W\d{2}$/)
     })
 
     it('monthsオプションで期間を変更できる', async () => {
@@ -161,9 +161,9 @@ describe('管理者分析アクション', () => {
       const { getCohortAnalysis } = await import('@/lib/actions/admin/analytics')
       const result = await getCohortAnalysis()
       const data = result as { cohorts: { cohort: string }[] }
-      expect(data.cohorts[0].cohort).toBe('2024-01')
-      expect(data.cohorts[1].cohort).toBe('2024-02')
-      expect(data.cohorts[2].cohort).toBe('2024-03')
+      expect(data.cohorts[0]!.cohort).toBe('2024-01')
+      expect(data.cohorts[1]!.cohort).toBe('2024-02')
+      expect(data.cohorts[2]!.cohort).toBe('2024-03')
     })
 
     it('リテンションはコホート・月順でソートされる', async () => {
@@ -179,8 +179,8 @@ describe('管理者分析アクション', () => {
       const { getCohortAnalysis } = await import('@/lib/actions/admin/analytics')
       const result = await getCohortAnalysis()
       const data = result as { retention: { activeMonth: string }[] }
-      expect(data.retention[0].activeMonth).toBe('2024-01')
-      expect(data.retention[1].activeMonth).toBe('2024-02')
+      expect(data.retention[0]!.activeMonth).toBe('2024-01')
+      expect(data.retention[1]!.activeMonth).toBe('2024-02')
     })
 
     it('同一コホート・同一月の重複ユーザーはカウントしない', async () => {
@@ -198,7 +198,7 @@ describe('管理者分析アクション', () => {
       const result = await getCohortAnalysis()
       const data = result as { retention: { activeUsers: number }[] }
       expect(data.retention.length).toBe(1)
-      expect(data.retention[0].activeUsers).toBe(1)
+      expect(data.retention[0]!.activeUsers).toBe(1)
     })
 
     it('userCohort に存在しない投稿のユーザーは無視される（防御的フォールバック）', async () => {
@@ -218,8 +218,8 @@ describe('管理者分析アクション', () => {
       const data = result as { retention: { cohort: string; activeUsers: number }[] }
       // 結果は user-1 のみカウントされ、 user-X は黙って捨てられる
       expect(data.retention).toHaveLength(1)
-      expect(data.retention[0].activeUsers).toBe(1)
-      expect(data.retention[0].cohort).toBe('2024-01')
+      expect(data.retention[0]!.activeUsers).toBe(1)
+      expect(data.retention[0]!.cohort).toBe('2024-01')
     })
 
     it('同一コホートに複数ユーザーがいる場合 cohortMap.size が正しく集計される', async () => {
@@ -351,7 +351,7 @@ describe('管理者分析アクション', () => {
       const { getContentAnalysis } = await import('@/lib/actions/admin/analytics')
       const result = await getContentAnalysis()
       const data = result as { genreTrends: { name: string }[] }
-      expect(data.genreTrends[0].name).toBe('不明')
+      expect(data.genreTrends[0]!.name).toBe('不明')
     })
 
     it('ハッシュタグトレンドが正しく返される', async () => {
@@ -388,7 +388,7 @@ describe('管理者分析アクション', () => {
       const { getContentAnalysis } = await import('@/lib/actions/admin/analytics')
       const result = await getContentAnalysis()
       const data = result as { topHashtags: { tag: string }[] }
-      expect(data.topHashtags[0].tag).toBe('不明')
+      expect(data.topHashtags[0]!.tag).toBe('不明')
     })
 
     it('日別エンゲージメントが31日分生成される', async () => {
@@ -407,7 +407,7 @@ describe('管理者分析アクション', () => {
 
     it('日別エンゲージメントに投稿・いいね・コメントが集計される', async () => {
       const today = new Date()
-      const todayKey = today.toISOString().split('T')[0]
+      const todayKey = today.toISOString().split('T')[0]!
 
       mockPrisma.postGenre.groupBy.mockResolvedValue([])
       mockPrisma.genre.findMany.mockResolvedValue([])
@@ -585,7 +585,7 @@ describe('管理者分析アクション', () => {
       const result = await getContentAnalysis()
       const data = result as { genreTrends: { count: number }[] }
       for (let i = 1; i < data.genreTrends.length; i++) {
-        expect(data.genreTrends[i - 1].count).toBeGreaterThanOrEqual(data.genreTrends[i].count)
+        expect(data.genreTrends[i - 1]!.count).toBeGreaterThanOrEqual(data.genreTrends[i]!.count)
       }
     })
 
@@ -601,8 +601,8 @@ describe('管理者分析アクション', () => {
       const data = result as { dailyEngagement: { date: string }[] }
       expect(data.dailyEngagement.length).toBe(31)
       // 最初のエントリは30日前、最後のエントリは今日
-      const today = new Date().toISOString().split('T')[0]
-      expect(data.dailyEngagement[data.dailyEngagement.length - 1].date).toBe(today)
+      const today = new Date().toISOString().split('T')[0]!
+      expect(data.dailyEngagement[data.dailyEngagement.length - 1]!.date).toBe(today)
     })
   })
 
@@ -729,8 +729,8 @@ describe('管理者分析アクション', () => {
       }
       // コホートは存在するがリテンションは空
       expect(data.cohorts.length).toBe(2)
-      expect(data.cohorts[0].total).toBe(1) // 2024-03: 1人
-      expect(data.cohorts[1].total).toBe(2) // 2024-04: 2人
+      expect(data.cohorts[0]!.total).toBe(1) // 2024-03: 1人
+      expect(data.cohorts[1]!.total).toBe(2) // 2024-04: 2人
       expect(data.retention).toEqual([])
     })
 
@@ -750,7 +750,7 @@ describe('管理者分析アクション', () => {
       const data = result as { topHashtags: unknown[]; genreTrends: { name: string }[] }
       expect(data.topHashtags).toEqual([])
       expect(data.genreTrends.length).toBe(1)
-      expect(data.genreTrends[0].name).toBe('黒松')
+      expect(data.genreTrends[0]!.name).toBe('黒松')
     })
 
     it('CSVのファイル名が今日の日付を含む', async () => {

@@ -227,7 +227,7 @@ describe('SearchBar - branch coverage', () => {
 
     // Click the delete button for 'remove'
     const deleteButtons = screen.getAllByLabelText('履歴を削除')
-    await user.click(deleteButtons[1])
+    await user.click(deleteButtons[1]!)
 
     await waitFor(() => {
       expect(screen.queryByText('remove')).not.toBeInTheDocument()

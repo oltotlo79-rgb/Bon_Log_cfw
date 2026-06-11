@@ -273,7 +273,7 @@ describe('Follow Request Actions', async () => {
         status: 'pending',
         requester: { id: 'other-user', nickname: 'Other User' },
       })
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
+      mockPrisma.$transaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
         const tx = {
           follow: { upsert: vi.fn().mockResolvedValue({}) },
           followRequest: { delete: vi.fn().mockResolvedValue({}) },
@@ -437,7 +437,7 @@ describe('Follow Request Actions', async () => {
       const result = await getReceivedFollowRequests()
 
       expect(result.requests).toHaveLength(1)
-      expect(result.requests[0].user.nickname).toBe('User 1')
+      expect(result.requests[0]!.user.nickname).toBe('User 1')
     })
 
     it('カーソルベースのページネーションをサポート', async () => {
@@ -488,7 +488,7 @@ describe('Follow Request Actions', async () => {
       const result = await getSentFollowRequests()
 
       expect(result.requests).toHaveLength(1)
-      expect(result.requests[0].user.nickname).toBe('Target User')
+      expect(result.requests[0]!.user.nickname).toBe('Target User')
     })
   })
 

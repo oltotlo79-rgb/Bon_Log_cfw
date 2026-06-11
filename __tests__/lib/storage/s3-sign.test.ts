@@ -234,8 +234,8 @@ describe('s3-sign', () => {
     it('query parameters are sorted alphabetically', async () => {
       const { createPresignedPutUrl } = await import('@/lib/storage/s3-sign')
       const url = createPresignedPutUrl(mockConfig, 'test.jpg', 'image/jpeg', 3600)
-      const queryString = url.split('?')[1]
-      const params = queryString.split('&').map(p => p.split('=')[0])
+      const queryString = url.split('?')[1]!
+      const params = queryString.split('&').map(p => p.split('=')[0]!)
       // X-Amz-Signature is appended last (outside the sorted set)
       const sortedParams = params.slice(0, -1)
       const expectedSorted = [...sortedParams].sort()
@@ -296,7 +296,7 @@ describe('s3-sign', () => {
 
       await putObject(mockConfig, 'test.jpg', Buffer.from('data'), 'image/jpeg')
 
-      const options = mockFetch.mock.calls[0][1]
+      const options = mockFetch.mock.calls[0]![1]!
       expect(options.method).toBe('PUT')
     })
 
@@ -307,7 +307,7 @@ describe('s3-sign', () => {
 
       await putObject(mockConfig, 'test.jpg', Buffer.from('data'), 'image/jpeg')
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers.Authorization).toMatch(/^AWS4-HMAC-SHA256 Credential=test-access-key/)
       expect(headers.Authorization).toContain('SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date')
       expect(headers.Authorization).toMatch(/Signature=[a-f0-9]{64}/)
@@ -320,7 +320,7 @@ describe('s3-sign', () => {
 
       await putObject(mockConfig, 'test.jpg', Buffer.from('data'), 'image/jpeg')
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers['Content-Type']).toBe('image/jpeg')
     })
 
@@ -332,7 +332,7 @@ describe('s3-sign', () => {
       const body = Buffer.from('test data')
       await putObject(mockConfig, 'test.jpg', body, 'image/jpeg')
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers['x-amz-content-sha256']).toBe(sha256Hex(body))
     })
 
@@ -343,7 +343,7 @@ describe('s3-sign', () => {
 
       await putObject(mockConfig, 'test.jpg', Buffer.from('data'), 'image/jpeg')
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers['x-amz-date']).toBe(FIXED_DATETIME_STR)
     })
 
@@ -354,7 +354,7 @@ describe('s3-sign', () => {
 
       await putObject(mockConfig, 'test.jpg', Buffer.from('data'), 'image/jpeg')
 
-      const options = mockFetch.mock.calls[0][1]
+      const options = mockFetch.mock.calls[0]![1]!
       expect(options.body).toBeInstanceOf(Uint8Array)
     })
 
@@ -408,7 +408,7 @@ describe('s3-sign', () => {
 
       await deleteObject(mockConfig, 'test.jpg')
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers.Authorization).toContain('SignedHeaders=host;x-amz-content-sha256;x-amz-date')
     })
 
@@ -419,7 +419,7 @@ describe('s3-sign', () => {
 
       await deleteObject(mockConfig, 'test.jpg')
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers['x-amz-content-sha256']).toBe(sha256Hex(''))
     })
 
@@ -597,7 +597,7 @@ describe('s3-sign', () => {
 
       await listObjects(mockConfig)
 
-      const headers = mockFetch.mock.calls[0][1].headers
+      const headers = mockFetch.mock.calls[0]![1]!.headers
       expect(headers.Authorization).toMatch(/^AWS4-HMAC-SHA256 Credential=test-access-key/)
     })
   })

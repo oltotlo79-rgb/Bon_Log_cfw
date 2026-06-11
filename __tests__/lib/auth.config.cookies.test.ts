@@ -127,7 +127,7 @@ describe('auth.config cookies branch coverage', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       expect(result).toEqual({
         user: { id: 'user-123', isAdmin: true },
@@ -142,7 +142,7 @@ describe('auth.config cookies branch coverage', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       expect(result).toEqual({})
     })
@@ -155,7 +155,7 @@ describe('auth.config cookies branch coverage', () => {
       const result = authConfig.callbacks?.session?.({
         session,
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.session>>[0])
 
       expect(result).toEqual({
         user: { id: 'user-456', isAdmin: false },
@@ -170,7 +170,7 @@ describe('auth.config cookies branch coverage', () => {
 
       const result = authConfig.callbacks?.jwt?.({
         token,
-      } as Parameters<NonNullable<typeof authConfig.callbacks.jwt>>[0])
+      } as unknown as Parameters<NonNullable<typeof authConfig.callbacks.jwt>>[0])
 
       expect(result).toBe(token)
     })

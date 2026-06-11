@@ -48,12 +48,12 @@ describe('additions-parser', () => {
     it('シングルクォートの農薬データを抽出する', () => {
       const result = extractPesticidesFromAdditions(SAMPLE_PESTICIDE)
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('kari-gurin')
-      expect(result[0].name).toBe('カリグリーン')
-      expect(result[0].registrationNumber).toBe('18358')
-      expect(result[0].pesticideType).toBe('fungicide')
-      expect(result[0].formulationType).toBe('WP')
-      expect(result[0].source).toBe('additions')
+      expect(result[0]!.slug).toBe('kari-gurin')
+      expect(result[0]!.name).toBe('カリグリーン')
+      expect(result[0]!.registrationNumber).toBe('18358')
+      expect(result[0]!.pesticideType).toBe('fungicide')
+      expect(result[0]!.formulationType).toBe('WP')
+      expect(result[0]!.source).toBe('additions')
     })
   })
 
@@ -61,10 +61,10 @@ describe('additions-parser', () => {
     it('シングルクォートの有効成分を抽出する', () => {
       const result = extractIngredientsFromAdditions(SAMPLE_INGREDIENT)
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('potassium-bicarbonate')
-      expect(result[0].nameEn).toBe('Potassium bicarbonate')
-      expect(result[0].fracCode).toBe('NC')
-      expect(result[0].resistanceRisk).toBe('low')
+      expect(result[0]!.slug).toBe('potassium-bicarbonate')
+      expect(result[0]!.nameEn).toBe('Potassium bicarbonate')
+      expect(result[0]!.fracCode).toBe('NC')
+      expect(result[0]!.resistanceRisk).toBe('low')
     })
   })
 
@@ -72,9 +72,9 @@ describe('additions-parser', () => {
     it('シングルクォートのpMap/aiMapリンクを抽出する', () => {
       const result = extractLinksFromAdditions(SAMPLE_LINK)
       expect(result).toHaveLength(1)
-      expect(result[0].pesticideSlug).toBe('kari-gurin')
-      expect(result[0].ingredientSlug).toBe('potassium-bicarbonate')
-      expect(result[0].contentLabel).toBe('80.0%')
+      expect(result[0]!.pesticideSlug).toBe('kari-gurin')
+      expect(result[0]!.ingredientSlug).toBe('potassium-bicarbonate')
+      expect(result[0]!.contentLabel).toBe('80.0%')
     })
   })
 
@@ -82,12 +82,12 @@ describe('additions-parser', () => {
     it('pMap/dpMap形式 + as EffectRating キャスト付きデータを正しく抽出する', () => {
       const result = extractEffectsFromAdditions(SAMPLE_EFFECTS_PMAP)
       expect(result).toHaveLength(2)
-      expect(result[0].pesticideSlug).toBe('kari-gurin')
-      expect(result[0].diseasePestSlug).toBe('udonko-byo')
-      expect(result[0].preventionLevel).toBe('good')
-      expect(result[0].treatmentLevel).toBe('excellent')
-      expect(result[0].efficacyLevel).toBe('excellent')
-      expect(result[0].persistenceLevel).toBe('fair')
+      expect(result[0]!.pesticideSlug).toBe('kari-gurin')
+      expect(result[0]!.diseasePestSlug).toBe('udonko-byo')
+      expect(result[0]!.preventionLevel).toBe('good')
+      expect(result[0]!.treatmentLevel).toBe('excellent')
+      expect(result[0]!.efficacyLevel).toBe('excellent')
+      expect(result[0]!.persistenceLevel).toBe('fair')
     })
 
     it('treatmentLevel/efficacyLevelが空でないことを確認', () => {
@@ -102,10 +102,10 @@ describe('additions-parser', () => {
     it('pesticideSlug/diseasePestSlug形式を抽出する', () => {
       const result = extractEffectsFromAdditions(SAMPLE_EFFECTS_SLUG)
       expect(result).toHaveLength(1)
-      expect(result[0].pesticideSlug).toBe('supura-saido-ec')
-      expect(result[0].diseasePestSlug).toBe('ko-sukashiba')
-      expect(result[0].efficacyLevel).toBe('excellent')
-      expect(result[0].persistenceLevel).toBe('good')
+      expect(result[0]!.pesticideSlug).toBe('supura-saido-ec')
+      expect(result[0]!.diseasePestSlug).toBe('ko-sukashiba')
+      expect(result[0]!.efficacyLevel).toBe('excellent')
+      expect(result[0]!.persistenceLevel).toBe('good')
     })
 
     it('両方のパターンを同時に処理できる', () => {

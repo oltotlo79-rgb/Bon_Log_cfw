@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 // Prisma モック（maintenance固有）
 const mtMockPrisma = {
   user: {
@@ -209,7 +210,7 @@ describe('Maintenance Actions', async () => {
       const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
       const result = await updateMaintenanceSettings({ enabled: true })
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('認証が必要です')
     })
 
@@ -220,7 +221,7 @@ describe('Maintenance Actions', async () => {
       const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
       const result = await updateMaintenanceSettings({ enabled: true })
 
-      expect(result.success).toBe(false)
+      expectError(result)
       expect(result.error).toBe('管理者権限が必要です')
     })
 

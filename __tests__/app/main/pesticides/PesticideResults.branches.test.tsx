@@ -148,10 +148,10 @@ describe('PesticideResults - 未カバー分岐', () => {
           pesticideType: 'fungicide' as const,
           effects: [{
             diseasePestId: 'dp-1',
-            preventionLevel: 'A' as const,
-            treatmentLevel: 'B' as const,
+            preventionLevel: 'excellent' as const,
+            treatmentLevel: 'good' as const,
             efficacyLevel: null,
-            persistenceLevel: 'C' as const,
+            persistenceLevel: 'fair' as const,
             diseasePest: { name: 'うどんこ病', category: 'disease' },
           }],
         }]}
@@ -180,8 +180,8 @@ describe('PesticideResults - 未カバー分岐', () => {
             diseasePestId: 'dp-1',
             preventionLevel: null,
             treatmentLevel: null,
-            efficacyLevel: 'A' as const,
-            persistenceLevel: 'B' as const,
+            efficacyLevel: 'excellent' as const,
+            persistenceLevel: 'good' as const,
             diseasePest: { name: 'アブラムシ', category: 'pest' },
           }],
         }]}
@@ -209,8 +209,8 @@ describe('PesticideResults - 未カバー分岐', () => {
             diseasePestId: 'dp-1',
             preventionLevel: null,
             treatmentLevel: null,
-            efficacyLevel: 'S' as const,
-            persistenceLevel: 'A' as const,
+            efficacyLevel: 'excellent' as const,
+            persistenceLevel: 'excellent' as const,
             diseasePest: { name: 'ハダニ', category: 'pest' },
           }],
         }]}
@@ -234,10 +234,10 @@ describe('PesticideResults - 未カバー分岐', () => {
           pesticideType: 'compound' as const,
           effects: [{
             diseasePestId: 'dp-1',
-            preventionLevel: 'A' as const,
-            treatmentLevel: 'B' as const,
-            efficacyLevel: 'A' as const,
-            persistenceLevel: 'C' as const,
+            preventionLevel: 'excellent' as const,
+            treatmentLevel: 'good' as const,
+            efficacyLevel: 'excellent' as const,
+            persistenceLevel: 'fair' as const,
             diseasePest: { name: 'うどんこ病', category: 'disease' },
           }],
         }]}
@@ -266,7 +266,7 @@ describe('PesticideResults - 未カバー分岐', () => {
             preventionLevel: null,
             treatmentLevel: null,
             efficacyLevel: null,
-            persistenceLevel: 'B' as const,
+            persistenceLevel: 'good' as const,
             diseasePest: { name: 'その他', category: 'disease' },
           }],
         }]}
@@ -291,10 +291,10 @@ describe('PesticideResults - 未カバー分岐', () => {
           pesticideType: 'fungicide' as const,
           effects: [{
             diseasePestId: 'dp-other',
-            preventionLevel: 'A' as const,
-            treatmentLevel: 'B' as const,
+            preventionLevel: 'excellent' as const,
+            treatmentLevel: 'good' as const,
             efficacyLevel: null,
-            persistenceLevel: 'C' as const,
+            persistenceLevel: 'fair' as const,
             diseasePest: { name: '別の病気', category: 'disease' },
           }],
         }]}

@@ -240,7 +240,7 @@ describe('EventForm - uncovered branches', async () => {
 
     await waitFor(() => {
       expect(mockCreateEvent).toHaveBeenCalled()
-      const formData = mockCreateEvent.mock.calls[0][0] as FormData
+      const formData = mockCreateEvent.mock.calls[0]![0]! as FormData
       expect(formData.get('title')).toBe('ミニマルイベント')
       expect(formData.get('endDate')).toBeNull()
       expect(formData.get('city')).toBeNull()
@@ -277,7 +277,7 @@ describe('EventForm - uncovered branches', async () => {
 
     await waitFor(() => {
       expect(mockCreateEvent).toHaveBeenCalled()
-      const formData = mockCreateEvent.mock.calls[0][0] as FormData
+      const formData = mockCreateEvent.mock.calls[0]![0]! as FormData
       expect(formData.get('endDate')).toBeTruthy()
       expect(formData.get('city')).toBe('さいたま市')
       expect(formData.get('venue')).toBe('テスト会場')

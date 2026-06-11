@@ -36,6 +36,9 @@ vi.mock('@/components/user/ProfileEditForm', () => ({ ProfileEditForm: () => <di
 vi.mock('@/components/user/PrivacyToggle', () => ({ PrivacyToggle: () => <div data-testid="privacy-toggle" /> }))
 vi.mock('@/components/user/DeleteAccountButton', () => ({ DeleteAccountButton: () => <div data-testid="delete-account" /> }))
 vi.mock('@/components/settings/TwoFactorSettings', () => ({ TwoFactorSettings: () => <div data-testid="2fa-settings" /> }))
+// SecurityActivity は Suspense 内の async Server Component。テスト環境でこの async 関数が
+// suspend すると "A component suspended inside an act scope" 警告が出るため、モック化する。
+vi.mock('@/components/settings/SecurityActivity', () => ({ SecurityActivity: () => <div data-testid="security-activity" /> }))
 vi.mock('@/components/post/ScheduledPostList', () => ({ ScheduledPostList: () => <div data-testid="scheduled-list" /> }))
 // asChild は Radix Slot 用の prop。DOM の <button> に流すと React warning になるため destructure して除外する
 vi.mock('@/components/ui/button', () => ({ Button: ({ children, asChild: _asChild, ...props }: React.PropsWithChildren<Record<string, unknown>>) => <button {...props}>{children}</button> }))

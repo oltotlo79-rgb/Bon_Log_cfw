@@ -168,9 +168,9 @@ describe('BonsaiCareLogSheet', () => {
     expect(screen.getByText('葉を整理')).toBeInTheDocument()
     expect(screen.getByText('日光浴中')).toBeInTheDocument()
     // リンク先
-    const recordLink = screen.getByRole('link', { name: /黒松.*葉を整理/s })
+    const recordLink = screen.getByRole('link', { name: /黒松[\s\S]*葉を整理/ })
     expect(recordLink).toHaveAttribute('href', '/bonsai/bonsai-1')
-    const postLink = screen.getByRole('link', { name: /黒松.*日光浴中/s })
+    const postLink = screen.getByRole('link', { name: /黒松[\s\S]*日光浴中/ })
     expect(postLink).toHaveAttribute('href', '/posts/post-1')
   })
 

@@ -65,7 +65,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
   if (result.success) {
     return ((result.data ?? {}) as unknown) as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
   }
-  return { error: result.error, posts: [], nextCursor: undefined } as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
+  return { error: result.error, posts: [], nextCursor: undefined } as unknown as (T extends object ? T : Record<string, never>) & { error?: string; posts?: unknown[]; nextCursor?: string }
 }
 
 describe('Search Actions - Extended', async () => {
@@ -197,10 +197,10 @@ describe('Search Actions - Extended', async () => {
       const { searchPosts } = await import('@/lib/actions/search')
       const result = unwrap(await searchPosts('テスト'))
 
-      expect(result.posts[0].isLiked).toBe(true)
-      expect(result.posts[0].isBookmarked).toBe(true)
-      expect(result.posts[0].likeCount).toBe(2)
-      expect(result.posts[0].commentCount).toBe(1)
+      expect(result.posts[0]!.isLiked).toBe(true)
+      expect(result.posts[0]!.isBookmarked).toBe(true)
+      expect(result.posts[0]!.likeCount).toBe(2)
+      expect(result.posts[0]!.commentCount).toBe(1)
     })
 
     it('nextCursorが正しく設定される（limit件返却時）', async () => {
@@ -280,8 +280,8 @@ describe('Search Actions - Extended', async () => {
       const { searchPosts } = await import('@/lib/actions/search')
       const result = unwrap(await searchPosts('テスト'))
 
-      expect(result.posts[0].isLiked).toBe(false)
-      expect(result.posts[0].isBookmarked).toBe(false)
+      expect(result.posts[0]!.isLiked).toBe(false)
+      expect(result.posts[0]!.isBookmarked).toBe(false)
     })
   })
 
@@ -345,8 +345,8 @@ describe('Search Actions - Extended', async () => {
       const { searchByTag } = await import('@/lib/actions/search')
       const result = unwrap(await searchByTag('盆栽'))
 
-      expect(result.posts[0].isLiked).toBe(true)
-      expect(result.posts[0].isBookmarked).toBe(false)
+      expect(result.posts[0]!.isLiked).toBe(true)
+      expect(result.posts[0]!.isBookmarked).toBe(false)
     })
 
     it('除外ユーザーがいる場合にnotIn条件が含まれる (Hashtag JOIN クエリ)', async () => {

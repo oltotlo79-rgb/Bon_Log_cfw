@@ -78,7 +78,7 @@ describe('BonsaiCalendarMonthGrid', () => {
     const onSelectDate = vi.fn()
     render(<BonsaiCalendarMonthGrid anchor={new Date(2026, 3, 1)} logs={[]} records={[]} posts={[]} onSelectDate={onSelectDate} />)
     const cells = screen.getAllByRole('gridcell')
-    fireEvent.click(cells[10])
+    fireEvent.click(cells[10]!)
     expect(onSelectDate).toHaveBeenCalledTimes(1)
     expect(onSelectDate).toHaveBeenCalledWith(expect.any(Date))
   })

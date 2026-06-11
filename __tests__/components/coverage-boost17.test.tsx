@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { Post } from '@/components/post/PostCard.types'
 /**
  * Coverage Boost 17 - SearchResults, MentionTextarea, AnalogClockPicker
  *
@@ -131,7 +132,7 @@ describe('SearchResults - coverage boost', () => {
       render(
         <PostSearchResults
           query="test"
-          initialPosts={initialPosts}
+          initialPosts={initialPosts as unknown as Post[]}
           currentUserId="test-user"
         />
       )
@@ -139,7 +140,7 @@ describe('SearchResults - coverage boost', () => {
       expect(screen.getByText('Post 0')).toBeInTheDocument()
       // Verify useInfiniteQuery was called with initialData
       expect(mockUseInfiniteQuery).toHaveBeenCalled()
-      const callArgs = mockUseInfiniteQuery.mock.calls[0][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[0]![0]!
       expect(callArgs.initialData).toBeDefined()
     })
 
@@ -149,7 +150,7 @@ describe('SearchResults - coverage boost', () => {
 
       expect(mockUseInfiniteQuery).toHaveBeenCalled()
       const lastCallIndex = mockUseInfiniteQuery.mock.calls.length - 1
-      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex]![0]!
       expect(callArgs.initialData).toBeDefined()
       expect(callArgs.initialData.pages[0].posts).toEqual([])
       expect(callArgs.initialData.pages[0].nextCursor).toBeUndefined()
@@ -161,7 +162,7 @@ describe('SearchResults - coverage boost', () => {
 
       expect(mockUseInfiniteQuery).toHaveBeenCalled()
       const lastCallIndex = mockUseInfiniteQuery.mock.calls.length - 1
-      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex]![0]!
       expect(callArgs.initialData).toBeUndefined()
     })
 
@@ -209,7 +210,7 @@ describe('SearchResults - coverage boost', () => {
 
       expect(mockUseInfiniteQuery).toHaveBeenCalled()
       const lastCallIndex = mockUseInfiniteQuery.mock.calls.length - 1
-      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex]![0]!
       expect(callArgs.queryKey).toEqual(expect.arrayContaining([filters]))
     })
 
@@ -253,11 +254,11 @@ describe('SearchResults - coverage boost', () => {
         isLoading: false,
       })
 
-      render(<PostSearchResults query="test" initialPosts={initialPosts} />)
+      render(<PostSearchResults query="test" initialPosts={initialPosts as unknown as Post[]} />)
 
       // Verify initialData was set with nextCursor
       const lastCallIndex = mockUseInfiniteQuery.mock.calls.length - 1
-      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex]![0]!
       expect(callArgs.initialData.pages[0].nextCursor).toBe('post-19')
     })
 
@@ -279,10 +280,10 @@ describe('SearchResults - coverage boost', () => {
         isLoading: false,
       })
 
-      render(<PostSearchResults query="test" initialPosts={initialPosts} />)
+      render(<PostSearchResults query="test" initialPosts={initialPosts as unknown as Post[]} />)
 
       const lastCallIndex = mockUseInfiniteQuery.mock.calls.length - 1
-      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex]![0]!
       expect(callArgs.initialData.pages[0].nextCursor).toBeUndefined()
     })
   })
@@ -463,7 +464,7 @@ describe('SearchResults - coverage boost', () => {
 
       render(<UserSearchResults query="test" initialUsers={initialUsers} />)
       const lastCallIndex = mockUseInfiniteQuery.mock.calls.length - 1
-      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex][0]
+      const callArgs = mockUseInfiniteQuery.mock.calls[lastCallIndex]![0]!
       expect(callArgs.initialData).toBeDefined()
       expect(callArgs.initialData.pages[0].nextCursor).toBe('user-19')
     })
@@ -549,8 +550,8 @@ describe('SearchResults - coverage boost', () => {
         isLoading: false,
       })
 
-      render(<TagSearchResults tag="tag" initialPosts={initialPosts} />)
-      const callArgs = mockUseInfiniteQuery.mock.calls[0][0]
+      render(<TagSearchResults tag="tag" initialPosts={initialPosts as unknown as Post[]} />)
+      const callArgs = mockUseInfiniteQuery.mock.calls[0]![0]!
       expect(callArgs.initialData).toBeDefined()
     })
   })
@@ -1035,7 +1036,7 @@ describe('AnalogClockPicker - coverage boost', () => {
 
         expect(onChange).toHaveBeenCalled()
         // Should be PM (inner ring at 12 o'clock = 12)
-        const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0]
+        const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]![0]!
         expect(lastCall).toMatch(/^\d{2}:\d{2}$/)
       }
     })

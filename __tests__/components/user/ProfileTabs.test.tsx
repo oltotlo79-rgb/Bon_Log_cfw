@@ -1,3 +1,4 @@
+import type { Post } from '@/components/post/PostCard.types'
 import { vi } from 'vitest'
 import { render, screen } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
@@ -63,13 +64,15 @@ const mockPost = {
   media: [],
   genres: [],
   _count: { likes: 5, comments: 2 },
+  likeCount: 5,
+  commentCount: 2,
   isLiked: false,
   isBookmarked: false,
   quotePost: null,
   repostPost: null,
   repostedBy: null,
   poll: null,
-}
+} as unknown as Post
 
 const mockComment = {
   id: 'comment-1',

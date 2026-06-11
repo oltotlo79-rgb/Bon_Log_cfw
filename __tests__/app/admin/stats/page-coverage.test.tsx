@@ -16,7 +16,7 @@ const mockRedirect = vi.fn((url: string) => {
 })
 
 vi.mock('next/navigation', () => ({
-  redirect: (...args: unknown[]) => mockRedirect(...args),
+  redirect: (url: string) => mockRedirect(url),
 }))
 
 vi.mock('@/app/admin/stats/StatsChartsWrapper', () => ({

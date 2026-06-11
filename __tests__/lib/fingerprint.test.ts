@@ -38,9 +38,9 @@ describe('fingerprint', async () => {
     global.window = {}
     // @ts-expect-error - テスト用
     global.localStorage = {
-      getItem: mockGetItem,
-      setItem: mockSetItem,
-      removeItem: mockRemoveItem,
+      getItem: mockGetItem as unknown as (key: string) => string | null,
+      setItem: mockSetItem as unknown as (key: string, value: string) => void,
+      removeItem: mockRemoveItem as unknown as (key: string) => void,
     }
 
     // FingerprintJSのデフォルト動作

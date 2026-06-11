@@ -325,7 +325,7 @@ describe('checkAndEnqueue', () => {
     ])
     mockPrisma.moderationQueue.create.mockResolvedValue({})
     await checkAndEnqueue('word1 and word2', 'post', 'p-1')
-    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0][0]
+    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0]![0]!
     expect(callArgs.data.reason).toContain('catA')
     expect(callArgs.data.reason).toContain('catB')
   })
@@ -337,7 +337,7 @@ describe('checkAndEnqueue', () => {
     ])
     mockPrisma.moderationQueue.create.mockResolvedValue({})
     await checkAndEnqueue('ng1 ng2 text', 'post', 'p-2')
-    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0][0]
+    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0]![0]!
     expect(callArgs.data.matchedWords).toEqual(['ng1', 'ng2'])
   })
 
@@ -353,7 +353,7 @@ describe('checkAndEnqueue', () => {
     ])
     mockPrisma.moderationQueue.create.mockResolvedValue({})
     await checkAndEnqueue('flagme', 'post', 'p-4')
-    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0][0]
+    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0]![0]!
     expect(callArgs.data.status).toBe('auto_flagged')
   })
 
@@ -363,7 +363,7 @@ describe('checkAndEnqueue', () => {
     ])
     mockPrisma.moderationQueue.create.mockResolvedValue({})
     await checkAndEnqueue('test content', 'post', 'p-5')
-    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0][0]
+    const callArgs = mockPrisma.moderationQueue.create.mock.calls[0]![0]!
     expect(callArgs.data.reason).toMatch(/^NGワード検出:/)
   })
 

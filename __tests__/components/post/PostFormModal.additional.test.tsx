@@ -258,7 +258,7 @@ describe('PostFormModal - 追加カバレッジテスト', () => {
 
   describe('圧縮ログ', () => {
     it('圧縮によってサイズが減少してもログが出力されない（本番ログ削除済み）', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
       const originalFile = new File(['x'.repeat(10000)], 'test.jpg', { type: 'image/jpeg' })
       const compressedFile = new File(['x'.repeat(5000)], 'test.jpg', { type: 'image/jpeg' })
@@ -321,7 +321,7 @@ describe('PostFormModal - 追加カバレッジテスト', () => {
       })
 
       // 閉じるボタンをクリック
-      const closeButton = screen.getAllByRole('button')[0]
+      const closeButton = screen.getAllByRole('button')[0]!
       await user.click(closeButton)
 
       // ConfirmDialog (discard variant) should appear

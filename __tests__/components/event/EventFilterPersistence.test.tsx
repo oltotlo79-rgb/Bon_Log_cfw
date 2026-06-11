@@ -96,7 +96,7 @@ describe('EventFilterPersistence', () => {
   it('regionフィルターを保存する', () => {
     mockSearchParams = new URLSearchParams('region=東北')
     render(<EventFilterPersistence />)
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData.region).toBe('東北')
   })
 
@@ -104,7 +104,7 @@ describe('EventFilterPersistence', () => {
   it('viewフィルターを保存する', () => {
     mockSearchParams = new URLSearchParams('view=calendar')
     render(<EventFilterPersistence />)
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData.view).toBe('calendar')
   })
 
@@ -112,7 +112,7 @@ describe('EventFilterPersistence', () => {
   it('showPastフィルターを保存する', () => {
     mockSearchParams = new URLSearchParams('showPast=true')
     render(<EventFilterPersistence />)
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData.showPast).toBe('true')
   })
 
@@ -120,7 +120,7 @@ describe('EventFilterPersistence', () => {
   it('prefectureフィルターを保存する', () => {
     mockSearchParams = new URLSearchParams('prefecture=東京都')
     render(<EventFilterPersistence />)
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData.prefecture).toBe('東京都')
   })
 
@@ -134,7 +134,7 @@ describe('EventFilterPersistence', () => {
     mockSearchParams = new URLSearchParams()
     render(<EventFilterPersistence />)
     expect(mockReplace).toHaveBeenCalled()
-    const calledUrl = mockReplace.mock.calls[0][0] as string
+    const calledUrl = mockReplace.mock.calls[0]![0]! as string
     expect(calledUrl).toContain('region=')
     expect(calledUrl).toContain('view=calendar')
     expect(calledUrl).toContain('showPast=true')
@@ -162,7 +162,7 @@ describe('EventFilterPersistence', () => {
   it('複数のパラメータ変更を保存する', () => {
     mockSearchParams = new URLSearchParams('region=関西&prefecture=大阪府&view=calendar')
     render(<EventFilterPersistence />)
-    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1])
+    const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0]![1]!)
     expect(savedData.region).toBe('関西')
     expect(savedData.prefecture).toBe('大阪府')
     expect(savedData.view).toBe('calendar')

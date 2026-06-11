@@ -1,18 +1,24 @@
 import { vi } from 'vitest'
+import { createMockPrismaClient, MockPrismaClient } from '../../utils/test-utils'
 /**
  * Extended maintenance tests - getMaintenanceSettings, isMaintenanceMode, updateMaintenanceSettings, toggleMaintenanceMode
  */
- export {};
+export {};
 
 const mockAuth = vi.fn()
 vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
-const mockPrisma: Record<string, Record<string, unknown>> = {
-  user: { findUnique: vi.fn() },
-  systemSetting: { findUnique: vi.fn(), upsert: vi.fn() },
-  adminUser: { findUnique: vi.fn() },
-  adminLog: { create: vi.fn() },
+const mockPrisma = createMockPrismaClient() as MockPrismaClient & {
+  systemSetting: {
+    findUnique: ReturnType<typeof vi.fn>
+    upsert: ReturnType<typeof vi.fn>
+  }
 }
+mockPrisma.systemSetting = {
+  findUnique: vi.fn(),
+  upsert: vi.fn(),
+}
+
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 vi.mock('@/lib/logger', () => ({ __esModule: true, default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn() }, logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn() } }))
@@ -27,7 +33,7 @@ beforeEach(() => {
 describe('getMaintenanceSettings', async () => {
   it('returns defaults when no setting exists', async () => {
     const { getMaintenanceSettings } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
     const result = await getMaintenanceSettings()
     expect(result.enabled).toBe(false)
     expect(result.message).toBeDefined()
@@ -35,7 +41,7 @@ describe('getMaintenanceSettings', async () => {
 
   it('returns stored settings', async () => {
     const { getMaintenanceSettings } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockPrisma.systemSetting.findUnique.mockResolvedValue({
       key: 'maintenance_mode',
       value: { enabled: true, startTime: null, endTime: null, message: 'メンテ中' },
     })
@@ -45,7 +51,7 @@ describe('getMaintenanceSettings', async () => {
 
   it('handles db error', async () => {
     const { getMaintenanceSettings } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('db'))
+    mockPrisma.systemSetting.findUnique.mockRejectedValue(new Error('db'))
     const result = await getMaintenanceSettings()
     expect(result.enabled).toBe(false)
   })
@@ -54,14 +60,14 @@ describe('getMaintenanceSettings', async () => {
 describe('isMaintenanceMode', async () => {
   it('returns false when disabled', async () => {
     const { isMaintenanceMode } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
     const result = await isMaintenanceMode()
     expect(result).toBe(false)
   })
 
   it('returns true when enabled with no time constraints', async () => {
     const { isMaintenanceMode } = await import('@/lib/actions/maintenance')
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockPrisma.systemSetting.findUnique.mockResolvedValue({
       key: 'maintenance_mode',
       value: { enabled: true, startTime: null, endTime: null, message: 'メンテ中' },
     })
@@ -72,7 +78,7 @@ describe('isMaintenanceMode', async () => {
   it('returns false when start time is in the future', async () => {
     const { isMaintenanceMode } = await import('@/lib/actions/maintenance')
     const future = new Date(Date.now() + 3600000).toISOString()
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockPrisma.systemSetting.findUnique.mockResolvedValue({
       key: 'maintenance_mode',
       value: { enabled: true, startTime: future, endTime: null, message: 'メンテ中' },
     })
@@ -83,7 +89,7 @@ describe('isMaintenanceMode', async () => {
   it('returns false when end time is in the past', async () => {
     const { isMaintenanceMode } = await import('@/lib/actions/maintenance')
     const past = new Date(Date.now() - 3600000).toISOString()
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockPrisma.systemSetting.findUnique.mockResolvedValue({
       key: 'maintenance_mode',
       value: { enabled: true, startTime: null, endTime: past, message: 'メンテ中' },
     })
@@ -95,7 +101,7 @@ describe('isMaintenanceMode', async () => {
     const { isMaintenanceMode } = await import('@/lib/actions/maintenance')
     const past = new Date(Date.now() - 3600000).toISOString()
     const future = new Date(Date.now() + 3600000).toISOString()
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockPrisma.systemSetting.findUnique.mockResolvedValue({
       key: 'maintenance_mode',
       value: { enabled: true, startTime: past, endTime: future, message: 'メンテ中' },
     })
@@ -109,20 +115,22 @@ describe('updateMaintenanceSettings', async () => {
     mockAuth.mockResolvedValue(null)
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ enabled: true })
-    expect(result.error).toBeDefined()
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBeDefined()
   })
 
   it('requires admin', async () => {
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue(null)
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ enabled: true })
-    expect(result.error).toBeDefined()
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBeDefined()
   })
 
   it('updates settings successfully', async () => {
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ role: 'admin' })
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    ;(mockPrisma.systemSetting.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ role: 'admin' } as never)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+    mockPrisma.systemSetting.upsert.mockResolvedValue({})
 
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ enabled: true, message: 'テスト' })
@@ -130,12 +138,12 @@ describe('updateMaintenanceSettings', async () => {
   })
 
   it('merges with existing settings', async () => {
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ role: 'admin' })
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ role: 'admin' } as never)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue({
       key: 'maintenance_mode',
       value: { enabled: false, startTime: null, endTime: null, message: '既存' },
     })
-    ;(mockPrisma.systemSetting.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    mockPrisma.systemSetting.upsert.mockResolvedValue({})
 
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ message: '新しいメッセージ' })
@@ -143,21 +151,22 @@ describe('updateMaintenanceSettings', async () => {
   })
 
   it('handles db error', async () => {
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ role: 'admin' })
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    ;(mockPrisma.systemSetting.upsert as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('db'))
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ role: 'admin' } as never)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+    mockPrisma.systemSetting.upsert.mockRejectedValue(new Error('db'))
 
     const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
     const result = await updateMaintenanceSettings({ enabled: true })
-    expect(result.error).toBeDefined()
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBeDefined()
   })
 })
 
 describe('toggleMaintenanceMode', async () => {
   it('enables maintenance mode', async () => {
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ role: 'admin' })
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    ;(mockPrisma.systemSetting.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ role: 'admin' } as never)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+    mockPrisma.systemSetting.upsert.mockResolvedValue({})
 
     const { toggleMaintenanceMode } = await import('@/lib/actions/maintenance')
     const result = await toggleMaintenanceMode(true)
@@ -165,9 +174,9 @@ describe('toggleMaintenanceMode', async () => {
   })
 
   it('disables maintenance mode', async () => {
-    ;(mockPrisma.adminUser.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ role: 'admin' })
-    ;(mockPrisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    ;(mockPrisma.systemSetting.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    vi.mocked(mockPrisma.adminUser.findUnique).mockResolvedValue({ role: 'admin' } as never)
+    mockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+    mockPrisma.systemSetting.upsert.mockResolvedValue({})
 
     const { toggleMaintenanceMode } = await import('@/lib/actions/maintenance')
     const result = await toggleMaintenanceMode(false)

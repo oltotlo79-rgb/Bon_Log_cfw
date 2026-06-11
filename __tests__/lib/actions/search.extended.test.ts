@@ -10,9 +10,7 @@ import { createMockPrismaClient, mockUser } from '../../utils/test-utils'
 // Prismaモック
 const mockPrisma = createMockPrismaClient()
 // 追加のモック - eslint-disable-next-line で型エラーを無視
-// @ts-expect-error - groupByはモックに追加
 mockPrisma.like.groupBy = vi.fn()
-// @ts-expect-error - shopReviewはモックに追加
 mockPrisma.shopReview = { aggregate: vi.fn(), groupBy: vi.fn() }
 
 vi.mock('@/lib/db', () => ({
@@ -88,7 +86,6 @@ describe('Search Actions 拡張テスト', async () => {
       mockPrisma.post.findMany.mockResolvedValue([])
       mockPrisma.like.findMany.mockResolvedValue([])
       mockPrisma.bookmark.findMany.mockResolvedValue([])
-      // @ts-expect-error - groupByはモックに追加
       mockPrisma.like.groupBy.mockResolvedValue([])
     })
 
@@ -192,7 +189,6 @@ describe('Search Actions 拡張テスト', async () => {
     })
 
     it('minLikesフィルターで指定いいね数以上の投稿を検索できる', async () => {
-      // @ts-expect-error - groupByはモックに追加
       mockPrisma.like.groupBy.mockResolvedValue([
         { postId: 'post-1', _count: { postId: 10 } },
         { postId: 'post-2', _count: { postId: 15 } },
@@ -203,7 +199,6 @@ describe('Search Actions 拡張テスト', async () => {
         minLikes: 5,
       })
 
-      // @ts-expect-error - groupByはモックに追加
       expect(mockPrisma.like.groupBy).toHaveBeenCalledWith({
         by: ['postId'],
         where: { commentId: null },
@@ -221,7 +216,6 @@ describe('Search Actions 拡張テスト', async () => {
     })
 
     it('複数フィルターを組み合わせて検索できる', async () => {
-      // @ts-expect-error - groupByはモックに追加
       mockPrisma.like.groupBy.mockResolvedValue([
         { postId: 'post-1', _count: { postId: 10 } },
       ])
@@ -241,7 +235,6 @@ describe('Search Actions 拡張テスト', async () => {
   describe('searchShops', async () => {
     beforeEach(() => {
       mockPrisma.bonsaiShop.findMany.mockResolvedValue([])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([])
     })
 
@@ -259,7 +252,6 @@ describe('Search Actions 拡張テスト', async () => {
           _count: { reviews: 5 },
         },
       ])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([
         { shopId: 'shop-1', _avg: { rating: 4.5 } },
       ])
@@ -268,7 +260,7 @@ describe('Search Actions 拡張テスト', async () => {
       const result = await searchShops('テスト')
 
       expect(result.shops).toHaveLength(1)
-      expect(result.shops[0].name).toBe('テスト園')
+      expect(result.shops[0]!.name).toBe('テスト園')
     })
 
     it('都道府県でフィルタリングできる', async () => {
@@ -312,7 +304,6 @@ describe('Search Actions 拡張テスト', async () => {
           _count: { reviews: 3 },
         },
       ])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([
         { shopId: 'shop-1', _avg: { rating: 4.2 } },
       ])
@@ -322,7 +313,7 @@ describe('Search Actions 拡張テスト', async () => {
 
       expect(mockFulltextSearchShops).toHaveBeenCalledWith('テスト園', expect.anything())
       expect(result.shops).toHaveLength(1)
-      expect(result.shops[0].avgRating).toBe(4.2)
+      expect(result.shops[0]!.avgRating).toBe(4.2)
     })
 
     it('bigmモードで結果が0件の場合は空配列を返す', async () => {
@@ -359,7 +350,7 @@ describe('Search Actions 拡張テスト', async () => {
       const result = await searchEvents('テスト')
 
       expect(result.events).toHaveLength(1)
-      expect(result.events[0].title).toBe('テストイベント')
+      expect(result.events[0]!.title).toBe('テストイベント')
     })
 
     it('都道府県でフィルタリングできる', async () => {
@@ -470,7 +461,7 @@ describe('Search Actions 拡張テスト', async () => {
       const result = await searchBonsais('テスト')
 
       expect(result.bonsais).toHaveLength(1)
-      expect(result.bonsais[0].name).toBe('テスト盆栽')
+      expect(result.bonsais[0]!.name).toBe('テスト盆栽')
     })
 
     it('引数 userId を信用せず認証ユーザーの盆栽のみ対象にする', async () => {
@@ -523,7 +514,7 @@ describe('Search Actions 拡張テスト', async () => {
 
       expect(mockFulltextSearchBonsais).toHaveBeenCalledWith('黒松', expect.anything())
       expect(result.bonsais).toHaveLength(1)
-      expect(result.bonsais[0].recordCount).toBe(3)
+      expect(result.bonsais[0]!.recordCount).toBe(3)
     })
 
     it('bigmモードで結果が0件の場合は空配列を返す', async () => {
@@ -548,7 +539,6 @@ describe('Search Actions 拡張テスト', async () => {
       mockPrisma.bonsai.findMany.mockResolvedValue([])
       mockPrisma.like.findMany.mockResolvedValue([])
       mockPrisma.bookmark.findMany.mockResolvedValue([])
-      // @ts-expect-error - shopReviewはモックに追加
       mockPrisma.shopReview.groupBy.mockResolvedValue([])
     })
 
@@ -665,12 +655,12 @@ describe('Search Actions 拡張テスト', async () => {
       const result = await searchGlobal('テスト')
 
       expect(result.posts).toHaveLength(2)
-      expect(result.posts![0].likeCount).toBe(10)
-      expect(result.posts![0].commentCount).toBe(5)
+      expect(result.posts![0]!.likeCount).toBe(10)
+      expect(result.posts![0]!.commentCount).toBe(5)
       expect(result.users).toHaveLength(1)
-      expect(result.users![0].followersCount).toBe(100)
+      expect(result.users![0]!.followersCount).toBe(100)
       expect(result.shops).toHaveLength(1)
-      expect(result.shops![0].reviewCount).toBe(20)
+      expect(result.shops![0]!.reviewCount).toBe(20)
       expect(result.events).toHaveLength(1)
       expect(result.bonsais).toHaveLength(1)
     })

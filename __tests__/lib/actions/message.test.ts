@@ -76,7 +76,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
     messages: [],
     count: 0,
     capReached: false,
-  } as (T extends object ? T : Record<string, never>) & MessageLegacyShape
+  } as unknown as (T extends object ? T : Record<string, never>) & MessageLegacyShape
 }
 
 const importModule = () => import('@/lib/actions/message')
@@ -178,7 +178,7 @@ describe('sendMessage', () => {
 
   it('レート制限超過時にエラーを返す', async () => {
     const { checkUserRateLimit } = await import('@/lib/rate-limit')
-    vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, limit: 10, remaining: 0, reset: 0 })
+    vi.mocked(checkUserRateLimit).mockResolvedValueOnce({ success: false, remaining: 0, resetTime: 0 })
     const { sendMessage } = await importModule()
     const result = await sendMessage('conv-1', 'hello')
     expect(result).toMatchObject({ success: false })
@@ -304,8 +304,8 @@ describe('getConversations', () => {
     const { getConversations } = await importModule()
     const result = unwrap(await getConversations())
     expect(result.conversations).toHaveLength(1)
-    expect(result.conversations[0].hasUnread).toBe(true)
-    expect(result.conversations[0].otherUser).toEqual({ id: 'other-id', nickname: 'other', avatarUrl: null })
+    expect(result.conversations[0]!.hasUnread).toBe(true)
+    expect(result.conversations[0]!.otherUser).toEqual({ id: 'other-id', nickname: 'other', avatarUrl: null })
   })
 
   it('既読済みの場合はhasUnreadがfalse', async () => {
@@ -327,7 +327,7 @@ describe('getConversations', () => {
 
     const { getConversations } = await importModule()
     const result = unwrap(await getConversations())
-    expect(result.conversations[0].hasUnread).toBe(false)
+    expect(result.conversations[0]!.hasUnread).toBe(false)
   })
 
   it('メッセージがない会話はhasUnreadがfalse', async () => {
@@ -345,7 +345,7 @@ describe('getConversations', () => {
 
     const { getConversations } = await importModule()
     const result = unwrap(await getConversations())
-    expect(result.conversations[0].hasUnread).toBe(false)
+    expect(result.conversations[0]!.hasUnread).toBe(false)
   })
 })
 

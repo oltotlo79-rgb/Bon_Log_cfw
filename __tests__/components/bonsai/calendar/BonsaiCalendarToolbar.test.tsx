@@ -96,7 +96,7 @@ describe('BonsaiCalendarToolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: '今日' }))
     expect(mockReplace).toHaveBeenCalledTimes(1)
     // 引数に anchor= を含む（具体年月は実行時依存のため正規表現で）
-    expect(mockReplace.mock.calls[0][0]).toMatch(/anchor=\d{4}-(0[1-9]|1[0-2])/)
+    expect(mockReplace.mock.calls[0]![0]!).toMatch(/anchor=\d{4}-(0[1-9]|1[0-2])/)
   })
 
   it('モードタブクリックで href が mode を切り替える', () => {

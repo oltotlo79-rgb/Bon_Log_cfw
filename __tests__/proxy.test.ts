@@ -322,12 +322,16 @@ describe('checkBasicAuth ロジック', () => {
     const credentials = Buffer.from('user:pass').toString('base64')
     const authHeader = `Basic ${credentials}`
 
-    const [scheme, encoded] = authHeader.split(' ')
+    const parts = authHeader.split(' ')
+    const scheme = parts[0]
+    const encoded = parts[1]
     expect(scheme).toBe('Basic')
     expect(encoded).toBe(credentials)
 
-    const decoded = Buffer.from(encoded, 'base64').toString()
-    const [user, password] = decoded.split(':')
+    const decoded = Buffer.from(encoded ?? '', 'base64').toString()
+    const colonParts = decoded.split(':')
+    const user = colonParts[0]
+    const password = colonParts[1]
     expect(user).toBe('user')
     expect(password).toBe('pass')
   })

@@ -44,7 +44,7 @@ describe('ImageGallery', () => {
   })
 
   it('1枚の画像は全幅で表示される', () => {
-    render(<ImageGallery images={[mockImages[0]]} />)
+    render(<ImageGallery images={[mockImages[0]!]} />)
     const image = document.querySelector('img')
     expect(image).toBeInTheDocument()
   })
@@ -60,7 +60,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     // モーダルが表示される（閉じるボタンがある）
     await waitFor(() => {
@@ -73,7 +73,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     // モーダルが開いている
     await waitFor(() => {
@@ -102,7 +102,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} onMediaClick={mockOnMediaClick} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     expect(mockOnMediaClick).toHaveBeenCalledWith(mockImages[0])
   })
@@ -112,7 +112,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     // モーダル内のナビゲーションドットが表示される
     await waitFor(() => {
@@ -150,7 +150,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[1]) // 2番目の画像をクリック
+    await user.click(buttons[1]!) // 2番目の画像をクリック
 
     // モーダルが開かれる
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe('ImageGallery', () => {
 
     // 最初の画像をクリックしてモーダルを開く
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     await waitFor(() => {
       expect(screen.getAllByRole('button').length).toBeGreaterThan(2)
@@ -185,7 +185,7 @@ describe('ImageGallery', () => {
 
     // 2番目の画像をクリックしてモーダルを開く
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[1])
+    await user.click(buttons[1]!)
 
     await waitFor(() => {
       expect(screen.getAllByRole('button').length).toBeGreaterThan(2)
@@ -209,7 +209,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={threeImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     await waitFor(() => {
       const allButtons = screen.getAllByRole('button')
@@ -224,7 +224,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     await waitFor(() => {
       const allButtons = screen.getAllByRole('button')
@@ -236,7 +236,7 @@ describe('ImageGallery', () => {
     const allButtons = screen.getAllByRole('button')
     const dotButtons = allButtons.filter(btn => btn.className.includes('w-2') && btn.className.includes('h-2'))
     if (dotButtons[1]) {
-      await user.click(dotButtons[1])
+      await user.click(dotButtons[1]!)
     }
   })
 
@@ -245,7 +245,7 @@ describe('ImageGallery', () => {
     render(<ImageGallery images={mockImages} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     await waitFor(() => {
       expect(screen.getAllByRole('button').length).toBeGreaterThan(2)
@@ -283,10 +283,10 @@ describe('ImageGallery', () => {
 
   it('1枚の画像ではナビゲーションドットが表示されない', async () => {
     const user = userEvent.setup()
-    render(<ImageGallery images={[mockImages[0]]} />)
+    render(<ImageGallery images={[mockImages[0]!]} />)
 
     const buttons = screen.getAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(buttons[0]!)
 
     await waitFor(() => {
       const allButtons = screen.getAllByRole('button')
@@ -396,7 +396,7 @@ describe('ImageGallery', () => {
       render(<ImageGallery images={mockImages} />)
 
       const buttons = screen.getAllByRole('button')
-      await user.click(buttons[0])
+      await user.click(buttons[0]!)
 
       await waitFor(() => {
         expect(document.querySelector('.fixed.inset-0')).toBeInTheDocument()

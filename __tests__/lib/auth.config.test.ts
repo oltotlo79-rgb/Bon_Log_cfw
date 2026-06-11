@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import type { NextAuthConfig } from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
 
 describe('auth.config', () => {
@@ -33,7 +34,7 @@ describe('auth.config', () => {
       } as URL,
     })
 
-    type AuthorizedArgs = Parameters<NonNullable<NonNullable<typeof authConfig.callbacks>['authorized']>>[0]
+    type AuthorizedFn = NonNullable<NonNullable<NextAuthConfig['callbacks']>['authorized']>
 
     const samplePaths = [
       '/',
@@ -62,19 +63,19 @@ describe('auth.config', () => {
 
     samplePaths.forEach((path) => {
       it(`${path} は未ログインでも true を返す (proxy.ts に判定委譲)`, () => {
-        const result = authConfig.callbacks?.authorized?.({
+        const result = (authConfig.callbacks?.authorized as unknown as AuthorizedFn)?.({
           auth: null,
-          request: createMockRequest(path),
-        } as AuthorizedArgs)
+          request: createMockRequest(path) as unknown as import('next/server').NextRequest,
+        })
 
         expect(result).toBe(true)
       })
 
       it(`${path} はログイン済みでも true を返す`, () => {
-        const result = authConfig.callbacks?.authorized?.({
-          auth: { user: { id: 'user-1', email: 'test@example.com' } },
-          request: createMockRequest(path),
-        } as AuthorizedArgs)
+        const result = (authConfig.callbacks?.authorized as unknown as AuthorizedFn)?.({
+          auth: { user: { id: 'user-1', email: 'test@example.com' } } as unknown as import('next-auth').Session,
+          request: createMockRequest(path) as unknown as import('next/server').NextRequest,
+        })
 
         expect(result).toBe(true)
       })

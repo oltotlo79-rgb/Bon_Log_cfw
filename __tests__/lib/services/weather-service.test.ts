@@ -68,7 +68,7 @@ function createBaseWeatherData(overrides: Partial<{
   const days = Array.from({ length: 3 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() + i)
-    return d.toISOString().split('T')[0]
+    return d.toISOString().split('T')[0]!
   })
 
   return {
@@ -316,7 +316,7 @@ describe('Weather Service', () => {
       await fetchWeather(35.68, 139.77)
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
-      const calledUrl = mockFetch.mock.calls[0][0] as string
+      const calledUrl = mockFetch.mock.calls[0]![0]! as string
       expect(calledUrl).toContain(WEATHER_API_BASE_URL)
       expect(calledUrl).toContain('latitude=35.68')
       expect(calledUrl).toContain('longitude=139.77')

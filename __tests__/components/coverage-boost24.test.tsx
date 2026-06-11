@@ -108,7 +108,7 @@ describe('LoginForm', async () => {
     vi.clearAllMocks()
     mockPush.mockClear()
     mockRefresh.mockClear()
-    getFingerprintWithCache.mockResolvedValue('test-fingerprint')
+    vi.mocked(getFingerprintWithCache).mockResolvedValue('test-fingerprint')
     ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(okNo2FA)
     signIn.mockResolvedValue({ ok: true })
   })
@@ -184,7 +184,7 @@ describe('LoginForm', async () => {
 
   test('2FA検証エラー', async () => {
     ;(verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(ok2FA)
-    verify2FAToken.mockResolvedValue({ error: '認証コードが正しくありません' })
+    vi.mocked(verify2FAToken).mockResolvedValue({ success: false, error: '認証コードが正しくありません' })
 
     renderWithRouter(<LoginForm />)
     await submit()
@@ -503,7 +503,7 @@ describe('CommentForm', async () => {
   test('画像3枚目のアップロード制限（カウントチェックのみ）', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    isVideoFile.mockReturnValue(false)
+    vi.mocked(isVideoFile).mockReturnValue(false)
 
     render(<CommentForm postId="post123" />)
 
@@ -526,8 +526,8 @@ describe('CommentForm', async () => {
   test('動画2本目のアップロード制限（カウントチェックのみ）', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    isVideoFile.mockReturnValue(true)
-    uploadVideoToR2.mockResolvedValue({ url: 'https://example.com/video.mp4' })
+    vi.mocked(isVideoFile).mockReturnValue(true)
+    vi.mocked(uploadVideoToR2).mockResolvedValue({ url: 'https://example.com/video.mp4' })
 
     render(<CommentForm postId="post123" />)
 
@@ -549,7 +549,7 @@ describe('CommentForm', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
     const { MAX_VIDEO_SIZE } = await import('@/lib/client-image-compression')
 
-    isVideoFile.mockReturnValue(true)
+    vi.mocked(isVideoFile).mockReturnValue(true)
 
     const { container } = render(<CommentForm postId="post123" />)
 
@@ -571,7 +571,7 @@ describe('CommentForm', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
     const { MAX_IMAGE_SIZE } = await import('@/lib/client-image-compression')
 
-    isVideoFile.mockReturnValue(false)
+    vi.mocked(isVideoFile).mockReturnValue(false)
 
     const { container } = render(<CommentForm postId="post123" />)
 
@@ -592,8 +592,8 @@ describe('CommentForm', async () => {
   test('画像アップロードエラー', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    isVideoFile.mockReturnValue(false)
-    prepareFileForUpload.mockRejectedValue(new Error('Compression failed'))
+    vi.mocked(isVideoFile).mockReturnValue(false)
+    vi.mocked(prepareFileForUpload).mockRejectedValue(new Error('Compression failed'))
 
     const { container } = render(<CommentForm postId="post123" />)
 
@@ -614,8 +614,8 @@ describe('CommentForm', async () => {
   test('動画アップロードエラー', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    isVideoFile.mockReturnValue(true)
-    uploadVideoToR2.mockResolvedValue({ error: 'アップロード失敗' })
+    vi.mocked(isVideoFile).mockReturnValue(true)
+    vi.mocked(uploadVideoToR2).mockResolvedValue({ error: 'アップロード失敗' })
 
     const { container } = render(<CommentForm postId="post123" />)
 
@@ -636,8 +636,8 @@ describe('CommentForm', async () => {
   test('メディア削除（状態更新の確認）', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    isVideoFile.mockReturnValue(false)
-    prepareFileForUpload.mockResolvedValue(new File([''], 'test.jpg'))
+    vi.mocked(isVideoFile).mockReturnValue(false)
+    vi.mocked(prepareFileForUpload).mockResolvedValue(new File([''], 'test.jpg'))
 
     const { container } = render(<CommentForm postId="post123" />)
 
@@ -673,7 +673,7 @@ describe('CommentForm', async () => {
   test('返信コメント送信時にparentIdが含まれる', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    createComment.mockResolvedValue({ success: true })
+    vi.mocked(createComment).mockResolvedValue({ success: true })
 
     const onSuccess = vi.fn()
     render(<CommentForm postId="post123" parentId="comment456" onSuccess={onSuccess} />)
@@ -686,7 +686,7 @@ describe('CommentForm', async () => {
 
     await waitFor(() => {
       expect(createComment).toHaveBeenCalled()
-      const formData = createComment.mock.calls[0][0]
+      const formData = vi.mocked(createComment).mock.calls[0]![0]!
       expect(formData.get('parentId')).toBe('comment456')
     })
   })
@@ -694,7 +694,7 @@ describe('CommentForm', async () => {
   test('通常コメント送信時にparentIdがない', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    createComment.mockResolvedValue({ success: true })
+    vi.mocked(createComment).mockResolvedValue({ success: true })
 
     render(<CommentForm postId="post123" />)
 
@@ -706,7 +706,7 @@ describe('CommentForm', async () => {
 
     await waitFor(() => {
       expect(createComment).toHaveBeenCalled()
-      const formData = createComment.mock.calls[0][0]
+      const formData = vi.mocked(createComment).mock.calls[0]![0]!
       expect(formData.get('parentId')).toBeNull()
     })
   })
@@ -714,7 +714,7 @@ describe('CommentForm', async () => {
   test('送信エラー時の表示', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    createComment.mockResolvedValue({ error: 'コメント作成に失敗しました' })
+    vi.mocked(createComment).mockResolvedValue({ success: false, error: 'コメント作成に失敗しました' })
 
     render(<CommentForm postId="post123" />)
 
@@ -732,7 +732,7 @@ describe('CommentForm', async () => {
   test('送信成功時のフォームリセットとonSuccessコールバック', async () => {
     const { CommentForm } = await import('@/components/comment/CommentForm')
 
-    createComment.mockResolvedValue({ success: true })
+    vi.mocked(createComment).mockResolvedValue({ success: true })
 
     const onSuccess = vi.fn()
     render(<CommentForm postId="post123" onSuccess={onSuccess} />)
@@ -785,8 +785,8 @@ describe('AdminPremiumPage', async () => {
   test('プレミアム会員が見つからない場合', async () => {
     const { getPremiumUsers, getPremiumStats } = await import('@/lib/actions/admin/premium')
 
-    getPremiumUsers.mockResolvedValue({ users: [], total: 0 })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: [], total: 0, nextCursor: undefined })
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 0,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -803,7 +803,7 @@ describe('AdminPremiumPage', async () => {
   test('プレミアム会員の有効期限がnullの場合は無期限と表示', async () => {
     const { getPremiumUsers, getPremiumStats } = await import('@/lib/actions/admin/premium')
 
-    getPremiumUsers.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({
       users: [
         {
           id: 'user1',
@@ -816,9 +816,9 @@ describe('AdminPremiumPage', async () => {
           stripeSubscriptionId: null,
         },
       ],
-      total: 1,
+      total: 1, nextCursor: undefined
     })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 1,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -837,7 +837,7 @@ describe('AdminPremiumPage', async () => {
 
     const expiredDate = new Date('2025-01-01')
 
-    getPremiumUsers.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({
       users: [
         {
           id: 'user1',
@@ -850,9 +850,9 @@ describe('AdminPremiumPage', async () => {
           stripeSubscriptionId: null,
         },
       ],
-      total: 1,
+      total: 1, nextCursor: undefined
     })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 0,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -872,7 +872,7 @@ describe('AdminPremiumPage', async () => {
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 30)
 
-    getPremiumUsers.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({
       users: [
         {
           id: 'user1',
@@ -885,9 +885,9 @@ describe('AdminPremiumPage', async () => {
           stripeSubscriptionId: 'sub_123',
         },
       ],
-      total: 1,
+      total: 1, nextCursor: undefined
     })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 1,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -907,7 +907,7 @@ describe('AdminPremiumPage', async () => {
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 30)
 
-    getPremiumUsers.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({
       users: [
         {
           id: 'user1',
@@ -920,9 +920,9 @@ describe('AdminPremiumPage', async () => {
           stripeSubscriptionId: null,
         },
       ],
-      total: 1,
+      total: 1, nextCursor: undefined
     })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 1,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -939,8 +939,8 @@ describe('AdminPremiumPage', async () => {
   test('検索パラメータが適用される', async () => {
     const { getPremiumUsers, getPremiumStats } = await import('@/lib/actions/admin/premium')
 
-    getPremiumUsers.mockResolvedValue({ users: [], total: 0 })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: [], total: 0, nextCursor: undefined })
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 0,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -963,8 +963,8 @@ describe('AdminPremiumPage', async () => {
   test('統計エラー時はnullで処理', async () => {
     const { getPremiumUsers, getPremiumStats } = await import('@/lib/actions/admin/premium')
 
-    getPremiumUsers.mockResolvedValue({ users: [], total: 0 })
-    getPremiumStats.mockResolvedValue({ error: 'Stats error' })
+    vi.mocked(getPremiumUsers).mockResolvedValue({ users: [], total: 0, nextCursor: undefined })
+    vi.mocked(getPremiumStats).mockResolvedValue({ success: false, error: 'Stats error' })
 
     const { container } = render(
       await AdminPremiumPage({ searchParams: Promise.resolve({}) })
@@ -977,8 +977,8 @@ describe('AdminPremiumPage', async () => {
   test('ユーザーエラー時は空配列で処理', async () => {
     const { getPremiumUsers, getPremiumStats } = await import('@/lib/actions/admin/premium')
 
-    getPremiumUsers.mockResolvedValue({ error: 'Users error' })
-    getPremiumStats.mockResolvedValue({
+    vi.mocked(getPremiumUsers).mockResolvedValue({ success: false, error: 'Users error' })
+    vi.mocked(getPremiumStats).mockResolvedValue({
       totalPremiumUsers: 0,
       newThisMonth: 0,
       expiringIn7Days: 0,
@@ -1053,9 +1053,9 @@ describe('UserProfilePage', async () => {
 
   test('ユーザーが見つからない場合はnotFound', async () => {
     const notFound = _mockNotFound as unknown as ReturnType<typeof vi.fn>
-    const { auth } = await import('@/lib/auth')
+    const authMod20 = await import('@/lib/auth')
 
-    auth.mockResolvedValue(null)
+    ;(authMod20.auth as unknown as import('vitest').MockInstance).mockResolvedValue(null)
     mockPrisma.user.findUnique.mockResolvedValue(null)
 
     try {
@@ -1101,12 +1101,13 @@ describe('UserProfilePage', async () => {
   })
 
   test('自分のプロフィールを閲覧した場合はアナリティクス記録しない', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod21 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
-    const { recordProfileView } = await import('@/lib/actions/analytics')
+    const analyticsModule = await import('@/lib/actions/analytics') as unknown as { recordProfileView: ReturnType<typeof vi.fn> }
+    const { recordProfileView } = analyticsModule
 
-    auth.mockResolvedValue({ user: { id: 'user123' } })
-    isPremiumUser.mockResolvedValue(false)
+    ;(authMod21.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'user123' } })
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',
@@ -1132,14 +1133,15 @@ describe('UserProfilePage', async () => {
   // P0-2: render 中の analytics write は client beacon (ViewBeacon) に移譲済み。
   // server side では recordProfileView は呼ばないことを確認する。
   test('他人のプロフィール閲覧時も server side では recordProfileView を呼ばない', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod22 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
-    const { recordProfileView } = await import('@/lib/actions/analytics')
+    const analyticsModule2 = await import('@/lib/actions/analytics') as unknown as { recordProfileView: ReturnType<typeof vi.fn> }
+    const { recordProfileView } = analyticsModule2
     const { getFollowRequestStatus } = await import('@/lib/actions/follow-request')
 
-    auth.mockResolvedValue({ user: { id: 'viewer123' } })
-    isPremiumUser.mockResolvedValue(false)
-    getFollowRequestStatus.mockResolvedValue({ hasRequest: false, status: null })
+    ;(authMod22.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'viewer123' } })
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
+    vi.mocked(getFollowRequestStatus).mockResolvedValue({ hasRequest: false, status: null })
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',
@@ -1168,13 +1170,13 @@ describe('UserProfilePage', async () => {
   })
 
   test('ブロックしているユーザーのプロフィールは表示しない', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod23 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
     const { getFollowRequestStatus } = await import('@/lib/actions/follow-request')
 
-    auth.mockResolvedValue({ user: { id: 'viewer123' } })
-    isPremiumUser.mockResolvedValue(false)
-    getFollowRequestStatus.mockResolvedValue({ hasRequest: false, status: null })
+    ;(authMod23.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'viewer123' } })
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
+    vi.mocked(getFollowRequestStatus).mockResolvedValue({ hasRequest: false, status: null })
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',
@@ -1203,13 +1205,13 @@ describe('UserProfilePage', async () => {
   })
 
   test('ブロックされているユーザーのプロフィールは表示しない', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod24 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
     const { getFollowRequestStatus } = await import('@/lib/actions/follow-request')
 
-    auth.mockResolvedValue({ user: { id: 'viewer123' } })
-    isPremiumUser.mockResolvedValue(false)
-    getFollowRequestStatus.mockResolvedValue({ hasRequest: false, status: null })
+    ;(authMod24.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'viewer123' } })
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
+    vi.mocked(getFollowRequestStatus).mockResolvedValue({ hasRequest: false, status: null })
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',
@@ -1238,11 +1240,11 @@ describe('UserProfilePage', async () => {
   })
 
   test('ログインしていない場合はフォロー/ブロック状態をチェックしない', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod25 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
 
-    auth.mockResolvedValue(null)
-    isPremiumUser.mockResolvedValue(false)
+    ;(authMod25.auth as unknown as import('vitest').MockInstance).mockResolvedValue(null)
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',
@@ -1267,13 +1269,13 @@ describe('UserProfilePage', async () => {
   })
 
   test('投稿がある場合のいいね/ブックマーク状態取得', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod26 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
     const { getFollowRequestStatus } = await import('@/lib/actions/follow-request')
 
-    auth.mockResolvedValue({ user: { id: 'viewer123' } })
-    isPremiumUser.mockResolvedValue(false)
-    getFollowRequestStatus.mockResolvedValue({ hasRequest: false, status: null })
+    ;(authMod26.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'viewer123' } })
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
+    vi.mocked(getFollowRequestStatus).mockResolvedValue({ hasRequest: false, status: null })
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',
@@ -1320,13 +1322,13 @@ describe('UserProfilePage', async () => {
   })
 
   test('投稿がない場合はいいね/ブックマーク状態を取得しない', async () => {
-    const { auth } = await import('@/lib/auth')
+    const authMod27 = await import('@/lib/auth')
     const { isPremiumUser } = await import('@/lib/premium')
     const { getFollowRequestStatus } = await import('@/lib/actions/follow-request')
 
-    auth.mockResolvedValue({ user: { id: 'viewer123' } })
-    isPremiumUser.mockResolvedValue(false)
-    getFollowRequestStatus.mockResolvedValue({ hasRequest: false, status: null })
+    ;(authMod27.auth as unknown as import('vitest').MockInstance).mockResolvedValue({ user: { id: 'viewer123' } })
+    vi.mocked(isPremiumUser).mockResolvedValue(false)
+    vi.mocked(getFollowRequestStatus).mockResolvedValue({ hasRequest: false, status: null })
 
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user123',

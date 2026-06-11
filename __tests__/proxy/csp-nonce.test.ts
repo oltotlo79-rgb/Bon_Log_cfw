@@ -66,7 +66,7 @@ describe('proxy: CSP nonce propagation (regression test for commit 22370406)', (
     const { default: proxy } = await import('@/proxy')
 
     const req = new Request('http://localhost:3000/', { method: 'GET' })
-    const res = (await proxy(req as unknown as Parameters<typeof proxy>[0])) as Response
+    const res = (await proxy(req as unknown as Parameters<typeof proxy>[0], {} as Parameters<typeof proxy>[1])) as Response
 
     const csp = res.headers.get('content-security-policy')
     expect(csp).toBeTruthy()
@@ -84,7 +84,7 @@ describe('proxy: CSP nonce propagation (regression test for commit 22370406)', (
     const { default: proxy } = await import('@/proxy')
 
     const req = new Request('http://localhost:3000/', { method: 'GET' })
-    const res = (await proxy(req as unknown as Parameters<typeof proxy>[0])) as Response
+    const res = (await proxy(req as unknown as Parameters<typeof proxy>[0], {} as Parameters<typeof proxy>[1])) as Response
 
     // NextResponse は MiddlewareRequest で渡された headers を `x-middleware-request-*` 形式の
     // metadata header としてレスポンスにも露出する。実装内部の `request.headers` 設定を
@@ -105,7 +105,7 @@ describe('proxy: CSP nonce propagation (regression test for commit 22370406)', (
     const { default: proxy } = await import('@/proxy')
 
     const req = new Request('http://localhost:3000/', { method: 'GET' })
-    const res = (await proxy(req as unknown as Parameters<typeof proxy>[0])) as Response
+    const res = (await proxy(req as unknown as Parameters<typeof proxy>[0], {} as Parameters<typeof proxy>[1])) as Response
 
     const csp = res.headers.get('content-security-policy')
     const cspNonceMatch = csp?.match(/'nonce-([A-Za-z0-9+/=]+)'/)

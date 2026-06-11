@@ -32,7 +32,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('LCPメトリクスを受け取ってもコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -51,7 +51,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('CLSメトリクスを受け取ってもコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -70,7 +70,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('needs-improvementレーティングでもコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -89,7 +89,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('poorレーティングでもコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -108,7 +108,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('FCPメトリクスを受け取ってもコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -127,7 +127,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('TTFBメトリクスを受け取ってもコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -146,7 +146,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('コールバック実行時にコンソールに出力しない（ログ削除確認）', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 
@@ -165,7 +165,7 @@ describe('WebVitalsReporter', () => {
   })
 
   it('本番環境ではコンソールに出力しない', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation()
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     render(<WebVitalsReporter />)
 

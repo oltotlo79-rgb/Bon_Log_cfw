@@ -159,7 +159,7 @@ describe('ShopChangeRequestForm - branch coverage', () => {
     // Close button in header (the X button)
     const closeButtons = screen.getAllByRole('button')
     // First button is the X close button
-    fireEvent.click(closeButtons[0])
+    fireEvent.click(closeButtons[0]!)
     expect(mockOnClose).toHaveBeenCalled()
   })
 })

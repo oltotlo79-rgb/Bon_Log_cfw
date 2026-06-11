@@ -95,8 +95,8 @@ describe('Cache Module', async () => {
       const result = await getCachedTrendingGenres(5)
 
       expect(result.genres).toHaveLength(2)
-      expect(result.genres[0].postCount).toBe(25)
-      expect(result.genres[0].name).toBe('黒松')
+      expect(result.genres[0]!.postCount).toBe(25)
+      expect(result.genres[0]!.name).toBe('黒松')
     })
 
     it('デフォルトのlimit値（5）を使用する', async () => {
@@ -162,8 +162,8 @@ describe('Cache Module', async () => {
       const { getCachedPopularTags } = await import('@/lib/cache')
       const result = await getCachedPopularTags(10)
 
-      expect(result.tags[0].tag).toBe('盆栽')
-      expect(result.tags[0].count).toBe(3)
+      expect(result.tags[0]!.tag).toBe('盆栽')
+      expect(result.tags[0]!.count).toBe(3)
       expect(result.tags).toHaveLength(3)
     })
 
@@ -176,8 +176,8 @@ describe('Cache Module', async () => {
       const result = await getCachedPopularTags()
 
       expect(result.tags).toHaveLength(1)
-      expect(result.tags[0].tag).toBe('bonsai')
-      expect(result.tags[0].count).toBe(3)
+      expect(result.tags[0]!.tag).toBe('bonsai')
+      expect(result.tags[0]!.count).toBe(3)
     })
 
     it('日本語タグを正しく返す', async () => {

@@ -343,7 +343,7 @@ describe('Follow Actions', async () => {
       const result = await getFollowers('target-user-id')
 
       expect(result.users).toHaveLength(1)
-      expect(result.users[0].id).toBe('follower-1')
+      expect(result.users[0]!.id).toBe('follower-1')
     })
 
     it('カーソルを指定してページネーションできる', async () => {
@@ -426,7 +426,7 @@ describe('Follow Actions', async () => {
       const result = await getFollowing('target-user-id')
 
       expect(result.users).toHaveLength(1)
-      expect(result.users[0].id).toBe('following-1')
+      expect(result.users[0]!.id).toBe('following-1')
     })
 
     it('カーソルを指定してページネーションできる', async () => {

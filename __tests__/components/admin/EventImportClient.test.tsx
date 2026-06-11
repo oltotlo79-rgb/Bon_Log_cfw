@@ -405,7 +405,7 @@ describe('EventImportClient', () => {
       expect(screen.getAllByText('詳細').length).toBeGreaterThan(0)
     })
 
-    await user.click(screen.getAllByText('詳細')[0])
+    await user.click(screen.getAllByText('詳細')[0]!)
 
     await waitFor(() => {
       expect(screen.getByText('イベント情報を編集')).toBeInTheDocument()
@@ -431,7 +431,7 @@ describe('EventImportClient', () => {
 
     // ✕ボタンでイベントを削除
     const removeButtons = screen.getAllByText('✕')
-    await user.click(removeButtons[0])
+    await user.click(removeButtons[0]!)
 
     await waitFor(() => {
       expect(screen.queryByDisplayValue('テスト展示会')).not.toBeInTheDocument()
@@ -517,10 +517,10 @@ describe('EventImportClient', () => {
 
     // 全選択チェックボックス（最初のもの）をクリックして全解除
     const allCheckboxes = screen.getAllByRole('checkbox')
-    await user.click(allCheckboxes[0])
+    await user.click(allCheckboxes[0]!)
 
     // もう一度クリックして全選択
-    await user.click(allCheckboxes[0])
+    await user.click(allCheckboxes[0]!)
   })
 
   it('個別イベントの選択を解除できる', async () => {
@@ -540,7 +540,7 @@ describe('EventImportClient', () => {
     // 個別チェックボックスをクリックして解除
     const checkboxes = screen.getAllByRole('checkbox')
     const eventCheckbox = checkboxes[checkboxes.length - 1]
-    await user.click(eventCheckbox)
+    await user.click(eventCheckbox!)
   })
 
   it('カードビューで主催者情報が表示される', async () => {
@@ -665,7 +665,7 @@ describe('EventImportClient', () => {
       expect(screen.getAllByText('削除').length).toBeGreaterThan(0)
     })
 
-    await user.click(screen.getAllByText('削除')[0])
+    await user.click(screen.getAllByText('削除')[0]!)
 
     await waitFor(() => {
       expect(screen.queryByText('テスト展示会')).not.toBeInTheDocument()
@@ -685,7 +685,7 @@ describe('EventImportClient', () => {
       expect(screen.getAllByText('詳細').length).toBeGreaterThan(0)
     })
 
-    await user.click(screen.getAllByText('詳細')[0])
+    await user.click(screen.getAllByText('詳細')[0]!)
 
     await waitFor(() => {
       expect(screen.getByText('イベント情報を編集')).toBeInTheDocument()
@@ -751,7 +751,7 @@ describe('EventImportClient', () => {
       expect(screen.getAllByText('詳細').length).toBeGreaterThan(0)
     })
 
-    await user.click(screen.getAllByText('詳細')[0])
+    await user.click(screen.getAllByText('詳細')[0]!)
 
     await waitFor(() => {
       expect(screen.getByText('イベント情報を編集')).toBeInTheDocument()
@@ -777,7 +777,7 @@ describe('EventImportClient', () => {
       expect(screen.getAllByText('詳細').length).toBeGreaterThan(0)
     })
 
-    await user.click(screen.getAllByText('詳細')[0])
+    await user.click(screen.getAllByText('詳細')[0]!)
 
     await waitFor(() => {
       expect(screen.getByText('イベント情報を編集')).toBeInTheDocument()
@@ -786,8 +786,8 @@ describe('EventImportClient', () => {
     // モーダル内のタイトル入力(labelで「タイトル *」)
     const titleInputs = screen.getAllByDisplayValue('テスト展示会')
     const modalTitleInput = titleInputs[titleInputs.length - 1]
-    await user.clear(modalTitleInput)
-    await user.type(modalTitleInput, '新タイトル')
+    await user.clear(modalTitleInput!)
+    await user.type(modalTitleInput!, '新タイトル')
 
     await user.click(screen.getByText('保存'))
 
@@ -815,7 +815,7 @@ describe('EventImportClient', () => {
       expect(screen.getAllByText('編集').length).toBeGreaterThan(0)
     })
 
-    await user.click(screen.getAllByText('編集')[0])
+    await user.click(screen.getAllByText('編集')[0]!)
 
     await waitFor(() => {
       expect(screen.getByText('イベント情報を編集')).toBeInTheDocument()

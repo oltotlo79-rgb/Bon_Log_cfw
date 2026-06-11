@@ -181,7 +181,7 @@ describe('Admin Content Actions', async () => {
       if (!result.success) throw new Error('expected success')
       expect(result.data!.reviews).toHaveLength(1)
       expect(result.data!.total).toBe(1)
-      expect(result.data!.reviews[0].reportCount).toBe(2)
+      expect(result.data!.reviews[0]!.reportCount).toBe(2)
     })
 
     it('検索クエリでフィルタリングできる', async () => {

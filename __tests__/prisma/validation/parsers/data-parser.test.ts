@@ -162,7 +162,7 @@ describe('data-parser', () => {
 `
       const result = extractPesticidesFromMain(src)
       expect(result).toHaveLength(1)
-      expect(result[0].registrationNumber).toBe('')
+      expect(result[0]!.registrationNumber).toBe('')
     })
 
     it('複数の農薬を同時に抽出する', () => {
@@ -194,19 +194,19 @@ describe('data-parser', () => {
     it('FRACコード付き有効成分を抽出する', () => {
       const result = extractIngredientsFromMain(SAMPLE_INGREDIENT)
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('triflumizole')
-      expect(result[0].nameEn).toBe('Triflumizole')
-      expect(result[0].fracCode).toBe('3')
-      expect(result[0].iracCode).toBe('')
-      expect(result[0].resistanceRisk).toBe('medium')
+      expect(result[0]!.slug).toBe('triflumizole')
+      expect(result[0]!.nameEn).toBe('Triflumizole')
+      expect(result[0]!.fracCode).toBe('3')
+      expect(result[0]!.iracCode).toBe('')
+      expect(result[0]!.resistanceRisk).toBe('medium')
     })
 
     it('IRACコード付き有効成分を抽出する', () => {
       const result = extractIngredientsFromMain(SAMPLE_INGREDIENT_IRAC)
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('acetamiprid')
-      expect(result[0].iracCode).toBe('4A')
-      expect(result[0].fracCode).toBe('')
+      expect(result[0]!.slug).toBe('acetamiprid')
+      expect(result[0]!.iracCode).toBe('4A')
+      expect(result[0]!.fracCode).toBe('')
     })
   })
 
@@ -214,9 +214,9 @@ describe('data-parser', () => {
     it('農薬⇔有効成分リンクを抽出する', () => {
       const result = extractLinksFromMain(SAMPLE_LINK)
       expect(result).toHaveLength(1)
-      expect(result[0].pesticideSlug).toBe('trifumin-ec')
-      expect(result[0].ingredientSlug).toBe('triflumizole')
-      expect(result[0].contentLabel).toBe('15.0%')
+      expect(result[0]!.pesticideSlug).toBe('trifumin-ec')
+      expect(result[0]!.ingredientSlug).toBe('triflumizole')
+      expect(result[0]!.contentLabel).toBe('15.0%')
     })
   })
 
@@ -224,21 +224,21 @@ describe('data-parser', () => {
     it('殺菌剤の効果データ（全4レベル）を抽出する', () => {
       const result = extractEffectsFromMain(SAMPLE_EFFECT_FUNGICIDE)
       expect(result).toHaveLength(1)
-      expect(result[0].pesticideSlug).toBe('trifumin-ec')
-      expect(result[0].diseasePestSlug).toBe('udonko-byo')
-      expect(result[0].preventionLevel).toBe('good')
-      expect(result[0].treatmentLevel).toBe('good')
-      expect(result[0].efficacyLevel).toBe('good')
-      expect(result[0].persistenceLevel).toBe('good')
+      expect(result[0]!.pesticideSlug).toBe('trifumin-ec')
+      expect(result[0]!.diseasePestSlug).toBe('udonko-byo')
+      expect(result[0]!.preventionLevel).toBe('good')
+      expect(result[0]!.treatmentLevel).toBe('good')
+      expect(result[0]!.efficacyLevel).toBe('good')
+      expect(result[0]!.persistenceLevel).toBe('good')
     })
 
     it('殺虫剤の効果データ（efficacy/persistenceのみ）を抽出する', () => {
       const result = extractEffectsFromMain(SAMPLE_EFFECT_INSECTICIDE)
       expect(result).toHaveLength(1)
-      expect(result[0].preventionLevel).toBe('')
-      expect(result[0].treatmentLevel).toBe('')
-      expect(result[0].efficacyLevel).toBe('good')
-      expect(result[0].persistenceLevel).toBe('good')
+      expect(result[0]!.preventionLevel).toBe('')
+      expect(result[0]!.treatmentLevel).toBe('')
+      expect(result[0]!.efficacyLevel).toBe('good')
+      expect(result[0]!.persistenceLevel).toBe('good')
     })
 
     it('コメントアウトされた行は除外する', () => {
@@ -253,22 +253,22 @@ describe('data-parser', () => {
     it('病害データを抽出する（体長なし）', () => {
       const result = extractDiseasePests(SAMPLE_DISEASE, 'data')
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('udonko-byo')
-      expect(result[0].name).toBe('うどんこ病')
-      expect(result[0].nameKana).toBe('ウドンコビョウ')
-      expect(result[0].category).toBe('disease')
-      expect(result[0].bodySizeMinMm).toBe('')
-      expect(result[0].bodySizeMaxMm).toBe('')
-      expect(result[0].source).toBe('data')
+      expect(result[0]!.slug).toBe('udonko-byo')
+      expect(result[0]!.name).toBe('うどんこ病')
+      expect(result[0]!.nameKana).toBe('ウドンコビョウ')
+      expect(result[0]!.category).toBe('disease')
+      expect(result[0]!.bodySizeMinMm).toBe('')
+      expect(result[0]!.bodySizeMaxMm).toBe('')
+      expect(result[0]!.source).toBe('data')
     })
 
     it('害虫データを抽出する（体長あり）', () => {
       const result = extractDiseasePests(SAMPLE_PEST, 'data')
       expect(result).toHaveLength(1)
-      expect(result[0].slug).toBe('aburamushi')
-      expect(result[0].category).toBe('pest')
-      expect(result[0].bodySizeMinMm).toBe('1')
-      expect(result[0].bodySizeMaxMm).toBe('4')
+      expect(result[0]!.slug).toBe('aburamushi')
+      expect(result[0]!.category).toBe('pest')
+      expect(result[0]!.bodySizeMinMm).toBe('1')
+      expect(result[0]!.bodySizeMaxMm).toBe('4')
     })
 
     it('beneficial_insectカテゴリを正しく処理する', () => {
@@ -286,8 +286,8 @@ describe('data-parser', () => {
 `
       const result = extractDiseasePests(src, 'data')
       expect(result).toHaveLength(1)
-      expect(result[0].category).toBe('beneficial_insect')
-      expect(result[0].bodySizeMinMm).toBe('5')
+      expect(result[0]!.category).toBe('beneficial_insect')
+      expect(result[0]!.bodySizeMinMm).toBe('5')
     })
 
     it('slug重複は最初のものだけ残す', () => {
@@ -298,12 +298,12 @@ describe('data-parser', () => {
 
     it('sourceラベルが正しく設定される', () => {
       const result = extractDiseasePests(SAMPLE_DISEASE, 'additions')
-      expect(result[0].source).toBe('additions')
+      expect(result[0]!.source).toBe('additions')
     })
 
     it('descriptionHeadが150文字以内に切り詰められる', () => {
       const result = extractDiseasePests(SAMPLE_DISEASE, 'data')
-      expect(result[0].descriptionHead.length).toBeLessThanOrEqual(150)
+      expect(result[0]!['descriptionHead']!.length).toBeLessThanOrEqual(150)
     })
   })
 
@@ -311,8 +311,8 @@ describe('data-parser', () => {
     it('剤型データを抽出する', () => {
       const result = extractFormulationTypes(SAMPLE_FORMULATION)
       expect(result).toHaveLength(2)
-      expect(result[0].code).toBe('EC')
-      expect(result[1].code).toBe('WP')
+      expect(result[0]!.code).toBe('EC')
+      expect(result[1]!.code).toBe('WP')
     })
   })
 
@@ -362,8 +362,8 @@ describe('data-parser', () => {
     it('展着剤タイプを抽出する', () => {
       const result = extractSpreaderTypes(SAMPLE_SPREADER_TYPES)
       expect(result).toHaveLength(2)
-      expect(result[0].code).toBe('ether')
-      expect(result[1].slug).toBe('ester')
+      expect(result[0]!.code).toBe('ether')
+      expect(result[1]!.slug).toBe('ester')
     })
   })
 
@@ -371,8 +371,8 @@ describe('data-parser', () => {
     it('展着剤リンクを抽出する', () => {
       const result = extractSpreaderLinks(SAMPLE_SPREADER_LINKS)
       expect(result).toHaveLength(2)
-      expect(result[0].pesticideSlug).toBe('mairino')
-      expect(result[0].spreaderTypeSlug).toBe('ether')
+      expect(result[0]!.pesticideSlug).toBe('mairino')
+      expect(result[0]!.spreaderTypeSlug).toBe('ether')
     })
   })
 })

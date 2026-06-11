@@ -70,7 +70,7 @@ describe('logger.ts 追加ブランチテスト', () => {
     })
 
     it('production環境ではconsole.errorが呼ばれない', async () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation()
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
 
       logger.error('prod error')
@@ -81,7 +81,7 @@ describe('logger.ts 追加ブランチテスト', () => {
 
   describe('info method', () => {
     it('development環境でinfoがconsole.logを呼ぶ', async () => {
-      const spy = vi.spyOn(console, 'log').mockImplementation()
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
       const logger = await freshLogger('development')
 
       logger.info('info message')
@@ -90,7 +90,7 @@ describe('logger.ts 追加ブランチテスト', () => {
     })
 
     it('production環境でinfoが抑制される', async () => {
-      const spy = vi.spyOn(console, 'log').mockImplementation()
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
       const logger = await freshLogger('production')
 
       logger.info('suppressed')

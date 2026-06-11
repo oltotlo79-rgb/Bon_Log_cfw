@@ -89,7 +89,7 @@ function unwrap<T>(result: import('@/types/action-result').ActionResult<T>): (T 
     posts: [],
     nextCursor: undefined,
     isGuest: false,
-  } as (T extends object ? T : Record<string, never>) & FeedLegacyShape
+  } as unknown as (T extends object ? T : Record<string, never>) & FeedLegacyShape
 }
 
 beforeEach(() => {

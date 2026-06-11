@@ -25,7 +25,7 @@ describe('Report Constants', () => {
     })
 
     it('otherが最後に配置されている（UIでの表示順）', () => {
-      expect(REPORT_REASONS[REPORT_REASONS.length - 1].value).toBe('other')
+      expect(REPORT_REASONS[REPORT_REASONS.length - 1]!.value).toBe('other')
     })
   })
 

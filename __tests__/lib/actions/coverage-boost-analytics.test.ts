@@ -53,7 +53,7 @@ describe('analytics - getEngagementTrend daily stats aggregation', async () => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate)
       d.setDate(d.getDate() + i)
-      dateKeys.push(d.toISOString().split('T')[0])
+      dateKeys.push(d.toISOString().split('T')[0]!)
     }
 
     // Use dates that match specific keys in the generated range

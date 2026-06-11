@@ -73,7 +73,7 @@ vi.mock('@/lib/actions/feed', () => ({
 }))
 vi.mock('./TimelineSkeleton', () => ({
   TimelineSkeleton: () => <div data-testid="timeline-skeleton" />,
-}), { virtual: true })
+}))
 vi.mock('@/components/feed/TimelineSkeleton', () => ({
   TimelineSkeleton: () => <div data-testid="timeline-skeleton" />,
 }))

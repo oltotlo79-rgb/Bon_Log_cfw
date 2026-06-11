@@ -107,7 +107,7 @@ const mockInitialData = {
   website: 'https://example.com' as string | null,
   businessHours: '9:00-17:00' as string | null,
   closedDays: '水曜日' as string | null,
-  genres: [mockGenres[0]],
+  genres: [mockGenres[0]!],
 }
 
 describe('ShopForm - branch boost', () => {
@@ -224,7 +224,7 @@ describe('ShopForm - branch boost', () => {
 
     // Click the cancel button in delete dialog
     const cancelButtons = screen.getAllByRole('button', { name: 'キャンセル' })
-    const deleteDialogCancel = cancelButtons[cancelButtons.length - 1]
+    const deleteDialogCancel = cancelButtons[cancelButtons.length - 1]!
     fireEvent.click(deleteDialogCancel)
 
     await waitFor(() => {
@@ -278,7 +278,7 @@ describe('ReviewForm - branch boost', () => {
     }
     vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
     mockXHR.send.mockImplementation(() => {
-      const errorCb = mockXHR.addEventListener.mock.calls.find((c: [string, () => void]) => c[0] === 'error')?.[1]
+      const errorCb = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'error')?.[1]
       if (errorCb) errorCb()
     })
 
@@ -304,7 +304,7 @@ describe('ReviewForm - branch boost', () => {
     }
     vi.spyOn(window, 'XMLHttpRequest').mockImplementation(function() { return mockXHR } as unknown as () => XMLHttpRequest)
     mockXHR.send.mockImplementation(() => {
-      const loadCb = mockXHR.addEventListener.mock.calls.find((c: [string, () => void]) => c[0] === 'load')?.[1]
+      const loadCb = (mockXHR.addEventListener.mock.calls as [string, () => void][]).find((c) => c[0] === 'load')?.[1]
       if (loadCb) loadCb()
     })
 
@@ -354,7 +354,7 @@ describe('ReviewForm - branch boost', () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.get('content')).toBe('良い盆栽園です')
     })
   })
@@ -368,7 +368,7 @@ describe('ReviewForm - branch boost', () => {
     fireEvent.click(screen.getByRole('button', { name: /レビューを投稿/ }))
 
     await waitFor(() => {
-      const formData = mockCreateReview.mock.calls[0][0] as FormData
+      const formData = mockCreateReview.mock.calls[0]![0]! as FormData
       expect(formData.get('content')).toBeNull()
     })
   })

@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { expectError } from '../../helpers/action-result'
 /**
  * Extended review tests - uploadReviewImage uncovered branches
  */
@@ -41,6 +42,7 @@ describe('uploadReviewImage', async () => {
     const { uploadReviewImage } = await import('@/lib/actions/review')
     const fd = new FormData()
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toContain('認証')
   })
 
@@ -48,6 +50,7 @@ describe('uploadReviewImage', async () => {
     const { uploadReviewImage } = await import('@/lib/actions/review')
     const fd = new FormData()
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -58,6 +61,7 @@ describe('uploadReviewImage', async () => {
     const fd = new FormData()
     fd.append('file', file)
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -67,6 +71,7 @@ describe('uploadReviewImage', async () => {
     const fd = new FormData()
     fd.append('file', file)
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -79,7 +84,7 @@ describe('uploadReviewImage', async () => {
     fd.append('file', file)
     const result = await uploadReviewImage(fd)
     expect(result.success).toBe(true)
-    expect(result.data?.url).toBe('/review.jpg')
+    expect(('data' in result ? result.data : undefined)?.url).toBe('/review.jpg')
   })
 
   it('handles upload failure and returns generic message (no internal error leak)', async () => {
@@ -90,7 +95,9 @@ describe('uploadReviewImage', async () => {
     const fd = new FormData()
     fd.append('file', file)
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
+    expectError(result)
     expect(result.error).toBe('アップロードに失敗しました')
   })
 
@@ -102,6 +109,7 @@ describe('uploadReviewImage', async () => {
     const fd = new FormData()
     fd.append('file', file)
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toBeDefined()
   })
 
@@ -113,6 +121,7 @@ describe('uploadReviewImage', async () => {
     const fd = new FormData()
     fd.append('file', file)
     const result = await uploadReviewImage(fd)
+    expectError(result)
     expect(result.error).toBe('アップロードに失敗しました')
   })
 })

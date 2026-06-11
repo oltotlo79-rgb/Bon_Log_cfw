@@ -20,7 +20,7 @@
 
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
-const mockPrisma: Record<string, Record<string, ReturnType<typeof vi.fn>>> & { $transaction: ReturnType<typeof vi.fn> } = {
+const mockPrisma = {
   announcement: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn(), create: vi.fn() },
   user: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), update: vi.fn() },
   pesticide: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() },
@@ -92,7 +92,7 @@ describe('admin/announcements - catch ブランチ', async () => {
     mockPrisma.announcement.findMany.mockRejectedValueOnce(new Error('boom'))
     mockPrisma.announcement.count.mockResolvedValue(0)
     const result = await mod.getAnnouncements()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getAnnouncements failed', expect.any(Object))
   })
 
@@ -124,14 +124,14 @@ describe('admin/pesticide-data - catch ブランチ', async () => {
     mockPrisma.pesticide.findMany.mockRejectedValueOnce(new Error('boom'))
     mockPrisma.pesticide.count.mockResolvedValue(0)
     const result = await mod.getAdminPesticides()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getAdminPesticides failed', expect.any(Object))
   })
 
   it('getAdminPesticideDetail: findUnique が throw → actionError', async () => {
     mockPrisma.pesticide.findUnique.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getAdminPesticideDetail('p1')
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getAdminPesticideDetail failed', expect.any(Object))
   })
 
@@ -167,7 +167,7 @@ describe('admin/pesticide-data - catch ブランチ', async () => {
     mockPrisma.pesticideEditHistory.findMany.mockRejectedValueOnce(new Error('boom'))
     mockPrisma.pesticideEditHistory.count.mockResolvedValue(0)
     const result = await mod.getPesticideHistory()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
     expect(mockLoggerError).toHaveBeenCalledWith('getPesticideHistory failed', expect.any(Object))
   })
 })
@@ -254,7 +254,7 @@ describe('admin/warnings - catch ブランチ', async () => {
   it('issueWarning: 対象ユーザー存在 + create が throw → actionError', async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({ id: 'u1' })
     mockPrisma.$transaction.mockRejectedValueOnce(new Error('tx fail'))
-    const result = await mod.issueWarning({ userId: 'u1', reason: 'spam', severity: 'low' as never })
+    const result = await mod.issueWarning({ userId: 'u1', reason: 'spam', level: 'notice' as never })
     expect(result.success).toBe(false)
   })
 
@@ -318,7 +318,7 @@ describe('admin/activity - catch ブランチ', async () => {
       .mockResolvedValueOnce({ isSuspended: false })
       .mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getUserActivity('u1')
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
   })
 
   it('detectSuspiciousBehavior: findUnique が throw → actionError', async () => {
@@ -327,7 +327,7 @@ describe('admin/activity - catch ブランチ', async () => {
     // user.findUnique は requireAdmin の suspension チェックのみで利用される。
     mockPrisma.user.findUnique.mockResolvedValueOnce({ isSuspended: false })
     const result = await mod.detectSuspiciousBehavior('u1')
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
   })
 })
 
@@ -341,13 +341,13 @@ describe('admin/ip-management - catch ブランチ', async () => {
   it('getIpAddresses: findMany が throw → actionError', async () => {
     mockPrisma.ipBlock.findMany.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getIpAddresses()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
   })
 
   it('detectMultiAccounts: findMany が throw → actionError', async () => {
     mockPrisma.user.findMany.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.detectMultiAccounts()
-    expect(result.success).toBe(false)
+    expect((result as { success: boolean }).success).toBe(false)
   })
 })
 
@@ -368,7 +368,7 @@ describe('admin/security - catch ブランチ', async () => {
   it('getSecurityDashboard: count が throw → デフォルト値（全 0）', async () => {
     mockPrisma.securityEvent.count.mockRejectedValueOnce(new Error('boom'))
     const result = await mod.getSecurityDashboard()
-    expect(result.failedLoginsToday).toBe(0)
+    expect((result as { failedLoginsToday: number }).failedLoginsToday).toBe(0)
   })
 })
 
