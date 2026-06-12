@@ -12,7 +12,13 @@ import { passwordSchema } from '@/lib/validations/password'
 import {
   TWO_FACTOR_CODE_LENGTH,
   MIN_TOKEN_LENGTH,
+  MAX_NICKNAME_LENGTH,
 } from '@/lib/constants/limits'
+import {
+  ERR_NICKNAME_REQUIRED,
+  ERR_NICKNAME_TOO_LONG,
+  ERR_NICKNAME_INVALID_CHARS,
+} from '@/lib/constants/errors/content'
 
 /** POST /api/v1/auth/login */
 export const loginRequestSchema = z.object({
@@ -59,6 +65,25 @@ export const passwordResetConfirmSchema = z.object({
   newPassword: passwordSchema,
 })
 export type PasswordResetConfirm = z.infer<typeof passwordResetConfirmSchema>
+
+/**
+ * POST /api/v1/auth/register
+ *
+ * nickname の検証は Web の registerUserSchema と完全に一致させる（差異があると
+ * モバイル側事前検証を通過したのにサーバーで弾かれるという UX 劣化が起きる）。
+ * termsAccepted は z.literal(true) で同意必須を強制する。
+ */
+export const registerRequestSchema = z.object({
+  nickname: z
+    .string()
+    .min(1, ERR_NICKNAME_REQUIRED)
+    .max(MAX_NICKNAME_LENGTH, ERR_NICKNAME_TOO_LONG(MAX_NICKNAME_LENGTH))
+    .refine((v) => !/[\r\n<>]/.test(v), ERR_NICKNAME_INVALID_CHARS),
+  email: normalizedEmailSchema,
+  password: passwordSchema,
+  termsAccepted: z.literal(true),
+})
+export type RegisterRequest = z.infer<typeof registerRequestSchema>
 
 // ──────────────────────────────────────────────────
 // Phase 2 Batch 2a — 読み取り系エンドポイントのクエリパラメータ

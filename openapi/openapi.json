@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -302,6 +302,40 @@
         ],
         "description": "パスワードリセット確定のリクエスト。"
       },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 100,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "pattern": "[a-zA-Z]"
+          },
+          "termsAccepted": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "nickname",
+          "email",
+          "password",
+          "termsAccepted"
+        ],
+        "description": "新規ユーザー登録のリクエスト。termsAccepted は true のみ受け付ける（利用規約同意の強制）。"
+      },
       "ReadPaginationQuery": {
         "type": "object",
         "properties": {
@@ -391,6 +425,9 @@
                   "items": {
                     "type": "object",
                     "properties": {
+                      "id": {
+                        "type": "string"
+                      },
                       "url": {
                         "type": "string"
                       },
@@ -402,6 +439,7 @@
                       }
                     },
                     "required": [
+                      "id",
                       "url",
                       "type",
                       "sortOrder"
@@ -487,6 +525,9 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "id": {
+                            "type": "string"
+                          },
                           "url": {
                             "type": "string"
                           },
@@ -498,6 +539,7 @@
                           }
                         },
                         "required": [
+                          "id",
                           "url",
                           "type",
                           "sortOrder"
@@ -550,6 +592,9 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "id": {
+                            "type": "string"
+                          },
                           "url": {
                             "type": "string"
                           },
@@ -561,6 +606,7 @@
                           }
                         },
                         "required": [
+                          "id",
                           "url",
                           "type",
                           "sortOrder"
@@ -660,6 +706,9 @@
             "items": {
               "type": "object",
               "properties": {
+                "id": {
+                  "type": "string"
+                },
                 "url": {
                   "type": "string"
                 },
@@ -671,6 +720,7 @@
                 }
               },
               "required": [
+                "id",
                 "url",
                 "type",
                 "sortOrder"
@@ -756,6 +806,9 @@
                 "items": {
                   "type": "object",
                   "properties": {
+                    "id": {
+                      "type": "string"
+                    },
                     "url": {
                       "type": "string"
                     },
@@ -767,6 +820,7 @@
                     }
                   },
                   "required": [
+                    "id",
                     "url",
                     "type",
                     "sortOrder"
@@ -819,6 +873,9 @@
                 "items": {
                   "type": "object",
                   "properties": {
+                    "id": {
+                      "type": "string"
+                    },
                     "url": {
                       "type": "string"
                     },
@@ -830,6 +887,7 @@
                     }
                   },
                   "required": [
+                    "id",
                     "url",
                     "type",
                     "sortOrder"
@@ -941,6 +999,9 @@
                   "items": {
                     "type": "object",
                     "properties": {
+                      "id": {
+                        "type": "string"
+                      },
                       "url": {
                         "type": "string"
                       },
@@ -952,6 +1013,7 @@
                       }
                     },
                     "required": [
+                      "id",
                       "url",
                       "type",
                       "sortOrder"
@@ -1126,6 +1188,9 @@
                   "items": {
                     "type": "object",
                     "properties": {
+                      "id": {
+                        "type": "string"
+                      },
                       "url": {
                         "type": "string"
                       },
@@ -1137,6 +1202,7 @@
                       }
                     },
                     "required": [
+                      "id",
                       "url",
                       "type",
                       "sortOrder"
@@ -1222,6 +1288,9 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "id": {
+                            "type": "string"
+                          },
                           "url": {
                             "type": "string"
                           },
@@ -1233,6 +1302,7 @@
                           }
                         },
                         "required": [
+                          "id",
                           "url",
                           "type",
                           "sortOrder"
@@ -1285,6 +1355,9 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "id": {
+                            "type": "string"
+                          },
                           "url": {
                             "type": "string"
                           },
@@ -1296,6 +1369,7 @@
                           }
                         },
                         "required": [
+                          "id",
                           "url",
                           "type",
                           "sortOrder"
@@ -2076,6 +2150,85 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "新規ユーザー登録",
+        "description": "ニックネーム・メールアドレス・パスワードで新規ユーザーを作成し、確認メールを送信する。\n\nフロー:\n1. バリデーション通過後、レート制限チェック（IP ベース）\n2. ユーザー作成 + メール確認トークン発行\n3. 確認メール送信（リンク有効期間: 24 時間）\n4. 201 { success: true } を返す\n\nモバイルはこのレスポンスを受け取ったら verify-email-sent 画面へ遷移し、\nユーザーに確認メールのリンクをクリックするよう促す。\n\n列挙攻撃方針: Web の登録フォームはメール重複を明示的にユーザーに返すため、\nAPI も一貫して 409 CONFLICT で同じ情報量を返す（片方だけ隠すと一貫性が失われる）。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "登録成功。確認メールを送信済み。モバイルは verify-email-sent 画面へ遷移すること",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — nickname/email/password の形式不正または termsAccepted が true でない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "メールアドレス重複 (CONFLICT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー — 確認メール送信失敗など (INTERNAL_ERROR)",
             "content": {
               "application/json": {
                 "schema": {

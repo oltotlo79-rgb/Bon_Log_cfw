@@ -46,6 +46,7 @@ async function main() {
     passwordResetConfirmSchema,
     readPaginationQuerySchema,
     searchQuerySchema,
+    registerRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -159,6 +160,13 @@ async function main() {
   const PasswordResetConfirm = registry.register(
     'PasswordResetConfirm',
     passwordResetConfirmSchema.openapi({ description: 'パスワードリセット確定のリクエスト。' }),
+  )
+
+  const RegisterRequest = registry.register(
+    'RegisterRequest',
+    registerRequestSchema.openapi({
+      description: '新規ユーザー登録のリクエスト。termsAccepted は true のみ受け付ける（利用規約同意の強制）。',
+    }),
   )
 
   registry.register(
@@ -480,6 +488,46 @@ async function main() {
   })
 
   registry.registerPath({
+    method: 'post',
+    path: '/api/v1/auth/register',
+    tags: ['auth'],
+    summary: '新規ユーザー登録',
+    description: [
+      'ニックネーム・メールアドレス・パスワードで新規ユーザーを作成し、確認メールを送信する。',
+      '',
+      'フロー:',
+      '1. バリデーション通過後、レート制限チェック（IP ベース）',
+      '2. ユーザー作成 + メール確認トークン発行',
+      '3. 確認メール送信（リンク有効期間: 24 時間）',
+      '4. 201 { success: true } を返す',
+      '',
+      'モバイルはこのレスポンスを受け取ったら verify-email-sent 画面へ遷移し、',
+      'ユーザーに確認メールのリンクをクリックするよう促す。',
+      '',
+      '列挙攻撃方針: Web の登録フォームはメール重複を明示的にユーザーに返すため、',
+      'API も一貫して 409 CONFLICT で同じ情報量を返す（片方だけ隠すと一貫性が失われる）。',
+    ].join('\n'),
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: RegisterRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: '登録成功。確認メールを送信済み。モバイルは verify-email-sent 画面へ遷移すること',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — nickname/email/password の形式不正または termsAccepted が true でない'),
+      409: errorResponse('メールアドレス重複 (CONFLICT)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー — 確認メール送信失敗など (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
     method: 'get',
     path: '/api/v1/users/me',
     tags: ['users'],
@@ -755,7 +803,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.1.0',
+      version: '1.2.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

@@ -7,36 +7,27 @@ import { prisma } from '@/lib/db'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { MAX_NICKNAME_LENGTH } from '@/lib/constants/limits'
 import bcrypt from 'bcryptjs'
-import crypto from 'crypto'
-import { sendVerificationEmail } from '@/lib/email'
-import logger from '@/lib/logger'
 import { passwordSchema } from '@/lib/validations/password'
 import { sanitizeInput } from '@/lib/sanitize'
 import { logRegisterSuccess } from '@/lib/security-logger'
+import logger from '@/lib/logger'
 import {
   checkLoginThrottleForRequest,
   recordLoginFailureForRequest,
 } from '@/lib/services/login-throttle'
-import { getAppUrl } from '@/lib/env'
 import { ROUTE_FEED, ROUTE_HOME } from '@/lib/constants/routes'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { Prisma } from '@prisma/client'
-import { BCRYPT_SALT_ROUNDS, ONE_DAY_MS, FIFTEEN_MINUTES_MS, TOKEN_RANDOM_BYTES, VERIFY_CREDENTIALS_MAX_ATTEMPTS } from '@/lib/constants/limits'
+import { FIFTEEN_MINUTES_MS, VERIFY_CREDENTIALS_MAX_ATTEMPTS } from '@/lib/constants/limits'
 // 定数はドメイン別ファイルに分割されているため、用途別に直接 import する。
 // （ファイル先頭でまとめて import すると実装に到達するまでスクロールが必要になる）
 import {
   ERR_ACCOUNT_SUSPENDED,
-  ERR_DEVICE_BLACKLISTED,
   ERR_DEVICE_LOGIN_NOT_ALLOWED,
-  ERR_EMAIL_ALREADY_REGISTERED,
-  ERR_EMAIL_BLACKLISTED,
   ERR_EMAIL_NOT_VERIFIED,
   ERR_GUEST_LOGIN_UNAVAILABLE,
   ERR_LOGIN_ERROR,
   ERR_LOGIN_FAILED,
   ERR_LOGIN_INVALID_CREDENTIALS,
-  ERR_NICKNAME_RESERVED,
-  ERR_VERIFICATION_EMAIL_FAILED,
 } from '@/lib/constants/errors/auth'
 import {
   ERR_INPUT_INVALID_GENERIC,
@@ -45,11 +36,11 @@ import {
   ERR_NICKNAME_TOO_LONG,
   ERR_RATE_LIMIT_OPERATION,
 } from '@/lib/constants/errors/content'
-import { isReservedNickname } from '@/lib/constants/reserved'
-import { isEmailBlacklisted, isDeviceBlacklisted } from '@/lib/services/blacklist-check'
+import { isDeviceBlacklisted } from '@/lib/services/blacklist-check'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
 import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 import type { ActionResult } from '@/types/action-result'
+import { registerUserCore } from '@/lib/services/registration-service'
 
 // auth public action 用のスキーマ群。
 // rate limit を消費する前に入力境界で正規化・検証することで、不正形状の入力で quota を
@@ -223,77 +214,15 @@ export async function registerUser(data: {
     return actionError(ERR_RATE_LIMIT_OPERATION)
   }
 
-  if (isReservedNickname(nickname)) {
-    return actionError(ERR_NICKNAME_RESERVED)
+  // 3. ユーザー作成 + 確認メール送信（services 層に委譲）
+  const result = await registerUserCore({ email, password, nickname, fingerprint })
+  if (!result.ok) {
+    return actionError(result.message)
   }
 
-  const emailBlacklisted = await isEmailBlacklisted(email)
-  if (emailBlacklisted) {
-    return actionError(ERR_EMAIL_BLACKLISTED)
-  }
+  logRegisterSuccess(result.userId, ip)
 
-  if (fingerprint) {
-    const deviceBlacklisted = await isDeviceBlacklisted(fingerprint)
-    if (deviceBlacklisted) {
-      return actionError(ERR_DEVICE_BLACKLISTED)
-    }
-  }
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  })
-
-  if (existingUser) {
-    return actionError(ERR_EMAIL_ALREADY_REGISTERED)
-  }
-
-  const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS)
-
-  let user
-  try {
-    user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        nickname,
-      },
-    })
-  } catch (error) {
-    // TOCTOU: another request may have created the user between findUnique and create
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return actionError(ERR_EMAIL_ALREADY_REGISTERED)
-    }
-    throw error
-  }
-
-  await prisma.emailVerificationToken.deleteMany({
-    where: { email },
-  })
-
-  const token = crypto.randomBytes(TOKEN_RANDOM_BYTES).toString('hex')
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-  const expires = new Date(Date.now() + ONE_DAY_MS)
-
-  await prisma.emailVerificationToken.create({
-    data: {
-      email,
-      token: hashedToken,
-      expires,
-    },
-  })
-
-  const baseUrl = getAppUrl()
-  const verifyUrl = `${baseUrl}/verify-email?token=${token}`
-
-  const emailResult = await sendVerificationEmail(email, verifyUrl)
-  if (!emailResult.success) {
-    logger.error('Failed to send verification email:', emailResult.error)
-    return actionError(ERR_VERIFICATION_EMAIL_FAILED)
-  }
-
-  logRegisterSuccess(user.id, ip)
-
-  return actionSuccess({ userId: user.id })
+  return actionSuccess({ userId: result.userId })
 }
 
 // メール確認系 / パスワードリセット系は別ファイルに分離。
