@@ -30,7 +30,7 @@ export type CommentItem = {
   replyCount: number
   isLiked: boolean
   user: { id: string; nickname: string; avatarUrl: string | null }
-  media: { url: string; type: string; sortOrder: number }[]
+  media: { id: string; url: string; type: string; sortOrder: number }[]
 }
 
 export type CommentsResult = {
@@ -107,7 +107,12 @@ export async function fetchComments(
         replyCount: comment._count.replies,
         isLiked: likedCommentIds.has(comment.id),
         user: comment.user,
-        media: comment.media,
+        media: (comment.media ?? []).map((m) => ({
+          id: m.id,
+          url: m.url,
+          type: m.type,
+          sortOrder: m.sortOrder,
+        })),
       })),
     nextCursor: hasMore ? comments[comments.length - 1]?.id : undefined,
   }

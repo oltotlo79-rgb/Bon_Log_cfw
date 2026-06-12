@@ -108,32 +108,3 @@ export async function fetchTimeline(
     isGuest: false,
   }
 }
-
-/**
- * ゲストに見せるタイムライン（未認証ユーザー向け）。
- * currentUserId なしで公開投稿の直近 N 件を返す。
- * モバイル API では Bearer 認証必須のため呼ばれないが、将来の公開 feed 拡張用に定義。
- */
-export async function fetchGuestTimeline(): Promise<TimelineResult> {
-  const rawPosts = await prisma.post.findMany({
-    where: visiblePostWhere(),
-    include: {
-      ...POST_LIST_INCLUDE,
-      quotePost: { include: POST_QUOTE_INCLUDE },
-      repostPost: { include: POST_REPOST_INCLUDE },
-      poll: { include: buildPostPollInclude() },
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: GUEST_TIMELINE_LIMIT,
-  })
-
-  // 未認証のため interaction sets は空
-  const likedSet = new Set<string>()
-  const bookmarkedSet = new Set<string>()
-
-  return {
-    posts: rawPosts.map((post) => formatPostForClient(post, likedSet, bookmarkedSet)),
-    nextCursor: undefined,
-    isGuest: true,
-  }
-}

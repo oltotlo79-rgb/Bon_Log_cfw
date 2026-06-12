@@ -51,6 +51,7 @@ export type UsersMeResponse = z.infer<typeof usersMeSchema>
 
 /** メディアファイル（画像・動画）の共通スキーマ */
 export const mediaItemSchema = z.object({
+  id: z.string(),
   url: z.string(),
   type: z.string(),
   sortOrder: z.number().int(),
