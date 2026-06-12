@@ -185,9 +185,6 @@ export const MIN_SEARCH_QUERY_LENGTH = 2
 /** 日付バリデーションの最小年 */
 export const MIN_VALID_YEAR = 2000
 
-/** ユーザー登録最小年（盆栽開始年のフォールバック） */
-export const USER_BONSAI_START_MIN_YEAR = 1900
-
 /** お問い合わせ回答目安最小営業日数 */
 export const CONTACT_RESPONSE_MIN_DAYS = 2
 

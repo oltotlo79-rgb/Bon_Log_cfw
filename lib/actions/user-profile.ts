@@ -9,7 +9,7 @@ import {
   MAX_NICKNAME_LENGTH,
   MAX_BIO_LENGTH,
   MAX_LOCATION_LENGTH,
-  USER_BONSAI_START_MIN_YEAR,
+  BONSAI_START_MIN_YEAR,
   DEFAULT_PAGE_LIMIT,
 } from '@/lib/constants/limits'
 import {
@@ -44,7 +44,7 @@ const profileSchema = z.object({
   bonsaiStartYear: z
     .number({ message: ERR_BONSAI_START_YEAR_INVALID })
     .int(ERR_BONSAI_START_YEAR_INVALID)
-    .min(USER_BONSAI_START_MIN_YEAR, ERR_BONSAI_START_YEAR_INVALID)
+    .min(BONSAI_START_MIN_YEAR, ERR_BONSAI_START_YEAR_INVALID)
     .max(new Date().getFullYear(), ERR_BONSAI_START_YEAR_INVALID)
     .nullable()
     .optional(),

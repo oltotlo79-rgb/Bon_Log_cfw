@@ -17,6 +17,7 @@ import {
   ERR_PASSWORD_REQUIRE_LETTER,
   ERR_PASSWORD_REQUIRE_NUMBER,
 } from '@/lib/constants/errors/auth'
+import { ERR_INPUT_INVALID_GENERIC } from '@/lib/constants/errors/content'
 
 export { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH }
 
@@ -36,8 +37,11 @@ export const PASSWORD_ERRORS = {
  * パスワードバリデーションスキーマ。
  * 8〜72 文字 + アルファベット 1 文字以上 + 数字 1 文字以上。
  */
+// z.string(ERR_INPUT_INVALID_GENERIC) で非文字列（undefined / number 等）が渡った場合の
+// invalid_type エラーを日本語化する（Zod v4 のショートハンド構文）。
+// min / max / regex の既存メッセージには影響しない。
 export const passwordSchema = z
-  .string()
+  .string(ERR_INPUT_INVALID_GENERIC)
   .min(PASSWORD_MIN_LENGTH, PASSWORD_ERRORS.MIN_LENGTH)
   .max(PASSWORD_MAX_LENGTH, PASSWORD_ERRORS.MAX_LENGTH)
   .regex(/[a-zA-Z]/, PASSWORD_ERRORS.REQUIRE_LETTER)

@@ -10,7 +10,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { sendVerificationEmail } from '@/lib/email'
 import logger from '@/lib/logger'
-import { validatePassword } from '@/lib/validations/password'
+import { passwordSchema } from '@/lib/validations/password'
 import { sanitizeInput } from '@/lib/sanitize'
 import { logRegisterSuccess } from '@/lib/security-logger'
 import {
@@ -182,7 +182,7 @@ export async function signInAsGuestFormAction() {
 
 const registerUserSchema = z.object({
   email: normalizedEmailSchema,
-  password: z.string(),
+  password: passwordSchema,
   nickname: z
     .string()
     .min(1, ERR_NICKNAME_REQUIRED)
@@ -208,7 +208,7 @@ export async function registerUser(data: {
     const first = parsed.error.flatten().fieldErrors
     // registerUserSchema のメッセージは全て ERR_* 定数由来。
     // フィールド未マッチ時のフォールバックも定数を使うことでインライン文字列を排除する。
-    const message = first.email?.[0] ?? first.nickname?.[0] ?? ERR_INPUT_INVALID_GENERIC
+    const message = first.email?.[0] ?? first.password?.[0] ?? first.nickname?.[0] ?? ERR_INPUT_INVALID_GENERIC
     return actionError(message)
   }
   const { email, password, nickname, fingerprint } = parsed.data
@@ -221,11 +221,6 @@ export async function registerUser(data: {
   })
   if (!rateLimitResult.success) {
     return actionError(ERR_RATE_LIMIT_OPERATION)
-  }
-
-  const passwordValidation = validatePassword(password)
-  if (!passwordValidation.valid) {
-    return actionError(passwordValidation.error)
   }
 
   if (isReservedNickname(nickname)) {

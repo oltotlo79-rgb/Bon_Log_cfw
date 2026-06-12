@@ -173,7 +173,7 @@ export const SCHEDULED_POST_MEDIA_PREVIEW_COUNT = 3
 export const DRAFT_CARD_MEDIA_PREVIEW_COUNT = 4
 
 /** 盆栽開始年の最小値 */
-export const BONSAI_START_MIN_YEAR = 1950
+export const BONSAI_START_MIN_YEAR = 1900
 
 /** 1日の最大投稿アップロード制限 */
 export const DAILY_UPLOAD_LIMIT = 50
