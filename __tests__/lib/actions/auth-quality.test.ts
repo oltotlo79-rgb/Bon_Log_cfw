@@ -98,13 +98,9 @@ vi.mock('@/lib/security-logger', () => ({
   logPasswordResetSuccess: vi.fn(),
 }))
 
-const mockValidatePassword = vi.fn((): { valid: true } | { valid: false; error: string } => ({ valid: true }))
 vi.mock('@/lib/validations/password', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/validations/password')>()
-  return {
-    ...actual,
-    validatePassword: mockValidatePassword,
-  }
+  return { ...actual }
 })
 
 const mockIsReservedNickname = vi.fn(() => false)
@@ -146,7 +142,6 @@ vi.mock('next/cache', () => ({
 describe('Auth Actions - Quality Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockValidatePassword.mockReturnValue({ valid: true })
     mockIsReservedNickname.mockReturnValue(false)
     mockIsEmailBlacklisted.mockResolvedValue(false)
     mockIsDeviceBlacklisted.mockResolvedValue(false)
@@ -206,21 +201,54 @@ describe('Auth Actions - Quality Tests', () => {
       expect(mockIsDeviceBlacklisted).not.toHaveBeenCalled()
     })
 
-    it('rejects when password validation fails', async () => {
-      mockValidatePassword.mockReturnValueOnce({
-        valid: false as const,
-        error: 'パスワードが弱すぎます',
-      })
+    it('rejects password that is too short', async () => {
+      const {
+        ERR_PASSWORD_MIN_LENGTH,
+      } = await import('@/lib/constants/errors/auth')
 
       const { registerUser } = await import('@/lib/actions/auth')
       const result = await registerUser({
         email: 'user@example.com',
-        password: 'weak',
+        password: 'Abc1',
         nickname: 'WeakPwUser',
       })
 
       expect(result.success).toBe(false)
-      expect('error' in result && result.error).toBe('パスワードが弱すぎます')
+      expect('error' in result && result.error).toBe(ERR_PASSWORD_MIN_LENGTH)
+      expect(mockPrisma.user.create).not.toHaveBeenCalled()
+    })
+
+    it('rejects password with no letters', async () => {
+      const {
+        ERR_PASSWORD_REQUIRE_LETTER,
+      } = await import('@/lib/constants/errors/auth')
+
+      const { registerUser } = await import('@/lib/actions/auth')
+      const result = await registerUser({
+        email: 'user@example.com',
+        password: '12345678',
+        nickname: 'WeakPwUser',
+      })
+
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe(ERR_PASSWORD_REQUIRE_LETTER)
+      expect(mockPrisma.user.create).not.toHaveBeenCalled()
+    })
+
+    it('rejects password with no numbers', async () => {
+      const {
+        ERR_PASSWORD_REQUIRE_NUMBER,
+      } = await import('@/lib/constants/errors/auth')
+
+      const { registerUser } = await import('@/lib/actions/auth')
+      const result = await registerUser({
+        email: 'user@example.com',
+        password: 'abcdefgh',
+        nickname: 'WeakPwUser',
+      })
+
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe(ERR_PASSWORD_REQUIRE_NUMBER)
       expect(mockPrisma.user.create).not.toHaveBeenCalled()
     })
 
