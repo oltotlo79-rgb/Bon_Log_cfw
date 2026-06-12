@@ -293,6 +293,9 @@ model User {
   // 日次訪問ログ（認証時のみバックフィル）
   dailyVisits DailyVisitor[]
 
+  // モバイル API v1 リフレッシュトークン
+  refreshTokens RefreshToken[]
+
   @@index([emailVerified])
   @@index([isSuspended])
   // 管理画面: ユーザー一覧のフィルタ + ソート最適化
@@ -1890,4 +1893,27 @@ model HormoneTechnique {
   @@index([hormoneId])
   @@index([techniqueSlug])
   @@map("hormone_techniques")
+}
+
+// モバイル API v1 リフレッシュトークン
+// 生トークンは保存せず SHA-256 ハッシュのみを保存することで DB 漏洩時のトークン再利用を防ぐ。
+// revokedAt が null かつ expiresAt 未到来のものだけが有効。
+model RefreshToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(64)
+  userId      String    @map("user_id")
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  // Phase 3: デバイス紐付け用予約カラム（現時点では未使用）
+  deviceId    String?   @map("device_id")
+  lastUsedAt  DateTime? @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // userId + 有効判定（revokedAt IS NULL, expiresAt > now）でのクエリを高速化。
+  // tokenHash は @unique で主検索に使う。userId インデックスは全失効操作向け。
+  @@index([userId])
+  @@index([userId, revokedAt, expiresAt])
+  @@map("refresh_tokens")
 }

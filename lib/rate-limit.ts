@@ -214,6 +214,10 @@ export const RATE_LIMITS = {
   // Stripe 課金 API 呼び出し: 顧客作成/Checkout/CustomerPortal/即時解約。
   // 1 ユーザーあたり 1 分 5 回を上限とし、誤クリック連打や乱用による Stripe 側コストを抑える。
   stripe_billing: { windowMs: ONE_MINUTE_MS,       maxRequests: 5 },
+  // モバイル API v1 リフレッシュトークン更新: IP ベース制限。
+  // 15 分で 20 回まで許容（通常のセッション利用では 900 秒 = 15 分に 1 回程度）。
+  // fail-closed: Redis 障害時はリフレッシュを遮断しトークン盗難検知の誤回避を防ぐ。
+  mobile_refresh: { windowMs: FIFTEEN_MINUTES_MS, maxRequests: 20, failOpen: false },
 } as const
 
 /**

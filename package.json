@@ -20,6 +20,7 @@
     "validate:pesticide": "npx tsx prisma/validation/export-pesticide-data.ts && npx tsx prisma/validation/validate-against-maff.ts",
     "validate:scrape-maff": "npx tsx prisma/validation/scrape-maff.ts",
     "validate:scrape-maff:dry": "npx tsx prisma/validation/scrape-maff.ts --dry-run",
+    "generate:openapi": "npx tsx scripts/generate-openapi.ts",
     "test": "vitest run --configLoader runner",
     "test:watch": "vitest --configLoader runner",
     "test:coverage": "vitest run --coverage --configLoader runner --maxWorkers=4",
@@ -63,6 +64,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "jose": "^6.2.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "next": "^16.2.1",
@@ -83,6 +85,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@next/bundle-analyzer": "^16.2.2",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",

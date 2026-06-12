@@ -18,7 +18,6 @@ import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
-// bcryptjs: C++ binding 不要で Edge 環境・CI で安定動作するため bcrypt ではなくこちらを採用。
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
@@ -36,11 +35,7 @@ import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 import { assertSafeOAuthLinking } from '@/lib/security/oauth-guard'
 import { getGoogleOAuthConfig, getGuestPassword } from '@/lib/env'
 import { consumeTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
-import {
-  checkLoginThrottleForRequest,
-  recordLoginFailureForRequest,
-  resetLoginThrottleForRequest,
-} from '@/lib/services/login-throttle'
+import { verifyCredentials } from '@/lib/services/credential-verification'
 
 /**
  * ログイン入力スキーマ。
@@ -145,45 +140,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
-        // ブルートフォース対策: ロック中なら即拒否する。
-        // signIn('credentials') を直叩きする経路もここを通るため、ロックアウトの最終強制点になる。
-        const throttle = await checkLoginThrottleForRequest(email)
-        if (!throttle.allowed) return null
+        // パスワード照合・ロックアウトチェック・失敗記録を services に委譲する。
+        // Web の動作（ゲスト除外・2FA 強制）はここで維持する。
+        const verifyResult = await verifyCredentials(email, password)
+        if (!verifyResult.ok) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-          select: {
-            id: true,
-            email: true,
-            password: true,
-            nickname: true,
-            avatarUrl: true,
-            isSuspended: true,
-            emailVerified: true,
-            twoFactorEnabled: true,
-          },
-        })
-
-        // 認証失敗は 2FA 有無に依らずサーバー側で必ず記録する（ロックアウトの一元化）。
-        // password == null は OAuth 経由のユーザー（メール/パスワード未設定）。
-        if (!user || !user.password) {
-          await recordLoginFailureForRequest(email)
-          return null
-        }
-        if (!user.emailVerified) {
-          await recordLoginFailureForRequest(email)
-          return null
-        }
-        if (user.isSuspended) {
-          await recordLoginFailureForRequest(email)
-          return null
-        }
-
-        const passwordMatch = await bcrypt.compare(password, user.password)
-        if (!passwordMatch) {
-          await recordLoginFailureForRequest(email)
-          return null
-        }
+        const user = verifyResult.user
 
         // 2FA 有効ユーザーはセッション発行前にサーバー側で第二要素を強制する。
         // クライアントの LoginForm だけに依存すると、signIn('credentials') を直接呼ぶことで
@@ -194,9 +156,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const ticketValid = await consumeTwoFactorLoginTicket(email, twoFactorTicket ?? '')
           if (!ticketValid) return null
         }
-
-        // 認証成功: 失敗カウンタをリセットする（成功時リセットを公開 RPC ではなく内部処理へ集約）。
-        await resetLoginThrottleForRequest(email)
 
         return {
           id: user.id,
