@@ -59,3 +59,19 @@ export const passwordResetConfirmSchema = z.object({
   newPassword: passwordSchema,
 })
 export type PasswordResetConfirm = z.infer<typeof passwordResetConfirmSchema>
+
+// ──────────────────────────────────────────────────
+// Phase 2 Batch 2a — 読み取り系エンドポイントのクエリパラメータ
+// ──────────────────────────────────────────────────
+
+import { MAX_SEARCH_QUERY_LENGTH } from '@/lib/constants/limits'
+import { paginationSchema } from '@/lib/actions/schemas/common'
+
+/** GET /api/v1/feed / notifications / posts/[id]/comments などのページネーションクエリ */
+export const readPaginationQuerySchema = paginationSchema
+
+/** GET /api/v1/search/posts および /api/v1/search/users の検索クエリパラメータ */
+export const searchQuerySchema = paginationSchema.extend({
+  q: z.string().max(MAX_SEARCH_QUERY_LENGTH).optional().default(''),
+})
+export type SearchQuery = z.infer<typeof searchQuerySchema>

@@ -59,6 +59,7 @@ import { buildCursorPagination, normalizeCursorPagination } from '@/lib/actions/
 import { notifyCommentParticipants } from '@/lib/services/comment-notifications'
 import { mediaUrlListSchema, mediaTypeListSchema } from '@/lib/actions/schemas/common'
 import { assertCanViewPost } from '@/lib/services/post-visibility'
+import { fetchComments } from '@/lib/services/comment-read-service'
 
 const commentIdSchema = z.string().min(1)
 
@@ -313,68 +314,9 @@ export async function updateComment(commentId: string, content: string) {
 export async function getComments(postId: string, cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
   const session = await auth()
   const currentUserId = session?.user?.id
-  // limit / cursor を MAX_PAGE_LIMIT で clamp し不正文字を除去する
-  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
 
   try {
-    if (!(await assertCanViewPost(currentUserId, postId))) {
-      return { comments: [], nextCursor: undefined }
-    }
-
-    const blockedUserIds: string[] = currentUserId
-      ? await getBlockedUserIds(currentUserId)
-      : []
-
-    const comments = await prisma.comment.findMany({
-      where: {
-        postId,
-        parentId: null,
-        isHidden: false,
-      },
-      include: {
-        user: {
-          select: USER_MINIMAL_SELECT,
-        },
-        media: {
-          orderBy: { sortOrder: 'asc' },
-        },
-        _count: {
-          select: { likes: true, replies: { where: { deletedAt: null } } },
-        },
-        ...(currentUserId ? {
-          likes: {
-            where: { userId: currentUserId },
-            select: { id: true },
-          },
-        } : {}),
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      ...buildCursorPagination(safeCursor, safeLimit),
-    })
-
-    const likedCommentIds = new Set(
-      currentUserId
-        ? comments.filter((c) => c.likes && c.likes.length > 0).map((c) => c.id)
-        : []
-    )
-
-    const hasMore = comments.length === safeLimit
-
-    return {
-      comments: comments
-        .filter((comment: typeof comments[number]) =>
-          comment.deletedAt === null || comment._count.replies > 0
-        )
-        .map((comment: typeof comments[number]) => ({
-          ...comment,
-          likeCount: comment._count.likes,
-          replyCount: comment._count.replies,
-          isLiked: likedCommentIds.has(comment.id),
-          isBlockedUser: blockedUserIds.includes(comment.userId),
-          isDeleted: comment.deletedAt !== null,
-        })),
-      nextCursor: hasMore ? comments[comments.length - 1]?.id : undefined,
-    }
+    return await fetchComments(postId, currentUserId, cursor, limit)
   } catch (error) {
     logger.error('Get comments error', {
       error: error instanceof Error ? error.message : String(error),

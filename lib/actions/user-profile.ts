@@ -26,10 +26,10 @@ import {
   ERR_BIRTH_DATE_INVALID,
 } from '@/lib/constants/errors'
 import { isReservedNickname } from '@/lib/constants/reserved'
-import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { getFormString } from '@/lib/utils/form-data'
 import { ROUTE_SETTINGS_PROFILE, ROUTE_SETTINGS_ACCOUNT } from '@/lib/constants/routes'
 import { buildUserPath } from '@/lib/constants/path-builders'
+import { fetchUserProfile } from '@/lib/services/user-read-service'
 
 const profileSchema = z.object({
   nickname: z
@@ -60,51 +60,15 @@ const profileSchema = z.object({
 
 // cache() でリクエスト単位のメモ化を行う（P-8）。
 export const getUser = cache(async function getUser(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      nickname: true,
-      avatarUrl: true,
-      headerUrl: true,
-      bio: true,
-      location: true,
-      isPublic: true,
-      bonsaiStartYear: true,
-      bonsaiStartMonth: true,
-      createdAt: true,
-      updatedAt: true,
-      _count: {
-        select: {
-          posts: true,
-          followers: true,
-          following: true,
-        },
-      },
-    },
-  })
+  // fetchUserProfile は viewerId なしで呼ぶ: このアクションは公開プロフィール取得専用。
+  // 呼び出し元ページが非公開アカウントへのアクセス制御をフォロー状態で行う前提。
+  const result = await fetchUserProfile(userId, undefined)
 
-  if (!user) {
+  if (!result.found) {
     return actionError(ERR_USER_NOT_FOUND)
   }
 
-  if (user.email === GUEST_EMAIL) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  const { email: _email, _count, ...publicUser } = user
-
-  // 非公開アカウントの場合、bio/location等の詳細を除外
-  // （呼び出し元のページ側でフォロー状態に応じた詳細制御を行う）
-  return actionSuccess({
-    user: {
-      ...publicUser,
-      postsCount: _count.posts,
-      followersCount: _count.followers,
-      followingCount: _count.following,
-    },
-  })
+  return actionSuccess({ user: result.user })
 })
 
 export async function getCurrentUser() {

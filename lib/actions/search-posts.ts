@@ -10,18 +10,14 @@ import { prisma } from '@/lib/db'
 import { USER_MINIMAL_RELATION, GENRE_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { auth } from '@/lib/auth'
 import logger from '@/lib/logger'
-import { fulltextSearchPosts, getSearchMode } from '@/lib/search/fulltext'
-import { getExcludedUserIds } from './filter-helper'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { getClientIp, getPostInteractionSets, actionSuccess, actionError } from '@/lib/actions/utils'
 import type { ActionResult } from '@/types/action-result'
 import { DEFAULT_PAGE_LIMIT, MAX_SEARCH_QUERY_LENGTH } from '@/lib/constants/limits'
 import { ERR_SEARCH_QUERY_TOO_LONG, ERR_SEARCH_RATE_LIMIT, ERR_OPERATION_FAILED } from '@/lib/constants/errors'
-import { getEndOfDay } from '@/lib/utils'
-import { POST_LIST_INCLUDE, formatPostForClient } from './post-include'
-import { preserveOrder } from '@/lib/utils/preserve-order'
+import { fetchSearchPosts } from '@/lib/services/search-service'
+import { getExcludedUserIds } from './filter-helper'
 import type { Post } from '@/types/post'
-import { containsInsensitive } from '@/lib/actions/prisma-filters'
 import { visibleAuthorFilter } from '@/lib/services/post-visibility'
 import { normalizeCursorPagination } from './pagination'
 
@@ -56,131 +52,8 @@ export async function searchPosts(
     const session = await auth()
     const currentUserId = session?.user?.id
 
-    // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
-    const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
-
-    const excludedUserIds = currentUserId
-      ? await getExcludedUserIds(currentUserId, { blocked: true, blockedBy: true, muted: true })
-      : []
-
-    const searchMode = getSearchMode()
-
-    const postInclude = {
-      ...POST_LIST_INCLUDE,
-      poll: {
-        include: {
-          options: {
-            orderBy: { sortOrder: 'asc' as const },
-            include: { _count: { select: { votes: true } } },
-          },
-          _count: { select: { votes: true } },
-        },
-      },
-    } as const
-
-    // 全文検索モード（bigm/trgm）: IDを取得してから詳細取得
-    if (query && (searchMode === 'bigm' || searchMode === 'trgm')) {
-      const postIds = await fulltextSearchPosts(query, {
-        excludedUserIds,
-        genreIds,
-        cursor: safeCursor,
-        limit: safeLimit,
-        viewerId: currentUserId,
-        filters,
-      })
-
-      if (postIds.length === 0) {
-        return actionSuccess({ posts: [], nextCursor: undefined })
-      }
-
-      // fulltext で得た ID にも著者公開条件を防御的に再適用する（raw SQL 改修漏れに備える）
-      const fetchedPosts = await prisma.post.findMany({
-        where: { id: { in: postIds }, isHidden: false, user: visibleAuthorFilter(currentUserId) },
-        include: postInclude,
-      })
-
-      const posts = preserveOrder(postIds, fetchedPosts)
-
-      const { likedSet, bookmarkedSet } = currentUserId
-        ? await getPostInteractionSets(currentUserId, posts.map((p: typeof posts[number]) => p.id))
-        : { likedSet: new Set<string>(), bookmarkedSet: new Set<string>() }
-
-      const formattedPosts = posts.map((post: typeof posts[number]) =>
-        formatPostForClient(post, likedSet, bookmarkedSet),
-      )
-
-      return actionSuccess({
-        posts: formattedPosts,
-        nextCursor: posts.length === safeLimit ? posts[posts.length - 1]?.id : undefined,
-      })
-    }
-
-    // LIKE検索モード
-    const filterConditions: Record<string, unknown>[] = []
-    if (filters?.dateFrom) {
-      filterConditions.push({ createdAt: { gte: new Date(filters.dateFrom) } })
-    }
-    if (filters?.dateTo) {
-      const dateTo = getEndOfDay(new Date(filters.dateTo))
-      filterConditions.push({ createdAt: { lte: dateTo } })
-    }
-    if (filters?.mediaType === 'images') {
-      filterConditions.push({ media: { some: { type: 'image' } } })
-    } else if (filters?.mediaType === 'videos') {
-      filterConditions.push({ media: { some: { type: 'video' } } })
-    } else if (filters?.mediaType === 'text') {
-      filterConditions.push({ media: { none: {} } })
-    }
-
-    // Why groupBy: Prisma `where` で `_count` 比較ができないため likes を集計してから
-     // post.id を絞る。LIKE 検索モード（fallback パス）でのみ通る経路で、
-     // bigm/trgm モードでは raw SQL の correlated subquery で同等処理を行う（fulltext-search.ts）。
-     // 大規模化時は Post.likeCount 非正規化カラム + insert/delete トリガーへの移行を検討。
-    let minLikesPostIds: string[] | undefined
-    if (filters?.minLikes && filters.minLikes > 0) {
-      const likesResult = await prisma.like.groupBy({
-        by: ['postId'],
-        where: { commentId: null },
-        _count: { postId: true },
-        having: { postId: { _count: { gte: filters.minLikes } } },
-      })
-      minLikesPostIds = likesResult
-        .map((r) => r.postId)
-        .filter((id): id is string => id !== null)
-    }
-
-    const posts = await prisma.post.findMany({
-      where: {
-        isHidden: false,
-        user: visibleAuthorFilter(currentUserId),
-        ...(minLikesPostIds ? { id: { in: minLikesPostIds } } : {}),
-        AND: [
-          query ? { content: containsInsensitive(query) } : {},
-          genreIds && genreIds.length > 0
-            ? { genres: { some: { genreId: { in: genreIds } } } }
-            : {},
-          excludedUserIds.length > 0 ? { userId: { notIn: excludedUserIds } } : {},
-          ...filterConditions,
-        ],
-      },
-      include: postInclude,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: safeLimit,
-      ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
-    })
-
-    const { likedSet, bookmarkedSet } = currentUserId
-      ? await getPostInteractionSets(currentUserId, posts.map((p: typeof posts[number]) => p.id))
-      : { likedSet: new Set<string>(), bookmarkedSet: new Set<string>() }
-
-    const formattedPosts = posts.map((post: typeof posts[number]) =>
-      formatPostForClient(post, likedSet, bookmarkedSet),
-    )
-
-    return actionSuccess({
-      posts: formattedPosts,
-      nextCursor: posts.length === safeLimit ? posts[posts.length - 1]?.id : undefined,
-    })
+    const result = await fetchSearchPosts(query, currentUserId, genreIds, cursor, limit, filters)
+    return actionSuccess(result)
   } catch (error) {
     logger.error('searchPosts failed', { error: error instanceof Error ? error.message : String(error) })
     return actionError(ERR_OPERATION_FAILED)

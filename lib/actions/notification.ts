@@ -8,14 +8,12 @@
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
 import { revalidatePath } from 'next/cache'
-import { getMutedUserIds } from './filter-helper'
 import { DEFAULT_PAGE_LIMIT, MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/limits'
 import { ERR_OPERATION_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_NOTIFICATIONS } from '@/lib/constants/routes'
 import { requireAuth, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
-import { normalizeCursorPagination } from './pagination'
+import { fetchNotifications, fetchUnreadNotificationCount } from '@/lib/services/notification-read-service'
 import logger from '@/lib/logger'
 
 const notificationIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
@@ -39,32 +37,7 @@ export async function getNotifications(cursor?: string, limit = DEFAULT_PAGE_LIM
   if ('error' in authResult) return { notifications: [], nextCursor: undefined }
   const userId = authResult.userId
 
-  // クライアント境界から渡される cursor/limit を MAX_PAGE_LIMIT で clamp し DB 過負荷を防ぐ
-  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
-
-  const mutedUserIds = await getMutedUserIds(userId)
-
-  const notifications = await prisma.notification.findMany({
-    where: {
-      userId,
-      ...(mutedUserIds.length > 0 && {
-        actorId: { notIn: mutedUserIds },
-      }),
-    },
-    include: {
-      actor: USER_MINIMAL_RELATION,
-      post: { select: { id: true, content: true } },
-      comment: { select: { id: true, content: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: safeLimit,
-    ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
-  })
-
-  return {
-    notifications,
-    nextCursor: notifications.length === safeLimit ? notifications[notifications.length - 1]?.id : undefined,
-  }
+  return fetchNotifications(userId, cursor, limit)
 }
 
 /**
@@ -127,16 +100,6 @@ export async function getUnreadCount() {
   if ('error' in authResult) return { count: 0 }
   const userId = authResult.userId
 
-  const mutedUserIds = await getMutedUserIds(userId)
-
-  const count = await prisma.notification.count({
-    where: {
-      userId,
-      isRead: false,
-      ...(mutedUserIds.length > 0 && {
-        actorId: { notIn: mutedUserIds },
-      }),
-    },
-  })
+  const count = await fetchUnreadNotificationCount(userId)
   return { count }
 }

@@ -23,13 +23,12 @@ import { notifyMentionedUsers } from '@/lib/services/mention'
 import { createNotification } from '@/lib/services/notification-core'
 import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import {
-  canViewPostByAuthor,
   canViewAuthorContent,
   assertCanViewPost,
   visiblePostWhere,
   redactNonVisibleNestedPosts,
-  getVisiblePostIds,
 } from '@/lib/services/post-visibility'
+import { fetchPostDetail } from '@/lib/services/post-read-service'
 import { Prisma } from '@prisma/client'
 import { requireActiveNonGuestUser, requireAuth, getPostInteractionSets, checkDailyPostLimit, getUserRelationSets, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
@@ -520,88 +519,19 @@ export async function updatePost(postId: string, formData: FormData) {
   }
 }
 
-export async function getPost(postId: string): Promise<ReturnType<typeof _getPostImpl>> {
-  return _getPostImpl(postId)
-}
-
-async function _getPostImpl(postId: string) {
+export async function getPost(postId: string) {
   if (!postIdSchema.safeParse(postId).success) return actionError(ERR_INVALID_INPUT)
 
   const session = await auth()
   const currentUserId = session?.user?.id
 
-  const post = await prisma.post.findUnique({
-    where: { id: postId, isHidden: false },
-    include: {
-      user: USER_MINIMAL_RELATION,
-      media: { orderBy: { sortOrder: 'asc' } },
-      genres: { include: { genre: true } },
-      _count: {
-        select: { likes: true, comments: { where: { deletedAt: null } } },
-      },
-      // 単一投稿詳細での引用元は意図的に media を含めない（カードプレビューの肥大を避ける）。
-      // タイムライン側の POST_QUOTE_INCLUDE とは別系統で運用する。
-      quotePost: { include: { user: USER_MINIMAL_RELATION } },
-      repostPost: { include: POST_REPOST_INCLUDE },
-      poll: { include: buildPostPollInclude(currentUserId) },
-    },
-  })
+  const result = await fetchPostDetail(postId, currentUserId)
 
-  if (!post) {
+  if (!result.found) {
     return actionError(ERR_POST_NOT_FOUND)
   }
 
-  // 公開範囲ガード: 非公開アカウント / 停止ユーザーの投稿は metadata の noindex だけでなく
-  // 実描画側でも遮断する（投稿ID直アクセス・通知・引用経由の漏えいを防ぐ）。
-  if (!(await canViewPostByAuthor(currentUserId, post.userId))) {
-    return actionError(ERR_POST_NOT_FOUND)
-  }
-
-  // 引用元・リポスト元も viewer ごとの可視性で再判定し、見えないものは null に落とす。
-  const nestedVisibleIds = await getVisiblePostIds(
-    currentUserId,
-    [post.quotePost?.id, post.repostPost?.id].filter((id): id is string => !!id),
-  )
-  const quotePost = post.quotePost && nestedVisibleIds.has(post.quotePost.id) ? post.quotePost : null
-  const repostPost = post.repostPost && nestedVisibleIds.has(post.repostPost.id) ? post.repostPost : null
-
-  let isLiked = false
-  let isBookmarked = false
-
-  if (currentUserId) {
-    const [like, bookmark] = await Promise.all([
-      prisma.like.findFirst({
-        where: {
-          userId: currentUserId,
-          postId: postId,
-          commentId: null,
-        },
-      }),
-      prisma.bookmark.findUnique({
-        where: {
-          userId_postId: {
-            userId: currentUserId,
-            postId: postId,
-          },
-        },
-      }),
-    ])
-    isLiked = !!like
-    isBookmarked = !!bookmark
-  }
-
-  return actionSuccess({
-    post: {
-      ...post,
-      quotePost,
-      repostPost,
-      likeCount: post._count.likes,
-      commentCount: post._count.comments,
-      genres: post.genres.map((pg: typeof post.genres[number]) => pg.genre),
-      isLiked,
-      isBookmarked,
-    },
-  })
+  return actionSuccess({ post: result.post })
 }
 
 /**

@@ -44,6 +44,8 @@ async function main() {
     googleRequestSchema,
     passwordResetRequestSchema,
     passwordResetConfirmSchema,
+    readPaginationQuerySchema,
+    searchQuerySchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -53,6 +55,14 @@ async function main() {
     usersMeSchema,
     apiErrorResponseSchema,
     mobileApiErrorCodeSchema,
+    feedResponseSchema,
+    postSchema,
+    commentsListResponseSchema,
+    userProfileSchema,
+    searchPostsResponseSchema,
+    searchUsersResponseSchema,
+    notificationsListResponseSchema,
+    unreadCountResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -149,6 +159,60 @@ async function main() {
   const PasswordResetConfirm = registry.register(
     'PasswordResetConfirm',
     passwordResetConfirmSchema.openapi({ description: 'パスワードリセット確定のリクエスト。' }),
+  )
+
+  registry.register(
+    'ReadPaginationQuery',
+    readPaginationQuerySchema.openapi({
+      description: 'カーソルベースページネーションのクエリパラメータ（cursor, limit）。',
+    }),
+  )
+
+  registry.register(
+    'SearchQuery',
+    searchQuerySchema.openapi({
+      description: '検索クエリパラメータ（q, cursor, limit）。',
+    }),
+  )
+
+  const FeedResponse = registry.register(
+    'FeedResponse',
+    feedResponseSchema.openapi({ description: 'タイムライン取得レスポンス。' }),
+  )
+
+  const PostResponse = registry.register(
+    'PostResponse',
+    postSchema.openapi({ description: '単一投稿の詳細レスポンス。' }),
+  )
+
+  const CommentsListResponse = registry.register(
+    'CommentsListResponse',
+    commentsListResponseSchema.openapi({ description: 'コメント一覧取得レスポンス。' }),
+  )
+
+  const UserProfileResponse = registry.register(
+    'UserProfileResponse',
+    userProfileSchema.openapi({ description: 'ユーザープロフィール取得レスポンス。' }),
+  )
+
+  const SearchPostsResponse = registry.register(
+    'SearchPostsResponse',
+    searchPostsResponseSchema.openapi({ description: '投稿検索結果レスポンス。' }),
+  )
+
+  const SearchUsersResponse = registry.register(
+    'SearchUsersResponse',
+    searchUsersResponseSchema.openapi({ description: 'ユーザー検索結果レスポンス。' }),
+  )
+
+  const NotificationsListResponse = registry.register(
+    'NotificationsListResponse',
+    notificationsListResponseSchema.openapi({ description: '通知一覧取得レスポンス。' }),
+  )
+
+  const UnreadCountResponse = registry.register(
+    'UnreadCountResponse',
+    unreadCountResponseSchema.openapi({ description: '未読通知件数レスポンス。' }),
   )
 
   // ──────────────────────────────────────────────────
@@ -444,6 +508,244 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Phase 2 Batch 2a — 読み取り系エンドポイント
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/feed',
+    tags: ['feed'],
+    summary: 'タイムライン取得',
+    description: [
+      '認証ユーザーのタイムライン（フォロー中ユーザーの投稿）をカーソルページネーションで返す。',
+      '',
+      'ゲストユーザーの場合は公開投稿の直近 N 件のみ返し nextCursor は null になる。',
+      '',
+      'ブロック・ミュート・停止済み著者の投稿は除外される。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'タイムライン取得成功',
+        content: { 'application/json': { schema: FeedResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/posts/{id}',
+    tags: ['posts'],
+    summary: '投稿詳細取得',
+    description: [
+      '指定 ID の投稿を取得する。',
+      '',
+      '非公開アカウントの投稿はフォロワーのみ閲覧可能。',
+      'ブロックされている場合は 404 を返す。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '投稿詳細',
+        content: { 'application/json': { schema: PostResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/posts/{id}/comments',
+    tags: ['posts'],
+    summary: 'コメント一覧取得',
+    description: [
+      '指定投稿のトップレベルコメント一覧をカーソルページネーションで返す。',
+      '',
+      'ブロック済みユーザーのコメントは isBlockedUser: true として含まれる（非表示はクライアント側で判断）。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'コメント一覧',
+        content: { 'application/json': { schema: CommentsListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/{id}',
+    tags: ['users'],
+    summary: 'ユーザープロフィール取得',
+    description: [
+      '指定 ID のユーザープロフィールを返す。',
+      '',
+      'メールアドレスは返却しない。',
+      '非公開アカウントはフォロワー以外には公開情報のみ返す（フォロワー数等は含む）。',
+      'ゲストアカウントは 404 として扱う。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ユーザー ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ユーザープロフィール',
+        content: { 'application/json': { schema: UserProfileResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/search/posts',
+    tags: ['search'],
+    summary: '投稿検索',
+    description: [
+      'キーワードで投稿を全文検索する。',
+      '',
+      '2 文字以上: pg_bigm trigram 検索。1 文字: LIKE フォールバック。',
+      'ブロック・ミュート・非公開・停止ユーザーの投稿は除外される。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        q: z.string().optional().openapi({ description: '検索キーワード' }),
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '投稿検索結果',
+        content: { 'application/json': { schema: SearchPostsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/search/users',
+    tags: ['search'],
+    summary: 'ユーザー検索',
+    description: [
+      'ニックネームでユーザーを検索する。',
+      '',
+      'ブロック・ミュート・停止済みユーザーは除外される。',
+      'ゲストアカウントは結果に含まれない。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        q: z.string().optional().openapi({ description: '検索キーワード' }),
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ユーザー検索結果',
+        content: { 'application/json': { schema: SearchUsersResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/notifications',
+    tags: ['notifications'],
+    summary: '通知一覧取得',
+    description: [
+      '認証ユーザーの通知をカーソルページネーションで返す。',
+      '',
+      'ゲストユーザーは利用不可（403 GUEST_NOT_ALLOWED）。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '通知一覧',
+        content: { 'application/json': { schema: NotificationsListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse(
+        'アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)',
+      ),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/notifications/unread-count',
+    tags: ['notifications'],
+    summary: '未読通知件数取得',
+    description: [
+      '認証ユーザーの未読通知件数を返す。',
+      '',
+      'ゲストユーザーは利用不可（403 GUEST_NOT_ALLOWED）。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '未読通知件数',
+        content: { 'application/json': { schema: UnreadCountResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse(
+        'アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)',
+      ),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -453,7 +755,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.0.0',
+      version: '1.1.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
