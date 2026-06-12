@@ -5,6 +5,7 @@
  * issueTokenPair の正常系・MOBILE_JWT_SECRET 未設定・DB 保存の検証。
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { Prisma } from '@prisma/client'
 import { createMockPrismaClient } from '../../../utils/test-utils'
 
 const VALID_SECRET = 'a'.repeat(64)
@@ -76,11 +77,13 @@ describe('lib/api/v1/token-pair', () => {
 
   it('トランザクションクライアント（tx）を渡した場合、そのクライアント経由でリフレッシュトークンを作成する', async () => {
     const txCreate = vi.fn().mockResolvedValue({})
+    // テスト用の partial mock。issueTokenPair が実際に使うのは create のみのため、
+    // それ以外のメソッドは不要。型は Pick<Prisma.TransactionClient, 'refreshToken'> に合わせる。
     const txClient = {
       refreshToken: {
         create: txCreate,
       },
-    }
+    } as unknown as Pick<Prisma.TransactionClient, 'refreshToken'>
 
     const { issueTokenPair } = await import('@/lib/api/v1/token-pair')
     const result = await issueTokenPair('user-tx', txClient)
