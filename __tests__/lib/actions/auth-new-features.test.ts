@@ -98,9 +98,13 @@ vi.mock('@/lib/services/blacklist-check', () => ({
   isDeviceBlacklisted: vi.fn().mockResolvedValue(false),
 }))
 
-vi.mock('@/lib/validations/password', () => ({
-  validatePassword: vi.fn(() => ({ valid: true })),
-}))
+vi.mock('@/lib/validations/password', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/validations/password')>()
+  return {
+    ...actual,
+    validatePassword: vi.fn(() => ({ valid: true })),
+  }
+})
 
 vi.mock('@/lib/services/login-throttle', () => ({
   checkLoginThrottleForRequest: vi.fn().mockResolvedValue({ allowed: true }),

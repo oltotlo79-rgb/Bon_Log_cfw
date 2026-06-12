@@ -107,9 +107,13 @@ vi.mock('@/lib/security-logger', () => ({
   logPasswordResetSuccess: vi.fn(),
 }))
 
-vi.mock('@/lib/validations/password', () => ({
-  validatePassword: vi.fn(() => ({ valid: true })),
-}))
+vi.mock('@/lib/validations/password', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/validations/password')>()
+  return {
+    ...actual,
+    validatePassword: vi.fn(() => ({ valid: true })),
+  }
+})
 
 vi.mock('@/lib/constants/reserved', () => ({
   isReservedNickname: vi.fn(() => false),
@@ -328,11 +332,7 @@ describe('Auth Actions - Final Coverage', () => {
   // ============================================================
   describe('resetPassword - password validation branches', () => {
     it('rejects password with only letters (no numbers)', async () => {
-      const { validatePassword } = await import('@/lib/validations/password')
-      ;(validatePassword as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        valid: false,
-        error: 'パスワードは数字を含めてください',
-      })
+      // passwordResetConfirmSchema uses passwordSchema (Zod) which rejects letters-only passwords
       const { resetPassword } = await import('@/lib/actions/auth')
       const result = await resetPassword({
         email: 'user@example.com',
@@ -341,16 +341,12 @@ describe('Auth Actions - Final Coverage', () => {
       })
 
       expect(result.success).toBe(false)
-      // 共有 validatePassword のエラーがそのまま返る（数字欠落の個別メッセージ）
+      // passwordSchema の数字必須ルールが適用される
       expect('error' in result && result.error).toContain('数字を含めてください')
     })
 
     it('rejects password with only numbers (no letters)', async () => {
-      const { validatePassword } = await import('@/lib/validations/password')
-      ;(validatePassword as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        valid: false,
-        error: 'パスワードはアルファベットを含めてください',
-      })
+      // passwordResetConfirmSchema uses passwordSchema (Zod) which rejects numbers-only passwords
       const { resetPassword } = await import('@/lib/actions/auth')
       const result = await resetPassword({
         email: 'user@example.com',
@@ -359,7 +355,7 @@ describe('Auth Actions - Final Coverage', () => {
       })
 
       expect(result.success).toBe(false)
-      // 共有 validatePassword のエラーがそのまま返る（アルファベット欠落の個別メッセージ）
+      // passwordSchema のアルファベット必須ルールが適用される
       expect('error' in result && result.error).toContain('アルファベットを含めてください')
     })
 

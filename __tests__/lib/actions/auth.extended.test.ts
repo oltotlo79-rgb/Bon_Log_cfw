@@ -81,10 +81,14 @@ vi.mock('@/lib/login-tracker', () => ({
   getLoginKey: vi.fn((ip, email) => `${ip}:${email}`),
 }))
 
-// パスワードバリデーションモック
-vi.mock('@/lib/validations/password', () => ({
-  validatePassword: vi.fn(() => ({ valid: true })),
-}))
+// パスワードバリデーションモック（passwordSchema を実モジュールから取り込み、validatePassword のみ上書き）
+vi.mock('@/lib/validations/password', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/validations/password')>()
+  return {
+    ...actual,
+    validatePassword: vi.fn(() => ({ valid: true })),
+  }
+})
 
 // サニタイズモック
 vi.mock('@/lib/sanitize', () => ({

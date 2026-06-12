@@ -99,9 +99,13 @@ vi.mock('@/lib/security-logger', () => ({
 }))
 
 const mockValidatePassword = vi.fn((): { valid: true } | { valid: false; error: string } => ({ valid: true }))
-vi.mock('@/lib/validations/password', () => ({
-  validatePassword: mockValidatePassword,
-}))
+vi.mock('@/lib/validations/password', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/validations/password')>()
+  return {
+    ...actual,
+    validatePassword: mockValidatePassword,
+  }
+})
 
 const mockIsReservedNickname = vi.fn(() => false)
 vi.mock('@/lib/constants/reserved', () => ({
