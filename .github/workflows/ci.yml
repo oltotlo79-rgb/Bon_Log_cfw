@@ -405,3 +405,40 @@ jobs:
           name: e2e-output-log
           path: e2e-output.txt
           retention-days: 7
+
+  # ===========================================
+  # OpenAPI Spec Check
+  # スキーマ変更が openapi/openapi.json に反映されているか検証する。
+  # git diff --exit-code で差分を検出し、未反映の場合は CI を失敗させる。
+  # ===========================================
+  openapi:
+    name: OpenAPI Spec Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate OpenAPI spec
+        run: npm run generate:openapi
+
+      - name: Verify no diff (spec is up to date)
+        # スキーマ変更が openapi/ に反映されていない場合、または
+        # generate:openapi を実行せずにスペックを手動編集した場合に失敗する。
+        run: git diff --exit-code openapi/
+
+      - name: Upload OpenAPI spec artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: openapi-spec
+          path: openapi/openapi.json
+          retention-days: 7

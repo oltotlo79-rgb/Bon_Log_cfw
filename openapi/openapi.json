@@ -1,0 +1,920 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bon_Log Mobile API",
+    "version": "1.0.0",
+    "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
+  },
+  "servers": [
+    {
+      "url": "https://www.bon-log.com",
+      "description": "本番サーバー"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "アクセストークン（JWT HS256, TTL 15 分）。期限切れ時は /api/v1/auth/refresh でトークンペアを更新する。"
+      }
+    },
+    "schemas": {
+      "TokenPair": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "expiresIn"
+        ],
+        "description": "アクセストークン + リフレッシュトークン + 有効期間（秒）のペア。"
+      },
+      "Requires2FAResponse": {
+        "type": "object",
+        "properties": {
+          "requires2FA": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "ticket": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "requires2FA",
+          "ticket"
+        ],
+        "description": "2FA が必要な場合の 202 レスポンス。ticket を /api/v1/auth/2fa/verify に渡す。"
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "description": "処理成功を示す汎用レスポンス。"
+      },
+      "UsersMeResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isPremium": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "nickname",
+          "avatarUrl",
+          "bio",
+          "isPremium"
+        ],
+        "description": "認証ユーザーの基本情報。"
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "AUTH_REQUIRED",
+                  "AUTH_INVALID_TOKEN",
+                  "AUTH_TOKEN_EXPIRED",
+                  "AUTH_INVALID_CREDENTIALS",
+                  "AUTH_2FA_REQUIRED",
+                  "AUTH_2FA_INVALID_CODE",
+                  "AUTH_2FA_TICKET_EXPIRED",
+                  "AUTH_REFRESH_TOKEN_INVALID",
+                  "AUTH_REFRESH_TOKEN_REUSE_DETECTED",
+                  "ACCOUNT_SUSPENDED",
+                  "GUEST_NOT_ALLOWED",
+                  "EMAIL_NOT_VERIFIED",
+                  "VALIDATION_ERROR",
+                  "RATE_LIMITED",
+                  "NOT_FOUND",
+                  "CONFLICT",
+                  "INTERNAL_ERROR",
+                  "SERVER_MISCONFIGURED"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "status"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "全エンドポイント共通エラーレスポンス形式。"
+      },
+      "MobileApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "AUTH_REQUIRED",
+          "AUTH_INVALID_TOKEN",
+          "AUTH_TOKEN_EXPIRED",
+          "AUTH_INVALID_CREDENTIALS",
+          "AUTH_2FA_REQUIRED",
+          "AUTH_2FA_INVALID_CODE",
+          "AUTH_2FA_TICKET_EXPIRED",
+          "AUTH_REFRESH_TOKEN_INVALID",
+          "AUTH_REFRESH_TOKEN_REUSE_DETECTED",
+          "ACCOUNT_SUSPENDED",
+          "GUEST_NOT_ALLOWED",
+          "EMAIL_NOT_VERIFIED",
+          "VALIDATION_ERROR",
+          "RATE_LIMITED",
+          "NOT_FOUND",
+          "CONFLICT",
+          "INTERNAL_ERROR",
+          "SERVER_MISCONFIGURED"
+        ],
+        "description": "エラーコード enum（18 値）。モバイル側はこの enum からコード→メッセージ対応表を導出できる。"
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 100,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "description": "メール/パスワード認証のリクエスト。"
+      },
+      "Verify2FARequest": {
+        "type": "object",
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string",
+            "minLength": 6
+          }
+        },
+        "required": [
+          "ticket",
+          "code"
+        ],
+        "description": "2FA コード検証のリクエスト。"
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "description": "トークンリフレッシュのリクエスト。"
+      },
+      "LogoutRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "description": "ログアウトのリクエスト。"
+      },
+      "GoogleRequest": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "idToken"
+        ],
+        "description": "Google ID トークン認証のリクエスト。"
+      },
+      "PasswordResetRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 100,
+            "format": "email"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "description": "パスワードリセットメール送信のリクエスト。"
+      },
+      "PasswordResetConfirm": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 100,
+            "format": "email"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 10
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "pattern": "[a-zA-Z]"
+          }
+        },
+        "required": [
+          "email",
+          "token",
+          "newPassword"
+        ],
+        "description": "パスワードリセット確定のリクエスト。"
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "メール/パスワードでログイン",
+        "description": "パスワード照合後、2FA の有効/無効によってレスポンスが分岐する。\n\n- 2FA 無効: 200 + TokenPair\n- 2FA 有効: 202 + { requires2FA: true, ticket } — ticket は /api/v1/auth/2fa/verify に渡す\n  - チケット TTL: 300 秒（5 分）、単回使用（成功・失敗いずれの場合も消費）\n  - コード不正時もチケットが消費されるため /login からやり直すこと",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ログイン成功（2FA 無効）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "2FA が必要。ticket を /api/v1/auth/2fa/verify に渡す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Requires2FAResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "資格情報が不正 (AUTH_INVALID_CREDENTIALS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲストアカウント不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "サーバー設定エラー (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/2fa/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "2FA コードを検証してトークンペアを取得",
+        "description": "/api/v1/auth/login の 202 で返却された ticket と TOTP コード（またはバックアップコード）を検証する。\n\n重要仕様:\n- チケットは成功・失敗いずれの場合も GETDEL でアトミックに消費される（単回使用）\n- コード不正の場合もチケットは消費済みになるため /api/v1/auth/login からやり直すこと\n- チケット TTL は 300 秒（5 分）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Verify2FARequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA 検証成功。TokenPair を返却",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "チケット期限切れ (AUTH_2FA_TICKET_EXPIRED) または コード不正 (AUTH_2FA_INVALID_CODE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "サーバー設定エラー (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "リフレッシュトークンでトークンペアを更新",
+        "description": "ローテーション + 再利用検知方式:\n- 有効トークン提示 → 旧トークンを revoke し新ペアを発行（トランザクション）\n- revoked 済みトークン再提示 → 盗難とみなし当該ユーザーの全トークンを即時失効 (AUTH_REFRESH_TOKEN_REUSE_DETECTED)\n  - モバイルはこのコードで専用の「セキュリティ警告」画面を表示すること\n\nリフレッシュトークン TTL は 30 日。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "トークン更新成功。新しい TokenPair を返却",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "トークン無効/期限切れ (AUTH_REFRESH_TOKEN_INVALID) または 再利用検知 (AUTH_REFRESH_TOKEN_REUSE_DETECTED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "サーバー設定エラー (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "ログアウト（リフレッシュトークン失効）",
+        "description": "冪等設計: トークンが存在しない・既に失効済みでも 200 を返す。\nネットワークエラー時のリトライを妨げない fail-safe ログアウトを実現する。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ログアウト成功（冪等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/google": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Google ID トークンでログイン",
+        "description": "Google Sign-In で取得した ID トークンを検証し、TokenPair を発行する。\n\nユーザー解決フロー:\n1. Account(provider='google', providerAccountId=sub) を検索\n2. なければ email で User を検索し Account を作成してリンク\n3. User も存在しなければ新規作成",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Google 認証成功。TokenPair を返却",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID トークン不正 (AUTH_INVALID_TOKEN)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "サーバー設定エラー (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-reset/request": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "パスワードリセットメールを送信",
+        "description": "列挙攻撃対策: メールアドレスの存在有無に関わらず常に 200 を返す。\nバリデーションエラーも 200 を返す（この仕様は意図的）。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "リクエスト受付（メールアドレス存在有無に関わらず常に 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "パスワードリセットを確定",
+        "description": "メールで受け取ったトークンと新しいパスワードを送信してリセットを確定する。\nトークン無効・ユーザー不在は一律 401 を返す（列挙攻撃防止）。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "パスワードリセット成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "トークン無効または資格情報不正 (AUTH_INVALID_CREDENTIALS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "認証ユーザーの基本情報を取得",
+        "description": "Authorization: Bearer <accessToken> ヘッダーで認証する。\n\nエラーフロー:\n- Bearer ヘッダー無し → 401 AUTH_REQUIRED\n- トークン期限切れ → 401 AUTH_TOKEN_EXPIRED（このコードでのみ /refresh を試みること）\n- トークン不正 → 401 AUTH_INVALID_TOKEN（リフレッシュ不可）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "認証ユーザーの基本情報",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersMeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、不正 (AUTH_INVALID_TOKEN)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが見つからない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "サーバー設定エラー (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}
