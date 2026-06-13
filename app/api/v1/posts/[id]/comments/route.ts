@@ -8,6 +8,7 @@ import { requireBearerUser, apiZodError, apiRateLimited } from '@/lib/api/v1'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { readPaginationQuerySchema } from '@/lib/api/v1/schemas/request'
 import { fetchComments } from '@/lib/services/comment-read-service'
+import { attachMentionedUsers } from '@/lib/api/v1/mention-resolver'
 
 export async function GET(
   request: NextRequest,
@@ -34,8 +35,11 @@ export async function GET(
   // 4. コメント一覧取得
   const result = await fetchComments(postId, auth.userId, parsed.data.cursor, parsed.data.limit)
 
+  // 5. mentionedUsers を一括解決して付加（N+1 防止）
+  const commentsWithMentions = await attachMentionedUsers(result.comments)
+
   return NextResponse.json({
-    items: result.comments,
+    items: commentsWithMentions,
     nextCursor: result.nextCursor ?? null,
   })
 }

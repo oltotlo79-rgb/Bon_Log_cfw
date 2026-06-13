@@ -83,9 +83,23 @@ export const nestedPostSchema = z.object({
 })
 export type NestedPost = z.infer<typeof nestedPostSchema>
 
-/** GET /api/v1/feed および /api/v1/posts/[id] の投稿スキーマ */
+/** メンションユーザーの最小スキーマ */
+export const mentionedUserSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+})
+export type MentionedUser = z.infer<typeof mentionedUserSchema>
+
+/**
+ * GET /api/v1/feed および /api/v1/posts/[id] の投稿スキーマ
+ *
+ * content フィールド: メンションは `<@userId>` トークンとして格納される。
+ * mentionedUsers で id→表示情報を解決してクライアント側でレンダリングすること。
+ */
 export const postSchema = z.object({
   id: z.string(),
+  /** メンションは `<@userId>` トークンとして格納され、mentionedUsers で id→表示情報を解決する */
   content: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -102,6 +116,7 @@ export const postSchema = z.object({
   quotePost: nestedPostSchema.nullable(),
   repostPost: nestedPostSchema.nullable(),
   poll: z.unknown().nullable(),
+  mentionedUsers: z.array(mentionedUserSchema),
 })
 export type PostResponse = z.infer<typeof postSchema>
 
@@ -113,12 +128,18 @@ export const feedResponseSchema = z.object({
 })
 export type FeedResponse = z.infer<typeof feedResponseSchema>
 
-/** GET /api/v1/posts/[id]/comments のコメントスキーマ */
+/**
+ * GET /api/v1/posts/[id]/comments のコメントスキーマ
+ *
+ * content フィールド: メンションは `<@userId>` トークンとして格納される。
+ * mentionedUsers で id→表示情報を解決してクライアント側でレンダリングすること。
+ */
 export const commentSchema = z.object({
   id: z.string(),
   postId: z.string(),
   userId: z.string(),
   parentId: z.string().nullable(),
+  /** メンションは `<@userId>` トークンとして格納され、mentionedUsers で id→表示情報を解決する */
   content: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -129,6 +150,7 @@ export const commentSchema = z.object({
   isLiked: z.boolean(),
   user: postAuthorSchema,
   media: z.array(mediaItemSchema),
+  mentionedUsers: z.array(mentionedUserSchema),
 })
 export type CommentResponse = z.infer<typeof commentSchema>
 

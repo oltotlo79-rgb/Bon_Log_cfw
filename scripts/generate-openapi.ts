@@ -64,6 +64,7 @@ async function main() {
     searchUsersResponseSchema,
     notificationsListResponseSchema,
     unreadCountResponseSchema,
+    mentionedUserSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -183,14 +184,65 @@ async function main() {
     }),
   )
 
+  // ──────────────────────────────────────────────────
+  // 書き込み系エンドポイントのスキーマ
+  // ──────────────────────────────────────────────────
+
+  const LikeResponse = registry.register(
+    'LikeResponse',
+    z.object({
+      liked: z.boolean(),
+      likeCount: z.number().int(),
+    }).openapi({
+      description: 'いいね操作後の最新状態。liked は操作後の状態、likeCount は操作後の総いいね数。',
+    }),
+  )
+
+  const FollowResponse = registry.register(
+    'FollowResponse',
+    z.object({
+      following: z.boolean(),
+      requested: z.boolean(),
+      followerCount: z.number().int(),
+    }).openapi({
+      description: 'フォロー操作後の統一レスポンス。following/requested は同時に true にならない。followerCount は操作後の実数。',
+    }),
+  )
+
+  const NotificationReadRequest = registry.register(
+    'NotificationReadRequest',
+    z.object({
+      ids: z.array(z.string()).optional(),
+    }).openapi({
+      description: '既読化する通知 ID の配列。省略または空配列の場合は全未読を既読化する。最大 100 件。',
+    }),
+  )
+
+  const NotificationReadResponse = registry.register(
+    'NotificationReadResponse',
+    z.object({
+      success: z.literal(true),
+      unreadCount: z.number().int(),
+    }).openapi({
+      description: '通知既読化後のレスポンス。unreadCount はミュートユーザーを除いた操作後の未読数。',
+    }),
+  )
+
+  registry.register(
+    'MentionedUser',
+    mentionedUserSchema.openapi({
+      description: 'メンション解決済みユーザー情報。content 内の `<@userId>` トークンに対応する表示情報。',
+    }),
+  )
+
   const FeedResponse = registry.register(
     'FeedResponse',
-    feedResponseSchema.openapi({ description: 'タイムライン取得レスポンス。' }),
+    feedResponseSchema.openapi({ description: 'タイムライン取得レスポンス。各投稿に mentionedUsers が含まれる。' }),
   )
 
   const PostResponse = registry.register(
     'PostResponse',
-    postSchema.openapi({ description: '単一投稿の詳細レスポンス。' }),
+    postSchema.openapi({ description: '単一投稿の詳細レスポンス。mentionedUsers が含まれる。' }),
   )
 
   const CommentsListResponse = registry.register(
@@ -556,7 +608,7 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
-  // Phase 2 Batch 2a — 読み取り系エンドポイント
+  // 読み取り系エンドポイント
   // ──────────────────────────────────────────────────
 
   registry.registerPath({
@@ -769,6 +821,174 @@ async function main() {
     },
   })
 
+  // ──────────────────────────────────────────────────
+  // 書き込み系エンドポイント
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/posts/{id}/like',
+    tags: ['posts'],
+    summary: '投稿にいいねを付ける（冪等）',
+    description: [
+      '対象投稿にいいねを付与する。既にいいね済みでも 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 不存在・非公開・非表示の投稿は 404 NOT_FOUND を返す',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- likeCount は操作後の最新値（楽観更新の確定値として使用できる）',
+      '- 通知（like）は同一ユーザーへの重複通知を防ぐ重複排除が働く',
+      '- レート制限: toggle_like（30/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'いいね付与成功（既にいいね済みでも 200）',
+        content: { 'application/json': { schema: LikeResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/posts/{id}/like',
+    tags: ['posts'],
+    summary: '投稿のいいねを解除する（冪等）',
+    description: [
+      '対象投稿のいいねを解除する。いいねしていなくても 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 不存在・非公開・非表示の投稿は 404 NOT_FOUND を返す',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- likeCount は操作後の最新値',
+      '- レート制限: toggle_like（30/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'いいね解除成功（いいねしていなくても 200）',
+        content: { 'application/json': { schema: LikeResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/users/{id}/follow',
+    tags: ['users'],
+    summary: 'ユーザーをフォロー（公開: フォロー確立 / 非公開: リクエスト送信）',
+    description: [
+      '対象ユーザーの公開設定に応じてフォローまたはフォローリクエストを送信する。',
+      '',
+      '重要仕様:',
+      '- 公開アカウント → フォロー確立（冪等: 既にフォロー済みでも 200）→ { following:true, requested:false }',
+      '- 非公開アカウント → フォローリクエスト送信（冪等: 既に送信済みでも 200）→ { following:false, requested:true }',
+      '- HTTP は 200 に統一（202 は使用しない）',
+      '- 自分自身へのフォローは 400 VALIDATION_ERROR',
+      '- ブロック関係・存在しない・停止済みユーザーは 404 NOT_FOUND（ブロック有無を秘匿）',
+      '- followerCount は操作後の実数',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'フォロー対象ユーザー ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'フォロー確立またはリクエスト送信成功',
+        content: { 'application/json': { schema: FollowResponse } },
+      },
+      400: errorResponse('自己フォロー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('ユーザーが存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/users/{id}/follow',
+    tags: ['users'],
+    summary: 'フォロー解除またはフォローリクエスト取消（同一エンドポイント、冪等）',
+    description: [
+      'フォロー中の場合はフォロー解除、リクエスト中の場合はリクエスト取消を行う。',
+      'どちらでもない場合は no-op として { following:false, requested:false } を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- フォロー中 → フォロー解除',
+      '- リクエスト中 → リクエスト取消',
+      '- どちらでもない → no-op（200）',
+      '- 全ケースで { following:false, requested:false, followerCount } を返す',
+      '- followerCount は操作後の実数',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'フォロー対象ユーザー ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'フォロー解除またはリクエスト取消成功（どちらでもない場合も 200）',
+        content: { 'application/json': { schema: FollowResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/notifications/read',
+    tags: ['notifications'],
+    summary: '通知を既読化',
+    description: [
+      '通知を既読状態に更新する。',
+      '',
+      '重要仕様:',
+      '- ids 指定: その通知群を既読化（userId 一致でのみ更新し、他ユーザーの通知は変更不可）',
+      '- ids 省略または空配列: 当該ユーザーの全未読を既読化',
+      '- ids は最大 100 件（MAX_NOTIFICATION_READ_IDS）',
+      '- unreadCount はミュートユーザーを除いた操作後の未読数（バッジ即時更新に使用）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: false,
+        content: {
+          'application/json': { schema: NotificationReadRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '既読化成功。unreadCount は操作後の未読数',
+        content: { 'application/json': { schema: NotificationReadResponse } },
+      },
+      400: errorResponse('バリデーションエラー: ids が配列でないか 100 件超 (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
   registry.registerPath({
     method: 'get',
     path: '/api/v1/notifications/unread-count',
@@ -803,7 +1023,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.2.0',
+      version: '1.3.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

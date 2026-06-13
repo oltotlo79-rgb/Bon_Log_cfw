@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -373,6 +373,96 @@
         },
         "description": "検索クエリパラメータ（q, cursor, limit）。"
       },
+      "LikeResponse": {
+        "type": "object",
+        "properties": {
+          "liked": {
+            "type": "boolean"
+          },
+          "likeCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "liked",
+          "likeCount"
+        ],
+        "description": "いいね操作後の最新状態。liked は操作後の状態、likeCount は操作後の総いいね数。"
+      },
+      "FollowResponse": {
+        "type": "object",
+        "properties": {
+          "following": {
+            "type": "boolean"
+          },
+          "requested": {
+            "type": "boolean"
+          },
+          "followerCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "following",
+          "requested",
+          "followerCount"
+        ],
+        "description": "フォロー操作後の統一レスポンス。following/requested は同時に true にならない。followerCount は操作後の実数。"
+      },
+      "NotificationReadRequest": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "既読化する通知 ID の配列。省略または空配列の場合は全未読を既読化する。最大 100 件。"
+      },
+      "NotificationReadResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "unreadCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "success",
+          "unreadCount"
+        ],
+        "description": "通知既読化後のレスポンス。unreadCount はミュートユーザーを除いた操作後の未読数。"
+      },
+      "MentionedUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "avatarUrl"
+        ],
+        "description": "メンション解決済みユーザー情報。content 内の `<@userId>` トークンに対応する表示情報。"
+      },
       "FeedResponse": {
         "type": "object",
         "properties": {
@@ -620,7 +710,32 @@
                     "user"
                   ]
                 },
-                "poll": {}
+                "poll": {},
+                "mentionedUsers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "nickname": {
+                        "type": "string"
+                      },
+                      "avatarUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "nickname",
+                      "avatarUrl"
+                    ]
+                  }
+                }
               },
               "required": [
                 "id",
@@ -638,7 +753,8 @@
                 "isBookmarked",
                 "isReposted",
                 "quotePost",
-                "repostPost"
+                "repostPost",
+                "mentionedUsers"
               ]
             }
           },
@@ -657,7 +773,7 @@
           "nextCursor",
           "isGuest"
         ],
-        "description": "タイムライン取得レスポンス。"
+        "description": "タイムライン取得レスポンス。各投稿に mentionedUsers が含まれる。"
       },
       "PostResponse": {
         "type": "object",
@@ -901,7 +1017,32 @@
               "user"
             ]
           },
-          "poll": {}
+          "poll": {},
+          "mentionedUsers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "nickname": {
+                  "type": "string"
+                },
+                "avatarUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "nickname",
+                "avatarUrl"
+              ]
+            }
+          }
         },
         "required": [
           "id",
@@ -919,9 +1060,10 @@
           "isBookmarked",
           "isReposted",
           "quotePost",
-          "repostPost"
+          "repostPost",
+          "mentionedUsers"
         ],
-        "description": "単一投稿の詳細レスポンス。"
+        "description": "単一投稿の詳細レスポンス。mentionedUsers が含まれる。"
       },
       "CommentsListResponse": {
         "type": "object",
@@ -1019,6 +1161,31 @@
                       "sortOrder"
                     ]
                   }
+                },
+                "mentionedUsers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "nickname": {
+                        "type": "string"
+                      },
+                      "avatarUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "nickname",
+                      "avatarUrl"
+                    ]
+                  }
                 }
               },
               "required": [
@@ -1035,7 +1202,8 @@
                 "replyCount",
                 "isLiked",
                 "user",
-                "media"
+                "media",
+                "mentionedUsers"
               ]
             }
           },
@@ -1383,7 +1551,32 @@
                     "user"
                   ]
                 },
-                "poll": {}
+                "poll": {},
+                "mentionedUsers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "nickname": {
+                        "type": "string"
+                      },
+                      "avatarUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "nickname",
+                      "avatarUrl"
+                    ]
+                  }
+                }
               },
               "required": [
                 "id",
@@ -1401,7 +1594,8 @@
                 "isBookmarked",
                 "isReposted",
                 "quotePost",
-                "repostPost"
+                "repostPost",
+                "mentionedUsers"
               ]
             }
           },
@@ -2949,6 +3143,430 @@
           },
           "400": {
             "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/like": {
+      "post": {
+        "tags": [
+          "posts"
+        ],
+        "summary": "投稿にいいねを付ける（冪等）",
+        "description": "対象投稿にいいねを付与する。既にいいね済みでも 200 を返す（冪等設計）。\n\n重要仕様:\n- 不存在・非公開・非表示の投稿は 404 NOT_FOUND を返す\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- likeCount は操作後の最新値（楽観更新の確定値として使用できる）\n- 通知（like）は同一ユーザーへの重複通知を防ぐ重複排除が働く\n- レート制限: toggle_like（30/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿 ID"
+            },
+            "required": true,
+            "description": "投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "いいね付与成功（既にいいね済みでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "投稿が存在しないか閲覧権限なし (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "posts"
+        ],
+        "summary": "投稿のいいねを解除する（冪等）",
+        "description": "対象投稿のいいねを解除する。いいねしていなくても 200 を返す（冪等設計）。\n\n重要仕様:\n- 不存在・非公開・非表示の投稿は 404 NOT_FOUND を返す\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- likeCount は操作後の最新値\n- レート制限: toggle_like（30/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿 ID"
+            },
+            "required": true,
+            "description": "投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "いいね解除成功（いいねしていなくても 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "投稿が存在しないか閲覧権限なし (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/follow": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ユーザーをフォロー（公開: フォロー確立 / 非公開: リクエスト送信）",
+        "description": "対象ユーザーの公開設定に応じてフォローまたはフォローリクエストを送信する。\n\n重要仕様:\n- 公開アカウント → フォロー確立（冪等: 既にフォロー済みでも 200）→ { following:true, requested:false }\n- 非公開アカウント → フォローリクエスト送信（冪等: 既に送信済みでも 200）→ { following:false, requested:true }\n- HTTP は 200 に統一（202 は使用しない）\n- 自分自身へのフォローは 400 VALIDATION_ERROR\n- ブロック関係・存在しない・停止済みユーザーは 404 NOT_FOUND（ブロック有無を秘匿）\n- followerCount は操作後の実数\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "フォロー対象ユーザー ID"
+            },
+            "required": true,
+            "description": "フォロー対象ユーザー ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "フォロー確立またはリクエスト送信成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "自己フォロー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが存在しないか閲覧権限なし (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "フォロー解除またはフォローリクエスト取消（同一エンドポイント、冪等）",
+        "description": "フォロー中の場合はフォロー解除、リクエスト中の場合はリクエスト取消を行う。\nどちらでもない場合は no-op として { following:false, requested:false } を返す（冪等設計）。\n\n重要仕様:\n- フォロー中 → フォロー解除\n- リクエスト中 → リクエスト取消\n- どちらでもない → no-op（200）\n- 全ケースで { following:false, requested:false, followerCount } を返す\n- followerCount は操作後の実数\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "フォロー対象ユーザー ID"
+            },
+            "required": true,
+            "description": "フォロー対象ユーザー ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "フォロー解除またはリクエスト取消成功（どちらでもない場合も 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read": {
+      "patch": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "通知を既読化",
+        "description": "通知を既読状態に更新する。\n\n重要仕様:\n- ids 指定: その通知群を既読化（userId 一致でのみ更新し、他ユーザーの通知は変更不可）\n- ids 省略または空配列: 当該ユーザーの全未読を既読化\n- ids は最大 100 件（MAX_NOTIFICATION_READ_IDS）\n- unreadCount はミュートユーザーを除いた操作後の未読数（バッジ即時更新に使用）\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationReadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "既読化成功。unreadCount は操作後の未読数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー: ids が配列でないか 100 件超 (VALIDATION_ERROR)",
             "content": {
               "application/json": {
                 "schema": {

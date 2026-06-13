@@ -8,6 +8,7 @@ import { requireBearerUser, apiError, apiRateLimited } from '@/lib/api/v1'
 import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { fetchPostDetail } from '@/lib/services/post-read-service'
+import { attachMentionedUsersToOne } from '@/lib/api/v1/mention-resolver'
 
 export async function GET(
   request: NextRequest,
@@ -30,5 +31,8 @@ export async function GET(
     return apiError(MOBILE_API_ERROR_CODES.NOT_FOUND, 404)
   }
 
-  return NextResponse.json(result.post)
+  // 4. mentionedUsers を付加
+  const postWithMentions = await attachMentionedUsersToOne(result.post)
+
+  return NextResponse.json(postWithMentions)
 }

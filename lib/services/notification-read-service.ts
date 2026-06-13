@@ -77,6 +77,24 @@ export async function fetchNotifications(
 }
 
 /**
+ * 指定した通知群を既読化する。`ids` を省略すると全未読を既読化する。
+ * `where` 句に `userId` を必ず含め、他ユーザーの通知を更新できないようにする。
+ */
+export async function markNotificationsRead(userId: string, ids?: string[]): Promise<void> {
+  if (ids && ids.length > 0) {
+    await prisma.notification.updateMany({
+      where: { id: { in: ids }, userId },
+      data: { isRead: true },
+    })
+  } else {
+    await prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    })
+  }
+}
+
+/**
  * ユーザーの未読通知数を返す。
  * ミュートユーザーからの通知は除外する（Web と同一フィルタ）。
  */

@@ -8,6 +8,7 @@ import { requireBearerUser, apiZodError, apiRateLimited } from '@/lib/api/v1'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { readPaginationQuerySchema } from '@/lib/api/v1/schemas/request'
 import { fetchTimeline } from '@/lib/services/feed-service'
+import { attachMentionedUsers } from '@/lib/api/v1/mention-resolver'
 
 export async function GET(request: NextRequest) {
   // 1. Bearer 認証
@@ -29,8 +30,11 @@ export async function GET(request: NextRequest) {
   // 4. タイムライン取得
   const result = await fetchTimeline(auth.userId, parsed.data.cursor, parsed.data.limit)
 
+  // 5. mentionedUsers を一括解決して付加（N+1 防止: 全投稿を 1 回のバッチで処理）
+  const postsWithMentions = await attachMentionedUsers(result.posts)
+
   return NextResponse.json({
-    items: result.posts,
+    items: postsWithMentions,
     nextCursor: result.nextCursor ?? null,
     isGuest: result.isGuest,
   })

@@ -8,6 +8,7 @@ import { requireBearerUser, apiZodError, apiRateLimited } from '@/lib/api/v1'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { searchQuerySchema } from '@/lib/api/v1/schemas/request'
 import { fetchSearchPosts } from '@/lib/services/search-service'
+import { attachMentionedUsers } from '@/lib/api/v1/mention-resolver'
 
 export async function GET(request: NextRequest) {
   // 1. Bearer 認証
@@ -36,8 +37,11 @@ export async function GET(request: NextRequest) {
     parsed.data.limit,
   )
 
+  // 5. mentionedUsers を一括解決して付加（N+1 防止）
+  const postsWithMentions = await attachMentionedUsers(result.posts)
+
   return NextResponse.json({
-    items: result.posts,
+    items: postsWithMentions,
     nextCursor: result.nextCursor ?? null,
   })
 }

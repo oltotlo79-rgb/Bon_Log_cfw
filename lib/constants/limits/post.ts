@@ -48,6 +48,12 @@ export const MAX_SLUG_LENGTH = 100
  */
 export const MAX_NOTIFICATION_ID_LENGTH = 50
 
+/**
+ * PATCH /api/v1/notifications/read の ids 配列の最大件数。
+ * 一括既読化は UI バッジ同期用途のため、過大なリクエストで DB をブロックしない範囲に収める。
+ */
+export const MAX_NOTIFICATION_READ_IDS = 100
+
 /** 管理画面検索クエリの最小文字数 */
 export const MIN_ADMIN_SEARCH_QUERY_LENGTH = 2
 
