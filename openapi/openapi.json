@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -1284,6 +1284,15 @@
           },
           "followingCount": {
             "type": "integer"
+          },
+          "following": {
+            "type": "boolean"
+          },
+          "requested": {
+            "type": "boolean"
+          },
+          "isSelf": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1300,7 +1309,10 @@
           "updatedAt",
           "postsCount",
           "followersCount",
-          "followingCount"
+          "followingCount",
+          "following",
+          "requested",
+          "isSelf"
         ],
         "description": "ユーザープロフィール取得レスポンス。"
       },
@@ -1643,6 +1655,15 @@
                 },
                 "followingCount": {
                   "type": "integer"
+                },
+                "following": {
+                  "type": "boolean"
+                },
+                "requested": {
+                  "type": "boolean"
+                },
+                "isPublic": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -1651,7 +1672,10 @@
                 "avatarUrl",
                 "bio",
                 "followersCount",
-                "followingCount"
+                "followingCount",
+                "following",
+                "requested",
+                "isPublic"
               ]
             }
           },

@@ -177,6 +177,9 @@ export const userProfileSchema = z.object({
   postsCount: z.number().int(),
   followersCount: z.number().int(),
   followingCount: z.number().int(),
+  following: z.boolean(),
+  requested: z.boolean(),
+  isSelf: z.boolean(),
 })
 export type UserProfileResponse = z.infer<typeof userProfileSchema>
 
@@ -195,6 +198,9 @@ export const searchUserItemSchema = z.object({
   bio: z.string().nullable(),
   followersCount: z.number().int(),
   followingCount: z.number().int(),
+  following: z.boolean(),
+  requested: z.boolean(),
+  isPublic: z.boolean(),
 })
 export type SearchUserItem = z.infer<typeof searchUserItemSchema>
 

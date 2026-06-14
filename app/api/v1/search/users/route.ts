@@ -8,6 +8,7 @@ import { requireBearerUser, apiZodError, apiRateLimited } from '@/lib/api/v1'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { searchQuerySchema } from '@/lib/api/v1/schemas/request'
 import { fetchSearchUsers } from '@/lib/services/search-service'
+import { resolveFollowStates, resolveIsPublicMap } from '@/lib/api/v1/follow-state-resolver'
 
 export async function GET(request: NextRequest) {
   // 1. Bearer 認証
@@ -35,8 +36,29 @@ export async function GET(request: NextRequest) {
     parsed.data.limit,
   )
 
+  if (result.users.length === 0) {
+    return NextResponse.json({ items: [], nextCursor: result.nextCursor ?? null })
+  }
+
+  // 5. フォロー状態・isPublic を一括付与（バッチクエリ / 共有サービス非変更）
+  const targetIds = result.users.map((u) => u.id)
+  const [followStateMap, isPublicMap] = await Promise.all([
+    resolveFollowStates(auth.userId, targetIds),
+    resolveIsPublicMap(targetIds),
+  ])
+
+  const items = result.users.map((user) => {
+    const followState = followStateMap.get(user.id) ?? { following: false, requested: false }
+    return {
+      ...user,
+      following: followState.following,
+      requested: followState.requested,
+      isPublic: isPublicMap.get(user.id) ?? true,
+    }
+  })
+
   return NextResponse.json({
-    items: result.users,
+    items,
     nextCursor: result.nextCursor ?? null,
   })
 }
