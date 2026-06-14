@@ -2,7 +2,8 @@
 /**
  * GET /api/v1/users/[id] のユニットテスト
  *
- * 200 / 404 / 401 / 429 の全分岐を検証する。
+ * 200 / 404 / 401 / 429 の全分岐および v1.4.0 で追加された
+ * following / requested / isSelf フィールドの検証を行う。
  * 特に email フィールドがレスポンスに含まれないことを確認する。
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -11,10 +12,19 @@ import { NextRequest } from 'next/server'
 const VALID_SECRET = 'a'.repeat(64)
 
 const mockUserFindUnique = vi.fn()
+const mockFollowFindMany = vi.fn()
+const mockFollowRequestFindMany = vi.fn()
+
 vi.mock('@/lib/db', () => ({
   prisma: {
     user: {
       findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
+    follow: {
+      findMany: (...args: unknown[]) => mockFollowFindMany(...args),
+    },
+    followRequest: {
+      findMany: (...args: unknown[]) => mockFollowRequestFindMany(...args),
     },
   },
 }))
@@ -65,6 +75,9 @@ describe('GET /api/v1/users/[id]', () => {
     mockUserFindUnique.mockResolvedValue({ id: 'viewer-1', isSuspended: false, email: 'viewer@example.com' })
     mockCheckUserRateLimit.mockResolvedValue({ success: true, remaining: 59, resetTime: Date.now() + 60000 })
     mockFetchUserProfile.mockResolvedValue({ found: true, user: mockUserProfile })
+    // デフォルトはフォロー関係なし（空配列）
+    mockFollowFindMany.mockResolvedValue([])
+    mockFollowRequestFindMany.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -192,6 +205,102 @@ describe('GET /api/v1/users/[id]', () => {
       code: expect.any(String),
       message: expect.any(String),
       status: expect.any(Number),
+    })
+  })
+
+  // フォロー状態フィールド検証（v1.4.0）
+  describe('フォロー状態フィールド', () => {
+    it('フォロー確立済みのとき following:true, requested:false を返す', async () => {
+      mockFollowFindMany.mockResolvedValueOnce([{ followingId: 'user-target' }])
+      mockFollowRequestFindMany.mockResolvedValueOnce([])
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.following).toBe(true)
+      expect(body.requested).toBe(false)
+    })
+
+    it('非公開アカウントへリクエスト中のとき following:false, requested:true を返す', async () => {
+      mockFollowFindMany.mockResolvedValueOnce([])
+      mockFollowRequestFindMany.mockResolvedValueOnce([{ targetId: 'user-target' }])
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.following).toBe(false)
+      expect(body.requested).toBe(true)
+    })
+
+    it('フォロー関係なし（未フォロー）のとき following:false, requested:false を返す', async () => {
+      mockFollowFindMany.mockResolvedValueOnce([])
+      mockFollowRequestFindMany.mockResolvedValueOnce([])
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.following).toBe(false)
+      expect(body.requested).toBe(false)
+    })
+
+    it('自分自身を取得したとき isSelf:true を返す', async () => {
+      const selfId = 'viewer-self'
+      // auth-guard が selfId のユーザーを DB から引けるようにする
+      mockUserFindUnique.mockResolvedValueOnce({ id: selfId, isSuspended: false, email: 'self@example.com' })
+      mockFetchUserProfile.mockResolvedValueOnce({
+        found: true,
+        user: { ...mockUserProfile, id: selfId },
+      })
+      const [req, params] = await makeAuthenticatedRequest(selfId, selfId)
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.isSelf).toBe(true)
+    })
+
+    it('他人を取得したとき isSelf:false を返す', async () => {
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.isSelf).toBe(false)
+    })
+
+    it('follow と pending request が両方該当する異常データでは following:true, requested:false（following 優先）', async () => {
+      mockFollowFindMany.mockResolvedValueOnce([{ followingId: 'user-target' }])
+      mockFollowRequestFindMany.mockResolvedValueOnce([{ targetId: 'user-target' }])
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.following).toBe(true)
+      expect(body.requested).toBe(false)
+    })
+
+    it('404 のとき follow 状態を計算せず 404 のまま返す', async () => {
+      mockFetchUserProfile.mockResolvedValueOnce({ found: false })
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'ghost-user')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(404)
+      const body = await res.json()
+      expect(body.error.code).toBe('NOT_FOUND')
+      // 404 の場合は follow クエリが実行されないこと
+      expect(mockFollowFindMany).not.toHaveBeenCalled()
+      expect(mockFollowRequestFindMany).not.toHaveBeenCalled()
     })
   })
 })
