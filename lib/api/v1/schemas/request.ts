@@ -100,3 +100,28 @@ export const searchQuerySchema = paginationSchema.extend({
   q: z.string().max(MAX_SEARCH_QUERY_LENGTH).optional().default(''),
 })
 export type SearchQuery = z.infer<typeof searchQuerySchema>
+
+// ──────────────────────────────────────────────────
+// Phase 2 Batch 2b — 通報・ブロック・ミュート
+// ──────────────────────────────────────────────────
+
+import {
+  REPORT_TARGET_TYPES,
+  REPORT_REASON_VALUES,
+  REPORT_DESCRIPTION_MAX_LENGTH,
+} from '@/lib/constants/report'
+
+/**
+ * POST /api/v1/reports
+ *
+ * targetType / reason は定数 enum から取る（値の直書き禁止）。
+ * targetId は cuid 相当の長さ制限（Web の createReportSchema と一致）。
+ * description は trim 済み optional。
+ */
+export const createReportRequestSchema = z.object({
+  targetType: z.enum(REPORT_TARGET_TYPES),
+  targetId: z.string().min(1).max(64),
+  reason: z.enum(REPORT_REASON_VALUES),
+  description: z.string().trim().max(REPORT_DESCRIPTION_MAX_LENGTH).optional(),
+})
+export type CreateReportRequest = z.infer<typeof createReportRequestSchema>

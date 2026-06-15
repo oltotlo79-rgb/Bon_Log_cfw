@@ -180,8 +180,44 @@ export const userProfileSchema = z.object({
   following: z.boolean(),
   requested: z.boolean(),
   isSelf: z.boolean(),
+  /** 閲覧者が対象ユーザーをブロックしているか（自分自身の場合は false） */
+  isBlocked: z.boolean(),
+  /** 閲覧者が対象ユーザーをミュートしているか（自分自身の場合は false） */
+  isMuted: z.boolean(),
 })
 export type UserProfileResponse = z.infer<typeof userProfileSchema>
+
+// ──────────────────────────────────────────────────
+// Phase 2 Batch 2b — 通報・ブロック・ミュート
+// ──────────────────────────────────────────────────
+
+/** POST /api/v1/users/[id]/block 200 */
+export const blockResponseSchema = z.object({
+  blocked: z.boolean(),
+})
+export type BlockResponse = z.infer<typeof blockResponseSchema>
+
+/** POST /api/v1/users/[id]/mute 200 */
+export const muteResponseSchema = z.object({
+  muted: z.boolean(),
+})
+export type MuteResponse = z.infer<typeof muteResponseSchema>
+
+/** ブロック/ミュート一覧の各ユーザー項目 */
+export const userMinimalWithBioSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+  bio: z.string().nullable(),
+})
+export type UserMinimalWithBio = z.infer<typeof userMinimalWithBioSchema>
+
+/** GET /api/v1/users/me/blocks 200 / GET /api/v1/users/me/mutes 200 */
+export const userMinimalListResponseSchema = z.object({
+  items: z.array(userMinimalWithBioSchema),
+  nextCursor: z.string().nullable(),
+})
+export type UserMinimalListResponse = z.infer<typeof userMinimalListResponseSchema>
 
 /** GET /api/v1/search/posts 200 */
 export const searchPostsResponseSchema = z.object({

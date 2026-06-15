@@ -94,3 +94,43 @@ export async function resolveIsPublicMap(
 
   return new Map(users.map((u) => [u.id, u.isPublic]))
 }
+
+export type BlockMuteState = {
+  isBlocked: boolean
+  isMuted: boolean
+}
+
+/**
+ * 閲覧者が対象ユーザーをブロック/ミュートしているかを解決する（プロフィール詳細用）。
+ *
+ * Block / Mute の複合キー findUnique を 2 クエリ並列実行（N+1 なし）。
+ * 自分自身への操作はスキーマ上不可のため isSelf 時は常に false。
+ */
+export async function resolveBlockMuteStateForOne(
+  viewerId: string,
+  targetId: string,
+): Promise<BlockMuteState> {
+  if (viewerId === targetId) {
+    return { isBlocked: false, isMuted: false }
+  }
+
+  try {
+    const [block, mute] = await Promise.all([
+      prisma.block.findUnique({
+        where: { blockerId_blockedId: { blockerId: viewerId, blockedId: targetId } },
+        select: { blockerId: true },
+      }),
+      prisma.mute.findUnique({
+        where: { muterId_mutedId: { muterId: viewerId, mutedId: targetId } },
+        select: { muterId: true },
+      }),
+    ])
+
+    return {
+      isBlocked: block !== null,
+      isMuted: mute !== null,
+    }
+  } catch {
+    return { isBlocked: false, isMuted: false }
+  }
+}

@@ -47,6 +47,7 @@ async function main() {
     readPaginationQuerySchema,
     searchQuerySchema,
     registerRequestSchema,
+    createReportRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -65,6 +66,10 @@ async function main() {
     notificationsListResponseSchema,
     unreadCountResponseSchema,
     mentionedUserSchema,
+    blockResponseSchema,
+    muteResponseSchema,
+    userMinimalWithBioSchema,
+    userMinimalListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -187,6 +192,41 @@ async function main() {
   // ──────────────────────────────────────────────────
   // 書き込み系エンドポイントのスキーマ
   // ──────────────────────────────────────────────────
+
+  const BlockResponse = registry.register(
+    'BlockResponse',
+    blockResponseSchema.openapi({
+      description: 'ブロック操作後の状態。POST→true / DELETE→false。冪等: 既ブロック/未ブロックでも 200。',
+    }),
+  )
+
+  const MuteResponse = registry.register(
+    'MuteResponse',
+    muteResponseSchema.openapi({
+      description: 'ミュート操作後の状態。POST→true / DELETE→false。冪等: 既ミュート/未ミュートでも 200。',
+    }),
+  )
+
+  registry.register(
+    'UserMinimalWithBio',
+    userMinimalWithBioSchema.openapi({
+      description: 'ブロック/ミュート一覧のユーザー項目（id, nickname, avatarUrl, bio）。',
+    }),
+  )
+
+  const UserMinimalListResponse = registry.register(
+    'UserMinimalListResponse',
+    userMinimalListResponseSchema.openapi({
+      description: 'ブロック/ミュート一覧レスポンス。カーソルページネーション形式。',
+    }),
+  )
+
+  const CreateReportRequest = registry.register(
+    'CreateReportRequest',
+    createReportRequestSchema.openapi({
+      description: '通報リクエスト。targetType と reason は enum 値のみ受け付ける。',
+    }),
+  )
 
   const LikeResponse = registry.register(
     'LikeResponse',
@@ -953,6 +993,232 @@ async function main() {
   })
 
   registry.registerPath({
+    method: 'post',
+    path: '/api/v1/users/{id}/block',
+    tags: ['users'],
+    summary: 'ユーザーをブロック（冪等）',
+    description: [
+      '対象ユーザーをブロックする。既にブロック済みでも 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- ブロック時に相互フォロー（両方向）をトランザクション内で解除する',
+      '- ブロック解除後にフォロー関係は復活しない（再フォローは別途操作が必要）',
+      '- 自己ブロックは 400 VALIDATION_ERROR',
+      '- 対象不在・停止ユーザーは 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: block_user（10/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ブロック対象ユーザー ID（cuid）' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ブロック成功（既ブロックでも 200）',
+        content: { 'application/json': { schema: BlockResponse } },
+      },
+      400: errorResponse('自己ブロック (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('対象ユーザーが存在しないか停止済み (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/users/{id}/block',
+    tags: ['users'],
+    summary: 'ブロック解除（冪等）',
+    description: [
+      '対象ユーザーのブロックを解除する。ブロックしていなくても 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- ブロック解除後にフォロー関係は復活しない',
+      '- 自己操作は 400 VALIDATION_ERROR',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: unblock_user（10/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ブロック解除対象ユーザー ID（cuid）' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ブロック解除成功（未ブロックでも 200）',
+        content: { 'application/json': { schema: BlockResponse } },
+      },
+      400: errorResponse('自己操作 (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/users/{id}/mute',
+    tags: ['users'],
+    summary: 'ユーザーをミュート（冪等）',
+    description: [
+      '対象ユーザーをミュートする。既にミュート済みでも 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- ミュートはフォロー関係を変更しない',
+      '- ミュートは相手には通知されない（非公開機能）',
+      '- 自己ミュートは 400 VALIDATION_ERROR',
+      '- 対象不在・停止ユーザーは 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: mute_user（10/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ミュート対象ユーザー ID（cuid）' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ミュート成功（既ミュートでも 200）',
+        content: { 'application/json': { schema: MuteResponse } },
+      },
+      400: errorResponse('自己ミュート (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('対象ユーザーが存在しないか停止済み (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/users/{id}/mute',
+    tags: ['users'],
+    summary: 'ミュート解除（冪等）',
+    description: [
+      '対象ユーザーのミュートを解除する。ミュートしていなくても 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 自己操作は 400 VALIDATION_ERROR',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: unmute_user（10/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ミュート解除対象ユーザー ID（cuid）' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ミュート解除成功（未ミュートでも 200）',
+        content: { 'application/json': { schema: MuteResponse } },
+      },
+      400: errorResponse('自己操作 (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/me/blocks',
+    tags: ['users'],
+    summary: 'ブロック一覧取得',
+    description: [
+      '認証ユーザーがブロックしているユーザーの一覧をカーソルページネーションで返す。',
+      '',
+      'ゲストアカウントは 403 GUEST_NOT_ALLOWED。',
+      'レート制限: api（60/分）。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ブロックしているユーザー一覧',
+        content: { 'application/json': { schema: UserMinimalListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/me/mutes',
+    tags: ['users'],
+    summary: 'ミュート一覧取得',
+    description: [
+      '認証ユーザーがミュートしているユーザーの一覧をカーソルページネーションで返す。',
+      '',
+      'ゲストアカウントは 403 GUEST_NOT_ALLOWED。',
+      'レート制限: api（60/分）。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ミュートしているユーザー一覧',
+        content: { 'application/json': { schema: UserMinimalListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/reports',
+    tags: ['reports'],
+    summary: '通報を作成',
+    description: [
+      '投稿・コメント・ユーザー・イベント・盆栽園・レビューを通報する。',
+      '',
+      '重要仕様:',
+      '- targetType は post / comment / event / shop / review / user のいずれか',
+      '- reason は spam / inappropriate / harassment / copyright / other のいずれか',
+      '- 自己通報（対象の所有者が自分）は 400 VALIDATION_ERROR',
+      '- 重複通報（同一 reporterId + targetType + targetId の組み合わせ）は 409 CONFLICT',
+      '- 対象が存在しない場合は 404 NOT_FOUND',
+      '- 同一対象の通報数が 10 件（AUTO_HIDE_THRESHOLD）に達すると自動非表示処理が発火する',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: create_report（5/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateReportRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '通報成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な targetType / reason / 自己通報'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('通報対象が存在しない (NOT_FOUND)'),
+      409: errorResponse('既に通報済み (CONFLICT)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
     method: 'patch',
     path: '/api/v1/notifications/read',
     tags: ['notifications'],
@@ -1023,7 +1289,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.4.0',
+      version: '1.5.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

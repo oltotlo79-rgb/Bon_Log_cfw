@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -372,6 +372,149 @@
           }
         },
         "description": "検索クエリパラメータ（q, cursor, limit）。"
+      },
+      "BlockResponse": {
+        "type": "object",
+        "properties": {
+          "blocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "blocked"
+        ],
+        "description": "ブロック操作後の状態。POST→true / DELETE→false。冪等: 既ブロック/未ブロックでも 200。"
+      },
+      "MuteResponse": {
+        "type": "object",
+        "properties": {
+          "muted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "muted"
+        ],
+        "description": "ミュート操作後の状態。POST→true / DELETE→false。冪等: 既ミュート/未ミュートでも 200。"
+      },
+      "UserMinimalWithBio": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "avatarUrl",
+          "bio"
+        ],
+        "description": "ブロック/ミュート一覧のユーザー項目（id, nickname, avatarUrl, bio）。"
+      },
+      "UserMinimalListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "nickname": {
+                  "type": "string"
+                },
+                "avatarUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bio": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "nickname",
+                "avatarUrl",
+                "bio"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "ブロック/ミュート一覧レスポンス。カーソルページネーション形式。"
+      },
+      "CreateReportRequest": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "post",
+              "comment",
+              "event",
+              "shop",
+              "review",
+              "user"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "spam",
+              "inappropriate",
+              "harassment",
+              "copyright",
+              "other"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId",
+          "reason"
+        ],
+        "description": "通報リクエスト。targetType と reason は enum 値のみ受け付ける。"
       },
       "LikeResponse": {
         "type": "object",
@@ -1293,6 +1436,12 @@
           },
           "isSelf": {
             "type": "boolean"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          },
+          "isMuted": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1312,7 +1461,9 @@
           "followingCount",
           "following",
           "requested",
-          "isSelf"
+          "isSelf",
+          "isBlocked",
+          "isMuted"
         ],
         "description": "ユーザープロフィール取得レスポンス。"
       },
@@ -3527,6 +3678,662 @@
           },
           "403": {
             "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/block": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ユーザーをブロック（冪等）",
+        "description": "対象ユーザーをブロックする。既にブロック済みでも 200 を返す（冪等設計）。\n\n重要仕様:\n- ブロック時に相互フォロー（両方向）をトランザクション内で解除する\n- ブロック解除後にフォロー関係は復活しない（再フォローは別途操作が必要）\n- 自己ブロックは 400 VALIDATION_ERROR\n- 対象不在・停止ユーザーは 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: block_user（10/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ブロック対象ユーザー ID（cuid）"
+            },
+            "required": true,
+            "description": "ブロック対象ユーザー ID（cuid）",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ブロック成功（既ブロックでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "自己ブロック (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "対象ユーザーが存在しないか停止済み (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ブロック解除（冪等）",
+        "description": "対象ユーザーのブロックを解除する。ブロックしていなくても 200 を返す（冪等設計）。\n\n重要仕様:\n- ブロック解除後にフォロー関係は復活しない\n- 自己操作は 400 VALIDATION_ERROR\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: unblock_user（10/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ブロック解除対象ユーザー ID（cuid）"
+            },
+            "required": true,
+            "description": "ブロック解除対象ユーザー ID（cuid）",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ブロック解除成功（未ブロックでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "自己操作 (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/mute": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ユーザーをミュート（冪等）",
+        "description": "対象ユーザーをミュートする。既にミュート済みでも 200 を返す（冪等設計）。\n\n重要仕様:\n- ミュートはフォロー関係を変更しない\n- ミュートは相手には通知されない（非公開機能）\n- 自己ミュートは 400 VALIDATION_ERROR\n- 対象不在・停止ユーザーは 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: mute_user（10/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ミュート対象ユーザー ID（cuid）"
+            },
+            "required": true,
+            "description": "ミュート対象ユーザー ID（cuid）",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ミュート成功（既ミュートでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MuteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "自己ミュート (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "対象ユーザーが存在しないか停止済み (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ミュート解除（冪等）",
+        "description": "対象ユーザーのミュートを解除する。ミュートしていなくても 200 を返す（冪等設計）。\n\n重要仕様:\n- 自己操作は 400 VALIDATION_ERROR\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: unmute_user（10/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ミュート解除対象ユーザー ID（cuid）"
+            },
+            "required": true,
+            "description": "ミュート解除対象ユーザー ID（cuid）",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ミュート解除成功（未ミュートでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MuteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "自己操作 (VALIDATION_ERROR) または不正 ID (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/blocks": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ブロック一覧取得",
+        "description": "認証ユーザーがブロックしているユーザーの一覧をカーソルページネーションで返す。\n\nゲストアカウントは 403 GUEST_NOT_ALLOWED。\nレート制限: api（60/分）。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "カーソル（前回レスポンスの nextCursor 値）"
+            },
+            "required": false,
+            "description": "カーソル（前回レスポンスの nextCursor 値）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "1 回の取得上限件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "1 回の取得上限件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ブロックしているユーザー一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMinimalListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/mutes": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ミュート一覧取得",
+        "description": "認証ユーザーがミュートしているユーザーの一覧をカーソルページネーションで返す。\n\nゲストアカウントは 403 GUEST_NOT_ALLOWED。\nレート制限: api（60/分）。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "カーソル（前回レスポンスの nextCursor 値）"
+            },
+            "required": false,
+            "description": "カーソル（前回レスポンスの nextCursor 値）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "1 回の取得上限件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "1 回の取得上限件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ミュートしているユーザー一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMinimalListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "通報を作成",
+        "description": "投稿・コメント・ユーザー・イベント・盆栽園・レビューを通報する。\n\n重要仕様:\n- targetType は post / comment / event / shop / review / user のいずれか\n- reason は spam / inappropriate / harassment / copyright / other のいずれか\n- 自己通報（対象の所有者が自分）は 400 VALIDATION_ERROR\n- 重複通報（同一 reporterId + targetType + targetId の組み合わせ）は 409 CONFLICT\n- 対象が存在しない場合は 404 NOT_FOUND\n- 同一対象の通報数が 10 件（AUTO_HIDE_THRESHOLD）に達すると自動非表示処理が発火する\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: create_report（5/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "通報成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な targetType / reason / 自己通報",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "通報対象が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "既に通報済み (CONFLICT)",
             "content": {
               "application/json": {
                 "schema": {
