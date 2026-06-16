@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bonlog.app",
+      "sha256_cert_fingerprints": [
+        "96:95:7F:E0:50:8A:E1:46:9C:D7:73:22:0D:83:91:89:A3:F8:74:DA:E0:53:81:A3:AE:67:02:93:73:30:E7:36"
+      ]
+    }
+  }
+]

@@ -105,6 +105,15 @@ function generateNonce(): string {
  */
 const BASIC_AUTH_REALM = 'Basic realm="Secure Area"'
 
+/**
+ * `.well-known` プレフィックス（RFC 8615）。
+ * Android App Links 検証で Google クローラーが assetlinks.json を認証なしで GET する
+ * 前提のため、Basic 認証・メンテナンス遮断・保護判定を通す対象として扱う。
+ * matcher の静的アセット除外と同じ「proxy が素通しする境界」なので、routes.ts ではなく
+ * proxy ローカルに置く（テストの partial mock 依存を増やさず、proxy 内の境界定義に集約する）。
+ */
+const WELL_KNOWN_PREFIX = '/.well-known/'
+
 function basicAuthChallenge(body: string): NextResponse {
   return new NextResponse(body, {
     status: 401,
@@ -475,6 +484,14 @@ export default auth(async (req) => {
         308,
       )
     }
+  }
+
+  // `.well-known` 配下は Basic 認証・メンテナンス遮断・保護判定を一切かけず素通しする。
+  // Android App Links の検証で Google クローラーが assetlinks.json を認証なしで GET する
+  // 前提のため。静的アセット同様に next() で public/ の実ファイル配信に委ねる
+  // (CSP は不要・HTML ページ挙動には影響しない)。
+  if (nextUrl.pathname.startsWith(WELL_KNOWN_PREFIX)) {
+    return NextResponse.next()
   }
 
   // CSP nonce を生成（各リクエストで一意の値）
