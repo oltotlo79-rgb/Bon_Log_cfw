@@ -9,6 +9,7 @@ import { checkUserRateLimit } from '@/lib/rate-limit'
 import { searchQuerySchema } from '@/lib/api/v1/schemas/request'
 import { fetchSearchPosts } from '@/lib/services/search-service'
 import { attachMentionedUsers } from '@/lib/api/v1/mention-resolver'
+import { resolveBlockMuteStates } from '@/lib/api/v1/follow-state-resolver'
 
 export async function GET(request: NextRequest) {
   // 1. Bearer 認証
@@ -40,8 +41,21 @@ export async function GET(request: NextRequest) {
   // 5. mentionedUsers を一括解決して付加（N+1 防止）
   const postsWithMentions = await attachMentionedUsers(result.posts)
 
+  // 6. トップレベル投稿者の Block/Mute 状態をバッチ解決（2 クエリ）して付加
+  const authorIds = postsWithMentions.flatMap((p) => (p.user?.id ? [p.user.id] : []))
+  const blockMuteMap = await resolveBlockMuteStates(auth.userId, authorIds)
+  const postsWithState = postsWithMentions.map((p) => ({
+    ...p,
+    user: p.user
+      ? {
+          ...p.user,
+          ...(blockMuteMap.get(p.user.id) ?? { isBlocked: false, isMuted: false }),
+        }
+      : p.user,
+  }))
+
   return NextResponse.json({
-    items: postsWithMentions,
+    items: postsWithState,
     nextCursor: result.nextCursor ?? null,
   })
 }

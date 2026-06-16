@@ -101,6 +101,49 @@ export type BlockMuteState = {
 }
 
 /**
+ * 複数ターゲットのブロック/ミュート状態を一括解決する（投稿/コメント一覧用）。
+ *
+ * バッチ戦略: Block / Mute 各 1 本の findMany で解決（N+1 なし）。
+ * targetIds は重複排除済みの Set を受け取ることを想定するが、内部でも重複排除する。
+ * DB 障害時は全 false を返す（fail-open: 表示継続優先）。
+ */
+export async function resolveBlockMuteStates(
+  viewerId: string,
+  targetIds: string[],
+): Promise<Map<string, BlockMuteState>> {
+  if (targetIds.length === 0) return new Map()
+
+  const uniqueIds = [...new Set(targetIds)]
+
+  try {
+    const [blocks, mutes] = await Promise.all([
+      prisma.block.findMany({
+        where: { blockerId: viewerId, blockedId: { in: uniqueIds } },
+        select: { blockedId: true },
+      }),
+      prisma.mute.findMany({
+        where: { muterId: viewerId, mutedId: { in: uniqueIds } },
+        select: { mutedId: true },
+      }),
+    ])
+
+    const blockedSet = new Set(blocks.map((b) => b.blockedId))
+    const mutedSet = new Set(mutes.map((m) => m.mutedId))
+
+    const result = new Map<string, BlockMuteState>()
+    for (const id of uniqueIds) {
+      result.set(id, {
+        isBlocked: blockedSet.has(id),
+        isMuted: mutedSet.has(id),
+      })
+    }
+    return result
+  } catch {
+    return new Map()
+  }
+}
+
+/**
  * 閲覧者が対象ユーザーをブロック/ミュートしているかを解決する（プロフィール詳細用）。
  *
  * Block / Mute の複合キー findUnique を 2 クエリ並列実行（N+1 なし）。

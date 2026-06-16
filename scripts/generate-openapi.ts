@@ -70,6 +70,7 @@ async function main() {
     muteResponseSchema,
     userMinimalWithBioSchema,
     userMinimalListResponseSchema,
+    postAuthorWithStateSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -272,6 +273,16 @@ async function main() {
     'MentionedUser',
     mentionedUserSchema.openapi({
       description: 'メンション解決済みユーザー情報。content 内の `<@userId>` トークンに対応する表示情報。',
+    }),
+  )
+
+  registry.register(
+    'PostAuthorWithState',
+    postAuthorWithStateSchema.openapi({
+      description:
+        'トップレベル投稿者・コメント投稿者の情報（閲覧者視点の Block/Mute 状態付き）。' +
+        'quotePost / repostPost のネスト著者には適用されない。' +
+        'isBlocked/isMuted はゲスト・未ブロック・未ミュートの場合は false。',
     }),
   )
 
@@ -1289,7 +1300,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.5.0',
+      version: '1.6.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

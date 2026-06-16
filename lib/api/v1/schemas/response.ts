@@ -66,13 +66,28 @@ export const genreItemSchema = z.object({
 })
 export type GenreItem = z.infer<typeof genreItemSchema>
 
-/** 投稿著者の最小スキーマ */
+/** 投稿著者の最小スキーマ（nestedPost / quotePost / repostPost のネスト投稿著者に使用） */
 export const postAuthorSchema = z.object({
   id: z.string(),
   nickname: z.string(),
   avatarUrl: z.string().nullable(),
 })
 export type PostAuthor = z.infer<typeof postAuthorSchema>
+
+/**
+ * トップレベル投稿者・コメント投稿者のスキーマ（閲覧者視点の Block/Mute 状態付き）。
+ *
+ * nestedPostSchema（quotePost / repostPost の著者）には適用しない。
+ * スコープをトップレベルのみに限定することで isBlocked/isMuted の
+ * 計算コストをページ単位の著者数に抑える。
+ */
+export const postAuthorWithStateSchema = postAuthorSchema.extend({
+  /** 閲覧者が投稿者をブロック中か（ゲストまたは未ブロックは false） */
+  isBlocked: z.boolean(),
+  /** 閲覧者が投稿者をミュート中か（ゲストまたは未ミュートは false） */
+  isMuted: z.boolean(),
+})
+export type PostAuthorWithState = z.infer<typeof postAuthorWithStateSchema>
 
 /** 引用元・リポスト元投稿（ネスト）の最小スキーマ */
 export const nestedPostSchema = z.object({
@@ -104,7 +119,7 @@ export const postSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   userId: z.string(),
-  user: postAuthorSchema,
+  user: postAuthorWithStateSchema,
   media: z.array(mediaItemSchema),
   genres: z.array(genreItemSchema),
   likeCount: z.number().int(),
@@ -119,6 +134,9 @@ export const postSchema = z.object({
   mentionedUsers: z.array(mentionedUserSchema),
 })
 export type PostResponse = z.infer<typeof postSchema>
+
+// NOTE: feedResponseSchema / searchPostsResponseSchema は postSchema を参照するため
+// postSchema.user の変更が自動伝播する。別途スキーマを作る必要はない。
 
 /** GET /api/v1/feed 200 */
 export const feedResponseSchema = z.object({
@@ -148,7 +166,7 @@ export const commentSchema = z.object({
   likeCount: z.number().int(),
   replyCount: z.number().int(),
   isLiked: z.boolean(),
-  user: postAuthorSchema,
+  user: postAuthorWithStateSchema,
   media: z.array(mediaItemSchema),
   mentionedUsers: z.array(mentionedUserSchema),
 })

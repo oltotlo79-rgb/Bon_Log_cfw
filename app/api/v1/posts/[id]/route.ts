@@ -9,6 +9,7 @@ import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { fetchPostDetail } from '@/lib/services/post-read-service'
 import { attachMentionedUsersToOne } from '@/lib/api/v1/mention-resolver'
+import { resolveBlockMuteStateForOne } from '@/lib/api/v1/follow-state-resolver'
 
 export async function GET(
   request: NextRequest,
@@ -34,5 +35,17 @@ export async function GET(
   // 4. mentionedUsers を付加
   const postWithMentions = await attachMentionedUsersToOne(result.post)
 
-  return NextResponse.json(postWithMentions)
+  // 5. トップレベル投稿者の Block/Mute 状態を付加（単一ユーザー: 2 クエリ並列）
+  const authorId = postWithMentions.user?.id
+  const blockMuteState = authorId
+    ? await resolveBlockMuteStateForOne(auth.userId, authorId)
+    : { isBlocked: false, isMuted: false }
+  const postWithState = {
+    ...postWithMentions,
+    user: postWithMentions.user
+      ? { ...postWithMentions.user, ...blockMuteState }
+      : postWithMentions.user,
+  }
+
+  return NextResponse.json(postWithState)
 }
