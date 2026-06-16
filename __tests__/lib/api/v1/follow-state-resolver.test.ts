@@ -2,7 +2,8 @@
 /**
  * lib/api/v1/follow-state-resolver のユニットテスト
  *
- * resolveBlockMuteStateForOne の正常系・自己参照・エラー時フォールバックを検証する。
+ * resolveBlockMuteStates（バッチ）と resolveBlockMuteStateForOne の
+ * 正常系・自己参照・エラー時フォールバックを検証する。
  * resolveFollowStates / resolveFollowStateForOne は既存テストで間接的に検証済み。
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest'
@@ -11,6 +12,8 @@ const mockFollowFindMany = vi.fn()
 const mockFollowRequestFindMany = vi.fn()
 const mockBlockFindUnique = vi.fn()
 const mockMuteFindUnique = vi.fn()
+const mockBlockFindMany = vi.fn()
+const mockMuteFindMany = vi.fn()
 const mockUserFindMany = vi.fn()
 
 vi.mock('@/lib/db', () => ({
@@ -23,9 +26,11 @@ vi.mock('@/lib/db', () => ({
     },
     block: {
       findUnique: (...args: unknown[]) => mockBlockFindUnique(...args),
+      findMany: (...args: unknown[]) => mockBlockFindMany(...args),
     },
     mute: {
       findUnique: (...args: unknown[]) => mockMuteFindUnique(...args),
+      findMany: (...args: unknown[]) => mockMuteFindMany(...args),
     },
     user: {
       findMany: (...args: unknown[]) => mockUserFindMany(...args),
@@ -45,6 +50,8 @@ describe('resolveBlockMuteStateForOne', () => {
     vi.clearAllMocks()
     mockBlockFindUnique.mockResolvedValue(null)
     mockMuteFindUnique.mockResolvedValue(null)
+    mockBlockFindMany.mockResolvedValue([])
+    mockMuteFindMany.mockResolvedValue([])
     mockFollowFindMany.mockResolvedValue([])
     mockFollowRequestFindMany.mockResolvedValue([])
   })
@@ -133,6 +140,119 @@ describe('resolveBlockMuteStateForOne', () => {
     expect(mockMuteFindUnique).toHaveBeenCalledWith({
       where: { muterId_mutedId: { muterId: VIEWER, mutedId: TARGET } },
       select: { muterId: true },
+    })
+  })
+})
+
+describe('resolveBlockMuteStates（バッチ）', () => {
+  const TARGET_A = 'target-a'
+  const TARGET_B = 'target-b'
+  const TARGET_C = 'target-c'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockBlockFindMany.mockResolvedValue([])
+    mockMuteFindMany.mockResolvedValue([])
+    mockFollowFindMany.mockResolvedValue([])
+    mockFollowRequestFindMany.mockResolvedValue([])
+  })
+
+  it('空配列を渡すと即座に空 Map を返す（DB クエリなし）', async () => {
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveBlockMuteStates(VIEWER, [])
+    expect(result.size).toBe(0)
+    expect(mockBlockFindMany).not.toHaveBeenCalled()
+    expect(mockMuteFindMany).not.toHaveBeenCalled()
+  })
+
+  it('未ブロック・未ミュートの id は { isBlocked: false, isMuted: false } を返す', async () => {
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(result.get(TARGET_A)).toEqual({ isBlocked: false, isMuted: false })
+    expect(result.get(TARGET_B)).toEqual({ isBlocked: false, isMuted: false })
+  })
+
+  it('block テーブルにある id は isBlocked:true になる', async () => {
+    mockBlockFindMany.mockResolvedValueOnce([{ blockedId: TARGET_A }])
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(result.get(TARGET_A)).toEqual({ isBlocked: true, isMuted: false })
+    expect(result.get(TARGET_B)).toEqual({ isBlocked: false, isMuted: false })
+  })
+
+  it('mute テーブルにある id は isMuted:true になる', async () => {
+    mockMuteFindMany.mockResolvedValueOnce([{ mutedId: TARGET_B }])
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(result.get(TARGET_A)).toEqual({ isBlocked: false, isMuted: false })
+    expect(result.get(TARGET_B)).toEqual({ isBlocked: false, isMuted: true })
+  })
+
+  it('複数 id の一括解決: block.findMany / mute.findMany がそれぞれ 1 回だけ呼ばれる', async () => {
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B, TARGET_C])
+    expect(mockBlockFindMany).toHaveBeenCalledTimes(1)
+    expect(mockMuteFindMany).toHaveBeenCalledTimes(1)
+  })
+
+  it('重複 id は内部で排除され findMany は一意な id セットで呼ばれる', async () => {
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_A, TARGET_B, TARGET_A])
+    expect(mockBlockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          blockedId: expect.objectContaining({ in: expect.arrayContaining([TARGET_A, TARGET_B]) }),
+        }),
+      }),
+    )
+    expect(result.size).toBe(2)
+    expect(result.get(TARGET_A)).toEqual({ isBlocked: false, isMuted: false })
+    expect(result.get(TARGET_B)).toEqual({ isBlocked: false, isMuted: false })
+  })
+
+  it('DB エラー（findMany reject）時は fail-open で空 Map を返す', async () => {
+    mockBlockFindMany.mockRejectedValueOnce(new Error('DB connection error'))
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(result.size).toBe(0)
+  })
+
+  it('block と mute が並列実行される（Promise.all）', async () => {
+    let blockResolved = false
+    let muteResolved = false
+    mockBlockFindMany.mockImplementationOnce(() =>
+      new Promise((resolve) => setTimeout(() => {
+        blockResolved = true
+        resolve([])
+      }, 10)),
+    )
+    mockMuteFindMany.mockImplementationOnce(() =>
+      new Promise((resolve) => setTimeout(() => {
+        muteResolved = true
+        resolve([])
+      }, 10)),
+    )
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveBlockMuteStates(VIEWER, [TARGET_A])
+    expect(blockResolved).toBe(true)
+    expect(muteResolved).toBe(true)
+  })
+
+  it('block.findMany に正しいクエリが渡される', async () => {
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(mockBlockFindMany).toHaveBeenCalledWith({
+      where: { blockerId: VIEWER, blockedId: { in: expect.arrayContaining([TARGET_A, TARGET_B]) } },
+      select: { blockedId: true },
+    })
+  })
+
+  it('mute.findMany に正しいクエリが渡される', async () => {
+    const { resolveBlockMuteStates } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveBlockMuteStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(mockMuteFindMany).toHaveBeenCalledWith({
+      where: { muterId: VIEWER, mutedId: { in: expect.arrayContaining([TARGET_A, TARGET_B]) } },
+      select: { mutedId: true },
     })
   })
 })

@@ -4,6 +4,7 @@
  *
  * 200 / 404 / 401 / 429 の全分岐を検証する。
  * 不可視・不存在投稿は 404 NOT_FOUND（情報漏えい防止）。
+ * isBlocked / isMuted フィールドの付与も検証する。
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
@@ -11,10 +12,24 @@ import { NextRequest } from 'next/server'
 const VALID_SECRET = 'a'.repeat(64)
 
 const mockUserFindUnique = vi.fn()
+const mockBlockFindUnique = vi.fn()
+const mockMuteFindUnique = vi.fn()
 vi.mock('@/lib/db', () => ({
   prisma: {
     user: {
       findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
+    block: {
+      findUnique: (...args: unknown[]) => mockBlockFindUnique(...args),
+    },
+    mute: {
+      findUnique: (...args: unknown[]) => mockMuteFindUnique(...args),
+    },
+    follow: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    followRequest: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
 }))
@@ -38,10 +53,12 @@ async function makeAuthenticatedRequest(userId: string, postId = 'post-abc'): Pr
   return [req, { params: Promise.resolve({ id: postId }) }]
 }
 
+const POST_AUTHOR_ID = 'author-user-post'
+
 const mockPostDetail = {
   id: 'post-abc',
   content: 'test post',
-  userId: 'user-1',
+  userId: POST_AUTHOR_ID,
   createdAt: new Date().toISOString(),
   likeCount: 0,
   commentCount: 0,
@@ -49,6 +66,7 @@ const mockPostDetail = {
   genres: [],
   isLiked: false,
   isBookmarked: false,
+  user: { id: POST_AUTHOR_ID, nickname: 'PostAuthor', avatarUrl: null },
 }
 
 describe('GET /api/v1/posts/[id]', () => {
@@ -58,6 +76,8 @@ describe('GET /api/v1/posts/[id]', () => {
     mockUserFindUnique.mockResolvedValue({ id: 'user-1', isSuspended: false, email: 'u@example.com' })
     mockCheckUserRateLimit.mockResolvedValue({ success: true, remaining: 59, resetTime: Date.now() + 60000 })
     mockFetchPostDetail.mockResolvedValue({ found: true, post: mockPostDetail })
+    mockBlockFindUnique.mockResolvedValue(null)
+    mockMuteFindUnique.mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -166,5 +186,102 @@ describe('GET /api/v1/posts/[id]', () => {
       message: expect.any(String),
       status: expect.any(Number),
     })
+  })
+})
+
+describe('GET /api/v1/posts/[id] — isBlocked/isMuted フィールド', () => {
+  beforeEach(() => {
+    vi.stubEnv('MOBILE_JWT_SECRET', VALID_SECRET)
+    vi.clearAllMocks()
+    mockUserFindUnique.mockResolvedValue({ id: 'user-1', isSuspended: false, email: 'u@example.com' })
+    mockCheckUserRateLimit.mockResolvedValue({ success: true, remaining: 59, resetTime: Date.now() + 60000 })
+    mockFetchPostDetail.mockResolvedValue({ found: true, post: mockPostDetail })
+    mockBlockFindUnique.mockResolvedValue(null)
+    mockMuteFindUnique.mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('レスポンスの user に isBlocked/isMuted フィールドが含まれる', async () => {
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.user).toBeDefined()
+    expect(Object.prototype.hasOwnProperty.call(body.user, 'isBlocked')).toBe(true)
+    expect(Object.prototype.hasOwnProperty.call(body.user, 'isMuted')).toBe(true)
+  })
+
+  it('未ブロック・未ミュート時は user.isBlocked:false / isMuted:false', async () => {
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.user.isBlocked).toBe(false)
+    expect(body.user.isMuted).toBe(false)
+  })
+
+  it('著者 id が block テーブルにある場合 user.isBlocked:true', async () => {
+    mockBlockFindUnique.mockResolvedValueOnce({ blockerId: 'user-1' })
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.user.isBlocked).toBe(true)
+    expect(body.user.isMuted).toBe(false)
+  })
+
+  it('著者 id が mute テーブルにある場合 user.isMuted:true', async () => {
+    mockMuteFindUnique.mockResolvedValueOnce({ muterId: 'user-1' })
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.user.isBlocked).toBe(false)
+    expect(body.user.isMuted).toBe(true)
+  })
+
+  it('DB エラー時は fail-open で user.isBlocked:false / isMuted:false になる', async () => {
+    mockBlockFindUnique.mockRejectedValueOnce(new Error('DB connection error'))
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.user.isBlocked).toBe(false)
+    expect(body.user.isMuted).toBe(false)
+  })
+
+  it('quotePost/repostPost のネスト著者には isBlocked/isMuted が付かない', async () => {
+    const NESTED_AUTHOR_ID = 'nested-author-id'
+    mockFetchPostDetail.mockResolvedValueOnce({
+      found: true,
+      post: {
+        ...mockPostDetail,
+        quotePost: { id: 'q1', content: 'quoted', user: { id: NESTED_AUTHOR_ID, nickname: 'N', avatarUrl: null } },
+        repostPost: null,
+      },
+    })
+    mockBlockFindUnique.mockResolvedValueOnce({ blockerId: 'user-1' })
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.user.isBlocked).toBe(true)
+    expect(body.quotePost?.user?.isBlocked).toBeUndefined()
+    expect(body.quotePost?.user?.isMuted).toBeUndefined()
   })
 })

@@ -3,6 +3,7 @@
  * GET /api/v1/posts/[id]/comments のユニットテスト
  *
  * 200 カーソルページング / 401 / 429 の全分岐を検証する。
+ * isBlocked / isMuted フィールドの付与も検証する。
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
@@ -10,10 +11,24 @@ import { NextRequest } from 'next/server'
 const VALID_SECRET = 'a'.repeat(64)
 
 const mockUserFindUnique = vi.fn()
+const mockBlockFindMany = vi.fn()
+const mockMuteFindMany = vi.fn()
 vi.mock('@/lib/db', () => ({
   prisma: {
     user: {
       findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
+    block: {
+      findMany: (...args: unknown[]) => mockBlockFindMany(...args),
+    },
+    mute: {
+      findMany: (...args: unknown[]) => mockMuteFindMany(...args),
+    },
+    follow: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    followRequest: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
 }))
@@ -47,9 +62,11 @@ async function makeAuthenticatedRequest(
   return [req, { params: Promise.resolve({ id: postId }) }]
 }
 
+const COMMENTER_ID = 'commenter-user-1'
+
 const mockCommentsResult = {
   comments: [
-    { id: 'comment-1', content: 'nice post', userId: 'user-2' },
+    { id: 'comment-1', content: 'nice post', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'Commenter', avatarUrl: null } },
   ],
   nextCursor: undefined,
 }
@@ -61,6 +78,8 @@ describe('GET /api/v1/posts/[id]/comments', () => {
     mockUserFindUnique.mockResolvedValue({ id: 'user-1', isSuspended: false, email: 'u@example.com' })
     mockCheckUserRateLimit.mockResolvedValue({ success: true, remaining: 59, resetTime: Date.now() + 60000 })
     mockFetchComments.mockResolvedValue(mockCommentsResult)
+    mockBlockFindMany.mockResolvedValue([])
+    mockMuteFindMany.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -161,5 +180,101 @@ describe('GET /api/v1/posts/[id]/comments', () => {
     expect(res.headers.get('Retry-After')).not.toBeNull()
     const body = await res.json()
     expect(body.error.code).toBe('RATE_LIMITED')
+  })
+})
+
+describe('GET /api/v1/posts/[id]/comments — isBlocked/isMuted フィールド', () => {
+  beforeEach(() => {
+    vi.stubEnv('MOBILE_JWT_SECRET', VALID_SECRET)
+    vi.clearAllMocks()
+    mockUserFindUnique.mockResolvedValue({ id: 'user-1', isSuspended: false, email: 'u@example.com' })
+    mockCheckUserRateLimit.mockResolvedValue({ success: true, remaining: 59, resetTime: Date.now() + 60000 })
+    mockBlockFindMany.mockResolvedValue([])
+    mockMuteFindMany.mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('未ブロック・未ミュート時は items[].user に isBlocked:false / isMuted:false が付く', async () => {
+    mockFetchComments.mockResolvedValueOnce({
+      comments: [{ id: 'c1', content: 'comment', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'C', avatarUrl: null } }],
+      nextCursor: undefined,
+    })
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/comments/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items[0].user.isBlocked).toBe(false)
+    expect(body.items[0].user.isMuted).toBe(false)
+  })
+
+  it('コメント投稿者 id が block テーブルにある場合 user.isBlocked:true', async () => {
+    mockFetchComments.mockResolvedValueOnce({
+      comments: [{ id: 'c1', content: 'comment', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'C', avatarUrl: null } }],
+      nextCursor: undefined,
+    })
+    mockBlockFindMany.mockResolvedValueOnce([{ blockedId: COMMENTER_ID }])
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/comments/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items[0].user.isBlocked).toBe(true)
+    expect(body.items[0].user.isMuted).toBe(false)
+  })
+
+  it('コメント投稿者 id が mute テーブルにある場合 user.isMuted:true', async () => {
+    mockFetchComments.mockResolvedValueOnce({
+      comments: [{ id: 'c1', content: 'comment', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'C', avatarUrl: null } }],
+      nextCursor: undefined,
+    })
+    mockMuteFindMany.mockResolvedValueOnce([{ mutedId: COMMENTER_ID }])
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/comments/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items[0].user.isBlocked).toBe(false)
+    expect(body.items[0].user.isMuted).toBe(true)
+  })
+
+  it('複数コメント時に block.findMany / mute.findMany がそれぞれ 1 回だけ呼ばれる（N+1 防止）', async () => {
+    const COMMENTER_ID_2 = 'commenter-user-2'
+    mockFetchComments.mockResolvedValueOnce({
+      comments: [
+        { id: 'c1', content: 'c1', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'A', avatarUrl: null } },
+        { id: 'c2', content: 'c2', userId: COMMENTER_ID_2, user: { id: COMMENTER_ID_2, nickname: 'B', avatarUrl: null } },
+        { id: 'c3', content: 'c3', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'A', avatarUrl: null } },
+      ],
+      nextCursor: undefined,
+    })
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/comments/route')
+    await GET(req, params)
+
+    expect(mockBlockFindMany).toHaveBeenCalledTimes(1)
+    expect(mockMuteFindMany).toHaveBeenCalledTimes(1)
+  })
+
+  it('DB エラー時は fail-open で items[].user.isBlocked:false / isMuted:false になる', async () => {
+    mockFetchComments.mockResolvedValueOnce({
+      comments: [{ id: 'c1', content: 'comment', userId: COMMENTER_ID, user: { id: COMMENTER_ID, nickname: 'C', avatarUrl: null } }],
+      nextCursor: undefined,
+    })
+    mockBlockFindMany.mockRejectedValueOnce(new Error('DB connection error'))
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/comments/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items[0].user.isBlocked).toBe(false)
+    expect(body.items[0].user.isMuted).toBe(false)
   })
 })
