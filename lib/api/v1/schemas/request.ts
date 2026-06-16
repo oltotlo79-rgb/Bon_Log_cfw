@@ -125,3 +125,55 @@ export const createReportRequestSchema = z.object({
   description: z.string().trim().max(REPORT_DESCRIPTION_MAX_LENGTH).optional(),
 })
 export type CreateReportRequest = z.infer<typeof createReportRequestSchema>
+
+// ──────────────────────────────────────────────────
+// Phase 2 Batch 2c — 投稿 CRUD + コメント作成/削除
+// ──────────────────────────────────────────────────
+
+import {
+  MAX_GENRES_PER_POST,
+  MAX_COMMENT_LENGTH,
+} from '@/lib/constants/limits'
+
+/**
+ * POST /api/v1/posts
+ *
+ * content / genreIds / mediaUrls / mediaTypes を受ける。
+ * bonsai 紐付け・poll はモバイル MVP 対象外のため本バッチでは含まない。
+ * mediaUrls の URL 検証は Web の createPost と同等（文字列存在チェックのみ）。
+ */
+export const createPostRequestSchema = z.object({
+  content: z.string().optional().default(''),
+  genreIds: z.array(z.string()).max(MAX_GENRES_PER_POST).default([]),
+  mediaUrls: z.array(z.string()).default([]),
+  mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+})
+export type CreatePostRequest = z.infer<typeof createPostRequestSchema>
+
+/**
+ * PATCH /api/v1/posts/{id}
+ *
+ * 部分更新形式だが、ジャンル・メディアは差し替え方式（省略時は空として扱う）。
+ * content を省略した場合はデフォルト '' として処理される（mediaUrls のみでも可）。
+ */
+export const updatePostRequestSchema = z.object({
+  content: z.string().optional().default(''),
+  genreIds: z.array(z.string()).max(MAX_GENRES_PER_POST).default([]),
+  mediaUrls: z.array(z.string()).default([]),
+  mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+})
+export type UpdatePostRequest = z.infer<typeof updatePostRequestSchema>
+
+/**
+ * POST /api/v1/posts/{id}/comments
+ *
+ * postId は path から取得。parentId は返信の場合のみ指定。
+ * 本文長は MAX_COMMENT_LENGTH（500 文字）で制限する。
+ */
+export const createCommentRequestSchema = z.object({
+  content: z.string().max(MAX_COMMENT_LENGTH).optional().default(''),
+  parentId: z.string().min(1).nullable().optional(),
+  mediaUrls: z.array(z.string()).default([]),
+  mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+})
+export type CreateCommentRequest = z.infer<typeof createCommentRequestSchema>

@@ -39,6 +39,10 @@ export const ERR_IMAGE_VIDEO_SELECT = '画像または動画ファイルを選�
 /** メディアデータ不正エラー */
 export const ERR_MEDIA_DATA_INVALID = 'メディアデータが不正です'
 
+/** v1: mediaUrls が自社ストレージ由来でない場合のエラー */
+export const ERR_MEDIA_URL_NOT_OWN_STORAGE =
+  'メディアURLが許可されていません。アップロード済みのメディアのみ指定してください'
+
 /** バリデーションエラー */
 export const ERR_INVALID_INPUT = '入力データが不正です'
 

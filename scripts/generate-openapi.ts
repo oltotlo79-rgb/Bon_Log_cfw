@@ -48,6 +48,9 @@ async function main() {
     searchQuerySchema,
     registerRequestSchema,
     createReportRequestSchema,
+    createPostRequestSchema,
+    updatePostRequestSchema,
+    createCommentRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -59,6 +62,7 @@ async function main() {
     mobileApiErrorCodeSchema,
     feedResponseSchema,
     postSchema,
+    commentSchema,
     commentsListResponseSchema,
     userProfileSchema,
     searchPostsResponseSchema,
@@ -257,6 +261,48 @@ async function main() {
     }).openapi({
       description: '既読化する通知 ID の配列。省略または空配列の場合は全未読を既読化する。最大 100 件。',
     }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // Batch 2c — 投稿 CRUD + コメント作成/削除スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  const CreatePostRequest = registry.register(
+    'CreatePostRequest',
+    createPostRequestSchema.openapi({
+      description: [
+        '投稿作成リクエスト。content / mediaUrls のどちらか一方は必須。',
+        'genreIds は最大 3 つ。mediaUrls と mediaTypes は同数で対応させること。',
+        'bonsai 紐付け・アンケートはモバイル MVP 外（将来別途追加）。',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdatePostRequest = registry.register(
+    'UpdatePostRequest',
+    updatePostRequestSchema.openapi({
+      description: [
+        '投稿編集リクエスト（所有者のみ）。ジャンル・メディアは差し替え方式。',
+        '純粋リポストは編集不可（400 VALIDATION_ERROR）。',
+        '1 日投稿上限は消費しない。editedAt が更新される。',
+      ].join('\n'),
+    }),
+  )
+
+  const CreateCommentRequest = registry.register(
+    'CreateCommentRequest',
+    createCommentRequestSchema.openapi({
+      description: [
+        'コメント作成リクエスト。content / mediaUrls のどちらか一方は必須。',
+        'parentId を指定すると返信コメントになる（スレッド参加者全員へ reply 通知）。',
+        '本文最大 500 文字。画像最大 2 枚。動画はプレミアム会員のみ 1 本。',
+      ].join('\n'),
+    }),
+  )
+
+  const CommentResponse = registry.register(
+    'CommentResponse',
+    commentSchema.openapi({ description: '単一コメントのレスポンス（作成時に返却）。' }),
   )
 
   const NotificationReadResponse = registry.register(
@@ -1291,6 +1337,201 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Batch 2c — 投稿 CRUD + コメント作成/削除パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/posts',
+    tags: ['posts'],
+    summary: '投稿を作成する',
+    description: [
+      '新規投稿を作成する。content または mediaUrls のどちらか一方は必須。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- content 上限: 無料 500 文字 / プレミアム 2000 文字',
+      '- 画像上限: 無料 4 枚 / プレミアム 6 枚',
+      '- 動画: 無料不可（400 VALIDATION_ERROR）/ プレミアム 1 本',
+      '- ジャンル最大 3 つ。超過時は 400 VALIDATION_ERROR',
+      '- 1 日投稿上限: 無料 20 件 / プレミアム 40 件。超過時は 429 RATE_LIMITED',
+      '- レート制限: post（3/分）',
+      '- 成功レスポンス: 201 + 作成後の投稿詳細（楽観挿入に使用可）',
+      '- bonsai 紐付け・アンケートは本バッチ対象外',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreatePostRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: '投稿作成成功。作成後の投稿詳細を返す',
+        content: { 'application/json': { schema: PostResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 本文長超過・メディア枚数超過・ジャンル数超過・純粋リポスト編集等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/posts/{id}',
+    tags: ['posts'],
+    summary: '投稿を編集する（所有者のみ）',
+    description: [
+      '既存投稿の本文・ジャンル・メディアを編集する。所有者のみ。',
+      '',
+      '重要仕様:',
+      '- 純粋リポストは編集不可（400 VALIDATION_ERROR）',
+      '- ジャンル・メディアは差し替え方式（既存を全て置換）',
+      '- 1 日投稿上限は消費しない',
+      '- editedAt が更新される（「編集済み」の表示に使用）',
+      '- 所有者でない場合は 403 PERMISSION_DENIED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: engagement（30/分）',
+      '- 成功レスポンス: 200 + 編集後の投稿詳細',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: UpdatePostRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '編集成功。編集後の投稿詳細を返す',
+        content: { 'application/json': { schema: PostResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 本文長超過・メディア枚数超過・ジャンル数超過・純粋リポスト編集等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 所有者でない (VALIDATION_ERROR)'),
+      404: errorResponse('投稿が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/posts/{id}',
+    tags: ['posts'],
+    summary: '投稿を削除する（所有者のみ）',
+    description: [
+      '投稿を削除する。所有者のみ。R2 メディアのストレージ削除も実施（best-effort）。',
+      '',
+      '重要仕様:',
+      '- 所有者でない場合は 403 PERMISSION_DENIED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: delete_post（5/分）',
+      '- 成功レスポンス: 200 { success: true }',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '削除成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 所有者でない (VALIDATION_ERROR)'),
+      404: errorResponse('投稿が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/posts/{id}/comments',
+    tags: ['posts'],
+    summary: 'コメントを作成する',
+    description: [
+      '指定投稿にコメントを作成する。content または mediaUrls のどちらか一方は必須。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 不可視投稿（非表示・非公開著者・停止著者）は 404 NOT_FOUND',
+      '- parentId 指定で返信コメント（スレッド参加者全員へ reply 通知）',
+      '- parentId なしで新規コメント（投稿オーナーへ comment 通知）',
+      '- 本文最大 500 文字',
+      '- 画像最大 2 枚。動画: 無料不可 / プレミアム 1 本',
+      '- 1 日コメント上限: 100 件（超過時は 429 RATE_LIMITED）',
+      '- レート制限: comment（5/分）',
+      '- 成功レスポンス: 201 + 作成後のコメント詳細（楽観挿入に使用可）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateCommentRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: 'コメント作成成功。作成後のコメント詳細を返す',
+        content: { 'application/json': { schema: CommentResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 本文超過・メディア枚数超過等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND) / 親コメントが不正 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/posts/{id}/comments/{commentId}',
+    tags: ['posts'],
+    summary: 'コメントを削除する（コメント所有者または投稿所有者）',
+    description: [
+      'コメントをソフトデリートする（deletedAt 設定）。',
+      'コメント所有者または投稿所有者が削除可能。',
+      '',
+      '重要仕様:',
+      '- コメント所有者でも投稿所有者でもない場合は 403 PERMISSION_DENIED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: delete_comment（10/分）',
+      '- 成功レスポンス: 200 { success: true }',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '投稿 ID' }),
+        commentId: z.string().openapi({ description: 'コメント ID' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '削除成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 所有者でない (VALIDATION_ERROR)'),
+      404: errorResponse('コメントが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -1300,7 +1541,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.6.0',
+      version: '1.7.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
