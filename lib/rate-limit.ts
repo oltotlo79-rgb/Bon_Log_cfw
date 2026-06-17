@@ -218,6 +218,10 @@ export const RATE_LIMITS = {
   // 15 分で 20 回まで許容（通常のセッション利用では 900 秒 = 15 分に 1 回程度）。
   // fail-closed: Redis 障害時はリフレッシュを遮断しトークン盗難検知の誤回避を防ぐ。
   mobile_refresh: { windowMs: FIFTEEN_MINUTES_MS, maxRequests: 20, failOpen: false },
+  // モバイルデバイストークン登録/解除: ログイン直後や再インストール時等の低頻度操作。
+  // engagement（30/分）より緩い 10/分 で設定する。
+  register_device: { windowMs: ONE_MINUTE_MS, maxRequests: 10 },
+  remove_device:   { windowMs: ONE_MINUTE_MS, maxRequests: 10 },
 } as const
 
 /**

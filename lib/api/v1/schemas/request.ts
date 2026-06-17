@@ -260,3 +260,21 @@ export const presignedUploadRequestSchema = z.object({
   folder: z.enum(ALLOWED_UPLOAD_FOLDERS).default('post-videos'),
 })
 export type PresignedUploadRequest = z.infer<typeof presignedUploadRequestSchema>
+
+// ──────────────────────────────────────────────────
+// Phase 3 Batch 3a — Push 通知デバイストークン登録/解除
+// ──────────────────────────────────────────────────
+
+import { MAX_DEVICE_TOKEN_LENGTH } from '@/lib/constants/limits'
+
+/**
+ * POST /api/v1/devices
+ *
+ * Expo / APNs / FCM の Push トークンを登録する（冪等な upsert）。
+ * 既存トークンは現所有者に付け替える（端末譲渡・再インストールに対応）。
+ */
+export const registerDeviceRequestSchema = z.object({
+  token: z.string().min(1).max(MAX_DEVICE_TOKEN_LENGTH),
+  platform: z.enum(['android', 'ios']),
+})
+export type RegisterDeviceRequest = z.infer<typeof registerDeviceRequestSchema>

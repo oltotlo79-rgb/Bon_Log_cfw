@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -2515,6 +2515,28 @@
           "url"
         ],
         "description": "画像アップロード成功のレスポンス。\nurl は EXIF/GPS/IPTC を除去済みの自社ストレージ公開 URL。\n投稿作成時の mediaUrls にそのまま渡せる。"
+      },
+      "RegisterDeviceRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android",
+              "ios"
+            ]
+          }
+        },
+        "required": [
+          "token",
+          "platform"
+        ],
+        "description": "Push 通知デバイストークン登録リクエスト。\ntoken は Expo / APNs / FCM の Push トークン文字列。\nplatform は android または ios。"
       }
     },
     "parameters": {}
@@ -5907,6 +5929,176 @@
           },
           "500": {
             "description": "内部エラー — ストレージ保存失敗 (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Push 通知デバイストークンを登録（冪等な upsert）",
+        "description": "Expo / APNs / FCM の Push トークンを登録する。\n\n重要仕様:\n- 冪等設計: 同じ token を再度 POST しても 200 を返す（upsert）\n- 既存トークンに別のユーザーが紐付いている場合は現所有者に付け替える（端末譲渡・再インストール対応）\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: register_device（10/分）\n- トークン文字列はログ・エラーメッセージに出力しない（秘匿扱い）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登録成功（既存トークンの upsert も含む）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — token 空文字・長さ超過・platform 値不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/{token}": {
+      "delete": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Push 通知デバイストークンを解除（冪等・自分のトークンのみ）",
+        "description": "指定した Push トークンの登録を解除する。\n\n重要仕様:\n- 冪等設計: 存在しないトークンを DELETE しても 200 を返す（fail-safe）\n- 自分のトークンのみ削除可。他人のトークン ID を指定しても何も起きず 200 を返す（情報漏洩しない）\n- Expo トークン（ExponentPushToken[...]）は [ ] を含むため URL エンコードが必要。\n  例: ExponentPushToken[abc123] → /api/v1/devices/ExponentPushToken%5Babc123%5D\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: remove_device（10/分）\n- トークン文字列はログ・エラーメッセージに出力しない（秘匿扱い）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Push トークン文字列（URL エンコード済み）"
+            },
+            "required": true,
+            "description": "Push トークン文字列（URL エンコード済み）",
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "解除成功（存在しないトークン・他人のトークンも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — token 長さ超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {

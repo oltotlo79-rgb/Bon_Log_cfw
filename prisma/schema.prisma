@@ -115,6 +115,11 @@ enum GenreType {
   shop
 }
 
+enum DevicePlatform {
+  android
+  ios
+}
+
 // NextAuth.js用モデル
 model Account {
   id                String  @id @default(cuid())
@@ -295,6 +300,9 @@ model User {
 
   // モバイル API v1 リフレッシュトークン
   refreshTokens RefreshToken[]
+
+  // モバイル API v1 デバイストークン（Push 通知用）
+  mobileDevices MobileDevice[]
 
   @@index([emailVerified])
   @@index([isSuspended])
@@ -1916,4 +1924,21 @@ model RefreshToken {
   @@index([userId])
   @@index([userId, revokedAt, expiresAt])
   @@map("refresh_tokens")
+}
+
+// モバイル Push 通知デバイストークン。
+// token は Expo / APNs / FCM の Push トークン文字列。グローバル一意（端末の現所有者に紐付く）。
+// 端末を譲渡・再インストールした場合、同じトークンを新 userId で upsert して付け替える。
+model MobileDevice {
+  id        String         @id @default(cuid())
+  userId    String         @map("user_id")
+  token     String         @unique
+  platform  DevicePlatform
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mobile_devices")
 }

@@ -53,6 +53,7 @@ async function main() {
     createCommentRequestSchema,
     presignedUploadRequestSchema,
     updateProfileRequestSchema,
+    registerDeviceRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -1756,6 +1757,94 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Phase 3 Batch 3a — Push 通知デバイストークン登録/解除
+  // ──────────────────────────────────────────────────
+
+  const RegisterDeviceRequest = registry.register(
+    'RegisterDeviceRequest',
+    registerDeviceRequestSchema.openapi({
+      description: [
+        'Push 通知デバイストークン登録リクエスト。',
+        'token は Expo / APNs / FCM の Push トークン文字列。',
+        'platform は android または ios。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/devices',
+    tags: ['devices'],
+    summary: 'Push 通知デバイストークンを登録（冪等な upsert）',
+    description: [
+      'Expo / APNs / FCM の Push トークンを登録する。',
+      '',
+      '重要仕様:',
+      '- 冪等設計: 同じ token を再度 POST しても 200 を返す（upsert）',
+      '- 既存トークンに別のユーザーが紐付いている場合は現所有者に付け替える（端末譲渡・再インストール対応）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: register_device（10/分）',
+      '- トークン文字列はログ・エラーメッセージに出力しない（秘匿扱い）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: RegisterDeviceRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '登録成功（既存トークンの upsert も含む）',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — token 空文字・長さ超過・platform 値不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/devices/{token}',
+    tags: ['devices'],
+    summary: 'Push 通知デバイストークンを解除（冪等・自分のトークンのみ）',
+    description: [
+      '指定した Push トークンの登録を解除する。',
+      '',
+      '重要仕様:',
+      '- 冪等設計: 存在しないトークンを DELETE しても 200 を返す（fail-safe）',
+      '- 自分のトークンのみ削除可。他人のトークン ID を指定しても何も起きず 200 を返す（情報漏洩しない）',
+      '- Expo トークン（ExponentPushToken[...]）は [ ] を含むため URL エンコードが必要。',
+      '  例: ExponentPushToken[abc123] → /api/v1/devices/ExponentPushToken%5Babc123%5D',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: remove_device（10/分）',
+      '- トークン文字列はログ・エラーメッセージに出力しない（秘匿扱い）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        token: z.string().openapi({
+          description: 'Push トークン文字列（URL エンコード済み）',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '解除成功（存在しないトークン・他人のトークンも 200）',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — token 長さ超過'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -1765,7 +1854,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.9.0',
+      version: '1.10.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
