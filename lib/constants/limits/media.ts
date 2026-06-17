@@ -83,6 +83,20 @@ export const HEADER_RECOMMENDED_HEIGHT = 500
 export const ALLOWED_PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 /**
+ * モバイル API v1 の画像アップロード（投稿・コメント添付）で許可する MIME タイプ。
+ * プロフィール画像と同じセットだが、将来の差分を許容するため別定数として定義する。
+ */
+export const ALLOWED_POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export type AllowedPostImageType = (typeof ALLOWED_POST_IMAGE_TYPES)[number]
+
+/** ALLOWED_POST_IMAGE_TYPES の拡張子マップ（ファイル保存キー生成用）。 */
+export const POST_IMAGE_MIME_EXTENSION_MAP: Record<AllowedPostImageType, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+}
+
+/**
  * Presigned upload で許可する MIME タイプ。
  * 現状は動画のみ (画像は Server Action 経由)。Zod enum として使う。
  */

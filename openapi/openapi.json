@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -140,7 +140,8 @@
                   "NOT_FOUND",
                   "CONFLICT",
                   "INTERNAL_ERROR",
-                  "SERVER_MISCONFIGURED"
+                  "SERVER_MISCONFIGURED",
+                  "PREMIUM_REQUIRED"
                 ]
               },
               "message": {
@@ -182,7 +183,8 @@
           "NOT_FOUND",
           "CONFLICT",
           "INTERNAL_ERROR",
-          "SERVER_MISCONFIGURED"
+          "SERVER_MISCONFIGURED",
+          "PREMIUM_REQUIRED"
         ],
         "description": "エラーコード enum（18 値）。モバイル側はこの enum からコード→メッセージ対応表を導出できる。"
       },
@@ -2298,6 +2300,79 @@
           "count"
         ],
         "description": "未読通知件数レスポンス。"
+      },
+      "PresignedUploadRequest": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "video/mp4",
+              "video/quicktime",
+              "video/webm"
+            ]
+          },
+          "fileSize": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 83886080
+          },
+          "folder": {
+            "type": "string",
+            "enum": [
+              "posts",
+              "post-videos",
+              "avatars",
+              "headers"
+            ],
+            "default": "post-videos"
+          }
+        },
+        "required": [
+          "contentType",
+          "fileSize"
+        ],
+        "description": "動画 presigned PUT URL のリクエスト。\ncontentType は video/mp4, video/quicktime, video/webm のいずれか。\nfileSize は正の整数（バイト）で MAX_VIDEO_SIZE（80MB）以下。\nfolder のデフォルトは post-videos。"
+      },
+      "PresignedUploadResponse": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "fileUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "key": {
+            "type": "string"
+          },
+          "contentLength": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "fileUrl",
+          "key",
+          "contentLength"
+        ],
+        "description": "動画 presigned PUT URL のレスポンス。\nuploadUrl に PUT リクエストを送る際は Content-Type と Content-Length をヘッダーに付与すること。\nfileUrl は自社ストレージの公開 URL で、投稿作成時の mediaUrls にそのまま渡せる。\nkey は R2 オブジェクトキー（削除時などに参照）。"
+      },
+      "ImageUploadResponse": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "description": "画像アップロード成功のレスポンス。\nurl は EXIF/GPS/IPTC を除去済みの自社ストレージ公開 URL。\n投稿作成時の mediaUrls にそのまま渡せる。"
       }
     },
     "parameters": {}
@@ -5328,6 +5403,214 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/upload/presigned": {
+      "post": {
+        "tags": [
+          "upload"
+        ],
+        "summary": "動画 presigned PUT URL を取得（プレミアム限定）",
+        "description": "動画を R2 へ直接アップロードするための presigned PUT URL を発行する。\nクライアントはこの URL に PUT リクエストを送り、完了後に fileUrl を投稿 mediaUrls に使用する。\n\n重要仕様:\n- 動画アップロードはプレミアム会員限定（403 PREMIUM_REQUIRED）\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- PUT 時は Content-Type ヘッダーに requestBody と同じ contentType を指定すること\n- PUT 時は Content-Length ヘッダーに requestBody と同じ fileSize を指定すること（Content-Length が署名対象のためサイズ迂回不可）\n- presigned URL 有効期限: 3600 秒（1 時間）\n- レート制限: upload（5/分）、日次上限あり（fail-closed）\n- 取得した uploadUrl とトークンはログに出力しないこと（セキュリティ）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignedUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "presigned PUT URL 発行成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な contentType / fileSize / folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー — presigned URL 生成失敗 (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ストレージ未設定 (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/upload/image": {
+      "post": {
+        "tags": [
+          "upload"
+        ],
+        "summary": "画像をアップロード（プレミアム不問）",
+        "description": "画像ファイルを multipart/form-data で受け取り、EXIF/GPS/IPTC 除去後に R2 へ保存する。\nレスポンスの url を投稿作成時の mediaUrls に使用する。\n\n重要仕様:\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 画像はプレミアム不問（枚数制限は POST /api/v1/posts 作成時に強制）\n- form-data のキー名は \"file\"\n- 対応形式: JPEG / PNG / WebP（マジックバイトで実 MIME を検証。申告 Content-Type 偽装は拒否）\n- 最大サイズ: 4MB\n- EXIF / GPS / IPTC は必ずサーバーで除去される（プライバシー保護）\n- EXIF orientation は物理画素に焼き込んでから除去するため向きが保持される\n- レート制限: upload（5/分）、日次上限あり（fail-closed）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "アップロードする画像ファイル（JPEG / PNG / WebP、最大 4MB）"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "画像アップロード成功。url は EXIF/GPS 除去済みの公開 URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — ファイル未選択 / 形式不正 / サイズ超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー — ストレージ保存失敗 (INTERNAL_ERROR)",
             "content": {
               "application/json": {
                 "schema": {

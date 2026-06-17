@@ -302,6 +302,36 @@ export const unreadCountResponseSchema = z.object({
 export type UnreadCountResponse = z.infer<typeof unreadCountResponseSchema>
 
 // ──────────────────────────────────────────────────
+// Phase 2 Batch 2c-upload — メディアアップロード
+// ──────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/upload/presigned 200
+ *
+ * 動画 presigned PUT URL のレスポンス。
+ * クライアントは uploadUrl に Content-Type / Content-Length を付与して PUT する。
+ * fileUrl は自社ストレージの公開 URL で、投稿作成時の mediaUrls に渡せる。
+ */
+export const presignedUploadResponseSchema = z.object({
+  uploadUrl: z.string().url(),
+  fileUrl: z.string().url(),
+  key: z.string(),
+  contentLength: z.number().int().positive(),
+})
+export type PresignedUploadResponse = z.infer<typeof presignedUploadResponseSchema>
+
+/**
+ * POST /api/v1/upload/image 200
+ *
+ * 画像アップロード成功のレスポンス。
+ * url は EXIF/GPS 除去済みの自社ストレージ公開 URL で、投稿作成時の mediaUrls に渡せる。
+ */
+export const imageUploadResponseSchema = z.object({
+  url: z.string().url(),
+})
+export type ImageUploadResponse = z.infer<typeof imageUploadResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

@@ -21,6 +21,7 @@ import {
   ERR_RATE_LIMIT_OPERATION,
   ERR_NOT_FOUND,
   ERR_OPERATION_FAILED,
+  ERR_VIDEO_PREMIUM_ONLY,
 } from '@/lib/constants/errors'
 
 /**
@@ -67,6 +68,8 @@ export const MOBILE_API_ERROR_CODES = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   /** サーバー設定エラー（環境変数未設定等） */
   SERVER_MISCONFIGURED: 'SERVER_MISCONFIGURED',
+  /** プレミアム会員限定の操作（動画アップロード等） */
+  PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',
 } as const
 
 /** モバイル API エラーコードの型 */
@@ -97,4 +100,5 @@ export const MOBILE_API_ERROR_MESSAGES: Record<MobileApiErrorCode, string> = {
   CONFLICT: '既に存在するリソースです',
   INTERNAL_ERROR: ERR_OPERATION_FAILED,
   SERVER_MISCONFIGURED: 'サーバーの設定に問題があります。管理者にお問い合わせください',
+  PREMIUM_REQUIRED: ERR_VIDEO_PREMIUM_ONLY,
 } as const

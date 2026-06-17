@@ -51,6 +51,7 @@ async function main() {
     createPostRequestSchema,
     updatePostRequestSchema,
     createCommentRequestSchema,
+    presignedUploadRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -75,6 +76,8 @@ async function main() {
     userMinimalWithBioSchema,
     userMinimalListResponseSchema,
     postAuthorWithStateSchema,
+    presignedUploadResponseSchema,
+    imageUploadResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -1532,6 +1535,135 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Batch 2c-upload — メディアアップロードスキーマ登録
+  // ──────────────────────────────────────────────────
+
+  const PresignedUploadRequest = registry.register(
+    'PresignedUploadRequest',
+    presignedUploadRequestSchema.openapi({
+      description: [
+        '動画 presigned PUT URL のリクエスト。',
+        'contentType は video/mp4, video/quicktime, video/webm のいずれか。',
+        'fileSize は正の整数（バイト）で MAX_VIDEO_SIZE（80MB）以下。',
+        'folder のデフォルトは post-videos。',
+      ].join('\n'),
+    }),
+  )
+
+  const PresignedUploadResponse = registry.register(
+    'PresignedUploadResponse',
+    presignedUploadResponseSchema.openapi({
+      description: [
+        '動画 presigned PUT URL のレスポンス。',
+        'uploadUrl に PUT リクエストを送る際は Content-Type と Content-Length をヘッダーに付与すること。',
+        'fileUrl は自社ストレージの公開 URL で、投稿作成時の mediaUrls にそのまま渡せる。',
+        'key は R2 オブジェクトキー（削除時などに参照）。',
+      ].join('\n'),
+    }),
+  )
+
+  const ImageUploadResponse = registry.register(
+    'ImageUploadResponse',
+    imageUploadResponseSchema.openapi({
+      description: [
+        '画像アップロード成功のレスポンス。',
+        'url は EXIF/GPS/IPTC を除去済みの自社ストレージ公開 URL。',
+        '投稿作成時の mediaUrls にそのまま渡せる。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/upload/presigned',
+    tags: ['upload'],
+    summary: '動画 presigned PUT URL を取得（プレミアム限定）',
+    description: [
+      '動画を R2 へ直接アップロードするための presigned PUT URL を発行する。',
+      'クライアントはこの URL に PUT リクエストを送り、完了後に fileUrl を投稿 mediaUrls に使用する。',
+      '',
+      '重要仕様:',
+      '- 動画アップロードはプレミアム会員限定（403 PREMIUM_REQUIRED）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- PUT 時は Content-Type ヘッダーに requestBody と同じ contentType を指定すること',
+      '- PUT 時は Content-Length ヘッダーに requestBody と同じ fileSize を指定すること（Content-Length が署名対象のためサイズ迂回不可）',
+      '- presigned URL 有効期限: 3600 秒（1 時間）',
+      '- レート制限: upload（5/分）、日次上限あり（fail-closed）',
+      '- 取得した uploadUrl とトークンはログに出力しないこと（セキュリティ）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: PresignedUploadRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'presigned PUT URL 発行成功',
+        content: { 'application/json': { schema: PresignedUploadResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な contentType / fileSize / folder'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー — presigned URL 生成失敗 (INTERNAL_ERROR)'),
+      503: errorResponse('ストレージ未設定 (SERVER_MISCONFIGURED)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/upload/image',
+    tags: ['upload'],
+    summary: '画像をアップロード（プレミアム不問）',
+    description: [
+      '画像ファイルを multipart/form-data で受け取り、EXIF/GPS/IPTC 除去後に R2 へ保存する。',
+      'レスポンスの url を投稿作成時の mediaUrls に使用する。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 画像はプレミアム不問（枚数制限は POST /api/v1/posts 作成時に強制）',
+      '- form-data のキー名は "file"',
+      '- 対応形式: JPEG / PNG / WebP（マジックバイトで実 MIME を検証。申告 Content-Type 偽装は拒否）',
+      '- 最大サイズ: 4MB',
+      '- EXIF / GPS / IPTC は必ずサーバーで除去される（プライバシー保護）',
+      '- EXIF orientation は物理画素に焼き込んでから除去するため向きが保持される',
+      '- レート制限: upload（5/分）、日次上限あり（fail-closed）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'multipart/form-data': {
+            // zod-to-openapi は z.instanceof(File) を処理できないため手書き schema で表現する
+            schema: z.object({
+              file: z.string().openapi({
+                description: 'アップロードする画像ファイル（JPEG / PNG / WebP、最大 4MB）',
+                format: 'binary',
+              }),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '画像アップロード成功。url は EXIF/GPS 除去済みの公開 URL',
+        content: { 'application/json': { schema: ImageUploadResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — ファイル未選択 / 形式不正 / サイズ超過'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー — ストレージ保存失敗 (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -1541,7 +1673,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.7.0',
+      version: '1.8.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

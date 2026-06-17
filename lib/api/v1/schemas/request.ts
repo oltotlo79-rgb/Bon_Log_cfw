@@ -177,3 +177,27 @@ export const createCommentRequestSchema = z.object({
   mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
 })
 export type CreateCommentRequest = z.infer<typeof createCommentRequestSchema>
+
+// ──────────────────────────────────────────────────
+// Phase 2 Batch 2c-upload — メディアアップロード
+// ──────────────────────────────────────────────────
+
+import {
+  ALLOWED_UPLOAD_VIDEO_TYPES,
+  ALLOWED_UPLOAD_FOLDERS,
+  MAX_VIDEO_SIZE,
+} from '@/lib/constants/limits'
+
+/**
+ * POST /api/v1/upload/presigned
+ *
+ * Bearer 認証済みユーザー向けの動画 presigned PUT URL 生成。
+ * 既存の /api/upload/presigned （Cookie 認証版）の Bearer 版で、動作は同等。
+ * 動画アップロードはプレミアム会員限定。
+ */
+export const presignedUploadRequestSchema = z.object({
+  contentType: z.enum(ALLOWED_UPLOAD_VIDEO_TYPES),
+  fileSize: z.number().int().positive().max(MAX_VIDEO_SIZE),
+  folder: z.enum(ALLOWED_UPLOAD_FOLDERS).default('post-videos'),
+})
+export type PresignedUploadRequest = z.infer<typeof presignedUploadRequestSchema>
