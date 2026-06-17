@@ -332,6 +332,32 @@ export const imageUploadResponseSchema = z.object({
 export type ImageUploadResponse = z.infer<typeof imageUploadResponseSchema>
 
 // ──────────────────────────────────────────────────
+// Batch 2d — プロフィール編集・アカウント削除
+// ──────────────────────────────────────────────────
+
+/**
+ * PATCH /api/v1/users/me 200 — 更新後のプロフィール
+ *
+ * usersMeSchema に加え、プロフィール編集で変更できる全フィールドを含む。
+ * GET /api/v1/users/me の拡張版であり、編集後の確定値として使用できる。
+ */
+export const usersMeFullSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+  headerUrl: z.string().nullable(),
+  bio: z.string().nullable(),
+  location: z.string().nullable(),
+  isPublic: z.boolean(),
+  bonsaiStartYear: z.number().int().nullable(),
+  bonsaiStartMonth: z.number().int().nullable(),
+  birthDate: z.string().nullable(),
+  isPremium: z.boolean(),
+})
+export type UsersMeFullResponse = z.infer<typeof usersMeFullSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

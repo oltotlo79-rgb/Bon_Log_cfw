@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -113,6 +113,148 @@
           "isPremium"
         ],
         "description": "認証ユーザーの基本情報。"
+      },
+      "UsersMeFullResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "headerUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "bonsaiStartYear": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bonsaiStartMonth": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isPremium": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "nickname",
+          "avatarUrl",
+          "headerUrl",
+          "bio",
+          "location",
+          "isPublic",
+          "bonsaiStartYear",
+          "bonsaiStartMonth",
+          "birthDate",
+          "isPremium"
+        ],
+        "description": "PATCH /api/v1/users/me 成功時の更新後プロフィール全フィールド。"
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "bonsaiStartYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1900,
+            "maximum": 2026
+          },
+          "bonsaiStartMonth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 12
+          },
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "headerUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          }
+        },
+        "description": "プロフィール部分更新リクエスト。すべてのフィールドが optional。\n省略したフィールドは現在値を維持する。\navatarUrl / headerUrl は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと（外部 URL は 400 VALIDATION_ERROR）。\nnickname は改行・< > を含めない。予約済みは 400 VALIDATION_ERROR。"
       },
       "ApiErrorResponse": {
         "type": "object",
@@ -3055,6 +3197,160 @@
           },
           "503": {
             "description": "サーバー設定エラー (SERVER_MISCONFIGURED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "認証ユーザーのプロフィールを部分更新",
+        "description": "自分のプロフィールを部分更新する。省略したフィールドは現在値を維持する。\n\n重要仕様:\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- avatarUrl / headerUrl は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと\n  外部 URL は 400 VALIDATION_ERROR で拒否される（IP 漏洩・不正コンテンツ配信の防止）\n- nickname は改行・< > を含めない（バリデーション不通過で 400 VALIDATION_ERROR）\n- 予約済み nickname は 400 VALIDATION_ERROR\n- 成功レスポンス: 200 + 更新後の全プロフィールフィールド（楽観更新に使用可）\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "プロフィール更新成功。更新後の全フィールドを返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersMeFullResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — nickname 形式不正 / 予約済み / avatarUrl|headerUrl が自社ストレージ外",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "認証ユーザーのアカウントを削除（不可逆）",
+        "description": "自分のアカウントとすべての関連データを完全削除する。この操作は不可逆。\n\n重要仕様:\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 削除されるデータ: ユーザー情報・投稿・コメント・フォロー・いいね・通知・メッセージ・リフレッシュトークン等（Cascade）\n- リフレッシュトークンは Cascade 削除により即時失効する\n  （アカウント削除後のトークンリフレッシュは 401 AUTH_INVALID_TOKEN で拒否される）\n- パスワード再確認は不要（Bearer トークンのみで操作を認可する。Web と同等の認可レベル）\n- Google Play ストアのデータ削除要件（DDA）に対応するエンドポイント\n- レート制限: engagement（30/分）\n- 成功レスポンス: 200 { success: true }",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "アカウント削除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー — 削除処理失敗 (INTERNAL_ERROR)",
             "content": {
               "application/json": {
                 "schema": {

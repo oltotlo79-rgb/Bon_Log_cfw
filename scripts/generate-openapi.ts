@@ -52,6 +52,7 @@ async function main() {
     updatePostRequestSchema,
     createCommentRequestSchema,
     presignedUploadRequestSchema,
+    updateProfileRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -78,6 +79,7 @@ async function main() {
     postAuthorWithStateSchema,
     presignedUploadResponseSchema,
     imageUploadResponseSchema,
+    usersMeFullSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -120,6 +122,25 @@ async function main() {
   const UsersMeResponse = registry.register(
     'UsersMeResponse',
     usersMeSchema.openapi({ description: '認証ユーザーの基本情報。' }),
+  )
+
+  const UsersMeFullResponse = registry.register(
+    'UsersMeFullResponse',
+    usersMeFullSchema.openapi({
+      description: 'PATCH /api/v1/users/me 成功時の更新後プロフィール全フィールド。',
+    }),
+  )
+
+  const UpdateProfileRequest = registry.register(
+    'UpdateProfileRequest',
+    updateProfileRequestSchema.openapi({
+      description: [
+        'プロフィール部分更新リクエスト。すべてのフィールドが optional。',
+        '省略したフィールドは現在値を維持する。',
+        'avatarUrl / headerUrl は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと（外部 URL は 400 VALIDATION_ERROR）。',
+        'nickname は改行・< > を含めない。予約済みは 400 VALIDATION_ERROR。',
+      ].join('\n'),
+    }),
   )
 
   const ApiErrorResponse = registry.register(
@@ -704,6 +725,77 @@ async function main() {
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
       404: errorResponse('ユーザーが見つからない (NOT_FOUND)'),
       503: errorResponse('サーバー設定エラー (SERVER_MISCONFIGURED)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/users/me',
+    tags: ['users'],
+    summary: '認証ユーザーのプロフィールを部分更新',
+    description: [
+      '自分のプロフィールを部分更新する。省略したフィールドは現在値を維持する。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- avatarUrl / headerUrl は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと',
+      '  外部 URL は 400 VALIDATION_ERROR で拒否される（IP 漏洩・不正コンテンツ配信の防止）',
+      '- nickname は改行・< > を含めない（バリデーション不通過で 400 VALIDATION_ERROR）',
+      '- 予約済み nickname は 400 VALIDATION_ERROR',
+      '- 成功レスポンス: 200 + 更新後の全プロフィールフィールド（楽観更新に使用可）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: UpdateProfileRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'プロフィール更新成功。更新後の全フィールドを返す',
+        content: { 'application/json': { schema: UsersMeFullResponse } },
+      },
+      400: errorResponse(
+        'バリデーションエラー (VALIDATION_ERROR) — nickname 形式不正 / 予約済み / avatarUrl|headerUrl が自社ストレージ外',
+      ),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/users/me',
+    tags: ['users'],
+    summary: '認証ユーザーのアカウントを削除（不可逆）',
+    description: [
+      '自分のアカウントとすべての関連データを完全削除する。この操作は不可逆。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 削除されるデータ: ユーザー情報・投稿・コメント・フォロー・いいね・通知・メッセージ・リフレッシュトークン等（Cascade）',
+      '- リフレッシュトークンは Cascade 削除により即時失効する',
+      '  （アカウント削除後のトークンリフレッシュは 401 AUTH_INVALID_TOKEN で拒否される）',
+      '- パスワード再確認は不要（Bearer トークンのみで操作を認可する。Web と同等の認可レベル）',
+      '- Google Play ストアのデータ削除要件（DDA）に対応するエンドポイント',
+      '- レート制限: engagement（30/分）',
+      '- 成功レスポンス: 200 { success: true }',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'アカウント削除成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー — 削除処理失敗 (INTERNAL_ERROR)'),
     },
   })
 
@@ -1673,7 +1765,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.8.0',
+      version: '1.9.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

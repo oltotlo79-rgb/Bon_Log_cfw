@@ -179,6 +179,65 @@ export const createCommentRequestSchema = z.object({
 export type CreateCommentRequest = z.infer<typeof createCommentRequestSchema>
 
 // ──────────────────────────────────────────────────
+// Batch 2d — プロフィール編集・アカウント削除
+// ──────────────────────────────────────────────────
+
+import {
+  MAX_BIO_LENGTH,
+  MAX_LOCATION_LENGTH,
+  BONSAI_START_MIN_YEAR,
+} from '@/lib/constants/limits'
+import {
+  ERR_BIO_TOO_LONG,
+  ERR_LOCATION_TOO_LONG,
+  ERR_BONSAI_START_YEAR_INVALID,
+  ERR_BONSAI_START_MONTH_INVALID,
+  ERR_BIRTH_DATE_INVALID,
+} from '@/lib/constants/errors'
+
+/**
+ * PATCH /api/v1/users/me
+ *
+ * すべてのフィールドが optional（部分更新）。省略したフィールドはそのまま維持する。
+ * nickname の検証は Web の profileSchema と完全一致させる。
+ * avatarUrl / headerUrl は POST /api/v1/upload/image で取得した自社ストレージ URL を渡す
+ * （外部 URL は route handler 内で assertMediaUrlsFromOwnStorage で拒否される）。
+ */
+export const updateProfileRequestSchema = z.object({
+  nickname: z
+    .string()
+    .min(1, ERR_NICKNAME_REQUIRED)
+    .max(MAX_NICKNAME_LENGTH, ERR_NICKNAME_TOO_LONG(MAX_NICKNAME_LENGTH))
+    .refine((v) => !/[\r\n<>]/.test(v), ERR_NICKNAME_INVALID_CHARS)
+    .optional(),
+  bio: z.string().max(MAX_BIO_LENGTH, ERR_BIO_TOO_LONG(MAX_BIO_LENGTH)).nullable().optional(),
+  location: z
+    .string()
+    .max(MAX_LOCATION_LENGTH, ERR_LOCATION_TOO_LONG(MAX_LOCATION_LENGTH))
+    .nullable()
+    .optional(),
+  bonsaiStartYear: z
+    .number({ message: ERR_BONSAI_START_YEAR_INVALID })
+    .int(ERR_BONSAI_START_YEAR_INVALID)
+    .min(BONSAI_START_MIN_YEAR, ERR_BONSAI_START_YEAR_INVALID)
+    .max(new Date().getFullYear(), ERR_BONSAI_START_YEAR_INVALID)
+    .nullable()
+    .optional(),
+  bonsaiStartMonth: z
+    .number({ message: ERR_BONSAI_START_MONTH_INVALID })
+    .int(ERR_BONSAI_START_MONTH_INVALID)
+    .min(1, ERR_BONSAI_START_MONTH_INVALID)
+    .max(12, ERR_BONSAI_START_MONTH_INVALID)
+    .nullable()
+    .optional(),
+  birthDate: z.string({ message: ERR_BIRTH_DATE_INVALID }).nullable().optional(),
+  isPublic: z.boolean().optional(),
+  avatarUrl: z.string().url().nullable().optional(),
+  headerUrl: z.string().url().nullable().optional(),
+})
+export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>
+
+// ──────────────────────────────────────────────────
 // Phase 2 Batch 2c-upload — メディアアップロード
 // ──────────────────────────────────────────────────
 
