@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -2442,6 +2442,547 @@
           "count"
         ],
         "description": "未読通知件数レスポンス。"
+      },
+      "BookmarkResponse": {
+        "type": "object",
+        "properties": {
+          "bookmarked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "bookmarked"
+        ],
+        "description": "ブックマーク操作後の状態。POST→true / DELETE→false。冪等: 既ブックマーク/未ブックマークでも 200。"
+      },
+      "BookmarksListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "userId": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isBlocked": {
+                      "type": "boolean"
+                    },
+                    "isMuted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nickname",
+                    "avatarUrl",
+                    "isBlocked",
+                    "isMuted"
+                  ]
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "url",
+                      "type",
+                      "sortOrder"
+                    ]
+                  }
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "category"
+                    ]
+                  }
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                },
+                "repostCount": {
+                  "type": "integer"
+                },
+                "isLiked": {
+                  "type": "boolean"
+                },
+                "isBookmarked": {
+                  "type": "boolean"
+                },
+                "isReposted": {
+                  "type": "boolean"
+                },
+                "quotePost": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nickname",
+                        "avatarUrl"
+                      ]
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "type",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "user"
+                  ]
+                },
+                "repostPost": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nickname",
+                        "avatarUrl"
+                      ]
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "type",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "user"
+                  ]
+                },
+                "poll": {},
+                "mentionedUsers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "nickname": {
+                        "type": "string"
+                      },
+                      "avatarUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "nickname",
+                      "avatarUrl"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "updatedAt",
+                "userId",
+                "user",
+                "media",
+                "genres",
+                "likeCount",
+                "commentCount",
+                "repostCount",
+                "isLiked",
+                "isBookmarked",
+                "isReposted",
+                "quotePost",
+                "repostPost",
+                "mentionedUsers"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "ブックマーク投稿一覧レスポンス。feed と同等の投稿形式（mentionedUsers / isBlocked / isMuted 付き）。"
+      },
+      "TrendingHashtagItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "count"
+        ],
+        "description": "トレンドハッシュタグ 1 件（id, name, count）。count は Hashtag テーブルの累計投稿数。"
+      },
+      "TrendingHashtagsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "count"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "トレンドハッシュタグ一覧レスポンス。count 降順。"
+      },
+      "TrendingGenreItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "postCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "postCount"
+        ],
+        "description": "トレンドジャンル 1 件（id, name, category, postCount）。postCount は直近 48 時間の投稿数。"
+      },
+      "TrendingGenresResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "postCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "category",
+                "postCount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "トレンドジャンル一覧レスポンス。postCount 降順。"
+      },
+      "RecommendedUserItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "followersCount": {
+            "type": "integer"
+          },
+          "following": {
+            "type": "boolean"
+          },
+          "requested": {
+            "type": "boolean"
+          },
+          "isPublic": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "avatarUrl",
+          "bio",
+          "followersCount",
+          "following",
+          "requested",
+          "isPublic"
+        ],
+        "description": "おすすめユーザー 1 件（id, nickname, avatarUrl, bio, followersCount, following, requested, isPublic）。ゲスト時は空配列。"
+      },
+      "RecommendedUsersResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "nickname": {
+                  "type": "string"
+                },
+                "avatarUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bio": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "followersCount": {
+                  "type": "integer"
+                },
+                "following": {
+                  "type": "boolean"
+                },
+                "requested": {
+                  "type": "boolean"
+                },
+                "isPublic": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "nickname",
+                "avatarUrl",
+                "bio",
+                "followersCount",
+                "following",
+                "requested",
+                "isPublic"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "おすすめユーザー一覧レスポンス。フォロワー数降順。ゲスト時は空配列。"
       },
       "PresignedUploadRequest": {
         "type": "object",
@@ -6081,6 +6622,558 @@
           },
           "403": {
             "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/bookmark": {
+      "post": {
+        "tags": [
+          "bookmarks"
+        ],
+        "summary": "投稿をブックマークに追加する（冪等）",
+        "description": "指定した投稿をブックマークに追加する。\n\n重要仕様:\n- 冪等設計: 既にブックマーク済みでも 200 を返す\n- 不存在・不可視（非公開著者・停止著者・isHidden=true）の投稿は 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿 ID"
+            },
+            "required": true,
+            "description": "投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ブックマーク追加成功（冪等: 既ブックマークでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — id 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "投稿が存在しないまたは閲覧不可 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "bookmarks"
+        ],
+        "summary": "投稿のブックマークを解除する（冪等）",
+        "description": "指定した投稿のブックマークを解除する。\n\n重要仕様:\n- 冪等設計: 未ブックマーク状態でも 200 を返す\n- 不存在・不可視（非公開著者・停止著者・isHidden=true）の投稿は 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿 ID"
+            },
+            "required": true,
+            "description": "投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ブックマーク解除成功（冪等: 未ブックマークでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — id 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "投稿が存在しないまたは閲覧不可 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/bookmarks": {
+      "get": {
+        "tags": [
+          "bookmarks"
+        ],
+        "summary": "ブックマーク投稿一覧を取得する（カーソルページネーション）",
+        "description": "ログインユーザーがブックマークした投稿を新しい順（ブックマーク日時降順）で返す。\n\n重要仕様:\n- カーソルキー: Bookmark.id（ブックマーク操作順）\n- 可視性フィルタ: ブックマーク後に非公開化・停止・isHidden になった投稿は除外\n- items は feed と同等の投稿形式（mentionedUsers / isBlocked / isMuted / isBookmarked=true 付き）\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（1〜100、デフォルト 20）"
+            },
+            "required": false,
+            "description": "取得件数（1〜100、デフォルト 20）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ブックマーク投稿一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarksListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — cursor/limit 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explore/trending-hashtags": {
+      "get": {
+        "tags": [
+          "explore"
+        ],
+        "summary": "トレンドハッシュタグ一覧を取得する",
+        "description": "使用数（count）降順でハッシュタグ一覧を返す。\n\n重要仕様:\n- count は Hashtag テーブルの累計投稿数（PostHashtag の行数に基づく）\n- count=0 のハッシュタグは除外する\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（1〜100、デフォルト 10）"
+            },
+            "required": false,
+            "description": "取得件数（1〜100、デフォルト 10）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "トレンドハッシュタグ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendingHashtagsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — limit 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explore/trending-genres": {
+      "get": {
+        "tags": [
+          "explore"
+        ],
+        "summary": "トレンドジャンル一覧を取得する",
+        "description": "直近 48 時間の投稿数（postCount）降順でジャンルを返す。\n\n重要仕様:\n- postCount は直近 48 時間の公開投稿数（非表示・非公開著者・停止著者を除外）\n- postCount=0 のジャンルは除外される（投稿がないジャンルは含まれない）\n- 結果は unstable_cache（TTL: CACHE_TTL_TRENDING 秒）でキャッシュされる\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（1〜100、デフォルト 10）"
+            },
+            "required": false,
+            "description": "取得件数（1〜100、デフォルト 10）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "トレンドジャンル一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendingGenresResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — limit 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explore/recommended-users": {
+      "get": {
+        "tags": [
+          "explore"
+        ],
+        "summary": "おすすめユーザー一覧を取得する",
+        "description": "フォロワー数降順でおすすめユーザーを返す。\n\n重要仕様:\n- 除外対象: 自分自身・既フォロー中・双方向ブロック・非公開アカウント・停止ユーザー・ゲストユーザー\n- ゲストトークンでは空配列を返す（フォロー状態が計算できないため）\n- following / requested は閲覧者のフォロー状態。following と requested は同時に true にならない\n- isPublic は常に true（非公開アカウントは除外済み）だが明示的に返す\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（1〜100、デフォルト 10）"
+            },
+            "required": false,
+            "description": "取得件数（1〜100、デフォルト 10）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "おすすめユーザー一覧取得成功（ゲスト時は空配列）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendedUsersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — limit 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
             "content": {
               "application/json": {
                 "schema": {

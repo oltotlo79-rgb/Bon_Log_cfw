@@ -81,6 +81,14 @@ async function main() {
     presignedUploadResponseSchema,
     imageUploadResponseSchema,
     usersMeFullSchema,
+    bookmarkResponseSchema,
+    bookmarksListResponseSchema,
+    trendingHashtagItemSchema,
+    trendingHashtagsResponseSchema,
+    trendingGenreItemSchema,
+    trendingGenresResponseSchema,
+    recommendedUserItemSchema,
+    recommendedUsersResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -395,6 +403,60 @@ async function main() {
   const UnreadCountResponse = registry.register(
     'UnreadCountResponse',
     unreadCountResponseSchema.openapi({ description: '未読通知件数レスポンス。' }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // Batch 3a — ブックマーク + 発見/explore スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  const BookmarkResponse = registry.register(
+    'BookmarkResponse',
+    bookmarkResponseSchema.openapi({
+      description: 'ブックマーク操作後の状態。POST→true / DELETE→false。冪等: 既ブックマーク/未ブックマークでも 200。',
+    }),
+  )
+
+  const BookmarksListResponse = registry.register(
+    'BookmarksListResponse',
+    bookmarksListResponseSchema.openapi({
+      description: 'ブックマーク投稿一覧レスポンス。feed と同等の投稿形式（mentionedUsers / isBlocked / isMuted 付き）。',
+    }),
+  )
+
+  registry.register(
+    'TrendingHashtagItem',
+    trendingHashtagItemSchema.openapi({
+      description: 'トレンドハッシュタグ 1 件（id, name, count）。count は Hashtag テーブルの累計投稿数。',
+    }),
+  )
+
+  const TrendingHashtagsResponse = registry.register(
+    'TrendingHashtagsResponse',
+    trendingHashtagsResponseSchema.openapi({ description: 'トレンドハッシュタグ一覧レスポンス。count 降順。' }),
+  )
+
+  registry.register(
+    'TrendingGenreItem',
+    trendingGenreItemSchema.openapi({
+      description: 'トレンドジャンル 1 件（id, name, category, postCount）。postCount は直近 48 時間の投稿数。',
+    }),
+  )
+
+  const TrendingGenresResponse = registry.register(
+    'TrendingGenresResponse',
+    trendingGenresResponseSchema.openapi({ description: 'トレンドジャンル一覧レスポンス。postCount 降順。' }),
+  )
+
+  registry.register(
+    'RecommendedUserItem',
+    recommendedUserItemSchema.openapi({
+      description: 'おすすめユーザー 1 件（id, nickname, avatarUrl, bio, followersCount, following, requested, isPublic）。ゲスト時は空配列。',
+    }),
+  )
+
+  const RecommendedUsersResponse = registry.register(
+    'RecommendedUsersResponse',
+    recommendedUsersResponseSchema.openapi({ description: 'おすすめユーザー一覧レスポンス。フォロワー数降順。ゲスト時は空配列。' }),
   )
 
   // ──────────────────────────────────────────────────
@@ -1845,6 +1907,208 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Batch 3a — ブックマーク + 発見/explore パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/posts/{id}/bookmark',
+    tags: ['bookmarks'],
+    summary: '投稿をブックマークに追加する（冪等）',
+    description: [
+      '指定した投稿をブックマークに追加する。',
+      '',
+      '重要仕様:',
+      '- 冪等設計: 既にブックマーク済みでも 200 を返す',
+      '- 不存在・不可視（非公開著者・停止著者・isHidden=true）の投稿は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '投稿 ID' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ブックマーク追加成功（冪等: 既ブックマークでも 200）',
+        content: { 'application/json': { schema: BookmarkResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — id 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しないまたは閲覧不可 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/posts/{id}/bookmark',
+    tags: ['bookmarks'],
+    summary: '投稿のブックマークを解除する（冪等）',
+    description: [
+      '指定した投稿のブックマークを解除する。',
+      '',
+      '重要仕様:',
+      '- 冪等設計: 未ブックマーク状態でも 200 を返す',
+      '- 不存在・不可視（非公開著者・停止著者・isHidden=true）の投稿は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '投稿 ID' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ブックマーク解除成功（冪等: 未ブックマークでも 200）',
+        content: { 'application/json': { schema: BookmarkResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — id 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しないまたは閲覧不可 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/me/bookmarks',
+    tags: ['bookmarks'],
+    summary: 'ブックマーク投稿一覧を取得する（カーソルページネーション）',
+    description: [
+      'ログインユーザーがブックマークした投稿を新しい順（ブックマーク日時降順）で返す。',
+      '',
+      '重要仕様:',
+      '- カーソルキー: Bookmark.id（ブックマーク操作順）',
+      '- 可視性フィルタ: ブックマーク後に非公開化・停止・isHidden になった投稿は除外',
+      '- items は feed と同等の投稿形式（mentionedUsers / isBlocked / isMuted / isBookmarked=true 付き）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（1〜100、デフォルト 20）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ブックマーク投稿一覧取得成功',
+        content: { 'application/json': { schema: BookmarksListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — cursor/limit 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/explore/trending-hashtags',
+    tags: ['explore'],
+    summary: 'トレンドハッシュタグ一覧を取得する',
+    description: [
+      '使用数（count）降順でハッシュタグ一覧を返す。',
+      '',
+      '重要仕様:',
+      '- count は Hashtag テーブルの累計投稿数（PostHashtag の行数に基づく）',
+      '- count=0 のハッシュタグは除外する',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（1〜100、デフォルト 10）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'トレンドハッシュタグ一覧取得成功',
+        content: { 'application/json': { schema: TrendingHashtagsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — limit 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/explore/trending-genres',
+    tags: ['explore'],
+    summary: 'トレンドジャンル一覧を取得する',
+    description: [
+      '直近 48 時間の投稿数（postCount）降順でジャンルを返す。',
+      '',
+      '重要仕様:',
+      '- postCount は直近 48 時間の公開投稿数（非表示・非公開著者・停止著者を除外）',
+      '- postCount=0 のジャンルは除外される（投稿がないジャンルは含まれない）',
+      '- 結果は unstable_cache（TTL: CACHE_TTL_TRENDING 秒）でキャッシュされる',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（1〜100、デフォルト 10）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'トレンドジャンル一覧取得成功',
+        content: { 'application/json': { schema: TrendingGenresResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — limit 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/explore/recommended-users',
+    tags: ['explore'],
+    summary: 'おすすめユーザー一覧を取得する',
+    description: [
+      'フォロワー数降順でおすすめユーザーを返す。',
+      '',
+      '重要仕様:',
+      '- 除外対象: 自分自身・既フォロー中・双方向ブロック・非公開アカウント・停止ユーザー・ゲストユーザー',
+      '- ゲストトークンでは空配列を返す（フォロー状態が計算できないため）',
+      '- following / requested は閲覧者のフォロー状態。following と requested は同時に true にならない',
+      '- isPublic は常に true（非公開アカウントは除外済み）だが明示的に返す',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（1〜100、デフォルト 10）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'おすすめユーザー一覧取得成功（ゲスト時は空配列）',
+        content: { 'application/json': { schema: RecommendedUsersResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — limit 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -1854,7 +2118,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.10.0',
+      version: '1.11.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

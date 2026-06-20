@@ -358,6 +358,72 @@ export const usersMeFullSchema = z.object({
 export type UsersMeFullResponse = z.infer<typeof usersMeFullSchema>
 
 // ──────────────────────────────────────────────────
+// Phase 3 Batch 3a — ブックマーク + 発見/explore
+// ──────────────────────────────────────────────────
+
+/** POST/DELETE /api/v1/posts/[id]/bookmark 200 */
+export const bookmarkResponseSchema = z.object({
+  bookmarked: z.boolean(),
+})
+export type BookmarkResponse = z.infer<typeof bookmarkResponseSchema>
+
+/** GET /api/v1/users/me/bookmarks 200 */
+export const bookmarksListResponseSchema = z.object({
+  items: z.array(postSchema),
+  nextCursor: z.string().nullable(),
+})
+export type BookmarksListResponse = z.infer<typeof bookmarksListResponseSchema>
+
+/** GET /api/v1/explore/trending-hashtags の 1 件 */
+export const trendingHashtagItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  count: z.number().int(),
+})
+export type TrendingHashtagItem = z.infer<typeof trendingHashtagItemSchema>
+
+/** GET /api/v1/explore/trending-hashtags 200 */
+export const trendingHashtagsResponseSchema = z.object({
+  items: z.array(trendingHashtagItemSchema),
+})
+export type TrendingHashtagsResponse = z.infer<typeof trendingHashtagsResponseSchema>
+
+/** GET /api/v1/explore/trending-genres の 1 件 */
+export const trendingGenreItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  /** 直近 48 時間の投稿数。0 の場合は集計対象外または未集計。 */
+  postCount: z.number().int(),
+})
+export type TrendingGenreItem = z.infer<typeof trendingGenreItemSchema>
+
+/** GET /api/v1/explore/trending-genres 200 */
+export const trendingGenresResponseSchema = z.object({
+  items: z.array(trendingGenreItemSchema),
+})
+export type TrendingGenresResponse = z.infer<typeof trendingGenresResponseSchema>
+
+/** GET /api/v1/explore/recommended-users の 1 件 */
+export const recommendedUserItemSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+  bio: z.string().nullable(),
+  followersCount: z.number().int(),
+  following: z.boolean(),
+  requested: z.boolean(),
+  isPublic: z.boolean(),
+})
+export type RecommendedUserItem = z.infer<typeof recommendedUserItemSchema>
+
+/** GET /api/v1/explore/recommended-users 200 */
+export const recommendedUsersResponseSchema = z.object({
+  items: z.array(recommendedUserItemSchema),
+})
+export type RecommendedUsersResponse = z.infer<typeof recommendedUsersResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 
