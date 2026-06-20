@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -3078,6 +3078,808 @@
           "platform"
         ],
         "description": "Push 通知デバイストークン登録リクエスト。\ntoken は Expo / APNs / FCM の Push トークン文字列。\nplatform は android または ios。"
+      },
+      "DictionaryCategory": {
+        "type": "string",
+        "enum": [
+          "樹形",
+          "技術・作業",
+          "管理・育成",
+          "道具・用品",
+          "盆器・鉢",
+          "用土・肥料",
+          "展示・鑑賞"
+        ],
+        "description": "辞典カテゴリ enum（7 固定値）: 樹形 / 技術・作業 / 管理・育成 / 道具・用品 / 盆器・鉢 / 用土・肥料 / 展示・鑑賞。"
+      },
+      "KanaRow": {
+        "type": "string",
+        "enum": [
+          "あ行",
+          "か行",
+          "さ行",
+          "た行",
+          "な行",
+          "は行",
+          "ま行",
+          "や行",
+          "ら行",
+          "わ行"
+        ],
+        "description": "五十音行 enum（10 行）: あ行〜わ行。reading 先頭文字に基づく in-memory フィルタで使用。"
+      },
+      "DictionaryTermSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "term": {
+            "type": "string"
+          },
+          "reading": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "term",
+          "reading",
+          "category"
+        ],
+        "description": "辞典用語の一覧項目（description 省略）。"
+      },
+      "DictionaryTermDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "term": {
+            "type": "string"
+          },
+          "reading": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "term",
+          "reading",
+          "category",
+          "description"
+        ],
+        "description": "辞典用語の詳細（description を含む）。"
+      },
+      "DictionaryListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "term": {
+                  "type": "string"
+                },
+                "reading": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "term",
+                "reading",
+                "category"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/dictionary 成功レスポンス。reading ASC / sortOrder ASC 順。"
+      },
+      "DictionaryDetailResponse": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "term": {
+                "type": "string"
+              },
+              "reading": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "term",
+              "reading",
+              "category",
+              "description"
+            ]
+          },
+          "prev": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "term": {
+                "type": "string"
+              },
+              "reading": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "term",
+              "reading",
+              "category"
+            ]
+          },
+          "next": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "term": {
+                "type": "string"
+              },
+              "reading": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "term",
+              "reading",
+              "category"
+            ]
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "term": {
+                  "type": "string"
+                },
+                "reading": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "term",
+                "reading",
+                "category"
+              ]
+            }
+          }
+        },
+        "required": [
+          "term",
+          "prev",
+          "next",
+          "related"
+        ],
+        "description": "GET /api/v1/dictionary/{slug} 成功レスポンス。prev/next/related を含む。"
+      },
+      "NutrientCategory": {
+        "type": "string",
+        "enum": [
+          "primary",
+          "secondary",
+          "trace"
+        ],
+        "description": "栄養素カテゴリ enum: primary（三大要素）/ secondary（二次要素）/ trace（微量要素）。"
+      },
+      "TreeCategory": {
+        "type": "string",
+        "enum": [
+          "conifer",
+          "deciduous",
+          "flowering",
+          "fruiting",
+          "grass",
+          "evergreen"
+        ],
+        "description": "樹種カテゴリ enum: conifer（松柏類）/ deciduous（雑木類）/ flowering（花物）/ fruiting（実物）/ grass（草物）/ evergreen（常緑広葉樹）。"
+      },
+      "FertilizerAction": {
+        "type": "string",
+        "enum": [
+          "none",
+          "light",
+          "moderate",
+          "heavy"
+        ],
+        "description": "施肥アクション enum: none（施肥不要）/ light（控えめ）/ moderate（通常量）/ heavy（たっぷり）。"
+      },
+      "NutrientLevel": {
+        "type": "string",
+        "enum": [
+          "high",
+          "balanced",
+          "low",
+          "none"
+        ],
+        "description": "栄養素レベル enum: high（多め）/ balanced（バランス）/ low（控えめ）/ none（不要）。"
+      },
+      "NutrientItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bonsaiRole": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "symbol",
+          "category",
+          "description",
+          "bonsaiRole",
+          "slug"
+        ],
+        "description": "栄養素一覧の 1 件（deficiencySymptoms 等は詳細のみ）。"
+      },
+      "NutrientDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bonsaiRole": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "deficiencySymptoms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "excessSymptoms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "foodSources": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "symbol",
+          "category",
+          "description",
+          "bonsaiRole",
+          "slug",
+          "deficiencySymptoms",
+          "excessSymptoms",
+          "foodSources"
+        ],
+        "description": "栄養素詳細（deficiencySymptoms / excessSymptoms / foodSources を含む）。"
+      },
+      "FertilizerCategoryItem": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "merit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "demerit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bonsaiUsage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "merit",
+          "demerit",
+          "bonsaiUsage",
+          "slug"
+        ],
+        "description": "肥料カテゴリ 1 件（code, name, description, merit, demerit, bonsaiUsage, slug）。"
+      },
+      "TreeSpeciesItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "fertilizingPolicy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "fertilizingPolicy",
+          "slug"
+        ],
+        "description": "樹種一覧の 1 件（id, name, category, fertilizingPolicy, slug）。"
+      },
+      "FertilizationMonth": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "integer"
+          },
+          "action": {
+            "type": "string"
+          },
+          "nitrogenLevel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phosphorusLevel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "potassiumLevel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recommendedType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "action",
+          "nitrogenLevel",
+          "phosphorusLevel",
+          "potassiumLevel",
+          "recommendedType",
+          "description"
+        ],
+        "description": "月別施肥データ 1 件（month 1〜12、action、各栄養素レベル、推奨肥料タイプ、備考）。"
+      },
+      "FertilizationScheduleResponse": {
+        "type": "object",
+        "properties": {
+          "months": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "month": {
+                  "type": "integer"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "nitrogenLevel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "phosphorusLevel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "potassiumLevel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recommendedType": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "month",
+                "action",
+                "nitrogenLevel",
+                "phosphorusLevel",
+                "potassiumLevel",
+                "recommendedType",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "months"
+        ],
+        "description": "GET /api/v1/fertilizers/tree-species/{slug}/schedule 成功レスポンス。months は月順で最大 12 件。"
+      },
+      "HormoneCategory": {
+        "type": "string",
+        "enum": [
+          "major",
+          "secondary"
+        ],
+        "description": "ホルモンカテゴリ enum: major（主要ホルモン）/ secondary（補助ホルモン）。"
+      },
+      "HormoneItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "chemicalFormula": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nameEn",
+          "slug",
+          "category",
+          "chemicalFormula",
+          "description"
+        ],
+        "description": "ホルモン一覧の 1 件（id, name, nameEn, slug, category, chemicalFormula, description）。"
+      },
+      "HormoneEffect": {
+        "type": "object",
+        "properties": {
+          "effectName": {
+            "type": "string"
+          },
+          "isPromoting": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "effectName",
+          "isPromoting"
+        ],
+        "description": "ホルモン効果 1 件（effectName, isPromoting）。isPromoting=true: 促進 / false: 抑制。"
+      },
+      "HormoneSeasonalLevel": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "level"
+        ],
+        "description": "月別ホルモン活性 1 件（month 1〜12、level: high / moderate / low / minimal）。"
+      },
+      "HormoneDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "chemicalFormula": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bonsaiRole": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "productionSite": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "practicalTips": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "activationMethod": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "effectName": {
+                  "type": "string"
+                },
+                "isPromoting": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "effectName",
+                "isPromoting"
+              ]
+            }
+          },
+          "seasonalLevels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "month": {
+                  "type": "integer"
+                },
+                "level": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "month",
+                "level"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nameEn",
+          "slug",
+          "category",
+          "chemicalFormula",
+          "description",
+          "bonsaiRole",
+          "productionSite",
+          "practicalTips",
+          "activationMethod",
+          "effects",
+          "seasonalLevels"
+        ],
+        "description": "ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels を含む）。interactions/techniques は別バッチで追加予定。"
       }
     },
     "parameters": {}
@@ -7174,6 +7976,1002 @@
           },
           "403": {
             "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dictionary": {
+      "get": {
+        "tags": [
+          "dictionary"
+        ],
+        "summary": "盆栽用語辞典一覧",
+        "description": "盆栽用語をカーソルページネーションで返す。reading ASC / sortOrder ASC 順。\n\n重要仕様:\n- search: term / reading / description の部分一致（contains 検索）\n- category: 7 固定カテゴリ（DictionaryCategory enum）でフィルタ\n- row: 五十音行（KanaRow enum、10 行）でフィルタ。in-memory 適用のためカーソルと組み合わせると挙動が変わる\n- row 指定時はカーソルなし全件返却（最大 limit 件）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（slug）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（slug）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "検索キーワード（term / reading / description 部分一致）"
+            },
+            "required": false,
+            "description": "検索キーワード（term / reading / description 部分一致）",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "辞典カテゴリフィルタ（DictionaryCategory enum）"
+            },
+            "required": false,
+            "description": "辞典カテゴリフィルタ（DictionaryCategory enum）",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "五十音行フィルタ（KanaRow enum: あ行〜わ行）"
+            },
+            "required": false,
+            "description": "五十音行フィルタ（KanaRow enum: あ行〜わ行）",
+            "name": "row",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "用語一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictionaryListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な category / row / limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dictionary/{slug}": {
+      "get": {
+        "tags": [
+          "dictionary"
+        ],
+        "summary": "盆栽用語辞典詳細",
+        "description": "指定 slug の用語詳細を返す。prev / next / related（同カテゴリ最大 6 件）を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- prev / next は同カテゴリ内の reading ASC 順での前後\n- related は同カテゴリの他の用語（最大 6 件、reading ASC 順）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "用語の slug"
+            },
+            "required": true,
+            "description": "用語の slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "用語詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictionaryDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "用語が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fertilizers/nutrients": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "栄養素一覧",
+        "description": "肥料栄養素の一覧を全件返却する（件数が少ないためカーソル不要）。\n\n重要仕様:\n- category: NutrientCategory enum（primary / secondary / trace）でフィルタ\n- sortOrder ASC / name ASC 順\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "NutrientCategory enum でフィルタ（省略で全件）"
+            },
+            "required": false,
+            "description": "NutrientCategory enum でフィルタ（省略で全件）",
+            "name": "category",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "栄養素一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "bonsaiRole": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "symbol",
+                      "category",
+                      "description",
+                      "bonsaiRole",
+                      "slug"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fertilizers/nutrients/{slug}": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "栄養素詳細",
+        "description": "指定 slug の栄養素詳細を返す。deficiencySymptoms / excessSymptoms / foodSources を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "栄養素の slug"
+            },
+            "required": true,
+            "description": "栄養素の slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "栄養素詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NutrientDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "栄養素が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fertilizers/categories": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "肥料カテゴリ一覧",
+        "description": "肥料カテゴリの一覧を全件返却する（sortOrder ASC 順）。\n\n重要仕様:\n- フィルタなし（全件返却）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "肥料カテゴリ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "merit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "demerit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "bonsaiUsage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "name",
+                      "description",
+                      "merit",
+                      "demerit",
+                      "bonsaiUsage",
+                      "slug"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fertilizers/tree-species": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "樹種一覧",
+        "description": "樹種の一覧を全件返却する（sortOrder ASC / name ASC 順）。\n\n重要仕様:\n- category: TreeCategory enum（conifer / deciduous / flowering / fruiting / grass / evergreen）でフィルタ\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "TreeCategory enum でフィルタ（省略で全件）"
+            },
+            "required": false,
+            "description": "TreeCategory enum でフィルタ（省略で全件）",
+            "name": "category",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "樹種一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "fertilizingPolicy": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "category",
+                      "fertilizingPolicy",
+                      "slug"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fertilizers/tree-species/{slug}/schedule": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "樹種別施肥スケジュール",
+        "description": "指定 slug の樹種に対する月別施肥スケジュールを返す（month 1〜12 の昇順）。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- months の件数はデータ次第（最大 12）。登録がない月は含まれない\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "樹種の slug"
+            },
+            "required": true,
+            "description": "樹種の slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "施肥スケジュール取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FertilizationScheduleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "樹種が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "植物ホルモン一覧",
+        "description": "植物ホルモンの一覧を全件返却する（sortOrder ASC / name ASC 順）。\n\n重要仕様:\n- category: HormoneCategory enum（major / secondary）でフィルタ\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "HormoneCategory enum でフィルタ（省略で全件）"
+            },
+            "required": false,
+            "description": "HormoneCategory enum でフィルタ（省略で全件）",
+            "name": "category",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ホルモン一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "nameEn": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "chemicalFormula": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "nameEn",
+                      "slug",
+                      "category",
+                      "chemicalFormula",
+                      "description"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones/{slug}": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "植物ホルモン詳細",
+        "description": "指定 slug のホルモン詳細を返す。effects / seasonalLevels を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は isPromoting による促進/抑制効果の一覧（sortOrder ASC）\n- seasonalLevels は月別活性レベル（month 1〜12 ASC）\n- interactions（ホルモン間相互作用）/ techniques（技法マッピング）は本バッチ対象外\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ホルモンの slug"
+            },
+            "required": true,
+            "description": "ホルモンの slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ホルモン詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HormoneDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ホルモンが存在しない (NOT_FOUND)",
             "content": {
               "application/json": {
                 "schema": {

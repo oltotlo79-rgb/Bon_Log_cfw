@@ -8,6 +8,7 @@
 
 import { z } from 'zod'
 import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
+import { DICTIONARY_CATEGORIES, KANA_ROW_LABELS } from '@/lib/constants/dictionary'
 
 // ──────────────────────────────────────────────────
 // 成功レスポンス
@@ -422,6 +423,192 @@ export const recommendedUsersResponseSchema = z.object({
   items: z.array(recommendedUserItemSchema),
 })
 export type RecommendedUsersResponse = z.infer<typeof recommendedUsersResponseSchema>
+
+// ──────────────────────────────────────────────────
+// Phase 3 Batch 3b — 辞典・施肥・ホルモン（読み取り専用・ゲスト可）
+// ──────────────────────────────────────────────────
+
+// ── 辞典 ─────────────────────────────────────────
+
+/** GET /api/v1/dictionary の 1 件（一覧は description 省略） */
+export const dictionaryTermSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  term: z.string(),
+  reading: z.string(),
+  category: z.string(),
+})
+export type DictionaryTermSummaryResponse = z.infer<typeof dictionaryTermSummarySchema>
+
+/** GET /api/v1/dictionary/{slug} の詳細 */
+export const dictionaryTermDetailSchema = dictionaryTermSummarySchema.extend({
+  description: z.string(),
+})
+export type DictionaryTermDetailResponse = z.infer<typeof dictionaryTermDetailSchema>
+
+/** GET /api/v1/dictionary 200 */
+export const dictionaryListResponseSchema = z.object({
+  items: z.array(dictionaryTermSummarySchema),
+  nextCursor: z.string().nullable(),
+})
+export type DictionaryListResponse = z.infer<typeof dictionaryListResponseSchema>
+
+/** GET /api/v1/dictionary/{slug} 200 */
+export const dictionaryDetailResponseSchema = z.object({
+  term: dictionaryTermDetailSchema,
+  prev: dictionaryTermSummarySchema.nullable(),
+  next: dictionaryTermSummarySchema.nullable(),
+  related: z.array(dictionaryTermSummarySchema),
+})
+export type DictionaryDetailResponse = z.infer<typeof dictionaryDetailResponseSchema>
+
+// ── 辞典 enum 契約 ──────────────────────────────────
+
+/**
+ * 辞典カテゴリ enum（7 固定値）。
+ * DICTIONARY_CATEGORIES 定数から導出する。
+ */
+export const dictionaryCategorySchema = z.enum(DICTIONARY_CATEGORIES)
+export type DictionaryCategory = z.infer<typeof dictionaryCategorySchema>
+
+/**
+ * 五十音行 enum（10 行）。
+ * KANA_ROW_LABELS 定数から導出する。
+ */
+export const kanaRowSchema = z.enum(KANA_ROW_LABELS)
+export type KanaRow = z.infer<typeof kanaRowSchema>
+
+// ── 施肥 ─────────────────────────────────────────
+
+/** GET /api/v1/fertilizers/nutrients の 1 件 */
+export const nutrientItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  symbol: z.string(),
+  category: z.string(),
+  description: z.string().nullable(),
+  bonsaiRole: z.string().nullable(),
+  slug: z.string(),
+})
+export type NutrientItem = z.infer<typeof nutrientItemSchema>
+
+/** GET /api/v1/fertilizers/nutrients/{slug} の詳細 */
+export const nutrientDetailSchema = nutrientItemSchema.extend({
+  deficiencySymptoms: z.string().nullable(),
+  excessSymptoms: z.string().nullable(),
+  foodSources: z.string().nullable(),
+})
+export type NutrientDetail = z.infer<typeof nutrientDetailSchema>
+
+/** GET /api/v1/fertilizers/categories の 1 件 */
+export const fertilizerCategoryItemSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  merit: z.string().nullable(),
+  demerit: z.string().nullable(),
+  bonsaiUsage: z.string().nullable(),
+  slug: z.string(),
+})
+export type FertilizerCategoryItem = z.infer<typeof fertilizerCategoryItemSchema>
+
+/** GET /api/v1/fertilizers/tree-species の 1 件 */
+export const treeSpeciesItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  fertilizingPolicy: z.string().nullable(),
+  slug: z.string(),
+})
+export type TreeSpeciesItem = z.infer<typeof treeSpeciesItemSchema>
+
+/** GET /api/v1/fertilizers/tree-species/{slug}/schedule の月別データ 1 件 */
+export const fertilizationMonthSchema = z.object({
+  month: z.number().int(),
+  action: z.string(),
+  nitrogenLevel: z.string().nullable(),
+  phosphorusLevel: z.string().nullable(),
+  potassiumLevel: z.string().nullable(),
+  recommendedType: z.string().nullable(),
+  description: z.string().nullable(),
+})
+export type FertilizationMonth = z.infer<typeof fertilizationMonthSchema>
+
+/** GET /api/v1/fertilizers/tree-species/{slug}/schedule 200 */
+export const fertilizationScheduleResponseSchema = z.object({
+  months: z.array(fertilizationMonthSchema),
+})
+export type FertilizationScheduleResponse = z.infer<typeof fertilizationScheduleResponseSchema>
+
+// ── 施肥 enum 契約 ──────────────────────────────────
+
+/** NutrientCategory enum（Prisma enum 値と一致） */
+export const nutrientCategorySchema = z.enum(['primary', 'secondary', 'trace'])
+export type NutrientCategoryEnum = z.infer<typeof nutrientCategorySchema>
+
+/** TreeCategory enum（Prisma enum 値と一致） */
+export const treeCategorySchema = z.enum([
+  'conifer',
+  'deciduous',
+  'flowering',
+  'fruiting',
+  'grass',
+  'evergreen',
+])
+export type TreeCategoryEnum = z.infer<typeof treeCategorySchema>
+
+/** FertilizerAction enum（Prisma enum 値と一致） */
+export const fertilizerActionSchema = z.enum(['none', 'light', 'moderate', 'heavy'])
+export type FertilizerActionEnum = z.infer<typeof fertilizerActionSchema>
+
+/** NutrientLevel enum（Prisma enum 値と一致） */
+export const nutrientLevelSchema = z.enum(['high', 'balanced', 'low', 'none'])
+export type NutrientLevelEnum = z.infer<typeof nutrientLevelSchema>
+
+// ── ホルモン ──────────────────────────────────────
+
+/** GET /api/v1/hormones の 1 件 */
+export const hormoneItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  nameEn: z.string().nullable(),
+  slug: z.string(),
+  category: z.string(),
+  chemicalFormula: z.string().nullable(),
+  description: z.string().nullable(),
+})
+export type HormoneItem = z.infer<typeof hormoneItemSchema>
+
+/** GET /api/v1/hormones/{slug} の effects 1 件 */
+export const hormoneEffectSchema = z.object({
+  effectName: z.string(),
+  isPromoting: z.boolean(),
+})
+export type HormoneEffect = z.infer<typeof hormoneEffectSchema>
+
+/** GET /api/v1/hormones/{slug} の seasonalLevels 1 件 */
+export const hormoneSeasonalLevelSchema = z.object({
+  month: z.number().int(),
+  level: z.string(),
+})
+export type HormoneSeasonalLevel = z.infer<typeof hormoneSeasonalLevelSchema>
+
+/** GET /api/v1/hormones/{slug} の詳細 */
+export const hormoneDetailSchema = hormoneItemSchema.extend({
+  bonsaiRole: z.string().nullable(),
+  productionSite: z.string().nullable(),
+  practicalTips: z.string().nullable(),
+  activationMethod: z.string().nullable(),
+  effects: z.array(hormoneEffectSchema),
+  seasonalLevels: z.array(hormoneSeasonalLevelSchema),
+})
+export type HormoneDetail = z.infer<typeof hormoneDetailSchema>
+
+// ── ホルモン enum 契約 ──────────────────────────────
+
+/** HormoneCategory enum（Prisma enum 値と一致） */
+export const hormoneCategorySchema = z.enum(['major', 'secondary'])
+export type HormoneCategoryEnum = z.infer<typeof hormoneCategorySchema>
 
 // ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）

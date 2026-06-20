@@ -89,6 +89,27 @@ async function main() {
     trendingGenresResponseSchema,
     recommendedUserItemSchema,
     recommendedUsersResponseSchema,
+    dictionaryTermSummarySchema,
+    dictionaryTermDetailSchema,
+    dictionaryListResponseSchema,
+    dictionaryDetailResponseSchema,
+    dictionaryCategorySchema,
+    kanaRowSchema,
+    nutrientItemSchema,
+    nutrientDetailSchema,
+    fertilizerCategoryItemSchema,
+    treeSpeciesItemSchema,
+    fertilizationMonthSchema,
+    fertilizationScheduleResponseSchema,
+    nutrientCategorySchema,
+    treeCategorySchema,
+    fertilizerActionSchema,
+    nutrientLevelSchema,
+    hormoneItemSchema,
+    hormoneEffectSchema,
+    hormoneSeasonalLevelSchema,
+    hormoneDetailSchema,
+    hormoneCategorySchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -2109,6 +2130,444 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Batch 3b — 辞典・施肥・ホルモン スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'DictionaryCategory',
+    dictionaryCategorySchema.openapi({
+      description: '辞典カテゴリ enum（7 固定値）: 樹形 / 技術・作業 / 管理・育成 / 道具・用品 / 盆器・鉢 / 用土・肥料 / 展示・鑑賞。',
+    }),
+  )
+
+  registry.register(
+    'KanaRow',
+    kanaRowSchema.openapi({
+      description: '五十音行 enum（10 行）: あ行〜わ行。reading 先頭文字に基づく in-memory フィルタで使用。',
+    }),
+  )
+
+  registry.register(
+    'DictionaryTermSummary',
+    dictionaryTermSummarySchema.openapi({
+      description: '辞典用語の一覧項目（description 省略）。',
+    }),
+  )
+
+  registry.register(
+    'DictionaryTermDetail',
+    dictionaryTermDetailSchema.openapi({
+      description: '辞典用語の詳細（description を含む）。',
+    }),
+  )
+
+  const DictionaryListResponse = registry.register(
+    'DictionaryListResponse',
+    dictionaryListResponseSchema.openapi({
+      description: 'GET /api/v1/dictionary 成功レスポンス。reading ASC / sortOrder ASC 順。',
+    }),
+  )
+
+  const DictionaryDetailResponse = registry.register(
+    'DictionaryDetailResponse',
+    dictionaryDetailResponseSchema.openapi({
+      description: 'GET /api/v1/dictionary/{slug} 成功レスポンス。prev/next/related を含む。',
+    }),
+  )
+
+  registry.register(
+    'NutrientCategory',
+    nutrientCategorySchema.openapi({
+      description: '栄養素カテゴリ enum: primary（三大要素）/ secondary（二次要素）/ trace（微量要素）。',
+    }),
+  )
+
+  registry.register(
+    'TreeCategory',
+    treeCategorySchema.openapi({
+      description: '樹種カテゴリ enum: conifer（松柏類）/ deciduous（雑木類）/ flowering（花物）/ fruiting（実物）/ grass（草物）/ evergreen（常緑広葉樹）。',
+    }),
+  )
+
+  registry.register(
+    'FertilizerAction',
+    fertilizerActionSchema.openapi({
+      description: '施肥アクション enum: none（施肥不要）/ light（控えめ）/ moderate（通常量）/ heavy（たっぷり）。',
+    }),
+  )
+
+  registry.register(
+    'NutrientLevel',
+    nutrientLevelSchema.openapi({
+      description: '栄養素レベル enum: high（多め）/ balanced（バランス）/ low（控えめ）/ none（不要）。',
+    }),
+  )
+
+  registry.register(
+    'NutrientItem',
+    nutrientItemSchema.openapi({
+      description: '栄養素一覧の 1 件（deficiencySymptoms 等は詳細のみ）。',
+    }),
+  )
+
+  const NutrientDetail = registry.register(
+    'NutrientDetail',
+    nutrientDetailSchema.openapi({
+      description: '栄養素詳細（deficiencySymptoms / excessSymptoms / foodSources を含む）。',
+    }),
+  )
+
+  const FertilizerCategoryItem = registry.register(
+    'FertilizerCategoryItem',
+    fertilizerCategoryItemSchema.openapi({
+      description: '肥料カテゴリ 1 件（code, name, description, merit, demerit, bonsaiUsage, slug）。',
+    }),
+  )
+
+  registry.register(
+    'TreeSpeciesItem',
+    treeSpeciesItemSchema.openapi({
+      description: '樹種一覧の 1 件（id, name, category, fertilizingPolicy, slug）。',
+    }),
+  )
+
+  registry.register(
+    'FertilizationMonth',
+    fertilizationMonthSchema.openapi({
+      description: '月別施肥データ 1 件（month 1〜12、action、各栄養素レベル、推奨肥料タイプ、備考）。',
+    }),
+  )
+
+  const FertilizationScheduleResponse = registry.register(
+    'FertilizationScheduleResponse',
+    fertilizationScheduleResponseSchema.openapi({
+      description: 'GET /api/v1/fertilizers/tree-species/{slug}/schedule 成功レスポンス。months は月順で最大 12 件。',
+    }),
+  )
+
+  registry.register(
+    'HormoneCategory',
+    hormoneCategorySchema.openapi({
+      description: 'ホルモンカテゴリ enum: major（主要ホルモン）/ secondary（補助ホルモン）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneItem',
+    hormoneItemSchema.openapi({
+      description: 'ホルモン一覧の 1 件（id, name, nameEn, slug, category, chemicalFormula, description）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneEffect',
+    hormoneEffectSchema.openapi({
+      description: 'ホルモン効果 1 件（effectName, isPromoting）。isPromoting=true: 促進 / false: 抑制。',
+    }),
+  )
+
+  registry.register(
+    'HormoneSeasonalLevel',
+    hormoneSeasonalLevelSchema.openapi({
+      description: '月別ホルモン活性 1 件（month 1〜12、level: high / moderate / low / minimal）。',
+    }),
+  )
+
+  const HormoneDetail = registry.register(
+    'HormoneDetail',
+    hormoneDetailSchema.openapi({
+      description: 'ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels を含む）。interactions/techniques は別バッチで追加予定。',
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // Batch 3b — 辞典・施肥・ホルモン パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/dictionary',
+    tags: ['dictionary'],
+    summary: '盆栽用語辞典一覧',
+    description: [
+      '盆栽用語をカーソルページネーションで返す。reading ASC / sortOrder ASC 順。',
+      '',
+      '重要仕様:',
+      '- search: term / reading / description の部分一致（contains 検索）',
+      '- category: 7 固定カテゴリ（DictionaryCategory enum）でフィルタ',
+      '- row: 五十音行（KanaRow enum、10 行）でフィルタ。in-memory 適用のためカーソルと組み合わせると挙動が変わる',
+      '- row 指定時はカーソルなし全件返却（最大 limit 件）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（slug）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+        search: z.string().optional().openapi({ description: '検索キーワード（term / reading / description 部分一致）' }),
+        category: z.string().optional().openapi({ description: '辞典カテゴリフィルタ（DictionaryCategory enum）' }),
+        row: z.string().optional().openapi({ description: '五十音行フィルタ（KanaRow enum: あ行〜わ行）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '用語一覧取得成功',
+        content: { 'application/json': { schema: DictionaryListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な category / row / limit'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/dictionary/{slug}',
+    tags: ['dictionary'],
+    summary: '盆栽用語辞典詳細',
+    description: [
+      '指定 slug の用語詳細を返す。prev / next / related（同カテゴリ最大 6 件）を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- prev / next は同カテゴリ内の reading ASC 順での前後',
+      '- related は同カテゴリの他の用語（最大 6 件、reading ASC 順）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '用語の slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '用語詳細取得成功',
+        content: { 'application/json': { schema: DictionaryDetailResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('用語が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/fertilizers/nutrients',
+    tags: ['fertilizers'],
+    summary: '栄養素一覧',
+    description: [
+      '肥料栄養素の一覧を全件返却する（件数が少ないためカーソル不要）。',
+      '',
+      '重要仕様:',
+      '- category: NutrientCategory enum（primary / secondary / trace）でフィルタ',
+      '- sortOrder ASC / name ASC 順',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        category: z.string().optional().openapi({ description: 'NutrientCategory enum でフィルタ（省略で全件）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '栄養素一覧取得成功',
+        content: { 'application/json': { schema: z.array(nutrientItemSchema) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な category'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/fertilizers/nutrients/{slug}',
+    tags: ['fertilizers'],
+    summary: '栄養素詳細',
+    description: [
+      '指定 slug の栄養素詳細を返す。deficiencySymptoms / excessSymptoms / foodSources を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '栄養素の slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '栄養素詳細取得成功',
+        content: { 'application/json': { schema: NutrientDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('栄養素が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/fertilizers/categories',
+    tags: ['fertilizers'],
+    summary: '肥料カテゴリ一覧',
+    description: [
+      '肥料カテゴリの一覧を全件返却する（sortOrder ASC 順）。',
+      '',
+      '重要仕様:',
+      '- フィルタなし（全件返却）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '肥料カテゴリ一覧取得成功',
+        content: { 'application/json': { schema: z.array(fertilizerCategoryItemSchema) } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/fertilizers/tree-species',
+    tags: ['fertilizers'],
+    summary: '樹種一覧',
+    description: [
+      '樹種の一覧を全件返却する（sortOrder ASC / name ASC 順）。',
+      '',
+      '重要仕様:',
+      '- category: TreeCategory enum（conifer / deciduous / flowering / fruiting / grass / evergreen）でフィルタ',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        category: z.string().optional().openapi({ description: 'TreeCategory enum でフィルタ（省略で全件）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '樹種一覧取得成功',
+        content: { 'application/json': { schema: z.array(treeSpeciesItemSchema) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な category'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/fertilizers/tree-species/{slug}/schedule',
+    tags: ['fertilizers'],
+    summary: '樹種別施肥スケジュール',
+    description: [
+      '指定 slug の樹種に対する月別施肥スケジュールを返す（month 1〜12 の昇順）。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- months の件数はデータ次第（最大 12）。登録がない月は含まれない',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '樹種の slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '施肥スケジュール取得成功',
+        content: { 'application/json': { schema: FertilizationScheduleResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('樹種が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones',
+    tags: ['hormones'],
+    summary: '植物ホルモン一覧',
+    description: [
+      '植物ホルモンの一覧を全件返却する（sortOrder ASC / name ASC 順）。',
+      '',
+      '重要仕様:',
+      '- category: HormoneCategory enum（major / secondary）でフィルタ',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        category: z.string().optional().openapi({ description: 'HormoneCategory enum でフィルタ（省略で全件）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ホルモン一覧取得成功',
+        content: { 'application/json': { schema: z.array(hormoneItemSchema) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な category'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones/{slug}',
+    tags: ['hormones'],
+    summary: '植物ホルモン詳細',
+    description: [
+      '指定 slug のホルモン詳細を返す。effects / seasonalLevels を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- effects は isPromoting による促進/抑制効果の一覧（sortOrder ASC）',
+      '- seasonalLevels は月別活性レベル（month 1〜12 ASC）',
+      '- interactions（ホルモン間相互作用）/ techniques（技法マッピング）は本バッチ対象外',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: 'ホルモンの slug' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ホルモン詳細取得成功',
+        content: { 'application/json': { schema: HormoneDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('ホルモンが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -2118,7 +2577,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.11.0',
+      version: '1.12.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
