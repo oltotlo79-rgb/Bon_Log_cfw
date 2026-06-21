@@ -58,6 +58,9 @@ async function main() {
     updateBonsaiRequestSchema,
     createBonsaiRecordRequestSchema,
     updateBonsaiRecordRequestSchema,
+    listEventsQuerySchema,
+    createEventRequestSchema,
+    updateEventRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -139,6 +142,8 @@ async function main() {
     bonsaiRecordItemSchema,
     bonsaiRecordImageSchema,
     bonsaiRecordListResponseSchema,
+    eventItemSchema,
+    eventListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -3336,6 +3341,227 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §3.5 イベント CRUD スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'EventItem',
+    eventItemSchema.openapi({
+      description: 'イベント 1 件。creator が null の場合は作成者情報が不明（インポートイベント等）。',
+    }),
+  )
+
+  const EventListResponse = registry.register(
+    'EventListResponse',
+    eventListResponseSchema.openapi({ description: 'イベント一覧レスポンス（カーソルページネーション）。' }),
+  )
+
+  const CreateEventRequest = registry.register(
+    'CreateEventRequest',
+    createEventRequestSchema.openapi({
+      description: [
+        'イベント作成リクエスト。title / startDate は必須。',
+        'prefecture は任意（都道府県名を日本語で指定）。',
+        'externalUrl は完全な URL 形式（https:// を含む）で指定すること。',
+        'hasSales: true の場合、グッズ・苗木等の販売あり。',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdateEventRequest = registry.register(
+    'UpdateEventRequest',
+    updateEventRequestSchema.openapi({
+      description: [
+        'イベント部分更新リクエスト（作成者のみ）。すべてのフィールドが optional。',
+        '省略したフィールドは既存値を維持する。',
+        'null を渡すと該当フィールドをクリアする。',
+      ].join('\n'),
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // §3.5 イベントパス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/events',
+    tags: ['events'],
+    summary: 'イベント一覧取得',
+    description: [
+      'イベントをカーソルページネーションで取得する。ゲスト可。',
+      '',
+      'フィルタ仕様:',
+      '- region: 地方ブロック名（北海道・東北 / 関東 / 中部 / 近畿 / 中国 / 四国 / 九州・沖縄）',
+      '- prefecture: 都道府県名（日本語）。region と同時指定した場合は prefecture が優先',
+      '- showPast=true: 過去イベントを含む（デフォルト: 今日以降のみ）',
+      '- year + month（0-11）: 指定月の開始日が含まれるイベントを取得。showPast より優先',
+      '',
+      'isHidden=true のイベントは除外される。並び順は startDate 昇順。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数（デフォルト 20、最大 100）' }),
+        region: z.string().optional().openapi({
+          description: '地方ブロック名でフィルタ（例: 関東 / 九州・沖縄）。prefecture と同時指定した場合は prefecture 優先',
+        }),
+        prefecture: z.string().optional().openapi({
+          description: '都道府県名でフィルタ（例: 東京都）。region より細かい単位で絞り込む',
+        }),
+        showPast: z.enum(['true', 'false']).optional().openapi({
+          description: 'true のとき過去イベントを含む（デフォルト false）。year/month 指定時は無視される',
+        }),
+        year: z.number().int().optional().openapi({ description: '取得対象の年（month と対で指定）' }),
+        month: z.number().int().optional().openapi({ description: '取得対象の月（0-11。month と year は対で指定）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'イベント一覧取得成功',
+        content: { 'application/json': { schema: EventListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な region/prefecture/month/year'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/events/{id}',
+    tags: ['events'],
+    summary: 'イベント詳細取得',
+    description: [
+      '指定 ID のイベント詳細を取得する。ゲスト可。',
+      'isHidden=true / 不存在の場合は 404 を返す。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'イベント ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'イベント詳細',
+        content: { 'application/json': { schema: registry.register('EventItemDetail', eventItemSchema) } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('イベントが存在しないか非表示 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/events',
+    tags: ['events'],
+    summary: 'イベントを作成する',
+    description: [
+      '新規イベントを作成する。認証必須・ゲスト不可。',
+      '',
+      '重要仕様:',
+      '- title / startDate は必須',
+      '- startDate / endDate は ISO 8601 形式の日付文字列（例: "2025-07-01"）',
+      '- endDate < startDate の場合は 400 VALIDATION_ERROR',
+      '- externalUrl は https:// を含む完全 URL 形式',
+      '- 作成後のイベント詳細（creator 付き）を 201 で返す',
+      '- レート制限: create_event（3/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateEventRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: 'イベント作成成功。作成後のイベント詳細を返す',
+        content: { 'application/json': { schema: registry.register('EventItemCreate', eventItemSchema) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — title/startDate 必須・日付形式不正・終了日 < 開始日・URL 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/events/{id}',
+    tags: ['events'],
+    summary: 'イベントを部分更新する（作成者のみ）',
+    description: [
+      '既存イベントを部分更新する。作成者のみ実行可能。',
+      '',
+      '重要仕様:',
+      '- 省略したフィールドは既存値を維持する',
+      '- null を渡すと該当フィールドをクリアする',
+      '- 更新後の日付整合性（endDate >= startDate）を検証する',
+      '- 作成者でない場合は 403 を返す（他人のイベントと不存在の区別なし）',
+      '- レート制限: update_event（5/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'イベント ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: UpdateEventRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '更新成功。更新後のイベント詳細を返す',
+        content: { 'application/json': { schema: registry.register('EventItemUpdate', eventItemSchema) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 日付形式不正・終了日 < 開始日・URL 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 作成者でない'),
+      404: errorResponse('イベントが存在しないか非表示 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/events/{id}',
+    tags: ['events'],
+    summary: 'イベントを削除する（作成者のみ）',
+    description: [
+      'イベントを完全削除する。作成者のみ実行可能。',
+      '',
+      '重要仕様:',
+      '- 作成者でない場合は 403 を返す（他人のイベントと不存在の区別なし）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: delete_event（5/分）',
+      '- 成功レスポンス: 204 No Content',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'イベント ID' }) }),
+    },
+    responses: {
+      204: {
+        description: '削除成功（レスポンスボディなし）',
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 作成者でない'),
+      404: errorResponse('イベントが存在しないか非表示 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -3345,7 +3571,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.14.0',
+      version: '1.15.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

@@ -860,6 +860,44 @@ export const bonsaiRecordListResponseSchema = z.object({
 export type BonsaiRecordListResponse = z.infer<typeof bonsaiRecordListResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §3.5 イベント CRUD
+// ──────────────────────────────────────────────────
+
+/** イベント作成者の最小情報（nullable: 作成者不明の場合は null） */
+export const eventCreatorSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+})
+export type EventCreator = z.infer<typeof eventCreatorSchema>
+
+/** イベント 1 件（一覧・詳細共用） */
+export const eventItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime().nullable(),
+  prefecture: z.string().nullable(),
+  city: z.string().nullable(),
+  venue: z.string().nullable(),
+  organizer: z.string().nullable(),
+  admissionFee: z.string().nullable(),
+  hasSales: z.boolean(),
+  externalUrl: z.string().nullable(),
+  creator: eventCreatorSchema.nullable(),
+  createdAt: z.string().datetime(),
+})
+export type EventItem = z.infer<typeof eventItemSchema>
+
+/** GET /api/v1/events 200 */
+export const eventListResponseSchema = z.object({
+  items: z.array(eventItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type EventListResponse = z.infer<typeof eventListResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

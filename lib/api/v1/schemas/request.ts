@@ -345,3 +345,91 @@ export const updateBonsaiRecordRequestSchema = z.object({
   mediaUrls: z.array(z.string().url()).max(MAX_BONSAI_RECORD_IMAGES).optional(),
 })
 export type UpdateBonsaiRecordRequest = z.infer<typeof updateBonsaiRecordRequestSchema>
+
+// ──────────────────────────────────────────────────
+// §3.5 イベント CRUD
+// ──────────────────────────────────────────────────
+
+import { REGION_NAME_LIST, PREFECTURES } from '@/lib/prefectures'
+import { MAX_EVENT_TITLE_LENGTH, MAX_PAGE_LIMIT } from '@/lib/constants/limits'
+import {
+  ERR_EVENT_TITLE_REQUIRED,
+  ERR_EVENT_START_DATE_REQUIRED,
+  ERR_INVALID_INPUT,
+} from '@/lib/constants/errors'
+
+const MAX_EVENT_DESCRIPTION_LENGTH_REQ = 5000
+const MAX_EVENT_PREFECTURE_LENGTH_REQ = 20
+const MAX_EVENT_CITY_LENGTH_REQ = 100
+const MAX_EVENT_VENUE_LENGTH_REQ = 200
+const MAX_EVENT_ORGANIZER_LENGTH_REQ = 200
+const MAX_EVENT_ADMISSION_FEE_LENGTH_REQ = 100
+const MAX_EVENT_EXTERNAL_URL_LENGTH_REQ = 2000
+const MAX_EVENT_ID_LENGTH_REQ = 50
+
+/**
+ * GET /api/v1/events のクエリパラメータスキーマ。
+ * region: 地方ブロック名 / prefecture: 都道府県名 / showPast / year / month をサポート。
+ */
+export const listEventsQuerySchema = z.object({
+  cursor: z.string().max(MAX_EVENT_ID_LENGTH_REQ).optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+  region: z.string().optional().refine(
+    (v) => v === undefined || (REGION_NAME_LIST as readonly string[]).includes(v),
+    { message: ERR_INVALID_INPUT },
+  ),
+  prefecture: z
+    .string()
+    .max(MAX_EVENT_PREFECTURE_LENGTH_REQ)
+    .optional()
+    .refine(
+      (v) => v === undefined || (PREFECTURES as readonly string[]).includes(v),
+      { message: ERR_INVALID_INPUT },
+    ),
+  showPast: z.enum(['true', 'false']).optional(),
+  year: z.coerce.number().int().min(1900).max(2200).optional(),
+  month: z.coerce.number().int().min(0).max(11).optional(),
+})
+export type ListEventsQuery = z.infer<typeof listEventsQuerySchema>
+
+/**
+ * POST /api/v1/events リクエストボディスキーマ。
+ * title / startDate は必須。prefecture は optional（Web は必須だが API は緩和）。
+ */
+export const createEventRequestSchema = z.object({
+  title: z.string().min(1, ERR_EVENT_TITLE_REQUIRED).max(MAX_EVENT_TITLE_LENGTH),
+  startDate: z.string().min(1, ERR_EVENT_START_DATE_REQUIRED),
+  description: z.string().max(MAX_EVENT_DESCRIPTION_LENGTH_REQ).nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  prefecture: z.string().max(MAX_EVENT_PREFECTURE_LENGTH_REQ).nullable().optional(),
+  city: z.string().max(MAX_EVENT_CITY_LENGTH_REQ).nullable().optional(),
+  venue: z.string().max(MAX_EVENT_VENUE_LENGTH_REQ).nullable().optional(),
+  organizer: z.string().max(MAX_EVENT_ORGANIZER_LENGTH_REQ).nullable().optional(),
+  admissionFee: z.string().max(MAX_EVENT_ADMISSION_FEE_LENGTH_REQ).nullable().optional(),
+  hasSales: z.boolean().optional().default(false),
+  externalUrl: z.string().url().max(MAX_EVENT_EXTERNAL_URL_LENGTH_REQ).nullable().optional(),
+})
+export type CreateEventRequest = z.infer<typeof createEventRequestSchema>
+
+/**
+ * PATCH /api/v1/events/{id} リクエストボディスキーマ。
+ * すべてのフィールドが optional（部分更新）。
+ */
+export const updateEventRequestSchema = z.object({
+  title: z
+    .string()
+    .min(1, ERR_EVENT_TITLE_REQUIRED)
+    .max(MAX_EVENT_TITLE_LENGTH)
+    .optional(),
+  startDate: z.string().min(1, ERR_EVENT_START_DATE_REQUIRED).optional(),
+  description: z.string().max(MAX_EVENT_DESCRIPTION_LENGTH_REQ).nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  prefecture: z.string().max(MAX_EVENT_PREFECTURE_LENGTH_REQ).nullable().optional(),
+  city: z.string().max(MAX_EVENT_CITY_LENGTH_REQ).nullable().optional(),
+  venue: z.string().max(MAX_EVENT_VENUE_LENGTH_REQ).nullable().optional(),
+  organizer: z.string().max(MAX_EVENT_ORGANIZER_LENGTH_REQ).nullable().optional(),
+  admissionFee: z.string().max(MAX_EVENT_ADMISSION_FEE_LENGTH_REQ).nullable().optional(),
+  hasSales: z.boolean().optional(),
+  externalUrl: z.string().url().max(MAX_EVENT_EXTERNAL_URL_LENGTH_REQ).nullable().optional(),
+})
+export type UpdateEventRequest = z.infer<typeof updateEventRequestSchema>
