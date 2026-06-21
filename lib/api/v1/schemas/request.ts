@@ -558,6 +558,75 @@ export type UpdateScheduledPostRequest = z.infer<typeof updateScheduledPostReque
 export { MAX_PENDING_SCHEDULED_POSTS, MAX_SCHEDULED_DAYS_AHEAD }
 
 // ──────────────────────────────────────────────────
+// §1.20 explore/posts — ハッシュタグ / ジャンル別投稿一覧
+// ──────────────────────────────────────────────────
+
+import { MAX_HASHTAG_QUERY_LENGTH } from '@/lib/constants/limits'
+
+/**
+ * GET /api/v1/explore/posts クエリパラメータスキーマ。
+ *
+ * hashtag と genreId はどちらか一方のみ指定可能（排他）。
+ * 両方指定 / 両方未指定の場合は 400 VALIDATION_ERROR。
+ */
+export const explorePostsQuerySchema = z.object({
+  hashtag: z.string().min(1).max(MAX_HASHTAG_QUERY_LENGTH).optional(),
+  genreId: z.string().min(1).max(64).optional(),
+  cursor: z.string().max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+})
+export type ExplorePostsQuery = z.infer<typeof explorePostsQuerySchema>
+
+// ──────────────────────────────────────────────────
+// §1.20 盆栽手入れログ CRUD（認証必須・ゲスト 403）
+// ──────────────────────────────────────────────────
+
+import { BonsaiCareType } from '@prisma/client'
+import { MAX_BONSAI_CARE_NOTE_LENGTH, MAX_CARE_LOG_RANGE_DAYS } from '@/lib/constants/limits'
+
+/**
+ * POST /api/v1/bonsai/care-logs リクエストボディスキーマ。
+ *
+ * type は BonsaiCareType enum の実値のみ受け付ける。
+ * performedAt は ISO 8601 形式の日時文字列。未来日（+1 日トレランス）は 400。
+ */
+export const createCareLogRequestSchema = z.object({
+  type: z.nativeEnum(BonsaiCareType),
+  performedAt: z.string().datetime(),
+  note: z.string().max(MAX_BONSAI_CARE_NOTE_LENGTH).optional(),
+})
+export type CreateCareLogRequest = z.infer<typeof createCareLogRequestSchema>
+
+/**
+ * PATCH /api/v1/bonsai/care-logs/{logId} リクエストボディスキーマ。
+ *
+ * すべてのフィールドが optional（部分更新）。
+ * note に null を渡すとノートをクリアする。
+ */
+export const updateCareLogRequestSchema = z.object({
+  type: z.nativeEnum(BonsaiCareType).optional(),
+  performedAt: z.string().datetime().optional(),
+  note: z.string().max(MAX_BONSAI_CARE_NOTE_LENGTH).nullable().optional(),
+})
+export type UpdateCareLogRequest = z.infer<typeof updateCareLogRequestSchema>
+
+/**
+ * GET /api/v1/bonsai/care-logs クエリパラメータスキーマ。
+ *
+ * from / to 両方指定時は期間フィルタ（半開区間 [from, to)）。
+ * to - from が MAX_CARE_LOG_RANGE_DAYS を超える場合は 400。
+ */
+export const listCareLogsQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  cursor: z.string().max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+})
+export type ListCareLogsQuery = z.infer<typeof listCareLogsQuerySchema>
+
+export { MAX_CARE_LOG_RANGE_DAYS, MAX_BONSAI_CARE_NOTE_LENGTH }
+
+// ──────────────────────────────────────────────────
 // §3.11 投稿分析サマリ
 // ──────────────────────────────────────────────────
 

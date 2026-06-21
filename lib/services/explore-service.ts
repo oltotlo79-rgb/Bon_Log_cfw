@@ -11,6 +11,8 @@
  * - trending hashtags は Hashtag テーブルから直接取得（Web Action と同等）。
  * - recommended users は認証ユーザー依存のため都度 DB 取得（キャッシュ不可）。
  *
+ * ハッシュタグ / ジャンル別投稿: explore-posts-service.ts に分離。
+ *
  * 認証・レート制限は呼び出し元（route handler）が担う前提。
  */
 

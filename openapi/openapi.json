@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.19.0",
+    "version": "1.20.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -7766,6 +7766,551 @@
           }
         },
         "description": "集計期間クエリパラメータ。days は 7 / 30 / 90 の文字列のみ許容（省略時 30）。"
+      },
+      "ExplorePostsQuery": {
+        "type": "object",
+        "properties": {
+          "hashtag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "genreId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "description": "GET /api/v1/explore/posts クエリパラメータ。\nhashtag と genreId はどちらか一方のみ指定可（排他）。両方 / 両方未指定は 400 VALIDATION_ERROR。"
+      },
+      "ExplorePostsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "userId": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isBlocked": {
+                      "type": "boolean"
+                    },
+                    "isMuted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nickname",
+                    "avatarUrl",
+                    "isBlocked",
+                    "isMuted"
+                  ]
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "url",
+                      "type",
+                      "sortOrder"
+                    ]
+                  }
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "category"
+                    ]
+                  }
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                },
+                "repostCount": {
+                  "type": "integer"
+                },
+                "isLiked": {
+                  "type": "boolean"
+                },
+                "isBookmarked": {
+                  "type": "boolean"
+                },
+                "isReposted": {
+                  "type": "boolean"
+                },
+                "quotePost": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nickname",
+                        "avatarUrl"
+                      ]
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "type",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "user"
+                  ]
+                },
+                "repostPost": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nickname",
+                        "avatarUrl"
+                      ]
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "type",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "user"
+                  ]
+                },
+                "poll": {},
+                "mentionedUsers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "nickname": {
+                        "type": "string"
+                      },
+                      "avatarUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "nickname",
+                      "avatarUrl"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "updatedAt",
+                "userId",
+                "user",
+                "media",
+                "genres",
+                "likeCount",
+                "commentCount",
+                "repostCount",
+                "isLiked",
+                "isBookmarked",
+                "isReposted",
+                "quotePost",
+                "repostPost",
+                "mentionedUsers"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "ハッシュタグ / ジャンル別投稿一覧レスポンス。feed と同等の投稿形式。"
+      },
+      "BonsaiCareType": {
+        "type": "string",
+        "enum": [
+          "pesticide",
+          "solid_fertilizer",
+          "liquid_fertilizer",
+          "rotate",
+          "shading",
+          "muro_in",
+          "muro_out",
+          "other"
+        ],
+        "description": "盆栽手入れ種別 enum（Prisma BonsaiCareType と一致）。\n値: pesticide / solid_fertilizer / liquid_fertilizer / rotate / shading / muro_in / muro_out / other"
+      },
+      "CareLogItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "pesticide",
+              "solid_fertilizer",
+              "liquid_fertilizer",
+              "rotate",
+              "shading",
+              "muro_in",
+              "muro_out",
+              "other"
+            ]
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "performedAt",
+          "note"
+        ],
+        "description": "手入れログ 1 件（id, type, performedAt, note）。"
+      },
+      "CareLogCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "手入れログ作成成功レスポンス（id を返す）。"
+      },
+      "CareLogListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "pesticide",
+                    "solid_fertilizer",
+                    "liquid_fertilizer",
+                    "rotate",
+                    "shading",
+                    "muro_in",
+                    "muro_out",
+                    "other"
+                  ]
+                },
+                "performedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "performedAt",
+                "note"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "手入れログ一覧レスポンス（カーソルページネーション）。"
+      },
+      "CreateCareLogRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "pesticide",
+              "solid_fertilizer",
+              "liquid_fertilizer",
+              "rotate",
+              "shading",
+              "muro_in",
+              "muro_out",
+              "other"
+            ]
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "type",
+          "performedAt"
+        ],
+        "description": "手入れログ作成リクエスト。type と performedAt は必須。\nnote は最大 500 文字。\n未来日（+1 日トレランス）は 400 VALIDATION_ERROR。"
+      },
+      "UpdateCareLogRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "pesticide",
+              "solid_fertilizer",
+              "liquid_fertilizer",
+              "rotate",
+              "shading",
+              "muro_in",
+              "muro_out",
+              "other"
+            ]
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          }
+        },
+        "description": "手入れログ部分更新リクエスト。すべてのフィールドが optional。\nnote に null を渡すとノートをクリアする。"
+      },
+      "ListCareLogsQuery": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "description": "GET /api/v1/bonsai/care-logs クエリパラメータ。\nfrom / to 両方指定時は期間フィルタ（半開区間 [from, to)）。to - from が 367 日超は 400。"
       }
     },
     "parameters": {}
@@ -17002,6 +17547,576 @@
           },
           "403": {
             "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explore/posts": {
+      "get": {
+        "tags": [
+          "explore"
+        ],
+        "summary": "ハッシュタグ or ジャンル別の投稿一覧を取得する（ゲスト可）",
+        "description": "hashtag または genreId のどちらか一方を指定して、該当する投稿一覧をカーソルページネーションで返す。\n\n重要仕様:\n- hashtag と genreId は排他（両方指定 / 両方未指定は 400 VALIDATION_ERROR）\n- hashtag は #なしのタグ名（例: \"松\"）。大小文字無視の部分一致\n- ブロック / ミュート / 非公開著者 / 停止著者の投稿は除外（feed と同一フィルタ）\n- isBlocked / isMuted / mentionedUsers は feed と同じ形式で付与\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ハッシュタグ名（# なし、例: \"松\"）。genreId と排他"
+            },
+            "required": false,
+            "description": "ハッシュタグ名（# なし、例: \"松\"）。genreId と排他",
+            "name": "hashtag",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "ジャンル ID。hashtag と排他"
+            },
+            "required": false,
+            "description": "ジャンル ID。hashtag と排他",
+            "name": "genreId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "投稿一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplorePostsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — hashtag/genreId 排他違反または形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bonsai/care-logs": {
+      "get": {
+        "tags": [
+          "bonsai"
+        ],
+        "summary": "自分の手入れログ一覧を取得する（認証必須・ゲスト 403）",
+        "description": "認証ユーザー自身の手入れログをカーソルページネーションで返す。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- from / to 両方指定で期間フィルタ（半開区間 [from, to)）\n- to - from が 367 日超の場合は 400 VALIDATION_ERROR\n- from のみ / to のみは期間フィルタなしで全件取得\n- BonsaiCareLog は特定の盆栽に紐付かないユーザー全体のメモ（Web 仕様に準拠）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "期間開始（ISO 8601、含む）"
+            },
+            "required": false,
+            "description": "期間開始（ISO 8601、含む）",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "期間終了（ISO 8601、含まない）"
+            },
+            "required": false,
+            "description": "期間終了（ISO 8601、含まない）",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "手入れログ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CareLogListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 期間形式不正 / 期間超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bonsai"
+        ],
+        "summary": "手入れログを作成する（認証必須・ゲスト 403）",
+        "description": "手入れログを作成する。type と performedAt は必須。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- performedAt の未来日（+1 日トレランス）は 400 VALIDATION_ERROR\n- note は最大 500 文字\n- BonsaiCareLog は特定の盆栽に紐付かないユーザー全体のメモ\n- レート制限: care_log_write",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCareLogRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "手入れログ作成成功。id を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CareLogCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 必須フィールド欠落 / 未来日 / note 超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bonsai/care-logs/{logId}": {
+      "patch": {
+        "tags": [
+          "bonsai"
+        ],
+        "summary": "手入れログを部分更新する（所有者のみ）",
+        "description": "自分の手入れログを部分更新する。省略したフィールドは現在値を維持する。\n\n重要仕様:\n- 所有者以外・不存在は 404 NOT_FOUND（ID 列挙攻撃防止）\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- note に null を渡すとノートをクリアする\n- レート制限: care_log_write",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "手入れログ ID"
+            },
+            "required": true,
+            "description": "手入れログ ID",
+            "name": "logId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCareLogRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "手入れログ更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 未来日 / note 超過",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "手入れログが見つからない (NOT_FOUND) — 不存在 / 他ユーザーのログ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "bonsai"
+        ],
+        "summary": "手入れログを削除する（所有者のみ）",
+        "description": "自分の手入れログを削除する。\n\n重要仕様:\n- 所有者以外・不存在は 404 NOT_FOUND（ID 列挙攻撃防止）\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: delete_care_log",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "手入れログ ID"
+            },
+            "required": true,
+            "description": "手入れログ ID",
+            "name": "logId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "手入れログ削除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "手入れログが見つからない (NOT_FOUND) — 不存在 / 他ユーザーのログ",
             "content": {
               "application/json": {
                 "schema": {

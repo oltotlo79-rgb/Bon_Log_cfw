@@ -1152,6 +1152,52 @@ export const analyticsSummaryResponseSchema = z.object({
 export type AnalyticsSummaryResponse = z.infer<typeof analyticsSummaryResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §1.20 explore/posts — ハッシュタグ / ジャンル別投稿一覧
+// ──────────────────────────────────────────────────
+
+/** GET /api/v1/explore/posts 200 */
+export const explorePostsResponseSchema = z.object({
+  items: z.array(postSchema),
+  nextCursor: z.string().nullable(),
+})
+export type ExplorePostsResponse = z.infer<typeof explorePostsResponseSchema>
+
+// ──────────────────────────────────────────────────
+// §1.20 盆栽手入れログ
+// ──────────────────────────────────────────────────
+
+import { BonsaiCareType } from '@prisma/client'
+
+/**
+ * BonsaiCareType enum（Prisma enum 値と一致）。
+ * z.nativeEnum でなく z.enum を使うため実値配列を抽出する。
+ */
+export const bonsaiCareTypeSchema = z.nativeEnum(BonsaiCareType)
+export type BonsaiCareTypeEnum = z.infer<typeof bonsaiCareTypeSchema>
+
+/** 手入れログ 1 件 */
+export const careLogItemSchema = z.object({
+  id: z.string(),
+  type: bonsaiCareTypeSchema,
+  performedAt: z.string().datetime(),
+  note: z.string().nullable(),
+})
+export type CareLogItem = z.infer<typeof careLogItemSchema>
+
+/** 手入れログ作成成功レスポンス */
+export const careLogCreatedResponseSchema = z.object({
+  id: z.string(),
+})
+export type CareLogCreatedResponse = z.infer<typeof careLogCreatedResponseSchema>
+
+/** GET /api/v1/bonsai/care-logs 200 */
+export const careLogListResponseSchema = z.object({
+  items: z.array(careLogItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type CareLogListResponse = z.infer<typeof careLogListResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

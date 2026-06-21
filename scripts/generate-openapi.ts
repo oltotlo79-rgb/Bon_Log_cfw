@@ -70,6 +70,12 @@ async function main() {
     MAX_PENDING_SCHEDULED_POSTS,
     MAX_SCHEDULED_DAYS_AHEAD,
     analyticsSummaryQuerySchema,
+    explorePostsQuerySchema,
+    createCareLogRequestSchema,
+    updateCareLogRequestSchema,
+    listCareLogsQuerySchema,
+    MAX_CARE_LOG_RANGE_DAYS,
+    MAX_BONSAI_CARE_NOTE_LENGTH,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -177,6 +183,11 @@ async function main() {
     analyticsFollowerGrowthEntrySchema,
     analyticsFollowersSummarySchema,
     analyticsSummaryResponseSchema,
+    explorePostsResponseSchema,
+    bonsaiCareTypeSchema,
+    careLogItemSchema,
+    careLogCreatedResponseSchema,
+    careLogListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -4388,6 +4399,83 @@ async function main() {
     }),
   )
 
+  // ──────────────────────────────────────────────────
+  // §1.20 explore/posts + 盆栽手入れログ スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'ExplorePostsQuery',
+    explorePostsQuerySchema.openapi({
+      description: [
+        'GET /api/v1/explore/posts クエリパラメータ。',
+        'hashtag と genreId はどちらか一方のみ指定可（排他）。両方 / 両方未指定は 400 VALIDATION_ERROR。',
+      ].join('\n'),
+    }),
+  )
+
+  const ExplorePostsResponse = registry.register(
+    'ExplorePostsResponse',
+    explorePostsResponseSchema.openapi({
+      description: 'ハッシュタグ / ジャンル別投稿一覧レスポンス。feed と同等の投稿形式。',
+    }),
+  )
+
+  registry.register(
+    'BonsaiCareType',
+    bonsaiCareTypeSchema.openapi({
+      description: [
+        '盆栽手入れ種別 enum（Prisma BonsaiCareType と一致）。',
+        '値: pesticide / solid_fertilizer / liquid_fertilizer / rotate / shading / muro_in / muro_out / other',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'CareLogItem',
+    careLogItemSchema.openapi({ description: '手入れログ 1 件（id, type, performedAt, note）。' }),
+  )
+
+  const CareLogCreatedResponse = registry.register(
+    'CareLogCreatedResponse',
+    careLogCreatedResponseSchema.openapi({ description: '手入れログ作成成功レスポンス（id を返す）。' }),
+  )
+
+  const CareLogListResponse = registry.register(
+    'CareLogListResponse',
+    careLogListResponseSchema.openapi({ description: '手入れログ一覧レスポンス（カーソルページネーション）。' }),
+  )
+
+  const CreateCareLogRequest = registry.register(
+    'CreateCareLogRequest',
+    createCareLogRequestSchema.openapi({
+      description: [
+        '手入れログ作成リクエスト。type と performedAt は必須。',
+        `note は最大 ${MAX_BONSAI_CARE_NOTE_LENGTH} 文字。`,
+        '未来日（+1 日トレランス）は 400 VALIDATION_ERROR。',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdateCareLogRequest = registry.register(
+    'UpdateCareLogRequest',
+    updateCareLogRequestSchema.openapi({
+      description: [
+        '手入れログ部分更新リクエスト。すべてのフィールドが optional。',
+        'note に null を渡すとノートをクリアする。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'ListCareLogsQuery',
+    listCareLogsQuerySchema.openapi({
+      description: [
+        'GET /api/v1/bonsai/care-logs クエリパラメータ。',
+        `from / to 両方指定時は期間フィルタ（半開区間 [from, to)）。to - from が ${MAX_CARE_LOG_RANGE_DAYS} 日超は 400。`,
+      ].join('\n'),
+    }),
+  )
+
   registry.registerPath({
     method: 'get',
     path: '/api/v1/analytics/summary',
@@ -4430,6 +4518,200 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §1.20 explore/posts パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/explore/posts',
+    tags: ['explore'],
+    summary: 'ハッシュタグ or ジャンル別の投稿一覧を取得する（ゲスト可）',
+    description: [
+      'hashtag または genreId のどちらか一方を指定して、該当する投稿一覧をカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- hashtag と genreId は排他（両方指定 / 両方未指定は 400 VALIDATION_ERROR）',
+      '- hashtag は #なしのタグ名（例: "松"）。大小文字無視の部分一致',
+      '- ブロック / ミュート / 非公開著者 / 停止著者の投稿は除外（feed と同一フィルタ）',
+      '- isBlocked / isMuted / mentionedUsers は feed と同じ形式で付与',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        hashtag: z.string().optional().openapi({
+          description: 'ハッシュタグ名（# なし、例: "松"）。genreId と排他',
+        }),
+        genreId: z.string().optional().openapi({
+          description: 'ジャンル ID。hashtag と排他',
+        }),
+        cursor: z.string().optional().openapi({
+          description: '前回レスポンスの nextCursor 値',
+        }),
+        limit: z.number().int().min(1).max(100).optional().openapi({
+          description: '取得件数（デフォルト 20、最大 100）',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '投稿一覧取得成功',
+        content: { 'application/json': { schema: ExplorePostsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — hashtag/genreId 排他違反または形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
+  // §1.20 盆栽手入れログ パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/bonsai/care-logs',
+    tags: ['bonsai'],
+    summary: '自分の手入れログ一覧を取得する（認証必須・ゲスト 403）',
+    description: [
+      '認証ユーザー自身の手入れログをカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- from / to 両方指定で期間フィルタ（半開区間 [from, to)）',
+      `- to - from が ${MAX_CARE_LOG_RANGE_DAYS} 日超の場合は 400 VALIDATION_ERROR`,
+      '- from のみ / to のみは期間フィルタなしで全件取得',
+      '- BonsaiCareLog は特定の盆栽に紐付かないユーザー全体のメモ（Web 仕様に準拠）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        from: z.string().optional().openapi({ description: '期間開始（ISO 8601、含む）' }),
+        to: z.string().optional().openapi({ description: '期間終了（ISO 8601、含まない）' }),
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({
+          description: '取得件数（デフォルト 20、最大 100）',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '手入れログ一覧取得成功',
+        content: { 'application/json': { schema: CareLogListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 期間形式不正 / 期間超過'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/bonsai/care-logs',
+    tags: ['bonsai'],
+    summary: '手入れログを作成する（認証必須・ゲスト 403）',
+    description: [
+      '手入れログを作成する。type と performedAt は必須。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- performedAt の未来日（+1 日トレランス）は 400 VALIDATION_ERROR',
+      `- note は最大 ${MAX_BONSAI_CARE_NOTE_LENGTH} 文字`,
+      '- BonsaiCareLog は特定の盆栽に紐付かないユーザー全体のメモ',
+      '- レート制限: care_log_write',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: { 'application/json': { schema: CreateCareLogRequest } },
+      },
+    },
+    responses: {
+      201: {
+        description: '手入れログ作成成功。id を返す',
+        content: { 'application/json': { schema: CareLogCreatedResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 必須フィールド欠落 / 未来日 / note 超過'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/bonsai/care-logs/{logId}',
+    tags: ['bonsai'],
+    summary: '手入れログを部分更新する（所有者のみ）',
+    description: [
+      '自分の手入れログを部分更新する。省略したフィールドは現在値を維持する。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・不存在は 404 NOT_FOUND（ID 列挙攻撃防止）',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- note に null を渡すとノートをクリアする',
+      '- レート制限: care_log_write',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ logId: z.string().openapi({ description: '手入れログ ID' }) }),
+      body: {
+        required: true,
+        content: { 'application/json': { schema: UpdateCareLogRequest } },
+      },
+    },
+    responses: {
+      200: {
+        description: '手入れログ更新成功',
+        content: { 'application/json': { schema: z.object({ success: z.literal(true) }) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 未来日 / note 超過'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('手入れログが見つからない (NOT_FOUND) — 不存在 / 他ユーザーのログ'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/bonsai/care-logs/{logId}',
+    tags: ['bonsai'],
+    summary: '手入れログを削除する（所有者のみ）',
+    description: [
+      '自分の手入れログを削除する。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・不存在は 404 NOT_FOUND（ID 列挙攻撃防止）',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: delete_care_log',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ logId: z.string().openapi({ description: '手入れログ ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '手入れログ削除成功',
+        content: { 'application/json': { schema: z.object({ success: z.literal(true) }) } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('手入れログが見つからない (NOT_FOUND) — 不存在 / 他ユーザーのログ'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -4439,7 +4721,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.19.0',
+      version: '1.20.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
