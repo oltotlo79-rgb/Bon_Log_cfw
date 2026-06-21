@@ -69,6 +69,7 @@ async function main() {
     updateScheduledPostRequestSchema,
     MAX_PENDING_SCHEDULED_POSTS,
     MAX_SCHEDULED_DAYS_AHEAD,
+    analyticsSummaryQuerySchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -169,6 +170,13 @@ async function main() {
     legalDocumentSchema,
     legalListItemSchema,
     legalListResponseSchema,
+    analyticsPeriodSchema,
+    analyticsTopPostSchema,
+    analyticsPostsSummarySchema,
+    analyticsDailyEngagementSchema,
+    analyticsFollowerGrowthEntrySchema,
+    analyticsFollowersSummarySchema,
+    analyticsSummaryResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -4323,6 +4331,105 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §3.11 投稿分析サマリ スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'AnalyticsPeriod',
+    analyticsPeriodSchema.openapi({ description: '集計期間情報（開始日・終了日・日数）。' }),
+  )
+
+  registry.register(
+    'AnalyticsTopPost',
+    analyticsTopPostSchema.openapi({
+      description: '分析サマリのトップ投稿 1 件（エンゲージメント降順で最大 5 件）。',
+    }),
+  )
+
+  registry.register(
+    'AnalyticsPostsSummary',
+    analyticsPostsSummarySchema.openapi({
+      description: '集計期間内の投稿統計。totalLikes / totalComments は受け取り側の数。',
+    }),
+  )
+
+  registry.register(
+    'AnalyticsDailyEngagement',
+    analyticsDailyEngagementSchema.openapi({
+      description: '日次エンゲージメント 1 件（date は YYYY-MM-DD 形式）。',
+    }),
+  )
+
+  registry.register(
+    'AnalyticsFollowerGrowthEntry',
+    analyticsFollowerGrowthEntrySchema.openapi({
+      description: '日次フォロワー増減 1 件（date は YYYY-MM-DD 形式）。',
+    }),
+  )
+
+  registry.register(
+    'AnalyticsFollowersSummary',
+    analyticsFollowersSummarySchema.openapi({
+      description: '集計期間内のフォロワー統計と日次推移。',
+    }),
+  )
+
+  const AnalyticsSummaryResponse = registry.register(
+    'AnalyticsSummaryResponse',
+    analyticsSummaryResponseSchema.openapi({
+      description: 'GET /api/v1/analytics/summary の成功レスポンス。プレミアム会員のみ取得可能。',
+    }),
+  )
+
+  registry.register(
+    'AnalyticsSummaryQuery',
+    analyticsSummaryQuerySchema.openapi({
+      description: '集計期間クエリパラメータ。days は 7 / 30 / 90 の文字列のみ許容（省略時 30）。',
+    }),
+  )
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/summary',
+    tags: ['analytics'],
+    summary: '自分の投稿分析サマリを取得する',
+    description: [
+      '認証ユーザー自身の投稿・フォロワー・エンゲージメントのサマリを返す。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED',
+      '- 自分のデータのみ（他ユーザーの分析は取得不可）',
+      '- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）',
+      '- レート制限: analytics_summary（10/分）',
+      '- posts.topPosts は期間内エンゲージメント（いいね＋コメント）上位 5 件',
+      '- followers.growth の totalFollowers は推定累積値（新規数を積算）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        days: z
+          .enum(['7', '30', '90'])
+          .optional()
+          .openapi({
+            description: '集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）',
+          }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '分析サマリ取得成功',
+        content: { 'application/json': { schema: AnalyticsSummaryResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -4332,7 +4439,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.18.0',
+      version: '1.19.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

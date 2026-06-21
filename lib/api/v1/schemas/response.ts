@@ -1069,6 +1069,89 @@ export const legalListResponseSchema = z.object({
 export type LegalListResponse = z.infer<typeof legalListResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §3.11 投稿分析サマリ（Bearer 必須・プレミアム限定・読み取り専用・自分のデータのみ）
+// ──────────────────────────────────────────────────
+
+/** 分析サマリの集計期間情報 */
+export const analyticsPeriodSchema = z.object({
+  /** 集計日数: 7 / 30 / 90 のいずれか */
+  days: z.number().int(),
+  /** 集計開始日（YYYY-MM-DD） */
+  start: z.string(),
+  /** 集計終了日（YYYY-MM-DD） */
+  end: z.string(),
+})
+export type AnalyticsPeriodData = z.infer<typeof analyticsPeriodSchema>
+
+/** 分析サマリのトップ投稿 1 件 */
+export const analyticsTopPostSchema = z.object({
+  id: z.string(),
+  /** 本文の先頭 100 文字。メディアのみの投稿は null */
+  content: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  likeCount: z.number().int(),
+  commentCount: z.number().int(),
+})
+export type AnalyticsTopPost = z.infer<typeof analyticsTopPostSchema>
+
+/** 分析サマリの投稿統計 */
+export const analyticsPostsSummarySchema = z.object({
+  /** 期間内の総投稿数 */
+  total: z.number().int(),
+  /** 期間内に受け取ったいいね総数 */
+  totalLikes: z.number().int(),
+  /** 期間内に受け取ったコメント総数 */
+  totalComments: z.number().int(),
+  /** 1 投稿あたりの平均エンゲージメント（いいね + コメント）。小数第 1 位まで */
+  avgEngagement: z.number(),
+  /** エンゲージメント上位 5 件の投稿 */
+  topPosts: z.array(analyticsTopPostSchema),
+})
+export type AnalyticsPostsSummary = z.infer<typeof analyticsPostsSummarySchema>
+
+/** 分析サマリの日次エンゲージメント 1 件 */
+export const analyticsDailyEngagementSchema = z.object({
+  /** YYYY-MM-DD */
+  date: z.string(),
+  posts: z.number().int(),
+  likes: z.number().int(),
+  comments: z.number().int(),
+  /** いいね + コメントの合計 */
+  engagement: z.number().int(),
+})
+export type AnalyticsDailyEngagement = z.infer<typeof analyticsDailyEngagementSchema>
+
+/** 分析サマリの日次フォロワー増減 1 件 */
+export const analyticsFollowerGrowthEntrySchema = z.object({
+  /** YYYY-MM-DD */
+  date: z.string(),
+  newFollowers: z.number().int(),
+  totalFollowers: z.number().int(),
+})
+export type AnalyticsFollowerGrowthEntry = z.infer<typeof analyticsFollowerGrowthEntrySchema>
+
+/** 分析サマリのフォロワー統計 */
+export const analyticsFollowersSummarySchema = z.object({
+  /** 現在のフォロワー総数 */
+  current: z.number().int(),
+  /** 期間内の新規フォロワー数 */
+  newInPeriod: z.number().int(),
+  /** 日次フォロワー推移 */
+  growth: z.array(analyticsFollowerGrowthEntrySchema),
+})
+export type AnalyticsFollowersSummary = z.infer<typeof analyticsFollowersSummarySchema>
+
+/** GET /api/v1/analytics/summary 200 */
+export const analyticsSummaryResponseSchema = z.object({
+  period: analyticsPeriodSchema,
+  posts: analyticsPostsSummarySchema,
+  followers: analyticsFollowersSummarySchema,
+  /** 期間内の日次エンゲージメント推移 */
+  engagementTrend: z.array(analyticsDailyEngagementSchema),
+})
+export type AnalyticsSummaryResponse = z.infer<typeof analyticsSummaryResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

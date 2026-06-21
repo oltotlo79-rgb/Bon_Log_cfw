@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -7396,6 +7396,376 @@
           "items"
         ],
         "description": "GET /api/v1/legal 200 — 利用可能な法的文章の slug/title 一覧。"
+      },
+      "AnalyticsPeriod": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer"
+          },
+          "start": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "start",
+          "end"
+        ],
+        "description": "集計期間情報（開始日・終了日・日数）。"
+      },
+      "AnalyticsTopPost": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "likeCount": {
+            "type": "integer"
+          },
+          "commentCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "createdAt",
+          "likeCount",
+          "commentCount"
+        ],
+        "description": "分析サマリのトップ投稿 1 件（エンゲージメント降順で最大 5 件）。"
+      },
+      "AnalyticsPostsSummary": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "totalLikes": {
+            "type": "integer"
+          },
+          "totalComments": {
+            "type": "integer"
+          },
+          "avgEngagement": {
+            "type": "number"
+          },
+          "topPosts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "likeCount",
+                "commentCount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "total",
+          "totalLikes",
+          "totalComments",
+          "avgEngagement",
+          "topPosts"
+        ],
+        "description": "集計期間内の投稿統計。totalLikes / totalComments は受け取り側の数。"
+      },
+      "AnalyticsDailyEngagement": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "posts": {
+            "type": "integer"
+          },
+          "likes": {
+            "type": "integer"
+          },
+          "comments": {
+            "type": "integer"
+          },
+          "engagement": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "posts",
+          "likes",
+          "comments",
+          "engagement"
+        ],
+        "description": "日次エンゲージメント 1 件（date は YYYY-MM-DD 形式）。"
+      },
+      "AnalyticsFollowerGrowthEntry": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "newFollowers": {
+            "type": "integer"
+          },
+          "totalFollowers": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "newFollowers",
+          "totalFollowers"
+        ],
+        "description": "日次フォロワー増減 1 件（date は YYYY-MM-DD 形式）。"
+      },
+      "AnalyticsFollowersSummary": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": "integer"
+          },
+          "newInPeriod": {
+            "type": "integer"
+          },
+          "growth": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "newFollowers": {
+                  "type": "integer"
+                },
+                "totalFollowers": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "newFollowers",
+                "totalFollowers"
+              ]
+            }
+          }
+        },
+        "required": [
+          "current",
+          "newInPeriod",
+          "growth"
+        ],
+        "description": "集計期間内のフォロワー統計と日次推移。"
+      },
+      "AnalyticsSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "object",
+            "properties": {
+              "days": {
+                "type": "integer"
+              },
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "days",
+              "start",
+              "end"
+            ]
+          },
+          "posts": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "totalLikes": {
+                "type": "integer"
+              },
+              "totalComments": {
+                "type": "integer"
+              },
+              "avgEngagement": {
+                "type": "number"
+              },
+              "topPosts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "likeCount": {
+                      "type": "integer"
+                    },
+                    "commentCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "createdAt",
+                    "likeCount",
+                    "commentCount"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "total",
+              "totalLikes",
+              "totalComments",
+              "avgEngagement",
+              "topPosts"
+            ]
+          },
+          "followers": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "integer"
+              },
+              "newInPeriod": {
+                "type": "integer"
+              },
+              "growth": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string"
+                    },
+                    "newFollowers": {
+                      "type": "integer"
+                    },
+                    "totalFollowers": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "newFollowers",
+                    "totalFollowers"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "current",
+              "newInPeriod",
+              "growth"
+            ]
+          },
+          "engagementTrend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "posts": {
+                  "type": "integer"
+                },
+                "likes": {
+                  "type": "integer"
+                },
+                "comments": {
+                  "type": "integer"
+                },
+                "engagement": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "posts",
+                "likes",
+                "comments",
+                "engagement"
+              ]
+            }
+          }
+        },
+        "required": [
+          "period",
+          "posts",
+          "followers",
+          "engagementTrend"
+        ],
+        "description": "GET /api/v1/analytics/summary の成功レスポンス。プレミアム会員のみ取得可能。"
+      },
+      "AnalyticsSummaryQuery": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "string",
+            "enum": [
+              "7",
+              "30",
+              "90"
+            ],
+            "default": "30"
+          }
+        },
+        "description": "集計期間クエリパラメータ。days は 7 / 30 / 90 の文字列のみ許容（省略時 30）。"
       }
     },
     "parameters": {}
@@ -16559,6 +16929,107 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/summary": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "自分の投稿分析サマリを取得する",
+        "description": "認証ユーザー自身の投稿・フォロワー・エンゲージメントのサマリを返す。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）\n- posts.topPosts は期間内エンゲージメント（いいね＋コメント）上位 5 件\n- followers.growth の totalFollowers は推定累積値（新規数を積算）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "分析サマリ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
             "content": {
               "application/json": {
                 "schema": {

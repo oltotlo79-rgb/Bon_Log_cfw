@@ -8,6 +8,15 @@
 export const DEFAULT_ANALYTICS_DAYS = 30
 
 /**
+ * モバイル API /api/v1/analytics/summary の days クエリパラメータとして
+ * 許容するリテラル値。Zod enum に直接渡せるよう as const タプル形式で定義する。
+ *
+ * ANALYTICS_PERIODS (number[]) と異なり、文字列 enum として Zod で検証するために用いる。
+ */
+export const ANALYTICS_ALLOWED_DAYS_PARAM = ['7', '30', '90'] as const
+export type AnalyticsAllowedDaysParam = (typeof ANALYTICS_ALLOWED_DAYS_PARAM)[number]
+
+/**
  * 分析クエリ 1 回あたりの行スキャン安全上限。
  * 投稿は 1 日あたり上限があるため投稿系クエリでは現実にこの値へ到達しないが、
  * 理論上の無制限 findMany を防ぐ防御的シーリング。到達時は logger.warn で可視化し

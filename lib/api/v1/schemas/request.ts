@@ -557,6 +557,24 @@ export type UpdateScheduledPostRequest = z.infer<typeof updateScheduledPostReque
 // MAX_PENDING_SCHEDULED_POSTS / MAX_SCHEDULED_DAYS_AHEAD は OpenAPI description で参照
 export { MAX_PENDING_SCHEDULED_POSTS, MAX_SCHEDULED_DAYS_AHEAD }
 
+// ──────────────────────────────────────────────────
+// §3.11 投稿分析サマリ
+// ──────────────────────────────────────────────────
+
+import { ANALYTICS_ALLOWED_DAYS_PARAM } from '@/lib/constants/limits'
+
+/**
+ * GET /api/v1/analytics/summary のクエリパラメータスキーマ。
+ *
+ * days は [7, 30, 90] の文字列表現のみ許容（クエリパラメータは常に文字列で届く）。
+ * 省略時はデフォルト '30' を使用する。
+ * ANALYTICS_ALLOWED_DAYS_PARAM 定数から enum を導出し、マジックナンバーを排除する。
+ */
+export const analyticsSummaryQuerySchema = z.object({
+  days: z.enum(ANALYTICS_ALLOWED_DAYS_PARAM).optional().default('30'),
+})
+export type AnalyticsSummaryQuery = z.infer<typeof analyticsSummaryQuerySchema>
+
 /**
  * PATCH /api/v1/events/{id} リクエストボディスキーマ。
  * すべてのフィールドが optional（部分更新）。

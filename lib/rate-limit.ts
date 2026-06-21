@@ -226,6 +226,9 @@ export const RATE_LIMITS = {
   // 取得・キャンセル・削除は engagement（30/分）を流用する。
   create_scheduled_post: { windowMs: ONE_MINUTE_MS, maxRequests: 3 },
   update_scheduled_post: { windowMs: ONE_MINUTE_MS, maxRequests: 5 },
+  // 分析サマリ（モバイル API v1 §3.11）: 読み取り専用だが重い集計クエリを含むため
+  // read（60/分）より絞り込み、10/分 とする。プレミアム限定なので実ユーザーは少ない。
+  analytics_summary: { windowMs: ONE_MINUTE_MS, maxRequests: 10 },
 } as const
 
 /**
