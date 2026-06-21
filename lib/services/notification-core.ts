@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
 import { sendPushNotification } from '@/lib/web-push'
+import { sendExpoPushToUser } from '@/lib/services/push/expo-push'
 import { ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_NOTIFICATIONS } from '@/lib/constants/routes'
 import { buildPostPath } from '@/lib/constants/path-builders'
@@ -167,6 +168,18 @@ export async function createNotification(params: {
       data: { url },
     }).catch((err) => {
       logger.error('Push notification send failed', {
+        userId,
+        type,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+
+    void sendExpoPushToUser(userId, {
+      title: 'BON-LOG',
+      body: pushBody,
+      data: { url, type },
+    }).catch((err) => {
+      logger.error('Expo Push notification send failed', {
         userId,
         type,
         error: err instanceof Error ? err.message : String(err),

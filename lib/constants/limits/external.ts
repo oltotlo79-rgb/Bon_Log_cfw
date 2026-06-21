@@ -190,3 +190,12 @@ export const CONTACT_RESPONSE_MIN_DAYS = 2
 
 /** お問い合わせ回答目安最大営業日数 */
 export const CONTACT_RESPONSE_MAX_DAYS = 3
+
+/** Expo Push API エンドポイント */
+export const EXPO_PUSH_API_URL = 'https://exp.host/--/api/v2/push/send'
+
+/** Expo Push API の1リクエストあたり最大通知件数 */
+export const EXPO_PUSH_BATCH_SIZE = 100
+
+/** Expo Push API へのリクエストタイムアウト（ミリ秒、10秒） */
+export const EXPO_PUSH_TIMEOUT_MS = 10_000
