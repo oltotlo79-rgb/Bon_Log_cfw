@@ -411,6 +411,104 @@ export const createEventRequestSchema = z.object({
 })
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>
 
+// ──────────────────────────────────────────────────
+// §3.4 盆栽園マップ
+// ──────────────────────────────────────────────────
+
+import {
+  MAX_SHOP_NAME_LENGTH,
+  MAX_SHOP_ADDRESS_LENGTH,
+  MAX_SHOP_PHONE_LENGTH,
+  MAX_SHOP_URL_LENGTH,
+  MAX_SHOP_BUSINESS_HOURS_LENGTH,
+  MAX_SHOP_CLOSED_DAYS_LENGTH,
+  MAX_SHOP_GENRES,
+  MIN_RATING,
+  MAX_RATING,
+  MAX_REVIEW_IMAGES,
+} from '@/lib/constants/limits'
+import {
+  ERR_SHOP_NAME_REQUIRED,
+  ERR_SHOP_ADDRESS_REQUIRED,
+  ERR_RATING_RANGE,
+  ERR_REVIEW_IMAGE_LIMIT,
+} from '@/lib/constants/errors'
+
+/** 盆栽園ソート順の有効値（OpenAPI enum + Zod enum 共用） */
+export const SHOP_SORT_BY_VALUES = ['rating', 'name', 'newest', 'location'] as const
+export type ShopSortByValue = (typeof SHOP_SORT_BY_VALUES)[number]
+
+/** GET /api/v1/shops クエリパラメータスキーマ（OpenAPI 生成用） */
+export const listShopsQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  search: z.string().max(MAX_SHOP_NAME_LENGTH).optional(),
+  genreId: z.string().optional(),
+  prefecture: z.string().max(20).optional(),
+  sortBy: z.enum(SHOP_SORT_BY_VALUES).optional(),
+})
+export type ListShopsQuery = z.infer<typeof listShopsQuerySchema>
+
+/** POST /api/v1/shops リクエストボディスキーマ（OpenAPI 生成用） */
+export const createShopRequestSchema = z.object({
+  name: z.string().min(1, ERR_SHOP_NAME_REQUIRED).max(MAX_SHOP_NAME_LENGTH),
+  address: z.string().min(1, ERR_SHOP_ADDRESS_REQUIRED).max(MAX_SHOP_ADDRESS_LENGTH),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  phone: z.string().max(MAX_SHOP_PHONE_LENGTH).nullable().optional(),
+  website: z
+    .string()
+    .max(MAX_SHOP_URL_LENGTH)
+    .nullable()
+    .optional()
+    .refine(
+      (v) => v == null || v === '' || /^https?:\/\//i.test(v),
+      { message: 'website は http(s) URL でなければなりません' },
+    ),
+  businessHours: z.string().max(MAX_SHOP_BUSINESS_HOURS_LENGTH).nullable().optional(),
+  closedDays: z.string().max(MAX_SHOP_CLOSED_DAYS_LENGTH).nullable().optional(),
+  genreIds: z.array(z.string()).max(MAX_SHOP_GENRES).default([]),
+})
+export type CreateShopRequest = z.infer<typeof createShopRequestSchema>
+
+/** PATCH /api/v1/shops/{id} リクエストボディスキーマ（OpenAPI 生成用） */
+export const updateShopRequestSchema = z.object({
+  name: z.string().min(1, ERR_SHOP_NAME_REQUIRED).max(MAX_SHOP_NAME_LENGTH).optional(),
+  address: z
+    .string()
+    .min(1, ERR_SHOP_ADDRESS_REQUIRED)
+    .max(MAX_SHOP_ADDRESS_LENGTH)
+    .optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  phone: z.string().max(MAX_SHOP_PHONE_LENGTH).nullable().optional(),
+  website: z
+    .string()
+    .max(MAX_SHOP_URL_LENGTH)
+    .nullable()
+    .optional()
+    .refine(
+      (v) => v == null || v === '' || /^https?:\/\//i.test(v),
+      { message: 'website は http(s) URL でなければなりません' },
+    ),
+  businessHours: z.string().max(MAX_SHOP_BUSINESS_HOURS_LENGTH).nullable().optional(),
+  closedDays: z.string().max(MAX_SHOP_CLOSED_DAYS_LENGTH).nullable().optional(),
+  genreIds: z.array(z.string()).max(MAX_SHOP_GENRES).optional(),
+})
+export type UpdateShopRequest = z.infer<typeof updateShopRequestSchema>
+
+/** POST /api/v1/shops/{id}/reviews リクエストボディスキーマ（OpenAPI 生成用） */
+export const createReviewRequestSchema = z.object({
+  rating: z
+    .number({ message: ERR_RATING_RANGE })
+    .int(ERR_RATING_RANGE)
+    .min(MIN_RATING, ERR_RATING_RANGE)
+    .max(MAX_RATING, ERR_RATING_RANGE),
+  content: z.string().nullable().optional(),
+  mediaUrls: z.array(z.string()).max(MAX_REVIEW_IMAGES, ERR_REVIEW_IMAGE_LIMIT).default([]),
+})
+export type CreateReviewRequest = z.infer<typeof createReviewRequestSchema>
+
 /**
  * PATCH /api/v1/events/{id} リクエストボディスキーマ。
  * すべてのフィールドが optional（部分更新）。

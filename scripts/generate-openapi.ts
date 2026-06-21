@@ -61,6 +61,10 @@ async function main() {
     listEventsQuerySchema,
     createEventRequestSchema,
     updateEventRequestSchema,
+    listShopsQuerySchema,
+    createShopRequestSchema,
+    updateShopRequestSchema,
+    createReviewRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -144,6 +148,13 @@ async function main() {
     bonsaiRecordListResponseSchema,
     eventItemSchema,
     eventListResponseSchema,
+    shopItemSchema,
+    shopListResponseSchema,
+    shopCreatedResponseSchema,
+    reviewItemSchema,
+    reviewListResponseSchema,
+    genreListResponseSchema,
+    shopGenreItemSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -3562,6 +3573,358 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §3.4 盆栽園マップ スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'ShopGenreItem',
+    shopGenreItemSchema.openapi({ description: '盆栽園ジャンル 1 件（id, name）。' }),
+  )
+
+  const ShopItem = registry.register(
+    'ShopItem',
+    shopItemSchema.openapi({
+      description: [
+        '盆栽園 1 件。latitude / longitude は Decimal から変換済みの number（小数点以下 7 桁）。',
+        'averageRating はレビューがない場合 null。isOwner は閲覧者が作成者なら true。',
+      ].join('\n'),
+    }),
+  )
+
+  const ShopListResponse = registry.register(
+    'ShopListResponse',
+    shopListResponseSchema.openapi({ description: '盆栽園一覧取得レスポンス。' }),
+  )
+
+  const ShopCreatedResponse = registry.register(
+    'ShopCreatedResponse',
+    shopCreatedResponseSchema.openapi({ description: '盆栽園作成成功レスポンス（id を返す）。' }),
+  )
+
+  registry.register(
+    'ReviewImage',
+    reviewItemSchema.shape.images.element.openapi({ description: 'レビュー画像 1 件（url）。' }),
+  )
+
+  registry.register(
+    'ReviewUser',
+    reviewItemSchema.shape.user.openapi({ description: 'レビュー投稿者の最小情報。' }),
+  )
+
+  const ReviewItem = registry.register(
+    'ReviewItem',
+    reviewItemSchema.openapi({ description: 'レビュー 1 件。images は自社ストレージ URL。' }),
+  )
+
+  const ReviewListResponse = registry.register(
+    'ReviewListResponse',
+    reviewListResponseSchema.openapi({ description: 'レビュー一覧取得レスポンス。' }),
+  )
+
+  const GenreListResponse = registry.register(
+    'GenreListResponse',
+    genreListResponseSchema.openapi({
+      description: 'ジャンル一覧取得レスポンス。type=shop で盆栽園用ジャンル、type=post で投稿用ジャンルを返す。',
+    }),
+  )
+
+  registry.register(
+    'ListShopsQuery',
+    listShopsQuerySchema.openapi({
+      description: 'GET /api/v1/shops クエリパラメータ。sortBy は rating/name/newest/location。',
+    }),
+  )
+
+  const CreateShopRequest = registry.register(
+    'CreateShopRequest',
+    createShopRequestSchema.openapi({
+      description: [
+        '盆栽園作成リクエスト。name / address は必須。',
+        'latitude / longitude は Decimal(10,7) 相当の精度で受け付ける。',
+        'website は http(s) URL または null。',
+        'genreIds は type=shop のジャンル ID（最大 5 件）。',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdateShopRequest = registry.register(
+    'UpdateShopRequest',
+    updateShopRequestSchema.openapi({
+      description: '盆栽園部分更新リクエスト。すべてのフィールドが optional。genreIds 指定時は既存ジャンルを全て置換する。',
+    }),
+  )
+
+  const CreateReviewRequest = registry.register(
+    'CreateReviewRequest',
+    createReviewRequestSchema.openapi({
+      description: [
+        'レビュー投稿リクエスト。rating は 1〜5 の整数。',
+        'mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと（外部 URL は 400 VALIDATION_ERROR）。',
+        '最大 3 枚。@@unique([shopId, userId]) の二重投稿は 409 CONFLICT。',
+      ].join('\n'),
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // §3.4 盆栽園マップ パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/shops',
+    tags: ['shops'],
+    summary: '盆栽園一覧を取得する（ゲスト可）',
+    description: [
+      '盆栽園をフィルタ・ソート条件付きでカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- isHidden=true の盆栽園は除外される',
+      '- sortBy=rating はメモリソート（DB 集計困難なため）。他は DB 側ソート',
+      '- cursor は BonsaiShop.id の lt フィルタとして機能する',
+      '- latitude / longitude は Decimal から変換済みの number（null の場合は座標未登録）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（BonsaiShop.id）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+        search: z.string().optional().openapi({ description: '名称・住所の部分一致検索' }),
+        genreId: z.string().optional().openapi({ description: 'ジャンル ID でフィルタ（type=shop のジャンルのみ有効）' }),
+        prefecture: z.string().optional().openapi({ description: '都道府県でフィルタ（住所の前方一致）' }),
+        sortBy: z.string().optional().openapi({ description: 'ソート順: rating / name / newest / location（デフォルト: location）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '盆栽園一覧取得成功',
+        content: { 'application/json': { schema: ShopListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な sortBy / prefecture / limit'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/shops',
+    tags: ['shops'],
+    summary: '盆栽園を登録する（認証必須・ゲスト不可）',
+    description: [
+      '新しい盆栽園を登録する。同一住所の重複チェックあり（409 CONFLICT）。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 同一住所が既に登録済みの場合は 409 CONFLICT',
+      '- latitude / longitude は省略可（地図表示なし状態で登録される）',
+      '- genreIds は GET /api/v1/genres?type=shop で取得したジャンル ID（最大 5 件）',
+      '- レート制限: create_shop（3/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateShopRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: '盆栽園登録成功。id を返す',
+        content: { 'application/json': { schema: ShopCreatedResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 必須フィールド欠落・URL 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      409: errorResponse('同一住所が既に登録済み (CONFLICT)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/shops/{id}',
+    tags: ['shops'],
+    summary: '盆栽園詳細を取得する（ゲスト可）',
+    description: [
+      '指定 id の盆栽園詳細を返す。レビューは GET /api/v1/shops/{id}/reviews で別取得する。',
+      '',
+      '重要仕様:',
+      '- isHidden=true または不存在は 404 NOT_FOUND',
+      '- latitude / longitude は Decimal から変換済みの number（null の場合は座標未登録）',
+      '- averageRating はレビューがない場合 null',
+      '- isOwner は閲覧者が作成者なら true（ゲスト時は false）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽園 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '盆栽園詳細取得成功',
+        content: { 'application/json': { schema: ShopItem } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — id 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('盆栽園が存在しないか非表示 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/shops/{id}',
+    tags: ['shops'],
+    summary: '盆栽園を編集する（作成者または admin）',
+    description: [
+      '盆栽園情報を部分更新する。作成者または管理者のみ実行可能。',
+      '',
+      '重要仕様:',
+      '- 作成者でも管理者でもない場合は 403',
+      '- 不存在または isHidden=true の場合は 404 NOT_FOUND',
+      '- genreIds を指定した場合は既存ジャンルを全て置換する（省略時は変更なし）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: update_shop（5/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽園 ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: UpdateShopRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '更新成功',
+        content: { 'application/json': { schema: z.object({ success: z.literal(true) }) } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — URL 形式不正・ジャンル上限超過'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 権限なし'),
+      404: errorResponse('盆栽園が存在しないか非表示 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/shops/{id}/reviews',
+    tags: ['shops'],
+    summary: 'レビュー一覧を取得する（ゲスト可）',
+    description: [
+      '盆栽園のレビューをカーソルページネーションで返す。createdAt 降順。',
+      '',
+      '重要仕様:',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽園 ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（ShopReview.id）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'レビュー一覧取得成功',
+        content: { 'application/json': { schema: ReviewListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — id / limit 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/shops/{id}/reviews',
+    tags: ['shops'],
+    summary: 'レビューを投稿する（認証必須・ゲスト不可）',
+    description: [
+      '盆栽園にレビューを投稿する。1 盆栽園につき 1 ユーザー 1 件まで。',
+      '',
+      '重要仕様:',
+      '- @@unique([shopId, userId]) の二重投稿は 409 CONFLICT',
+      '- mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL のみ許可（外部 URL は 400）',
+      '- mediaUrls は最大 3 件（ShopReviewImage として保存される）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 盆栽園が存在しないか isHidden=true の場合は 404',
+      '- レート制限: create_review（3/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽園 ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateReviewRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: 'レビュー投稿成功。投稿したレビューを返す',
+        content: { 'application/json': { schema: ReviewItem } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — rating 範囲外・mediaUrls 上限超過・外部 URL'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('盆栽園が存在しないか非表示 (NOT_FOUND)'),
+      409: errorResponse('同一ユーザーによる二重投稿 (CONFLICT)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/genres',
+    tags: ['genres'],
+    summary: 'ジャンル一覧を取得する（ゲスト可）',
+    description: [
+      'type クエリで盆栽園用（shop）または投稿用（post）のジャンルを取得する。',
+      '',
+      '重要仕様:',
+      '- type=shop（デフォルト）: 盆栽園タグ用ジャンル',
+      '- type=post: 投稿タグ用ジャンル',
+      '- sortOrder / category ASC で返す',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        type: z.string().optional().openapi({ description: 'ジャンル種別: shop（デフォルト）または post' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ジャンル一覧取得成功',
+        content: { 'application/json': { schema: GenreListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な type'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -3571,7 +3934,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.15.0',
+      version: '1.16.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

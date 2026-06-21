@@ -898,6 +898,87 @@ export const eventListResponseSchema = z.object({
 export type EventListResponse = z.infer<typeof eventListResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §3.4 盆栽園マップ
+// ──────────────────────────────────────────────────
+
+/** 盆栽園ジャンル 1 件（id, name）*/
+export const shopGenreItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+})
+export type ShopGenreItem = z.infer<typeof shopGenreItemSchema>
+
+/** 盆栽園 1 件（一覧・詳細共用） */
+export const shopItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  address: z.string(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
+  phone: z.string().nullable(),
+  website: z.string().nullable(),
+  businessHours: z.string().nullable(),
+  closedDays: z.string().nullable(),
+  genres: z.array(shopGenreItemSchema),
+  averageRating: z.number().nullable(),
+  reviewCount: z.number().int(),
+  /** 閲覧者が作成者かどうか（ゲストまたは非作成者は false） */
+  isOwner: z.boolean(),
+})
+export type ShopItem = z.infer<typeof shopItemSchema>
+
+/** GET /api/v1/shops 200 */
+export const shopListResponseSchema = z.object({
+  items: z.array(shopItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type ShopListResponse = z.infer<typeof shopListResponseSchema>
+
+/** POST /api/v1/shops 201 */
+export const shopCreatedResponseSchema = z.object({
+  id: z.string(),
+})
+export type ShopCreatedResponse = z.infer<typeof shopCreatedResponseSchema>
+
+/** レビュー画像 1 件 */
+export const reviewImageSchema = z.object({
+  url: z.string(),
+})
+export type ReviewImage = z.infer<typeof reviewImageSchema>
+
+/** レビュー投稿者の最小情報 */
+export const reviewUserSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+})
+export type ReviewUser = z.infer<typeof reviewUserSchema>
+
+/** レビュー 1 件 */
+export const reviewItemSchema = z.object({
+  id: z.string(),
+  rating: z.number().int(),
+  content: z.string().nullable(),
+  images: z.array(reviewImageSchema),
+  user: reviewUserSchema,
+  createdAt: z.string().datetime(),
+})
+export type ReviewItem = z.infer<typeof reviewItemSchema>
+
+/** GET /api/v1/shops/{id}/reviews 200 */
+export const reviewListResponseSchema = z.object({
+  items: z.array(reviewItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type ReviewListResponse = z.infer<typeof reviewListResponseSchema>
+
+/** GET /api/v1/genres 200 */
+export const genreListResponseSchema = z.object({
+  items: z.array(shopGenreItemSchema),
+})
+export type GenreListResponse = z.infer<typeof genreListResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 
