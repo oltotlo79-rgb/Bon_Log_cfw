@@ -790,6 +790,76 @@ export const ingredientListResponseSchema = z.object({
 export type IngredientListResponse = z.infer<typeof ingredientListResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §3.3 マイ盆栽 CRUD
+// ──────────────────────────────────────────────────
+
+/** GET /api/v1/bonsai の最新記録サムネイル（一覧用） */
+export const bonsaiLatestRecordSchema = z.object({
+  id: z.string(),
+  content: z.string().nullable(),
+  recordAt: z.string().datetime(),
+  thumbnailUrl: z.string().nullable(),
+})
+export type BonsaiLatestRecord = z.infer<typeof bonsaiLatestRecordSchema>
+
+/** GET /api/v1/bonsai の 1 件 */
+export const bonsaiListItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  species: z.string().nullable(),
+  acquiredAt: z.string().datetime().nullable(),
+  description: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  recordCount: z.number().int(),
+  latestRecord: bonsaiLatestRecordSchema.nullable(),
+})
+export type BonsaiListItem = z.infer<typeof bonsaiListItemSchema>
+
+/** GET /api/v1/bonsai 200 */
+export const bonsaiListResponseSchema = z.object({
+  items: z.array(bonsaiListItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type BonsaiListResponse = z.infer<typeof bonsaiListResponseSchema>
+
+/** 盆栽詳細（POST 201 / GET 200 / PATCH 200 共用） */
+export const bonsaiDetailSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  species: z.string().nullable(),
+  acquiredAt: z.string().datetime().nullable(),
+  description: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  recordCount: z.number().int(),
+})
+export type BonsaiDetail = z.infer<typeof bonsaiDetailSchema>
+
+/** 成長記録画像 1 件 */
+export const bonsaiRecordImageSchema = z.object({
+  url: z.string(),
+  sortOrder: z.number().int(),
+})
+export type BonsaiRecordImage = z.infer<typeof bonsaiRecordImageSchema>
+
+/** 成長記録 1 件（POST 201 / GET 一覧 / PATCH 200 共用） */
+export const bonsaiRecordItemSchema = z.object({
+  id: z.string(),
+  content: z.string().nullable(),
+  recordAt: z.string().datetime(),
+  images: z.array(bonsaiRecordImageSchema),
+})
+export type BonsaiRecordItem = z.infer<typeof bonsaiRecordItemSchema>
+
+/** GET /api/v1/bonsai/{id}/records 200 */
+export const bonsaiRecordListResponseSchema = z.object({
+  items: z.array(bonsaiRecordItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type BonsaiRecordListResponse = z.infer<typeof bonsaiRecordListResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

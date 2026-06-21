@@ -278,3 +278,70 @@ export const registerDeviceRequestSchema = z.object({
   platform: z.enum(['android', 'ios']),
 })
 export type RegisterDeviceRequest = z.infer<typeof registerDeviceRequestSchema>
+
+// ──────────────────────────────────────────────────
+// §3.3 マイ盆栽 CRUD
+// ──────────────────────────────────────────────────
+
+import {
+  MAX_BONSAI_NAME_LENGTH,
+  MAX_BONSAI_SPECIES_LENGTH,
+  MAX_BONSAI_DESCRIPTION_LENGTH,
+  MAX_BONSAI_RECORD_IMAGES,
+} from '@/lib/constants/limits'
+
+/**
+ * POST /api/v1/bonsai
+ *
+ * 盆栽を新規作成する。name は必須。
+ * acquiredAt は ISO 8601 形式の日時文字列（例: "2024-03-15T00:00:00.000Z"）。
+ */
+export const createBonsaiRequestSchema = z.object({
+  name: z.string().min(1).max(MAX_BONSAI_NAME_LENGTH),
+  species: z.string().max(MAX_BONSAI_SPECIES_LENGTH).optional(),
+  acquiredAt: z.string().datetime().optional(),
+  description: z.string().max(MAX_BONSAI_DESCRIPTION_LENGTH).optional(),
+})
+export type CreateBonsaiRequest = z.infer<typeof createBonsaiRequestSchema>
+
+/**
+ * PATCH /api/v1/bonsai/{id}
+ *
+ * 盆栽情報を部分更新する。全フィールドが optional。
+ * acquiredAt に null を渡すと取得日をクリアする。
+ */
+export const updateBonsaiRequestSchema = z.object({
+  name: z.string().min(1).max(MAX_BONSAI_NAME_LENGTH).optional(),
+  species: z.string().max(MAX_BONSAI_SPECIES_LENGTH).optional(),
+  acquiredAt: z.string().datetime().nullable().optional(),
+  description: z.string().max(MAX_BONSAI_DESCRIPTION_LENGTH).optional(),
+})
+export type UpdateBonsaiRequest = z.infer<typeof updateBonsaiRequestSchema>
+
+/**
+ * POST /api/v1/bonsai/{id}/records
+ *
+ * 成長記録を追加する。recordAt は必須（ISO 8601）。
+ * mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと
+ * （外部 URL は 400 VALIDATION_ERROR）。
+ * 最大 MAX_BONSAI_RECORD_IMAGES 枚。
+ */
+export const createBonsaiRecordRequestSchema = z.object({
+  content: z.string().max(MAX_BONSAI_DESCRIPTION_LENGTH).optional(),
+  recordAt: z.string().datetime(),
+  mediaUrls: z.array(z.string().url()).max(MAX_BONSAI_RECORD_IMAGES).default([]),
+})
+export type CreateBonsaiRecordRequest = z.infer<typeof createBonsaiRecordRequestSchema>
+
+/**
+ * PATCH /api/v1/bonsai/{id}/records/{recordId}
+ *
+ * 成長記録を部分更新する。mediaUrls 指定時は既存画像を全て置換する。
+ * mediaUrls を省略した場合は既存画像をそのまま維持する。
+ */
+export const updateBonsaiRecordRequestSchema = z.object({
+  content: z.string().max(MAX_BONSAI_DESCRIPTION_LENGTH).optional(),
+  recordAt: z.string().datetime().optional(),
+  mediaUrls: z.array(z.string().url()).max(MAX_BONSAI_RECORD_IMAGES).optional(),
+})
+export type UpdateBonsaiRecordRequest = z.infer<typeof updateBonsaiRecordRequestSchema>

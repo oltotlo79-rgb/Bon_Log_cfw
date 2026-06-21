@@ -54,6 +54,10 @@ async function main() {
     presignedUploadRequestSchema,
     updateProfileRequestSchema,
     registerDeviceRequestSchema,
+    createBonsaiRequestSchema,
+    updateBonsaiRequestSchema,
+    createBonsaiRecordRequestSchema,
+    updateBonsaiRecordRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -128,6 +132,13 @@ async function main() {
     ingredientItemSchema,
     ingredientDetailSchema,
     ingredientListResponseSchema,
+    bonsaiListItemSchema,
+    bonsaiListResponseSchema,
+    bonsaiDetailSchema,
+    bonsaiLatestRecordSchema,
+    bonsaiRecordItemSchema,
+    bonsaiRecordImageSchema,
+    bonsaiRecordListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -2922,6 +2933,409 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §3.3 マイ盆栽 CRUD スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  const CreateBonsaiRequest = registry.register(
+    'CreateBonsaiRequest',
+    createBonsaiRequestSchema.openapi({
+      description: [
+        '盆栽作成リクエスト。name は必須（最大 100 文字）。',
+        'acquiredAt は ISO 8601 形式の日時文字列（例: "2024-03-15T00:00:00.000Z"）。',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdateBonsaiRequest = registry.register(
+    'UpdateBonsaiRequest',
+    updateBonsaiRequestSchema.openapi({
+      description: [
+        '盆栽部分更新リクエスト。全フィールドが optional。',
+        'acquiredAt に null を渡すと取得日をクリアする。',
+      ].join('\n'),
+    }),
+  )
+
+  const CreateBonsaiRecordRequest = registry.register(
+    'CreateBonsaiRecordRequest',
+    createBonsaiRecordRequestSchema.openapi({
+      description: [
+        '成長記録作成リクエスト。recordAt は必須（ISO 8601）。',
+        'mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL のみ（外部 URL は 400 VALIDATION_ERROR）。',
+        '最大 4 枚。',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdateBonsaiRecordRequest = registry.register(
+    'UpdateBonsaiRecordRequest',
+    updateBonsaiRecordRequestSchema.openapi({
+      description: [
+        '成長記録部分更新リクエスト。',
+        'mediaUrls 指定時は既存画像を全て置換する（差し替え方式）。省略時は既存画像を維持する。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'BonsaiLatestRecord',
+    bonsaiLatestRecordSchema.openapi({
+      description: '盆栽一覧の最新記録サムネイル情報。',
+    }),
+  )
+
+  registry.register(
+    'BonsaiListItem',
+    bonsaiListItemSchema.openapi({
+      description: '盆栽一覧の 1 件（最新記録サムネイル付き）。',
+    }),
+  )
+
+  const BonsaiListResponse = registry.register(
+    'BonsaiListResponse',
+    bonsaiListResponseSchema.openapi({
+      description: '盆栽一覧取得レスポンス。カーソルページネーション形式。',
+    }),
+  )
+
+  const BonsaiDetail = registry.register(
+    'BonsaiDetail',
+    bonsaiDetailSchema.openapi({
+      description: '盆栽詳細（作成・取得・更新で共用）。',
+    }),
+  )
+
+  registry.register(
+    'BonsaiRecordImage',
+    bonsaiRecordImageSchema.openapi({
+      description: '成長記録の添付画像 1 件（url + sortOrder）。',
+    }),
+  )
+
+  registry.register(
+    'BonsaiRecordItem',
+    bonsaiRecordItemSchema.openapi({
+      description: '成長記録 1 件（作成・一覧・更新で共用）。',
+    }),
+  )
+
+  const BonsaiRecordListResponse = registry.register(
+    'BonsaiRecordListResponse',
+    bonsaiRecordListResponseSchema.openapi({
+      description: '成長記録一覧取得レスポンス。カーソルページネーション形式。',
+    }),
+  )
+
+  // ── 盆栽 CRUD パス登録 ──────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/bonsai',
+    tags: ['bonsai'],
+    summary: 'マイ盆栽一覧取得',
+    description: [
+      '認証ユーザーが所有する盆栽の一覧をカーソルページネーションで返す。',
+      '各盆栽には最新の成長記録 1 件とサムネイル画像が含まれる。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: read（60/分）',
+      '- 最大取得件数: 200 件（MAX_BONSAI_LIST_LIMIT）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '盆栽一覧取得成功',
+        content: { 'application/json': { schema: BonsaiListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/bonsai',
+    tags: ['bonsai'],
+    summary: '盆栽を作成する',
+    description: [
+      '新規盆栽を作成する。name は必須。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: create_bonsai（3/分）',
+      '- 成功レスポンス: 201 + 作成後の盆栽詳細',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: { 'application/json': { schema: CreateBonsaiRequest } },
+      },
+    },
+    responses: {
+      201: {
+        description: '盆栽作成成功',
+        content: { 'application/json': { schema: BonsaiDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — name 未指定・文字数超過等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/bonsai/{id}',
+    tags: ['bonsai'],
+    summary: '盆栽詳細取得（所有者のみ）',
+    description: [
+      '指定 ID の盆栽詳細を返す。所有者以外・不存在は 404（存在を秘匿）。',
+      '',
+      '重要仕様:',
+      '- 他ユーザーの盆栽も不存在も同一の 404 NOT_FOUND で返す（IDOR 防御）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '盆栽詳細取得成功',
+        content: { 'application/json': { schema: BonsaiDetail } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/bonsai/{id}',
+    tags: ['bonsai'],
+    summary: '盆栽を更新する（所有者のみ）',
+    description: [
+      '盆栽情報を部分更新する。全フィールドが optional。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・不存在は 404（存在を秘匿）',
+      '- acquiredAt に null を渡すと取得日をクリア',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: update_bonsai（5/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽 ID' }) }),
+      body: {
+        required: true,
+        content: { 'application/json': { schema: UpdateBonsaiRequest } },
+      },
+    },
+    responses: {
+      200: {
+        description: '盆栽更新成功。更新後の盆栽詳細を返す',
+        content: { 'application/json': { schema: BonsaiDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/bonsai/{id}',
+    tags: ['bonsai'],
+    summary: '盆栽を削除する（所有者のみ）',
+    description: [
+      '盆栽とその全成長記録・画像を削除する。ストレージ実体も best-effort で削除。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・不存在は 404（存在を秘匿）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: delete_bonsai（5/分）',
+      '- 成功レスポンス: 200 { success: true }',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '削除成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/bonsai/{id}/records',
+    tags: ['bonsai'],
+    summary: '成長記録一覧取得（所有者のみ）',
+    description: [
+      '指定盆栽の成長記録をカーソルページネーションで返す（recordAt 降順）。',
+      '所有者以外・盆栽不存在は 404。',
+      '',
+      '重要仕様:',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽 ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '成長記録一覧取得成功',
+        content: { 'application/json': { schema: BonsaiRecordListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/bonsai/{id}/records',
+    tags: ['bonsai'],
+    summary: '成長記録を追加する（所有者のみ）',
+    description: [
+      '指定盆栽に成長記録を追加する。recordAt は必須。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・盆栽不存在は 404',
+      '- mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL のみ（外部 URL は 400 VALIDATION_ERROR）',
+      '- 画像最大 4 枚（MAX_BONSAI_RECORD_IMAGES）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: create_bonsai_record（5/分）',
+      '- 成功レスポンス: 201 + 作成後の成長記録',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '盆栽 ID' }) }),
+      body: {
+        required: true,
+        content: { 'application/json': { schema: CreateBonsaiRecordRequest } },
+      },
+    },
+    responses: {
+      201: {
+        description: '成長記録作成成功',
+        content: { 'application/json': { schema: BonsaiDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — recordAt 未指定・mediaUrls が外部 URL 等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/bonsai/{id}/records/{recordId}',
+    tags: ['bonsai'],
+    summary: '成長記録を更新する（所有者のみ）',
+    description: [
+      '成長記録を部分更新する。mediaUrls 指定時は既存画像を全て置換する。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・記録不存在・盆栽 ID 不一致は 404（存在を秘匿）',
+      '- mediaUrls は自社ストレージ URL のみ（外部 URL は 400 VALIDATION_ERROR）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: update_bonsai（5/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '盆栽 ID' }),
+        recordId: z.string().openapi({ description: '成長記録 ID' }),
+      }),
+      body: {
+        required: true,
+        content: { 'application/json': { schema: UpdateBonsaiRecordRequest } },
+      },
+    },
+    responses: {
+      200: {
+        description: '成長記録更新成功。更新後の成長記録を返す',
+        content: { 'application/json': { schema: BonsaiDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('記録または盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/bonsai/{id}/records/{recordId}',
+    tags: ['bonsai'],
+    summary: '成長記録を削除する（所有者のみ）',
+    description: [
+      '成長記録とその画像を削除する。ストレージ実体も best-effort で削除。',
+      '',
+      '重要仕様:',
+      '- 所有者以外・記録不存在・盆栽 ID 不一致は 404（存在を秘匿）',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: delete_bonsai（5/分）',
+      '- 成功レスポンス: 200 { success: true }',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '盆栽 ID' }),
+        recordId: z.string().openapi({ description: '成長記録 ID' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '削除成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('記録または盆栽が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -2931,7 +3345,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.13.0',
+      version: '1.14.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
