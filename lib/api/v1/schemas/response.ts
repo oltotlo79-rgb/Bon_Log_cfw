@@ -1035,6 +1035,40 @@ export const scheduledPostCreatedResponseSchema = z.object({
 export type ScheduledPostCreatedResponse = z.infer<typeof scheduledPostCreatedResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §3.12 法的文章（読み取り専用・ゲスト可）
+// ──────────────────────────────────────────────────
+
+/** 法的文章の 1 セクション */
+export const legalSectionSchema = z.object({
+  heading: z.string(),
+  body: z.string(),
+})
+export type LegalSection = z.infer<typeof legalSectionSchema>
+
+/** GET /api/v1/legal/{slug} 200 — 法的文章詳細 */
+export const legalDocumentSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  updatedAt: z.string(),
+  sections: z.array(legalSectionSchema),
+})
+export type LegalDocumentResponse = z.infer<typeof legalDocumentSchema>
+
+/** GET /api/v1/legal の 1 件 */
+export const legalListItemSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  updatedAt: z.string(),
+})
+export type LegalListItem = z.infer<typeof legalListItemSchema>
+
+/** GET /api/v1/legal 200 — 利用可能な法的文章一覧 */
+export const legalListResponseSchema = z.object({
+  items: z.array(legalListItemSchema),
+})
+export type LegalListResponse = z.infer<typeof legalListResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

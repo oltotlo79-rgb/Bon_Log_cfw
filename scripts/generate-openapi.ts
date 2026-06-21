@@ -165,6 +165,10 @@ async function main() {
     scheduledPostItemSchema,
     scheduledPostListResponseSchema,
     scheduledPostCreatedResponseSchema,
+    legalSectionSchema,
+    legalDocumentSchema,
+    legalListItemSchema,
+    legalListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -4223,6 +4227,102 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §3.12 法的文章 — スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'LegalSection',
+    legalSectionSchema.openapi({
+      description: '法的文章の 1 セクション（見出しと本文）。',
+    }),
+  )
+
+  const LegalDocumentResponse = registry.register(
+    'LegalDocumentResponse',
+    legalDocumentSchema.openapi({
+      description: 'GET /api/v1/legal/{slug} 200 — 法的文章詳細（slug, title, updatedAt, sections）。',
+    }),
+  )
+
+  registry.register(
+    'LegalListItem',
+    legalListItemSchema.openapi({
+      description: '法的文章一覧の 1 件（slug, title, updatedAt）。',
+    }),
+  )
+
+  const LegalListResponse = registry.register(
+    'LegalListResponse',
+    legalListResponseSchema.openapi({
+      description: 'GET /api/v1/legal 200 — 利用可能な法的文章の slug/title 一覧。',
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // §3.12 法的文章 — パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/legal',
+    tags: ['legal'],
+    summary: '利用可能な法的文章一覧を取得',
+    description: [
+      '取得可能な法的文章の slug / title / updatedAt 一覧を返す。',
+      '',
+      '現在の slug: tokushoho（特定商取引法に基づく表記）/ terms（利用規約）/ privacy（プライバシーポリシー）',
+      '',
+      'ゲストアカウントでも利用可能。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '法的文章一覧取得成功',
+        content: { 'application/json': { schema: LegalListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/legal/{slug}',
+    tags: ['legal'],
+    summary: '法的文章を slug で取得',
+    description: [
+      '指定した slug の法的文章を sections 形式（[{ heading, body }]）で返す。',
+      '',
+      '許可済み slug:',
+      '- tokushoho — 特定商取引法に基づく表記',
+      '- terms — 利用規約',
+      '- privacy — プライバシーポリシー',
+      '',
+      '許可リスト外の slug は 400 VALIDATION_ERROR を返す（404 ではない）。',
+      'ゲストアカウントでも利用可能。',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        slug: z
+          .enum(['tokushoho', 'terms', 'privacy'])
+          .openapi({ description: '法的文章の識別子。tokushoho / terms / privacy のいずれか。' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '法的文章詳細取得成功',
+        content: { 'application/json': { schema: LegalDocumentResponse } },
+      },
+      400: errorResponse('slug が許可リスト外 (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -4232,7 +4332,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.17.0',
+      version: '1.18.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.17.0",
+    "version": "1.18.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -7290,6 +7290,112 @@
           "scheduledAt"
         ],
         "description": "予約投稿更新リクエスト（pending 状態のもののみ）。\n\n制約:\n- pending 以外（published / cancelled / failed）は 400 を返す\n- フィールド構成は POST と同一（差し替え方式）"
+      },
+      "LegalSection": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "heading",
+          "body"
+        ],
+        "description": "法的文章の 1 セクション（見出しと本文）。"
+      },
+      "LegalDocumentResponse": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "heading": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "heading",
+                "body"
+              ]
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "updatedAt",
+          "sections"
+        ],
+        "description": "GET /api/v1/legal/{slug} 200 — 法的文章詳細（slug, title, updatedAt, sections）。"
+      },
+      "LegalListItem": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "updatedAt"
+        ],
+        "description": "法的文章一覧の 1 件（slug, title, updatedAt）。"
+      },
+      "LegalListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slug",
+                "title",
+                "updatedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "GET /api/v1/legal 200 — 利用可能な法的文章の slug/title 一覧。"
       }
     },
     "parameters": {}
@@ -16280,6 +16386,161 @@
           },
           "404": {
             "description": "予約投稿が存在しないか所有者でない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legal": {
+      "get": {
+        "tags": [
+          "legal"
+        ],
+        "summary": "利用可能な法的文章一覧を取得",
+        "description": "取得可能な法的文章の slug / title / updatedAt 一覧を返す。\n\n現在の slug: tokushoho（特定商取引法に基づく表記）/ terms（利用規約）/ privacy（プライバシーポリシー）\n\nゲストアカウントでも利用可能。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "法的文章一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legal/{slug}": {
+      "get": {
+        "tags": [
+          "legal"
+        ],
+        "summary": "法的文章を slug で取得",
+        "description": "指定した slug の法的文章を sections 形式（[{ heading, body }]）で返す。\n\n許可済み slug:\n- tokushoho — 特定商取引法に基づく表記\n- terms — 利用規約\n- privacy — プライバシーポリシー\n\n許可リスト外の slug は 400 VALIDATION_ERROR を返す（404 ではない）。\nゲストアカウントでも利用可能。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tokushoho",
+                "terms",
+                "privacy"
+              ],
+              "description": "法的文章の識別子。tokushoho / terms / privacy のいずれか。"
+            },
+            "required": true,
+            "description": "法的文章の識別子。tokushoho / terms / privacy のいずれか。",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "法的文章詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalDocumentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "slug が許可リスト外 (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
             "content": {
               "application/json": {
                 "schema": {
