@@ -509,6 +509,54 @@ export const createReviewRequestSchema = z.object({
 })
 export type CreateReviewRequest = z.infer<typeof createReviewRequestSchema>
 
+// ──────────────────────────────────────────────────
+// §3.10 予約投稿 CRUD
+// ──────────────────────────────────────────────────
+
+import {
+  MAX_POST_CONTENT_PREMIUM,
+  MAX_GENRES_PER_POST as MAX_GENRES_PER_POST_SCHEDULED,
+  MAX_PENDING_SCHEDULED_POSTS,
+  MAX_SCHEDULED_DAYS_AHEAD,
+} from '@/lib/constants/limits'
+import {
+  ERR_SCHEDULED_POST_DATE_REQUIRED,
+  ERR_GENRE_LIMIT as ERR_GENRE_LIMIT_SCHEDULED,
+} from '@/lib/constants/errors'
+
+/**
+ * POST /api/v1/scheduled-posts
+ *
+ * content / mediaUrls のどちらか一方は必須（service 層で検証）。
+ * scheduledAt は未来かつ MAX_SCHEDULED_DAYS_AHEAD 日以内の ISO 8601 文字列。
+ * genreIds は最大 MAX_GENRES_PER_POST 個。
+ * mediaUrls は自社ストレージ URL のみ（service 層で assertMediaUrlsFromOwnStorage 検証）。
+ * pending 件数は MAX_PENDING_SCHEDULED_POSTS を超えないこと（service 層で検証）。
+ */
+export const createScheduledPostRequestSchema = z.object({
+  content: z.string().max(MAX_POST_CONTENT_PREMIUM).optional().default(''),
+  scheduledAt: z.string().min(1, ERR_SCHEDULED_POST_DATE_REQUIRED),
+  genreIds: z
+    .array(z.string())
+    .max(MAX_GENRES_PER_POST_SCHEDULED, ERR_GENRE_LIMIT_SCHEDULED(MAX_GENRES_PER_POST_SCHEDULED))
+    .default([]),
+  mediaUrls: z.array(z.string()).default([]),
+  mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+})
+export type CreateScheduledPostRequest = z.infer<typeof createScheduledPostRequestSchema>
+
+/**
+ * PATCH /api/v1/scheduled-posts/{id}
+ *
+ * pending 状態のもののみ更新可能（published/cancelled/failed は 400）。
+ * フィールド構成は POST と同一（差し替え方式）。
+ */
+export const updateScheduledPostRequestSchema = createScheduledPostRequestSchema
+export type UpdateScheduledPostRequest = z.infer<typeof updateScheduledPostRequestSchema>
+
+// MAX_PENDING_SCHEDULED_POSTS / MAX_SCHEDULED_DAYS_AHEAD は OpenAPI description で参照
+export { MAX_PENDING_SCHEDULED_POSTS, MAX_SCHEDULED_DAYS_AHEAD }
+
 /**
  * PATCH /api/v1/events/{id} リクエストボディスキーマ。
  * すべてのフィールドが optional（部分更新）。

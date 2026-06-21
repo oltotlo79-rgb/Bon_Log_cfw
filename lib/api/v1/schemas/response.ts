@@ -979,6 +979,62 @@ export const genreListResponseSchema = z.object({
 export type GenreListResponse = z.infer<typeof genreListResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §3.10 予約投稿 CRUD
+// ──────────────────────────────────────────────────
+
+import { SCHEDULED_POST_STATUS } from '@/lib/constants/status'
+
+/**
+ * ScheduledPostStatus enum（Prisma enum 値と一致）。
+ * SCHEDULED_POST_STATUS 定数から全値を導出する。
+ */
+export const scheduledPostStatusSchema = z.enum(
+  Object.values(SCHEDULED_POST_STATUS) as [string, ...string[]],
+)
+export type ScheduledPostStatusEnum = z.infer<typeof scheduledPostStatusSchema>
+
+/** 予約投稿メディア 1 件 */
+export const scheduledPostMediaItemSchema = z.object({
+  url: z.string(),
+  type: z.string(),
+  sortOrder: z.number().int(),
+})
+export type ScheduledPostMediaItem = z.infer<typeof scheduledPostMediaItemSchema>
+
+/** 予約投稿ジャンル 1 件 */
+export const scheduledPostGenreItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+})
+export type ScheduledPostGenreItem = z.infer<typeof scheduledPostGenreItemSchema>
+
+/** 予約投稿 1 件（一覧・詳細共用） */
+export const scheduledPostItemSchema = z.object({
+  id: z.string(),
+  content: z.string().nullable(),
+  scheduledAt: z.string().datetime(),
+  status: scheduledPostStatusSchema,
+  media: z.array(scheduledPostMediaItemSchema),
+  genres: z.array(scheduledPostGenreItemSchema),
+  publishedPostId: z.string().nullable(),
+  createdAt: z.string().datetime(),
+})
+export type ScheduledPostItem = z.infer<typeof scheduledPostItemSchema>
+
+/** GET /api/v1/scheduled-posts 200 */
+export const scheduledPostListResponseSchema = z.object({
+  items: z.array(scheduledPostItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type ScheduledPostListResponse = z.infer<typeof scheduledPostListResponseSchema>
+
+/** POST /api/v1/scheduled-posts 201 */
+export const scheduledPostCreatedResponseSchema = z.object({
+  id: z.string(),
+})
+export type ScheduledPostCreatedResponse = z.infer<typeof scheduledPostCreatedResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

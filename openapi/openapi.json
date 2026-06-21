@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.16.0",
+    "version": "1.17.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -6950,6 +6950,346 @@
           "rating"
         ],
         "description": "レビュー投稿リクエスト。rating は 1〜5 の整数。\nmediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL を渡すこと（外部 URL は 400 VALIDATION_ERROR）。\n最大 3 枚。@@unique([shopId, userId]) の二重投稿は 409 CONFLICT。"
+      },
+      "ScheduledPostStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "published",
+          "failed",
+          "cancelled"
+        ],
+        "description": "予約投稿のステータス enum（pending / published / failed / cancelled）。"
+      },
+      "ScheduledPostMediaItem": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "url",
+          "type",
+          "sortOrder"
+        ],
+        "description": "予約投稿に添付されたメディア 1 件（url, type, sortOrder）。"
+      },
+      "ScheduledPostGenreItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "description": "予約投稿に紐付くジャンル 1 件（id, name）。"
+      },
+      "ScheduledPostItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "sortOrder": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "url",
+                "type",
+                "sortOrder"
+              ]
+            }
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            }
+          },
+          "publishedPostId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "scheduledAt",
+          "status",
+          "media",
+          "genres",
+          "publishedPostId",
+          "createdAt"
+        ],
+        "description": "予約投稿 1 件（一覧・詳細共用）。"
+      },
+      "ScheduledPostListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "scheduledAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "published",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "type",
+                      "sortOrder"
+                    ]
+                  }
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ]
+                  }
+                },
+                "publishedPostId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "scheduledAt",
+                "status",
+                "media",
+                "genres",
+                "publishedPostId",
+                "createdAt"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "予約投稿一覧レスポンス（カーソルページネーション形式）。"
+      },
+      "ScheduledPostCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "POST /api/v1/scheduled-posts 201 — 作成した予約投稿の ID。"
+      },
+      "CreateScheduledPostRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "scheduledAt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "genreIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "default": []
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "mediaTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video"
+              ]
+            },
+            "default": []
+          }
+        },
+        "required": [
+          "scheduledAt"
+        ],
+        "description": "予約投稿作成リクエスト（プレミアム会員のみ）。\n\n制約:\n- scheduledAt は未来かつ 30 日以内の ISO 8601 文字列\n- pending 件数は 10 件を超えないこと\n- content / mediaUrls のどちらか一方は必須\n- mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL のみ許可"
+      },
+      "UpdateScheduledPostRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "scheduledAt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "genreIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "default": []
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "mediaTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video"
+              ]
+            },
+            "default": []
+          }
+        },
+        "required": [
+          "scheduledAt"
+        ],
+        "description": "予約投稿更新リクエスト（pending 状態のもののみ）。\n\n制約:\n- pending 以外（published / cancelled / failed）は 400 を返す\n- フィールド構成は POST と同一（差し替え方式）"
       }
     },
     "parameters": {}
@@ -15349,6 +15689,597 @@
           },
           "403": {
             "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduled-posts": {
+      "get": {
+        "tags": [
+          "scheduled-posts"
+        ],
+        "summary": "予約投稿一覧を取得する（プレミアム限定）",
+        "description": "自分の予約投稿をカーソルページネーションで取得する。\n\n重要仕様:\n- プレミアム非会員は 403 PREMIUM_REQUIRED\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- scheduledAt 昇順で返す\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "カーソル（前回レスポンスの nextCursor 値）"
+            },
+            "required": false,
+            "description": "カーソル（前回レスポンスの nextCursor 値）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "1 回の取得上限件数（デフォルト 20）"
+            },
+            "required": false,
+            "description": "1 回の取得上限件数（デフォルト 20）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "予約投稿一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPostListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scheduled-posts"
+        ],
+        "summary": "予約投稿を作成する（プレミアム限定）",
+        "description": "予約投稿を新規作成する。\n\n重要仕様:\n- プレミアム非会員は 403 PREMIUM_REQUIRED\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- scheduledAt は未来かつ 30 日以内\n- pending 件数が 10 件に達している場合は 400\n- content / mediaUrls のどちらか一方は必須\n- mediaUrls は自社ストレージ URL のみ許可（外部 URL は 400 VALIDATION_ERROR）\n- レート制限: create_scheduled_post（3/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduledPostRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "予約投稿作成成功。作成した予約投稿の id を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPostCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — scheduledAt 未来必須・30 日超過・pending 上限・content 不足・mediaUrls 外部 URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduled-posts/{id}": {
+      "get": {
+        "tags": [
+          "scheduled-posts"
+        ],
+        "summary": "予約投稿詳細を取得する（所有者のみ・プレミアム限定）",
+        "description": "指定 ID の予約投稿を取得する。\n\n重要仕様:\n- 所有者以外（他人・不存在）は 404 で統一（アクセス有無を秘匿）\n- プレミアム非会員は 403 PREMIUM_REQUIRED\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "予約投稿 ID"
+            },
+            "required": true,
+            "description": "予約投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "予約投稿詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPostItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "予約投稿が存在しないか所有者でない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "scheduled-posts"
+        ],
+        "summary": "予約投稿を更新する（pending のみ・プレミアム限定）",
+        "description": "pending 状態の予約投稿を更新する。\n\n重要仕様:\n- pending 以外（published / cancelled / failed）は 400 VALIDATION_ERROR\n- 所有者以外（他人・不存在）は 404 で統一\n- プレミアム非会員は 403 PREMIUM_REQUIRED\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- フィールド構成は POST と同一（差し替え方式）\n- レート制限: update_scheduled_post（5/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "予約投稿 ID"
+            },
+            "required": true,
+            "description": "予約投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScheduledPostRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "予約投稿更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — pending 以外の編集・scheduledAt 不正・content 不足・mediaUrls 外部 URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "予約投稿が存在しないか所有者でない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scheduled-posts"
+        ],
+        "summary": "予約投稿をハード削除する（published 不可）",
+        "description": "予約投稿と添付メディアを完全削除する。\n\n重要仕様:\n- published 状態は 400 VALIDATION_ERROR（公開済み投稿は削除不可）\n- pending / cancelled / failed は削除可能\n- 所有者以外（他人・不存在）は 404 で統一\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 添付メディアのストレージ実体は best-effort で削除される（DB カスケード後）\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "予約投稿 ID"
+            },
+            "required": true,
+            "description": "予約投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ハード削除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — published は削除不可",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "予約投稿が存在しないか所有者でない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduled-posts/{id}/cancel": {
+      "post": {
+        "tags": [
+          "scheduled-posts"
+        ],
+        "summary": "予約投稿をキャンセルする（ソフトキャンセル・pending のみ）",
+        "description": "予約投稿のステータスを cancelled に変更する（ハード削除は DELETE を使用）。\n\n重要仕様:\n- cancelled にした投稿は DELETE エンドポイントで後からハード削除できる\n- pending 以外は 400 VALIDATION_ERROR\n- 所有者以外（他人・不存在）は 404 で統一\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム判定は行わない（cancelled 済みを持っている場合も操作可能）\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "予約投稿 ID"
+            },
+            "required": true,
+            "description": "予約投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "キャンセル成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — pending 以外のキャンセル",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "予約投稿が存在しないか所有者でない (NOT_FOUND)",
             "content": {
               "application/json": {
                 "schema": {

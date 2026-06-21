@@ -65,6 +65,10 @@ async function main() {
     createShopRequestSchema,
     updateShopRequestSchema,
     createReviewRequestSchema,
+    createScheduledPostRequestSchema,
+    updateScheduledPostRequestSchema,
+    MAX_PENDING_SCHEDULED_POSTS,
+    MAX_SCHEDULED_DAYS_AHEAD,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -155,6 +159,12 @@ async function main() {
     reviewListResponseSchema,
     genreListResponseSchema,
     shopGenreItemSchema,
+    scheduledPostStatusSchema,
+    scheduledPostMediaItemSchema,
+    scheduledPostGenreItemSchema,
+    scheduledPostItemSchema,
+    scheduledPostListResponseSchema,
+    scheduledPostCreatedResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -3925,6 +3935,294 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §3.10 予約投稿 CRUD — スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'ScheduledPostStatus',
+    scheduledPostStatusSchema.openapi({
+      description: '予約投稿のステータス enum（pending / published / failed / cancelled）。',
+    }),
+  )
+
+  registry.register(
+    'ScheduledPostMediaItem',
+    scheduledPostMediaItemSchema.openapi({
+      description: '予約投稿に添付されたメディア 1 件（url, type, sortOrder）。',
+    }),
+  )
+
+  registry.register(
+    'ScheduledPostGenreItem',
+    scheduledPostGenreItemSchema.openapi({
+      description: '予約投稿に紐付くジャンル 1 件（id, name）。',
+    }),
+  )
+
+  const ScheduledPostItem = registry.register(
+    'ScheduledPostItem',
+    scheduledPostItemSchema.openapi({
+      description: '予約投稿 1 件（一覧・詳細共用）。',
+    }),
+  )
+
+  const ScheduledPostListResponse = registry.register(
+    'ScheduledPostListResponse',
+    scheduledPostListResponseSchema.openapi({
+      description: '予約投稿一覧レスポンス（カーソルページネーション形式）。',
+    }),
+  )
+
+  const ScheduledPostCreatedResponse = registry.register(
+    'ScheduledPostCreatedResponse',
+    scheduledPostCreatedResponseSchema.openapi({
+      description: 'POST /api/v1/scheduled-posts 201 — 作成した予約投稿の ID。',
+    }),
+  )
+
+  const CreateScheduledPostRequest = registry.register(
+    'CreateScheduledPostRequest',
+    createScheduledPostRequestSchema.openapi({
+      description: [
+        '予約投稿作成リクエスト（プレミアム会員のみ）。',
+        '',
+        '制約:',
+        `- scheduledAt は未来かつ ${String(MAX_SCHEDULED_DAYS_AHEAD)} 日以内の ISO 8601 文字列`,
+        `- pending 件数は ${String(MAX_PENDING_SCHEDULED_POSTS)} 件を超えないこと`,
+        '- content / mediaUrls のどちらか一方は必須',
+        '- mediaUrls は POST /api/v1/upload/image で取得した自社ストレージ URL のみ許可',
+      ].join('\n'),
+    }),
+  )
+
+  const UpdateScheduledPostRequest = registry.register(
+    'UpdateScheduledPostRequest',
+    updateScheduledPostRequestSchema.openapi({
+      description: [
+        '予約投稿更新リクエスト（pending 状態のもののみ）。',
+        '',
+        '制約:',
+        '- pending 以外（published / cancelled / failed）は 400 を返す',
+        '- フィールド構成は POST と同一（差し替え方式）',
+      ].join('\n'),
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // §3.10 予約投稿 CRUD — パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/scheduled-posts',
+    tags: ['scheduled-posts'],
+    summary: '予約投稿一覧を取得する（プレミアム限定）',
+    description: [
+      '自分の予約投稿をカーソルページネーションで取得する。',
+      '',
+      '重要仕様:',
+      '- プレミアム非会員は 403 PREMIUM_REQUIRED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- scheduledAt 昇順で返す',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前回レスポンスの nextCursor 値）' }),
+        limit: z.number().int().optional().openapi({ description: '1 回の取得上限件数（デフォルト 20）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '予約投稿一覧取得成功',
+        content: { 'application/json': { schema: ScheduledPostListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/scheduled-posts',
+    tags: ['scheduled-posts'],
+    summary: '予約投稿を作成する（プレミアム限定）',
+    description: [
+      '予約投稿を新規作成する。',
+      '',
+      '重要仕様:',
+      '- プレミアム非会員は 403 PREMIUM_REQUIRED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      `- scheduledAt は未来かつ ${String(MAX_SCHEDULED_DAYS_AHEAD)} 日以内`,
+      `- pending 件数が ${String(MAX_PENDING_SCHEDULED_POSTS)} 件に達している場合は 400`,
+      '- content / mediaUrls のどちらか一方は必須',
+      '- mediaUrls は自社ストレージ URL のみ許可（外部 URL は 400 VALIDATION_ERROR）',
+      '- レート制限: create_scheduled_post（3/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateScheduledPostRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: '予約投稿作成成功。作成した予約投稿の id を返す',
+        content: { 'application/json': { schema: ScheduledPostCreatedResponse } },
+      },
+      400: errorResponse(
+        'バリデーションエラー (VALIDATION_ERROR) — scheduledAt 未来必須・30 日超過・pending 上限・content 不足・mediaUrls 外部 URL',
+      ),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/scheduled-posts/{id}',
+    tags: ['scheduled-posts'],
+    summary: '予約投稿詳細を取得する（所有者のみ・プレミアム限定）',
+    description: [
+      '指定 ID の予約投稿を取得する。',
+      '',
+      '重要仕様:',
+      '- 所有者以外（他人・不存在）は 404 で統一（アクセス有無を秘匿）',
+      '- プレミアム非会員は 403 PREMIUM_REQUIRED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '予約投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '予約投稿詳細取得成功',
+        content: { 'application/json': { schema: ScheduledPostItem } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)'),
+      404: errorResponse('予約投稿が存在しないか所有者でない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/scheduled-posts/{id}',
+    tags: ['scheduled-posts'],
+    summary: '予約投稿を更新する（pending のみ・プレミアム限定）',
+    description: [
+      'pending 状態の予約投稿を更新する。',
+      '',
+      '重要仕様:',
+      '- pending 以外（published / cancelled / failed）は 400 VALIDATION_ERROR',
+      '- 所有者以外（他人・不存在）は 404 で統一',
+      '- プレミアム非会員は 403 PREMIUM_REQUIRED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- フィールド構成は POST と同一（差し替え方式）',
+      '- レート制限: update_scheduled_post（5/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '予約投稿 ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: UpdateScheduledPostRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '予約投稿更新成功',
+        content: { 'application/json': { schema: successSchema } },
+      },
+      400: errorResponse(
+        'バリデーションエラー (VALIDATION_ERROR) — pending 以外の編集・scheduledAt 不正・content 不足・mediaUrls 外部 URL',
+      ),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)、ゲスト不可 (GUEST_NOT_ALLOWED)、またはプレミアム限定 (PREMIUM_REQUIRED)'),
+      404: errorResponse('予約投稿が存在しないか所有者でない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/scheduled-posts/{id}/cancel',
+    tags: ['scheduled-posts'],
+    summary: '予約投稿をキャンセルする（ソフトキャンセル・pending のみ）',
+    description: [
+      '予約投稿のステータスを cancelled に変更する（ハード削除は DELETE を使用）。',
+      '',
+      '重要仕様:',
+      '- cancelled にした投稿は DELETE エンドポイントで後からハード削除できる',
+      '- pending 以外は 400 VALIDATION_ERROR',
+      '- 所有者以外（他人・不存在）は 404 で統一',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- プレミアム判定は行わない（cancelled 済みを持っている場合も操作可能）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '予約投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'キャンセル成功',
+        content: { 'application/json': { schema: successSchema } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — pending 以外のキャンセル'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('予約投稿が存在しないか所有者でない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/scheduled-posts/{id}',
+    tags: ['scheduled-posts'],
+    summary: '予約投稿をハード削除する（published 不可）',
+    description: [
+      '予約投稿と添付メディアを完全削除する。',
+      '',
+      '重要仕様:',
+      '- published 状態は 400 VALIDATION_ERROR（公開済み投稿は削除不可）',
+      '- pending / cancelled / failed は削除可能',
+      '- 所有者以外（他人・不存在）は 404 で統一',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 添付メディアのストレージ実体は best-effort で削除される（DB カスケード後）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '予約投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'ハード削除成功',
+        content: { 'application/json': { schema: successSchema } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — published は削除不可'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('予約投稿が存在しないか所有者でない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -3934,7 +4232,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.16.0',
+      version: '1.17.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

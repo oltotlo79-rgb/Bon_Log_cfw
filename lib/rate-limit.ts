@@ -222,6 +222,10 @@ export const RATE_LIMITS = {
   // engagement（30/分）より緩い 10/分 で設定する。
   register_device: { windowMs: ONE_MINUTE_MS, maxRequests: 10 },
   remove_device:   { windowMs: ONE_MINUTE_MS, maxRequests: 10 },
+  // 予約投稿（モバイル API v1）: 作成・更新は post に準じて 3/分。
+  // 取得・キャンセル・削除は engagement（30/分）を流用する。
+  create_scheduled_post: { windowMs: ONE_MINUTE_MS, maxRequests: 3 },
+  update_scheduled_post: { windowMs: ONE_MINUTE_MS, maxRequests: 5 },
 } as const
 
 /**
