@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -3880,6 +3880,1207 @@
           "seasonalLevels"
         ],
         "description": "ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels を含む）。interactions/techniques は別バッチで追加予定。"
+      },
+      "DiseasePestCategory": {
+        "type": "string",
+        "enum": [
+          "disease",
+          "pest",
+          "beneficial_insect"
+        ],
+        "description": "病害虫カテゴリ enum: disease（病害）/ pest（害虫）/ beneficial_insect（益虫）。"
+      },
+      "PesticideType": {
+        "type": "string",
+        "enum": [
+          "fungicide",
+          "insecticide",
+          "acaricide",
+          "compound",
+          "other"
+        ],
+        "description": "農薬種別 enum: fungicide（殺菌剤）/ insecticide（殺虫剤）/ acaricide（殺ダニ剤）/ compound（複合剤）/ other。"
+      },
+      "EffectRating": {
+        "type": "string",
+        "enum": [
+          "excellent",
+          "good",
+          "fair",
+          "poor",
+          "none"
+        ],
+        "description": "効果レーティング enum: excellent（◎）/ good（○）/ fair（△）/ poor（×）/ none（効果なし）。"
+      },
+      "ResistanceRisk": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "耐性リスク enum: low（つきにくい）/ medium（ややつきやすい）/ high（つきやすい）。"
+      },
+      "DiseasePestItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameKana": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "disease",
+              "pest",
+              "beneficial_insect"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nameKana",
+          "category",
+          "description",
+          "imageUrl",
+          "slug"
+        ],
+        "description": "病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug）。"
+      },
+      "DiseasePestEffectItem": {
+        "type": "object",
+        "properties": {
+          "pesticide": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "pesticideType": {
+                "type": "string",
+                "enum": [
+                  "fungicide",
+                  "insecticide",
+                  "acaricide",
+                  "compound",
+                  "other"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "slug",
+              "pesticideType"
+            ]
+          },
+          "rating": {
+            "type": "object",
+            "properties": {
+              "preventionLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              },
+              "treatmentLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              },
+              "efficacyLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              },
+              "persistenceLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "preventionLevel",
+              "treatmentLevel",
+              "efficacyLevel",
+              "persistenceLevel"
+            ]
+          }
+        },
+        "required": [
+          "pesticide",
+          "rating"
+        ],
+        "description": "病害虫詳細の農薬効果 1 件（pesticide 情報 + rating）。"
+      },
+      "DiseasePestDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameKana": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "disease",
+              "pest",
+              "beneficial_insect"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pesticide": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "pesticideType": {
+                      "type": "string",
+                      "enum": [
+                        "fungicide",
+                        "insecticide",
+                        "acaricide",
+                        "compound",
+                        "other"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "pesticideType"
+                  ]
+                },
+                "rating": {
+                  "type": "object",
+                  "properties": {
+                    "preventionLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    },
+                    "treatmentLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    },
+                    "efficacyLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    },
+                    "persistenceLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    }
+                  },
+                  "required": [
+                    "preventionLevel",
+                    "treatmentLevel",
+                    "efficacyLevel",
+                    "persistenceLevel"
+                  ]
+                }
+              },
+              "required": [
+                "pesticide",
+                "rating"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nameKana",
+          "category",
+          "description",
+          "imageUrl",
+          "slug",
+          "effects"
+        ],
+        "description": "病害虫詳細（effects: 有効農薬一覧を含む）。"
+      },
+      "DiseasePestListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "nameKana": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "disease",
+                    "pest",
+                    "beneficial_insect"
+                  ]
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "imageUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "slug": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "nameKana",
+                "category",
+                "description",
+                "imageUrl",
+                "slug"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/pesticides/disease-pests 成功レスポンス。sortOrder ASC / name ASC 順。"
+      },
+      "PesticideItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pesticideType": {
+            "type": "string",
+            "enum": [
+              "fungicide",
+              "insecticide",
+              "acaricide",
+              "compound",
+              "other"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "registrationNumber",
+          "pesticideType",
+          "description",
+          "slug"
+        ],
+        "description": "農薬製品一覧の 1 件（id, name, registrationNumber, pesticideType, description, slug）。"
+      },
+      "PesticideActiveIngredientItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "fracCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iracCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resistanceRisk": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              null
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "fracCode",
+          "iracCode",
+          "resistanceRisk",
+          "slug"
+        ],
+        "description": "農薬製品詳細の有効成分 1 件（id, name, fracCode, iracCode, resistanceRisk, slug）。"
+      },
+      "PesticideFormulationType": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ],
+        "description": "農薬製品の剤型（name, code）。"
+      },
+      "PesticideEffectItem": {
+        "type": "object",
+        "properties": {
+          "diseasePest": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "slug"
+            ]
+          },
+          "rating": {
+            "type": "object",
+            "properties": {
+              "preventionLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              },
+              "treatmentLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              },
+              "efficacyLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              },
+              "persistenceLevel": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "excellent",
+                  "good",
+                  "fair",
+                  "poor",
+                  "none",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "preventionLevel",
+              "treatmentLevel",
+              "efficacyLevel",
+              "persistenceLevel"
+            ]
+          }
+        },
+        "required": [
+          "diseasePest",
+          "rating"
+        ],
+        "description": "農薬製品詳細の効果 1 件（diseasePest 情報 + rating）。"
+      },
+      "PesticideIncompatibilityItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "formulationTypeName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "formulationTypeName"
+        ],
+        "description": "農薬製品詳細の混用不可農薬 1 件（id, name, slug, formulationTypeName）。"
+      },
+      "PesticideDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pesticideType": {
+            "type": "string",
+            "enum": [
+              "fungicide",
+              "insecticide",
+              "acaricide",
+              "compound",
+              "other"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "formulationType": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "code"
+            ]
+          },
+          "activeIngredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "fracCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "iracCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "resistanceRisk": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    null
+                  ]
+                },
+                "slug": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "fracCode",
+                "iracCode",
+                "resistanceRisk",
+                "slug"
+              ]
+            }
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "diseasePest": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug"
+                  ]
+                },
+                "rating": {
+                  "type": "object",
+                  "properties": {
+                    "preventionLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    },
+                    "treatmentLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    },
+                    "efficacyLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    },
+                    "persistenceLevel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "fair",
+                        "poor",
+                        "none",
+                        null
+                      ]
+                    }
+                  },
+                  "required": [
+                    "preventionLevel",
+                    "treatmentLevel",
+                    "efficacyLevel",
+                    "persistenceLevel"
+                  ]
+                }
+              },
+              "required": [
+                "diseasePest",
+                "rating"
+              ]
+            }
+          },
+          "incompatibilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "formulationTypeName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "formulationTypeName"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "registrationNumber",
+          "pesticideType",
+          "description",
+          "slug",
+          "formulationType",
+          "activeIngredients",
+          "effects",
+          "incompatibilities"
+        ],
+        "description": "農薬製品詳細（formulationType, activeIngredients, effects, incompatibilities を含む）。"
+      },
+      "PesticideListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "registrationNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pesticideType": {
+                  "type": "string",
+                  "enum": [
+                    "fungicide",
+                    "insecticide",
+                    "acaricide",
+                    "compound",
+                    "other"
+                  ]
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "slug": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "registrationNumber",
+                "pesticideType",
+                "description",
+                "slug"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/pesticides/products 成功レスポンス。name ASC 順。"
+      },
+      "IngredientItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fracCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iracCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resistanceRisk": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              null
+            ]
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nameEn",
+          "fracCode",
+          "iracCode",
+          "resistanceRisk",
+          "slug"
+        ],
+        "description": "有効成分一覧の 1 件（id, name, nameEn, fracCode, iracCode, resistanceRisk, slug）。"
+      },
+      "IngredientDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fracCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iracCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resistanceRisk": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              null
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "ingredientGroup": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pesticides": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "contentLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pesticide": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "formulationTypeName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "formulationTypeName"
+                  ]
+                }
+              },
+              "required": [
+                "contentLabel",
+                "pesticide"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nameEn",
+          "fracCode",
+          "iracCode",
+          "resistanceRisk",
+          "slug",
+          "ingredientGroup",
+          "description",
+          "pesticides"
+        ],
+        "description": "有効成分詳細（ingredientGroup, description, pesticides 一覧を含む）。"
+      },
+      "IngredientListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "nameEn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "fracCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "iracCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "resistanceRisk": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    null
+                  ]
+                },
+                "slug": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "nameEn",
+                "fracCode",
+                "iracCode",
+                "resistanceRisk",
+                "slug"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/pesticides/ingredients 成功レスポンス。name ASC 順。"
       }
     },
     "parameters": {}
@@ -8972,6 +10173,1063 @@
           },
           "404": {
             "description": "ホルモンが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/disease-pests": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "病害虫一覧",
+        "description": "病害虫・病害・益虫の一覧をカーソルページネーションで返す。sortOrder ASC / name ASC 順。\n\n重要仕様:\n- category: DiseasePestCategory enum（disease / pest / beneficial_insect）でフィルタ\n- search: name / nameKana / description の部分一致\n- bodySizeMm: 体長（mm）で害虫・益虫のみを絞り込む（disease には適用されない）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（slug）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（slug）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "DiseasePestCategory enum でフィルタ（省略で全件）"
+            },
+            "required": false,
+            "description": "DiseasePestCategory enum でフィルタ（省略で全件）",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "検索キーワード（name / nameKana / description 部分一致）"
+            },
+            "required": false,
+            "description": "検索キーワード（name / nameKana / description 部分一致）",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "description": "体長（mm）フィルタ。害虫・益虫のみ対象"
+            },
+            "required": false,
+            "description": "体長（mm）フィルタ。害虫・益虫のみ対象",
+            "name": "bodySizeMm",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "病害虫一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiseasePestListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な category / limit / bodySizeMm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/disease-pests/{slug}": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "病害虫詳細",
+        "description": "指定 slug の病害虫詳細を返す。effects（有効農薬一覧）を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は pesticide.name ASC 順\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "病害虫の slug"
+            },
+            "required": true,
+            "description": "病害虫の slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "病害虫詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "nameKana": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "disease",
+                        "pest",
+                        "beneficial_insect"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "imageUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "effects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "pesticide": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "pesticideType": {
+                                "type": "string",
+                                "enum": [
+                                  "fungicide",
+                                  "insecticide",
+                                  "acaricide",
+                                  "compound",
+                                  "other"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "slug",
+                              "pesticideType"
+                            ]
+                          },
+                          "rating": {
+                            "type": "object",
+                            "properties": {
+                              "preventionLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              },
+                              "treatmentLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              },
+                              "efficacyLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              },
+                              "persistenceLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              }
+                            },
+                            "required": [
+                              "preventionLevel",
+                              "treatmentLevel",
+                              "efficacyLevel",
+                              "persistenceLevel"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "pesticide",
+                          "rating"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "nameKana",
+                    "category",
+                    "description",
+                    "imageUrl",
+                    "slug",
+                    "effects"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "病害虫が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/products": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "農薬製品一覧",
+        "description": "農薬製品の一覧をカーソルページネーションで返す。name ASC 順。\n\n重要仕様:\n- search: name / registrationNumber の部分一致\n- type: PesticideType enum（fungicide / insecticide / acaricide / compound / other）でフィルタ。herbicide は other に正規化される\n- diseasePestId: 指定した病害虫に効果がある農薬のみ返す\n- formulationTypeCode: 剤型コードでフィルタ\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（slug）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（slug）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "検索キーワード（name / registrationNumber 部分一致）"
+            },
+            "required": false,
+            "description": "検索キーワード（name / registrationNumber 部分一致）",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "PesticideType enum でフィルタ。herbicide は other に正規化"
+            },
+            "required": false,
+            "description": "PesticideType enum でフィルタ。herbicide は other に正規化",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "病害虫 ID。この病害虫に効果がある農薬のみ返す"
+            },
+            "required": false,
+            "description": "病害虫 ID。この病害虫に効果がある農薬のみ返す",
+            "name": "diseasePestId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "剤型コードでフィルタ"
+            },
+            "required": false,
+            "description": "剤型コードでフィルタ",
+            "name": "formulationTypeCode",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "農薬製品一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PesticideListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/products/{slug}": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "農薬製品詳細",
+        "description": "指定 slug の農薬製品詳細を返す。formulationType / activeIngredients / effects / incompatibilities を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は diseasePest.name ASC 順\n- incompatibilities は incompatibleWith.name ASC 順\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "農薬製品の slug"
+            },
+            "required": true,
+            "description": "農薬製品の slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "農薬製品詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "registrationNumber": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pesticideType": {
+                      "type": "string",
+                      "enum": [
+                        "fungicide",
+                        "insecticide",
+                        "acaricide",
+                        "compound",
+                        "other"
+                      ]
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "formulationType": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "code"
+                      ]
+                    },
+                    "activeIngredients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "fracCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "iracCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "resistanceRisk": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high",
+                              null
+                            ]
+                          },
+                          "slug": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "fracCode",
+                          "iracCode",
+                          "resistanceRisk",
+                          "slug"
+                        ]
+                      }
+                    },
+                    "effects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "diseasePest": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "slug"
+                            ]
+                          },
+                          "rating": {
+                            "type": "object",
+                            "properties": {
+                              "preventionLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              },
+                              "treatmentLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              },
+                              "efficacyLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              },
+                              "persistenceLevel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "fair",
+                                  "poor",
+                                  "none",
+                                  null
+                                ]
+                              }
+                            },
+                            "required": [
+                              "preventionLevel",
+                              "treatmentLevel",
+                              "efficacyLevel",
+                              "persistenceLevel"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "diseasePest",
+                          "rating"
+                        ]
+                      }
+                    },
+                    "incompatibilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "formulationTypeName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "formulationTypeName"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "registrationNumber",
+                    "pesticideType",
+                    "description",
+                    "slug",
+                    "formulationType",
+                    "activeIngredients",
+                    "effects",
+                    "incompatibilities"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "農薬製品が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/ingredients": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "有効成分一覧",
+        "description": "農薬有効成分の一覧をカーソルページネーションで返す。name ASC 順。\n\n重要仕様:\n- search: name / nameEn / fracCode / iracCode の部分一致\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（slug）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（slug）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "検索キーワード（name / nameEn / fracCode / iracCode 部分一致）"
+            },
+            "required": false,
+            "description": "検索キーワード（name / nameEn / fracCode / iracCode 部分一致）",
+            "name": "search",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "有効成分一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/ingredients/{slug}": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "有効成分詳細",
+        "description": "指定 slug の有効成分詳細を返す。ingredientGroup / description / pesticides（使用農薬一覧）を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "有効成分の slug"
+            },
+            "required": true,
+            "description": "有効成分の slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "有効成分詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "有効成分が存在しない (NOT_FOUND)",
             "content": {
               "application/json": {
                 "schema": {

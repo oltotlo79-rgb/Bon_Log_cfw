@@ -611,6 +611,185 @@ export const hormoneCategorySchema = z.enum(['major', 'secondary'])
 export type HormoneCategoryEnum = z.infer<typeof hormoneCategorySchema>
 
 // ──────────────────────────────────────────────────
+// Phase 3 Batch 3c — 農薬・病害虫図鑑（読み取り専用・ゲスト可）
+// ──────────────────────────────────────────────────
+
+// ── 農薬・病害虫 enum 契約 ────────────────────────
+
+/** DiseasePestCategory enum（Prisma enum 値と一致） */
+export const diseasePestCategorySchema = z.enum(['disease', 'pest', 'beneficial_insect'])
+export type DiseasePestCategoryEnum = z.infer<typeof diseasePestCategorySchema>
+
+/** PesticideType enum（Prisma enum 値と一致） */
+export const pesticideTypeSchema = z.enum(['fungicide', 'insecticide', 'acaricide', 'compound', 'other'])
+export type PesticideTypeEnum = z.infer<typeof pesticideTypeSchema>
+
+/** EffectRating enum（Prisma enum 値と一致） */
+export const effectRatingSchema = z.enum(['excellent', 'good', 'fair', 'poor', 'none'])
+export type EffectRatingEnum = z.infer<typeof effectRatingSchema>
+
+/** ResistanceRisk enum（Prisma enum 値と一致） */
+export const resistanceRiskSchema = z.enum(['low', 'medium', 'high'])
+export type ResistanceRiskEnum = z.infer<typeof resistanceRiskSchema>
+
+// ── 病害虫図鑑 ────────────────────────────────────
+
+/** GET /api/v1/pesticides/disease-pests の 1 件 */
+export const diseasePestItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  nameKana: z.string().nullable(),
+  category: diseasePestCategorySchema,
+  description: z.string().nullable(),
+  imageUrl: z.string().nullable(),
+  slug: z.string(),
+})
+export type DiseasePestItem = z.infer<typeof diseasePestItemSchema>
+
+/** GET /api/v1/pesticides/disease-pests の効果 1 件 */
+export const diseasePestEffectItemSchema = z.object({
+  pesticide: z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    pesticideType: pesticideTypeSchema,
+  }),
+  rating: z.object({
+    preventionLevel: effectRatingSchema.nullable(),
+    treatmentLevel: effectRatingSchema.nullable(),
+    efficacyLevel: effectRatingSchema.nullable(),
+    persistenceLevel: effectRatingSchema.nullable(),
+  }),
+})
+export type DiseasePestEffectItem = z.infer<typeof diseasePestEffectItemSchema>
+
+/** GET /api/v1/pesticides/disease-pests/{slug} の詳細 */
+export const diseasePestDetailSchema = diseasePestItemSchema.extend({
+  effects: z.array(diseasePestEffectItemSchema),
+})
+export type DiseasePestDetail = z.infer<typeof diseasePestDetailSchema>
+
+/** GET /api/v1/pesticides/disease-pests 200 */
+export const diseasePestListResponseSchema = z.object({
+  items: z.array(diseasePestItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type DiseasePestListResponse = z.infer<typeof diseasePestListResponseSchema>
+
+// ── 農薬製品 ──────────────────────────────────────
+
+/** GET /api/v1/pesticides/products の 1 件 */
+export const pesticideItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  registrationNumber: z.string().nullable(),
+  pesticideType: pesticideTypeSchema,
+  description: z.string().nullable(),
+  slug: z.string(),
+})
+export type PesticideItem = z.infer<typeof pesticideItemSchema>
+
+/** 農薬製品詳細の有効成分 1 件 */
+export const pesticideActiveIngredientItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  fracCode: z.string().nullable(),
+  iracCode: z.string().nullable(),
+  resistanceRisk: resistanceRiskSchema.nullable(),
+  slug: z.string(),
+})
+export type PesticideActiveIngredientItem = z.infer<typeof pesticideActiveIngredientItemSchema>
+
+/** 農薬製品詳細の剤型 */
+export const pesticideFormulationTypeSchema = z.object({
+  name: z.string(),
+  code: z.string(),
+})
+export type PesticideFormulationType = z.infer<typeof pesticideFormulationTypeSchema>
+
+/** 農薬製品詳細の効果 1 件 */
+export const pesticideEffectItemSchema = z.object({
+  diseasePest: z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+  }),
+  rating: z.object({
+    preventionLevel: effectRatingSchema.nullable(),
+    treatmentLevel: effectRatingSchema.nullable(),
+    efficacyLevel: effectRatingSchema.nullable(),
+    persistenceLevel: effectRatingSchema.nullable(),
+  }),
+})
+export type PesticideEffectItem = z.infer<typeof pesticideEffectItemSchema>
+
+/** 農薬製品詳細の混用不可 1 件 */
+export const pesticideIncompatibilityItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  formulationTypeName: z.string().nullable(),
+})
+export type PesticideIncompatibilityItem = z.infer<typeof pesticideIncompatibilityItemSchema>
+
+/** GET /api/v1/pesticides/products/{slug} の詳細 */
+export const pesticideDetailSchema = pesticideItemSchema.extend({
+  formulationType: pesticideFormulationTypeSchema.nullable(),
+  activeIngredients: z.array(pesticideActiveIngredientItemSchema),
+  effects: z.array(pesticideEffectItemSchema),
+  incompatibilities: z.array(pesticideIncompatibilityItemSchema),
+})
+export type PesticideDetail = z.infer<typeof pesticideDetailSchema>
+
+/** GET /api/v1/pesticides/products 200 */
+export const pesticideListResponseSchema = z.object({
+  items: z.array(pesticideItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type PesticideListResponse = z.infer<typeof pesticideListResponseSchema>
+
+// ── 有効成分 ──────────────────────────────────────
+
+/** GET /api/v1/pesticides/ingredients の 1 件 */
+export const ingredientItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  nameEn: z.string().nullable(),
+  fracCode: z.string().nullable(),
+  iracCode: z.string().nullable(),
+  resistanceRisk: resistanceRiskSchema.nullable(),
+  slug: z.string(),
+})
+export type IngredientItem = z.infer<typeof ingredientItemSchema>
+
+/** 有効成分詳細の農薬 1 件 */
+export const ingredientPesticideItemSchema = z.object({
+  contentLabel: z.string().nullable(),
+  pesticide: z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    formulationTypeName: z.string().nullable(),
+  }),
+})
+export type IngredientPesticideItem = z.infer<typeof ingredientPesticideItemSchema>
+
+/** GET /api/v1/pesticides/ingredients/{slug} の詳細 */
+export const ingredientDetailSchema = ingredientItemSchema.extend({
+  ingredientGroup: z.string().nullable(),
+  description: z.string().nullable(),
+  pesticides: z.array(ingredientPesticideItemSchema),
+})
+export type IngredientDetail = z.infer<typeof ingredientDetailSchema>
+
+/** GET /api/v1/pesticides/ingredients 200 */
+export const ingredientListResponseSchema = z.object({
+  items: z.array(ingredientItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type IngredientListResponse = z.infer<typeof ingredientListResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

@@ -110,6 +110,24 @@ async function main() {
     hormoneSeasonalLevelSchema,
     hormoneDetailSchema,
     hormoneCategorySchema,
+    diseasePestCategorySchema,
+    pesticideTypeSchema,
+    effectRatingSchema,
+    resistanceRiskSchema,
+    diseasePestItemSchema,
+    diseasePestEffectItemSchema,
+    diseasePestDetailSchema,
+    diseasePestListResponseSchema,
+    pesticideItemSchema,
+    pesticideActiveIngredientItemSchema,
+    pesticideFormulationTypeSchema,
+    pesticideEffectItemSchema,
+    pesticideIncompatibilityItemSchema,
+    pesticideDetailSchema,
+    pesticideListResponseSchema,
+    ingredientItemSchema,
+    ingredientDetailSchema,
+    ingredientListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -2568,6 +2586,342 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Batch 3c — 農薬・病害虫図鑑 スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'DiseasePestCategory',
+    diseasePestCategorySchema.openapi({
+      description: '病害虫カテゴリ enum: disease（病害）/ pest（害虫）/ beneficial_insect（益虫）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideType',
+    pesticideTypeSchema.openapi({
+      description: '農薬種別 enum: fungicide（殺菌剤）/ insecticide（殺虫剤）/ acaricide（殺ダニ剤）/ compound（複合剤）/ other。',
+    }),
+  )
+
+  registry.register(
+    'EffectRating',
+    effectRatingSchema.openapi({
+      description: '効果レーティング enum: excellent（◎）/ good（○）/ fair（△）/ poor（×）/ none（効果なし）。',
+    }),
+  )
+
+  registry.register(
+    'ResistanceRisk',
+    resistanceRiskSchema.openapi({
+      description: '耐性リスク enum: low（つきにくい）/ medium（ややつきやすい）/ high（つきやすい）。',
+    }),
+  )
+
+  registry.register(
+    'DiseasePestItem',
+    diseasePestItemSchema.openapi({
+      description: '病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug）。',
+    }),
+  )
+
+  registry.register(
+    'DiseasePestEffectItem',
+    diseasePestEffectItemSchema.openapi({
+      description: '病害虫詳細の農薬効果 1 件（pesticide 情報 + rating）。',
+    }),
+  )
+
+  registry.register(
+    'DiseasePestDetail',
+    diseasePestDetailSchema.openapi({
+      description: '病害虫詳細（effects: 有効農薬一覧を含む）。',
+    }),
+  )
+
+  const DiseasePestListResponse = registry.register(
+    'DiseasePestListResponse',
+    diseasePestListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/disease-pests 成功レスポンス。sortOrder ASC / name ASC 順。',
+    }),
+  )
+
+  registry.register(
+    'PesticideItem',
+    pesticideItemSchema.openapi({
+      description: '農薬製品一覧の 1 件（id, name, registrationNumber, pesticideType, description, slug）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideActiveIngredientItem',
+    pesticideActiveIngredientItemSchema.openapi({
+      description: '農薬製品詳細の有効成分 1 件（id, name, fracCode, iracCode, resistanceRisk, slug）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideFormulationType',
+    pesticideFormulationTypeSchema.openapi({
+      description: '農薬製品の剤型（name, code）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideEffectItem',
+    pesticideEffectItemSchema.openapi({
+      description: '農薬製品詳細の効果 1 件（diseasePest 情報 + rating）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideIncompatibilityItem',
+    pesticideIncompatibilityItemSchema.openapi({
+      description: '農薬製品詳細の混用不可農薬 1 件（id, name, slug, formulationTypeName）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideDetail',
+    pesticideDetailSchema.openapi({
+      description: '農薬製品詳細（formulationType, activeIngredients, effects, incompatibilities を含む）。',
+    }),
+  )
+
+  const PesticideListResponse = registry.register(
+    'PesticideListResponse',
+    pesticideListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/products 成功レスポンス。name ASC 順。',
+    }),
+  )
+
+  registry.register(
+    'IngredientItem',
+    ingredientItemSchema.openapi({
+      description: '有効成分一覧の 1 件（id, name, nameEn, fracCode, iracCode, resistanceRisk, slug）。',
+    }),
+  )
+
+  const IngredientDetail = registry.register(
+    'IngredientDetail',
+    ingredientDetailSchema.openapi({
+      description: '有効成分詳細（ingredientGroup, description, pesticides 一覧を含む）。',
+    }),
+  )
+
+  const IngredientListResponse = registry.register(
+    'IngredientListResponse',
+    ingredientListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/ingredients 成功レスポンス。name ASC 順。',
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
+  // Batch 3c — 農薬・病害虫図鑑 パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/disease-pests',
+    tags: ['pesticides'],
+    summary: '病害虫一覧',
+    description: [
+      '病害虫・病害・益虫の一覧をカーソルページネーションで返す。sortOrder ASC / name ASC 順。',
+      '',
+      '重要仕様:',
+      '- category: DiseasePestCategory enum（disease / pest / beneficial_insect）でフィルタ',
+      '- search: name / nameKana / description の部分一致',
+      '- bodySizeMm: 体長（mm）で害虫・益虫のみを絞り込む（disease には適用されない）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（slug）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+        category: z.string().optional().openapi({ description: 'DiseasePestCategory enum でフィルタ（省略で全件）' }),
+        search: z.string().optional().openapi({ description: '検索キーワード（name / nameKana / description 部分一致）' }),
+        bodySizeMm: z.number().optional().openapi({ description: '体長（mm）フィルタ。害虫・益虫のみ対象' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '病害虫一覧取得成功',
+        content: { 'application/json': { schema: DiseasePestListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な category / limit / bodySizeMm'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/disease-pests/{slug}',
+    tags: ['pesticides'],
+    summary: '病害虫詳細',
+    description: [
+      '指定 slug の病害虫詳細を返す。effects（有効農薬一覧）を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- effects は pesticide.name ASC 順',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '病害虫の slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '病害虫詳細取得成功',
+        content: { 'application/json': { schema: diseasePestDetailSchema } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('病害虫が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/products',
+    tags: ['pesticides'],
+    summary: '農薬製品一覧',
+    description: [
+      '農薬製品の一覧をカーソルページネーションで返す。name ASC 順。',
+      '',
+      '重要仕様:',
+      '- search: name / registrationNumber の部分一致',
+      '- type: PesticideType enum（fungicide / insecticide / acaricide / compound / other）でフィルタ。herbicide は other に正規化される',
+      '- diseasePestId: 指定した病害虫に効果がある農薬のみ返す',
+      '- formulationTypeCode: 剤型コードでフィルタ',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（slug）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+        search: z.string().optional().openapi({ description: '検索キーワード（name / registrationNumber 部分一致）' }),
+        type: z.string().optional().openapi({ description: 'PesticideType enum でフィルタ。herbicide は other に正規化' }),
+        diseasePestId: z.string().optional().openapi({ description: '病害虫 ID。この病害虫に効果がある農薬のみ返す' }),
+        formulationTypeCode: z.string().optional().openapi({ description: '剤型コードでフィルタ' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '農薬製品一覧取得成功',
+        content: { 'application/json': { schema: PesticideListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な limit'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/products/{slug}',
+    tags: ['pesticides'],
+    summary: '農薬製品詳細',
+    description: [
+      '指定 slug の農薬製品詳細を返す。formulationType / activeIngredients / effects / incompatibilities を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- effects は diseasePest.name ASC 順',
+      '- incompatibilities は incompatibleWith.name ASC 順',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '農薬製品の slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '農薬製品詳細取得成功',
+        content: { 'application/json': { schema: pesticideDetailSchema } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('農薬製品が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/ingredients',
+    tags: ['pesticides'],
+    summary: '有効成分一覧',
+    description: [
+      '農薬有効成分の一覧をカーソルページネーションで返す。name ASC 順。',
+      '',
+      '重要仕様:',
+      '- search: name / nameEn / fracCode / iracCode の部分一致',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（slug）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+        search: z.string().optional().openapi({ description: '検索キーワード（name / nameEn / fracCode / iracCode 部分一致）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '有効成分一覧取得成功',
+        content: { 'application/json': { schema: IngredientListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な limit'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/ingredients/{slug}',
+    tags: ['pesticides'],
+    summary: '有効成分詳細',
+    description: [
+      '指定 slug の有効成分詳細を返す。ingredientGroup / description / pesticides（使用農薬一覧）を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '有効成分の slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '有効成分詳細取得成功',
+        content: { 'application/json': { schema: IngredientDetail } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('有効成分が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -2577,7 +2931,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.12.0',
+      version: '1.13.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
