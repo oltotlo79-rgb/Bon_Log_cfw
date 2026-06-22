@@ -229,6 +229,9 @@ export const RATE_LIMITS = {
   // 分析サマリ（モバイル API v1 §3.11）: 読み取り専用だが重い集計クエリを含むため
   // read（60/分）より絞り込み、10/分 とする。プレミアム限定なので実ユーザーは少ない。
   analytics_summary: { windowMs: ONE_MINUTE_MS, maxRequests: 10 },
+  // モバイル API v1 確認メール再送: password-reset と同等の security-sensitive 操作。
+  // IP ベース 1 時間 3 回、fail-closed（Redis 障害時は拒否してメール乱用を防ぐ）。
+  verify_email_resend: { windowMs: ONE_HOUR_MS, maxRequests: 3, failOpen: false },
 } as const
 
 /**

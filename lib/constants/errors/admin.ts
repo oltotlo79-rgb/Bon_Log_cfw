@@ -132,3 +132,9 @@ export const ERR_SEARCH_EXTENSION_ENABLED = 'pg_trgm拡張を有効化しまし�
 export const ERR_SEARCH_EXTENSION_FAILED = 'pg_trgm拡張の有効化に失敗しました。データベース管理者に連絡してください。'
 export const ERR_SEARCH_FULL_SETUP_OK = '全文検索のセットアップが完了しました'
 export const ERR_SEARCH_FULL_SETUP_FAILED = '全文検索のセットアップ中にエラーが発生しました'
+
+/** Webhook リクエストボディが不正な JSON だった場合の英語メッセージ */
+export const API_ERR_WEBHOOK_INVALID_JSON = 'Invalid JSON body'
+
+/** Webhook ペイロードが Zod スキーマ検証に失敗した場合の英語メッセージ */
+export const API_ERR_WEBHOOK_PAYLOAD_VALIDATION_FAILED = 'Payload validation failed'

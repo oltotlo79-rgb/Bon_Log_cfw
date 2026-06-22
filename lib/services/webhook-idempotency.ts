@@ -12,6 +12,12 @@ import logger from '@/lib/logger'
 /** Prisma の "Unique constraint failed" エラーコード */
 const PRISMA_UNIQUE_VIOLATION_CODE = 'P2002'
 
+/** Stripe webhook の provider 識別子 */
+export const WEBHOOK_PROVIDER_STRIPE = 'stripe'
+
+/** RevenueCat webhook の provider 識別子 */
+export const WEBHOOK_PROVIDER_REVENUECAT = 'revenuecat'
+
 export type WebhookIdempotencyResult = {
   /** 既に処理済みであれば true（呼び出し元はハンドラ本体をスキップする） */
   alreadyProcessed: boolean

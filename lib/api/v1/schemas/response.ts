@@ -1198,6 +1198,61 @@ export const careLogListResponseSchema = z.object({
 export type CareLogListResponse = z.infer<typeof careLogListResponseSchema>
 
 // ──────────────────────────────────────────────────
+// §1.21 フォローリクエスト管理 + 通知設定
+// ──────────────────────────────────────────────────
+
+/** フォローリクエスト 1 件の送信者情報 */
+export const followRequestRequesterSchema = z.object({
+  id: z.string(),
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+  bio: z.string().nullable(),
+})
+export type FollowRequestRequester = z.infer<typeof followRequestRequesterSchema>
+
+/** GET /api/v1/users/me/follow-requests の 1 件 */
+export const followRequestItemSchema = z.object({
+  id: z.string(),
+  createdAt: z.string().datetime(),
+  requester: followRequestRequesterSchema,
+})
+export type FollowRequestItem = z.infer<typeof followRequestItemSchema>
+
+/** GET /api/v1/users/me/follow-requests 200 */
+export const followRequestsListResponseSchema = z.object({
+  requests: z.array(followRequestItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type FollowRequestsListResponse = z.infer<typeof followRequestsListResponseSchema>
+
+/**
+ * GET /api/v1/users/me/notification-settings の設定オブジェクト。
+ *
+ * 全キーは optional（未設定 = default true の意味）。
+ * system / subscription_expiring はユーザーが変更できないため含まない（Web 側と一致）。
+ */
+export const notificationPreferencesResponseSchema = z.object({
+  like: z.boolean().optional(),
+  comment: z.boolean().optional(),
+  reply: z.boolean().optional(),
+  comment_like: z.boolean().optional(),
+  follow: z.boolean().optional(),
+  quote: z.boolean().optional(),
+  follow_request: z.boolean().optional(),
+  follow_request_approved: z.boolean().optional(),
+  mention: z.boolean().optional(),
+  message: z.boolean().optional(),
+  repost: z.boolean().optional(),
+})
+export type NotificationPreferencesResponse = z.infer<typeof notificationPreferencesResponseSchema>
+
+/** GET /api/v1/users/me/notification-settings 200 */
+export const notificationSettingsResponseSchema = z.object({
+  preferences: notificationPreferencesResponseSchema,
+})
+export type NotificationSettingsResponse = z.infer<typeof notificationSettingsResponseSchema>
+
+// ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）
 // ──────────────────────────────────────────────────
 

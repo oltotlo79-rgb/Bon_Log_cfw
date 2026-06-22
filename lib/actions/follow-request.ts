@@ -9,7 +9,6 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { recordNewFollowerService } from '@/lib/services/analytics-recording'
 import { createNotification } from '@/lib/services/notification-core'
 import { USER_MINIMAL_WITH_BIO_SELECT } from '@/lib/prisma/shared-includes'
 import { requireAuth, requireActiveNonGuestUser, requireNotGuest, actionSuccess, actionError, type ActionResult, enforceUserRateLimit } from '@/lib/actions/utils'
@@ -21,6 +20,10 @@ import { FOLLOW_REQUEST_STATUS } from '@/lib/constants/status'
 import { ROUTE_SETTINGS_FOLLOW_REQUESTS } from '@/lib/constants/routes'
 import { buildUserPath } from '@/lib/constants/path-builders'
 import { checkInteractionEligibility } from '@/lib/services/user-eligibility'
+import {
+  approveFollowRequestCore,
+  rejectFollowRequestCore,
+} from '@/lib/services/follow-service'
 
 /**
  * フォローリクエストのステータス
@@ -155,64 +158,17 @@ export async function approveFollowRequest(requestId: string): Promise<ActionRes
   const rl = await enforceUserRateLimit(currentUserId, 'engagement')
   if (rl) return actionError(rl.error)
 
-  // リクエスト取得
-  const request = await prisma.followRequest.findUnique({
-    where: { id: requestId },
-    include: {
-      requester: { select: { id: true, nickname: true } },
-    },
-  })
+  const result = await approveFollowRequestCore(currentUserId, requestId)
 
-  if (!request) {
-    return actionError(ERR_FOLLOW_REQUEST_NOT_FOUND)
-  }
-
-  // 自分宛てのリクエストか確認
-  if (request.targetId !== currentUserId) {
-    return actionError(ERR_FOLLOW_REQUEST_APPROVE_DENIED)
-  }
-
-  // 既に処理済みか確認
-  if (request.status !== FOLLOW_REQUEST_STATUS.PENDING) {
+  if (!result.ok) {
+    if (result.reason === 'not_found') return actionError(ERR_FOLLOW_REQUEST_NOT_FOUND)
+    if (result.reason === 'forbidden') return actionError(ERR_FOLLOW_REQUEST_APPROVE_DENIED)
     return actionError(ERR_FOLLOW_REQUEST_ALREADY_PROCESSED)
   }
 
-  // フォロー関係作成とリクエスト削除を原子的に実行。
-  // upsert で冪等化し、二重承認や既存フォローでも unique 制約違反で落とさない。
-  // 通知は createNotification 経由で別途処理する（CLAUDE.md ルール6）。
-  await prisma.$transaction(async (tx) => {
-    await tx.follow.upsert({
-      where: {
-        followerId_followingId: {
-          followerId: request.requesterId,
-          followingId: currentUserId,
-        },
-      },
-      create: {
-        followerId: request.requesterId,
-        followingId: currentUserId,
-      },
-      update: {},
-    })
-
-    await tx.followRequest.delete({
-      where: { id: requestId },
-    })
-  })
-
-  // 承認通知（リクエスト送信者宛）。ブロック関係・通知設定・重複・プッシュ通知は
-  // createNotification 内部で処理される。
-  await createNotification({
-    userId: request.requesterId,
-    actorId: currentUserId,
-    type: 'follow_request_approved',
-  })
-
-  // アナリティクスに記録
-  void recordNewFollowerService(currentUserId).catch((err) => logger.error('recordNewFollower failed:', err))
-
   revalidatePath(ROUTE_SETTINGS_FOLLOW_REQUESTS)
-  revalidatePath(buildUserPath(request.requesterId))
+  // 承認でフォロー関係が確定するため、申請者プロフィールのキャッシュも無効化する
+  revalidatePath(buildUserPath(result.requesterId))
 
   return actionSuccess({ status: FOLLOW_REQUEST_STATUS.APPROVED })
 }
@@ -242,24 +198,12 @@ export async function rejectFollowRequest(requestId: string): Promise<ActionResu
   const rl = await enforceUserRateLimit(currentUserId, 'engagement')
   if (rl) return actionError(rl.error)
 
-  // リクエスト取得
-  const request = await prisma.followRequest.findUnique({
-    where: { id: requestId },
-  })
+  const result = await rejectFollowRequestCore(currentUserId, requestId)
 
-  if (!request) {
-    return actionError(ERR_FOLLOW_REQUEST_NOT_FOUND)
-  }
-
-  // 自分宛てのリクエストか確認
-  if (request.targetId !== currentUserId) {
+  if (!result.ok) {
+    if (result.reason === 'not_found') return actionError(ERR_FOLLOW_REQUEST_NOT_FOUND)
     return actionError(ERR_FOLLOW_REQUEST_REJECT_DENIED)
   }
-
-  // リクエスト削除（通知は送らない）
-  await prisma.followRequest.delete({
-    where: { id: requestId },
-  })
 
   revalidatePath(ROUTE_SETTINGS_FOLLOW_REQUESTS)
 

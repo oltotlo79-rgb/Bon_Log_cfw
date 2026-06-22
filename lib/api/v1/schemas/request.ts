@@ -58,6 +58,12 @@ export const passwordResetRequestSchema = z.object({
 })
 export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>
 
+/** POST /api/v1/auth/verify-email/resend */
+export const verifyEmailResendRequestSchema = z.object({
+  email: normalizedEmailSchema,
+})
+export type VerifyEmailResendRequest = z.infer<typeof verifyEmailResendRequestSchema>
+
 /** POST /api/v1/auth/password-reset/confirm */
 export const passwordResetConfirmSchema = z.object({
   email: normalizedEmailSchema,

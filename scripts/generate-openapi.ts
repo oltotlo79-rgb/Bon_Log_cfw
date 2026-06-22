@@ -76,6 +76,7 @@ async function main() {
     listCareLogsQuerySchema,
     MAX_CARE_LOG_RANGE_DAYS,
     MAX_BONSAI_CARE_NOTE_LENGTH,
+    verifyEmailResendRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -188,6 +189,10 @@ async function main() {
     careLogItemSchema,
     careLogCreatedResponseSchema,
     careLogListResponseSchema,
+    followRequestItemSchema,
+    followRequestsListResponseSchema,
+    notificationPreferencesResponseSchema,
+    notificationSettingsResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -297,6 +302,13 @@ async function main() {
     'PasswordResetRequest',
     passwordResetRequestSchema.openapi({
       description: 'パスワードリセットメール送信のリクエスト。',
+    }),
+  )
+
+  const VerifyEmailResendRequest = registry.register(
+    'VerifyEmailResendRequest',
+    verifyEmailResendRequestSchema.openapi({
+      description: '確認メール再送のリクエスト。メールアドレスの存在有無に関わらず常に 200 を返す（列挙攻撃対策）。',
     }),
   )
 
@@ -4712,6 +4724,231 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // §1.21 確認メール再送 スキーマ登録 + パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/auth/verify-email/resend',
+    tags: ['auth'],
+    summary: '確認メールを再送する',
+    description: [
+      '列挙攻撃対策: メールアドレスの存在有無・確認済み・バリデーション失敗に関わらず常に 200 を返す。',
+      'バリデーションエラーも 200 を返す（この仕様は意図的）。',
+      '認証不要（未ログイン状態からも呼び出せる公開エンドポイント）。',
+      '',
+      'レート制限: verify_email_resend（IP ベース、1 時間 3 回、fail-closed）',
+    ].join('\n'),
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: VerifyEmailResendRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'リクエスト受付（メールアドレス存在有無・確認済みに関わらず常に 200）',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
+  // §1.21 フォローリクエスト管理 スキーマ登録 + パス登録
+  // ──────────────────────────────────────────────────
+
+  const FollowRequestItem = registry.register(
+    'FollowRequestItem',
+    followRequestItemSchema.openapi({
+      description: 'フォローリクエスト 1 件（リクエスト ID、作成日時、送信者情報）。',
+    }),
+  )
+
+  const FollowRequestsListResponse = registry.register(
+    'FollowRequestsListResponse',
+    followRequestsListResponseSchema.openapi({
+      description: '受信フォローリクエスト一覧（pending のみ）。カーソルページネーション形式。',
+    }),
+  )
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/me/follow-requests',
+    tags: ['follow'],
+    summary: '受信フォローリクエスト一覧を取得する',
+    description: [
+      '自分宛ての pending フォローリクエスト一覧をカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- pending 状態のリクエストのみ返す（承認/拒否済みは含まない）',
+      '- 返却順: createdAt DESC、id DESC',
+      '- レート制限: timeline（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '受信フォローリクエスト一覧取得成功',
+        content: { 'application/json': { schema: FollowRequestsListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/users/me/follow-requests/{id}/approve',
+    tags: ['follow'],
+    summary: 'フォローリクエストを承認する',
+    description: [
+      '指定 ID のフォローリクエストを承認してフォロー関係を確立する。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 所有権チェック（自分宛てのリクエストのみ承認可）。他者のリクエスト / 不存在は 404',
+      '- 承認完了後、リクエスト送信者に follow_request_approved 通知を送る',
+      '- 既に承認/拒否済みの場合は 200 を返す（冪等）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'フォローリクエスト ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '承認成功（または既に処理済みで冪等成功）',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('リクエストが存在しないか自分宛てではない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/users/me/follow-requests/{id}/reject',
+    tags: ['follow'],
+    summary: 'フォローリクエストを拒否する',
+    description: [
+      '指定 ID のフォローリクエストを拒否してリクエストを削除する。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 所有権チェック（自分宛てのリクエストのみ拒否可）。他者のリクエスト / 不存在は 404',
+      '- 拒否後は通知を送らない（Web 側と同一仕様）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'フォローリクエスト ID' }) }),
+    },
+    responses: {
+      200: {
+        description: '拒否成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('リクエストが存在しないか自分宛てではない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
+  // §1.21 通知設定 スキーマ登録 + パス登録
+  // ──────────────────────────────────────────────────
+
+  const NotificationPreferencesResponse = registry.register(
+    'NotificationPreferencesResponse',
+    notificationPreferencesResponseSchema.openapi({
+      description: [
+        'ユーザーが変更可能な通知設定。全キーは optional（未設定 = default true の意味）。',
+        'system / subscription_expiring は重要なシステム通知のため含まれない（ユーザーが無効化不可）。',
+      ].join('\n'),
+    }),
+  )
+
+  const NotificationSettingsResponse = registry.register(
+    'NotificationSettingsResponse',
+    notificationSettingsResponseSchema.openapi({
+      description: 'GET /api/v1/users/me/notification-settings の成功レスポンス。',
+    }),
+  )
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/me/notification-settings',
+    tags: ['notifications'],
+    summary: '通知設定を取得する',
+    description: [
+      '認証ユーザー自身の通知設定を返す。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 未設定キーは省略（デフォルト true と解釈すること）',
+      '- system / subscription_expiring は含まれない（変更不可）',
+      '- レート制限なし（read 相当）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '通知設定取得成功',
+        content: { 'application/json': { schema: NotificationSettingsResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/v1/users/me/notification-settings',
+    tags: ['notifications'],
+    summary: '通知設定を部分更新する',
+    description: [
+      '通知設定を部分更新する。送信したキーのみ更新される。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- system / subscription_expiring キーは受け付けない（400 VALIDATION_ERROR）',
+      '- 省略したキーは現在値を維持する',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: NotificationPreferencesResponse },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '通知設定更新成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正なキー / 値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -4721,7 +4958,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.20.0',
+      version: '1.21.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

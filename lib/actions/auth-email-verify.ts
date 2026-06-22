@@ -14,25 +14,22 @@
 import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { sendVerificationEmail } from '@/lib/email'
-import { getAppUrl } from '@/lib/env'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   MAX_RESEND_VERIFICATION_ATTEMPTS,
   MIN_TOKEN_LENGTH,
-  ONE_DAY_MS,
   ONE_HOUR_MS,
-  TOKEN_RANDOM_BYTES,
 } from '@/lib/constants/limits'
 import {
-  ERR_EMAIL_SEND_FAILED,
   ERR_INVALID_TOKEN,
   ERR_RESEND_TOO_MANY,
   ERR_TOKEN_EXPIRED,
   ERR_TOKEN_EXPIRED_OR_INVALID,
+  ERR_VERIFICATION_EMAIL_FAILED,
 } from '@/lib/constants/errors/auth'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
 import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
+import { resendVerificationEmailCore } from '@/lib/services/email-verify-core'
 
 const resendVerificationSchema = z.object({
   email: normalizedEmailSchema,
@@ -100,42 +97,12 @@ export async function resendVerificationEmail(email: string) {
     return actionError(ERR_RESEND_TOO_MANY)
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: validEmail },
-    select: { id: true, emailVerified: true },
-  })
+  // 3. コアロジック呼び出し（ユーザー不在・確認済みでも ok:true を返す設計）
+  const coreResult = await resendVerificationEmailCore(validEmail)
 
-  // Return success even if user not found or already verified (enumeration prevention)
-  if (!user) {
-    return actionSuccess()
-  }
-
-  if (user.emailVerified) {
-    return actionSuccess()
-  }
-
-  await prisma.emailVerificationToken.deleteMany({
-    where: { email: validEmail },
-  })
-
-  const token = crypto.randomBytes(TOKEN_RANDOM_BYTES).toString('hex')
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-  const expires = new Date(Date.now() + ONE_DAY_MS)
-
-  await prisma.emailVerificationToken.create({
-    data: {
-      email: validEmail,
-      token: hashedToken,
-      expires,
-    },
-  })
-
-  const baseUrl = getAppUrl()
-  const verifyUrl = `${baseUrl}/verify-email?token=${token}`
-
-  const result = await sendVerificationEmail(validEmail, verifyUrl)
-  if (!result.success) {
-    return actionError(ERR_EMAIL_SEND_FAILED)
+  // メール送信失敗のみエラーを返す（ユーザー不在・確認済みは列挙攻撃対策で success のまま）
+  if (!coreResult.ok && coreResult.reason === 'email_send_failed') {
+    return actionError(ERR_VERIFICATION_EMAIL_FAILED)
   }
 
   return actionSuccess()
