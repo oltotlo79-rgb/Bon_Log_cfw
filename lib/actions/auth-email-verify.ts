@@ -21,11 +21,11 @@ import {
   ONE_HOUR_MS,
 } from '@/lib/constants/limits'
 import {
+  ERR_EMAIL_SEND_FAILED,
   ERR_INVALID_TOKEN,
   ERR_RESEND_TOO_MANY,
   ERR_TOKEN_EXPIRED,
   ERR_TOKEN_EXPIRED_OR_INVALID,
-  ERR_VERIFICATION_EMAIL_FAILED,
 } from '@/lib/constants/errors/auth'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
 import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
@@ -102,7 +102,7 @@ export async function resendVerificationEmail(email: string) {
 
   // メール送信失敗のみエラーを返す（ユーザー不在・確認済みは列挙攻撃対策で success のまま）
   if (!coreResult.ok && coreResult.reason === 'email_send_failed') {
-    return actionError(ERR_VERIFICATION_EMAIL_FAILED)
+    return actionError(ERR_EMAIL_SEND_FAILED)
   }
 
   return actionSuccess()
