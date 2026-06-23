@@ -98,8 +98,8 @@ describe('processRevenueCatEvent', () => {
 
   it('INITIAL_PURCHASE で expiration_at_ms が undefined → premiumExpiresAt 更新なし', async () => {
     const { processRevenueCatEvent } = await import('@/lib/services/revenuecat')
-    const event = makeEvent({ type: 'INITIAL_PURCHASE' })
-    delete event.expiration_at_ms
+    // expiration_at_ms を含まないイベントを直接構築して undefined 相当を再現する
+    const event = makeEvent({ type: 'INITIAL_PURCHASE', expiration_at_ms: undefined })
     await processRevenueCatEvent(event)
 
     expect(mockUserUpdate).toHaveBeenCalledWith({

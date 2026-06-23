@@ -1,5 +1,10 @@
 #!/usr/bin/env sh
 set -e
 
+# Type check test files with the same tsconfig CI uses.
+# pre-commit only checks tsconfig.check.json (excludes __tests__), so test-file
+# type errors would otherwise only surface in CI's "Type check (tests)" step.
+npx tsc --noEmit -p tsconfig.test.json
+
 # Run unit tests before push to catch regressions early
 npx vitest run --reporter=dot

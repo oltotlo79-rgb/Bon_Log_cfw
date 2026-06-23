@@ -185,7 +185,6 @@ describe('PATCH /api/v1/users/me/notification-settings', () => {
 
   it('system キーは Zod の strip() で除外される', async () => {
     const token = await makeAuthToken('user-me', 'me@example.com')
-    // @ts-expect-error system は schema 外のキー
     const req = makePatchRequest(token, { like: true, system: true })
     const { PATCH } = await import('@/app/api/v1/users/me/notification-settings/route')
     await PATCH(req)
@@ -199,7 +198,6 @@ describe('PATCH /api/v1/users/me/notification-settings', () => {
 
   it('subscription_expiring キーは Zod の strip() で除外される', async () => {
     const token = await makeAuthToken('user-me', 'me@example.com')
-    // @ts-expect-error subscription_expiring は schema 外のキー
     const req = makePatchRequest(token, { follow: true, subscription_expiring: false })
     const { PATCH } = await import('@/app/api/v1/users/me/notification-settings/route')
     await PATCH(req)

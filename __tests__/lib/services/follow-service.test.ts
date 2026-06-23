@@ -17,7 +17,9 @@ const mockPrisma = {
   followRequest: {
     findUnique: vi.fn(),
     create: vi.fn(),
+    delete: vi.fn(),
     deleteMany: vi.fn(),
+    findMany: vi.fn(),
   },
   $transaction: vi.fn(),
 }
@@ -482,7 +484,7 @@ describe('listReceivedFollowRequests', () => {
     const result = await listReceivedFollowRequests(TARGET)
 
     expect(result.requests).toHaveLength(1)
-    expect(result.requests[0].id).toBe('req-001')
+    expect(result.requests[0]?.id).toBe('req-001')
   })
 
   it('件数がリミット未満の場合は nextCursor が undefined', async () => {
