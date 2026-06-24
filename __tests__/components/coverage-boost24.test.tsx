@@ -777,6 +777,10 @@ vi.mock('@/app/admin/premium/AdminPremiumToggle', () => ({
   AdminPremiumToggle: () => <div>Toggle</div>,
 }))
 
+vi.mock('@/app/admin/premium/GrantPremiumPanel', () => ({
+  GrantPremiumPanel: () => <div>GrantPremiumPanel</div>,
+}))
+
 describe('AdminPremiumPage', async () => {
   let AdminPremiumPage: typeof import('@/app/admin/premium/page').default
 
