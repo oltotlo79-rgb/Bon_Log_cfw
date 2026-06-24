@@ -115,6 +115,14 @@ export const HEALTH_CHECK_PING_TTL_SECONDS = 60
 /** Redis レイテンシが「degraded」と判定される閾値（ミリ秒） */
 export const REDIS_LATENCY_DEGRADED_THRESHOLD_MS = 500
 
+/**
+ * 管理者プレミアム検索のデバウンス遅延（ミリ秒）。
+ * 一般検索の DEBOUNCE_SEARCH_MS より長く設定することで、
+ * 管理者がユーザー ID / メールをある程度入力してからリクエストを発行し、
+ * DB へのスキャン頻度を抑制する。
+ */
+export const ADMIN_PREMIUM_SEARCH_DEBOUNCE_MS = 400
+
 /** プレミアム手動付与のデフォルト日数 */
 export const DEFAULT_PREMIUM_GRANT_DAYS = 30
 

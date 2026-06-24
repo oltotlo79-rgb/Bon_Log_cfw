@@ -4,6 +4,7 @@ import { Crown as CrownIcon, Search as SearchIcon } from 'lucide-react'
 import { getPremiumUsers, getPremiumStats, getAdminPremiumStatus } from '@/lib/actions/admin/premium'
 import { PremiumActionsDropdown } from './PremiumActionsDropdown'
 import { AdminPremiumToggle } from './AdminPremiumToggle'
+import { GrantPremiumPanel } from './GrantPremiumPanel'
 import {
   DEFAULT_PAGE_LIMIT,
   PREMIUM_EXPIRING_WARN_DAYS,
@@ -81,6 +82,8 @@ export default async function AdminPremiumPage({ searchParams }: PageProps) {
           </div>
         </div>
       )}
+
+      <GrantPremiumPanel />
 
       <div className="bg-card rounded-lg border p-4">
         <form className="flex flex-wrap gap-4">
