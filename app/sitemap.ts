@@ -22,6 +22,7 @@ import {
   BASE_URL,
   ROUTE_ABOUT,
   ROUTE_ACCESSIBILITY,
+  ROUTE_ACCOUNT_DELETION,
   ROUTE_CONTACT,
   ROUTE_DICTIONARY,
   ROUTE_EVENTS,
@@ -87,6 +88,7 @@ const STATIC_PAGES: readonly StaticEntry[] = [
   { path: ROUTE_TERMS, changeFrequency: 'monthly', priority: 0.3 },
   { path: ROUTE_TOKUSHOHO, changeFrequency: 'monthly', priority: 0.3 },
   { path: ROUTE_ACCESSIBILITY, changeFrequency: 'yearly', priority: 0.2 },
+  { path: ROUTE_ACCOUNT_DELETION, changeFrequency: 'yearly', priority: 0.2 },
   { path: ROUTE_SHOPS, changeFrequency: 'daily', priority: 0.8 },
   { path: ROUTE_EVENTS, changeFrequency: 'daily', priority: 0.8 },
   { path: ROUTE_DICTIONARY, changeFrequency: 'weekly', priority: 0.7 },
@@ -129,7 +131,7 @@ const REFERENCE_PRIORITY = 0.6
 // 更新された日」を表す固定値。`new Date()` を使うと sitemap が毎回変わって
 // 検索エンジンに不要な再クロールを促すため、人が意識的に更新する。
 // 公開ページに新しいルートを追加したり既存ページの文面を更新した際にここを bump する。
-const STATIC_PAGES_LAST_MODIFIED = new Date('2026-05-13T00:00:00Z')
+const STATIC_PAGES_LAST_MODIFIED = new Date('2026-06-25T00:00:00Z')
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = BASE_URL

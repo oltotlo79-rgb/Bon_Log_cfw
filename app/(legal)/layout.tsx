@@ -7,6 +7,7 @@ import {
   ROUTE_HELP,
   ROUTE_CONTACT,
   ROUTE_ACCESSIBILITY,
+  ROUTE_ACCOUNT_DELETION,
 } from '@/lib/constants/routes'
 
 export default function LegalLayout({
@@ -31,6 +32,7 @@ export default function LegalLayout({
             <Link href={ROUTE_HELP} className="hover:text-foreground">ヘルプ</Link>
             <Link href={ROUTE_CONTACT} className="hover:text-foreground">お問い合わせ</Link>
             <Link href={ROUTE_ACCESSIBILITY} className="hover:text-foreground">アクセシビリティ</Link>
+            <Link href={ROUTE_ACCOUNT_DELETION} className="hover:text-foreground">アカウント削除</Link>
           </div>
           <p className="text-center text-xs text-muted-foreground">
             &copy; 2024 BON-LOG. All rights reserved.

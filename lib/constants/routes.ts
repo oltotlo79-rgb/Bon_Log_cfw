@@ -36,6 +36,7 @@ export const ROUTE_PRIVACY = '/privacy'
 export const ROUTE_TERMS = '/terms'
 export const ROUTE_TOKUSHOHO = '/tokushoho'
 export const ROUTE_ACCESSIBILITY = '/accessibility'
+export const ROUTE_ACCOUNT_DELETION = '/account-deletion'
 
 // ユーザー系
 export const ROUTE_NOTIFICATIONS = '/notifications'
