@@ -55,7 +55,9 @@ export async function fetchPostsByHashtag(
     where: {
       isHidden: false,
       user: visibleAuthorFilter(viewerId),
-      content: { contains: `#${hashtagName}`, mode: 'insensitive' },
+      // PostHashtag JOIN: content ILIKE より hashtagId インデックス経由で効率的に絞り込む。
+      // Hashtag.name は extractHashtags() により lowercase 正規化済みのため .toLowerCase() が前提。
+      hashtags: { some: { hashtag: { name: hashtagName.toLowerCase() } } },
       ...(excludedUserIds.length > 0 ? { userId: { notIn: excludedUserIds } } : {}),
     },
     include: { ...POST_LIST_INCLUDE },

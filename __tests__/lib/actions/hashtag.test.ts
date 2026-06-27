@@ -235,6 +235,38 @@ describe('Hashtag Actions', async () => {
       })
       expect(result.hashtag?.count).toBe(7)
     })
+
+    it('post.findMany の WHERE が PostHashtag JOIN 形式で、content.contains を使わない', async () => {
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce(null)
+
+      const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+      await getPostsByHashtag('黒松')
+
+      const callArg = mockPrisma.post.findMany.mock.calls[0]?.[0] as {
+        where: { hashtags?: { some: { hashtag: { name: string } } }; content?: unknown }
+      }
+      expect(callArg.where.hashtags).toMatchObject({
+        some: { hashtag: { name: '黒松' } },
+      })
+      // content ILIKE 検索は廃止されているため WHERE に含まれないこと
+      expect(callArg.where.content).toBeUndefined()
+    })
+
+    it('大文字を含むタグ名を渡しても post.findMany の WHERE では name が小文字化される', async () => {
+      mockPrisma.post.findMany.mockResolvedValueOnce([])
+      mockPrisma.hashtag.findUnique.mockResolvedValueOnce(null)
+
+      const { getPostsByHashtag } = await import('@/lib/actions/hashtag')
+      await getPostsByHashtag('BlackPine')
+
+      const callArg = mockPrisma.post.findMany.mock.calls[0]?.[0] as {
+        where: { hashtags?: { some: { hashtag: { name: string } } } }
+      }
+      expect(callArg.where.hashtags).toMatchObject({
+        some: { hashtag: { name: 'blackpine' } },
+      })
+    })
   })
 
   // ============================================================

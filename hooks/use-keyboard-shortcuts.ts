@@ -22,6 +22,8 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TIMEOUT_KEY_RESET } from '@/lib/constants/limits'
+import { ROUTE_FEED, ROUTE_NOTIFICATIONS, ROUTE_SETTINGS, ROUTE_EVENTS, ROUTE_SHOPS } from '@/lib/constants/routes'
+import { buildUserPath } from '@/lib/constants/path-builders'
 
 /**
  * キーボードショートカットフックのオプション
@@ -157,24 +159,24 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
 
       switch (key) {
         case 'h': // g h: ホーム
-          router.push('/feed')
+          router.push(ROUTE_FEED)
           break
         case 'n': // g n: 通知
-          router.push('/notifications')
+          router.push(ROUTE_NOTIFICATIONS)
           break
         case 'p': // g p: プロフィール
           if (userId) {
-            router.push(`/users/${userId}`)
+            router.push(buildUserPath(userId))
           }
           break
         case 's': // g s: 設定
-          router.push('/settings')
+          router.push(ROUTE_SETTINGS)
           break
         case 'e': // g e: イベント
-          router.push('/events')
+          router.push(ROUTE_EVENTS)
           break
         case 'm': // g m: マップ
-          router.push('/shops')
+          router.push(ROUTE_SHOPS)
           break
       }
       return

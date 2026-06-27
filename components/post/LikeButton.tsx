@@ -47,6 +47,7 @@ export function LikeButton({ postId, initialLiked, initialCount }: LikeButtonPro
 
   async function handleToggle() {
     const newLiked = !liked
+    const prevCount = count
     setLiked(newLiked)
     setCount((prev) => (newLiked ? prev + 1 : prev - 1))
 
@@ -65,7 +66,7 @@ export function LikeButton({ postId, initialLiked, initialCount }: LikeButtonPro
 
       if (!result.success) {
         setLiked(liked)
-        setCount(initialCount)
+        setCount(prevCount)
         toast({
           title: MSG_ERROR_TITLE,
           description: MSG_LIKE_FAILED,

@@ -6,7 +6,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { JST_OFFSET_MS } from '@/lib/constants/limits/time'
+import { JST_OFFSET_MS, ONE_DAY_MS } from '@/lib/constants/limits/time'
 
 /**
  * Tailwind クラスを条件付きで結合し、競合（例: `p-4 p-2` → `p-2`）を解決する。
@@ -72,5 +72,5 @@ export function getEndOfDay(date?: Date): Date {
  * @param days - 何日前か（正の整数）
  */
 export function getStartOfNDaysAgo(days: number): Date {
-  return new Date(getStartOfToday().getTime() - days * 24 * 60 * 60 * 1000)
+  return new Date(getStartOfToday().getTime() - days * ONE_DAY_MS)
 }

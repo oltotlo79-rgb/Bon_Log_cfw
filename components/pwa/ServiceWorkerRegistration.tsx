@@ -20,6 +20,7 @@ export function ServiceWorkerRegistration() {
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false)
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
   const isInitialized = useRef(false)
+  const swIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Service Workerの登録処理
   const registerSW = useCallback(async () => {
@@ -57,13 +58,11 @@ export function ServiceWorkerRegistration() {
       // (デプロイ直後の hash 不一致 / 一時的な CDN 5xx / ネットワーク中断) が
       // unhandled rejection として Sentry に大量に飛んでくる。次回 interval で
       // 再試行されるため、ログだけ残してエラーは握りつぶす。
-      const intervalId = setInterval(() => {
+      swIntervalRef.current = setInterval(() => {
         registration.update().catch((err) => {
           clientLogger.warn('[SW] update() failed (non-fatal, will retry):', err)
         })
       }, SW_UPDATE_INTERVAL_MS)
-
-      return () => clearInterval(intervalId)
     } catch (error) {
       clientLogger.error('[SW] Service Worker registration failed:', error)
     }
@@ -123,7 +122,11 @@ export function ServiceWorkerRegistration() {
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('load', registerSW)
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+      if (swIntervalRef.current !== null) {
+        clearInterval(swIntervalRef.current)
+      }
     }
   }, [registerSW])
   /* eslint-enable react-hooks/set-state-in-effect */

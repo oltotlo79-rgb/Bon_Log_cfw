@@ -71,6 +71,8 @@ tmpclaude-*-cwd
 /.clone/
 analyze.js
 vitest-stderr.txt
+vitest-*-output.txt
+*coverage-result.txt
 
 /docs/plans/
 

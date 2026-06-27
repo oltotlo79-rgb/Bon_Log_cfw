@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import {
@@ -17,6 +18,7 @@ import {
   SITEMAP_TREE_SPECIES_LIMIT,
   SITEMAP_HORMONE_TYPES_LIMIT,
   SITEMAP_HORMONE_COLUMNS_LIMIT,
+  SITEMAP_REVALIDATE_SECONDS,
 } from '@/lib/constants/limits'
 import {
   BASE_URL,
@@ -133,6 +135,139 @@ const REFERENCE_PRIORITY = 0.6
 // 公開ページに新しいルートを追加したり既存ページの文面を更新した際にここを bump する。
 const STATIC_PAGES_LAST_MODIFIED = new Date('2026-06-25T00:00:00Z')
 
+/**
+ * サイトマップの動的 URL 群を DB から取得してキャッシュする。
+ *
+ * `export const dynamic = 'force-dynamic'` でルート自体は常に再実行されるが、
+ * このキャッシュにより 1 リクエストごとの DB 負荷を SITEMAP_REVALIDATE_SECONDS 周期に抑える。
+ * unstable_cache は通常の定数を revalidate オプションに受け付ける（Route Segment Config と異なる）。
+ */
+const fetchSitemapData = unstable_cache(
+  async () => {
+    // ROUTE_BONSAI は PROTECTED_PATHS に含まれる認証必須 route のため sitemap には
+    // 出力しない (Search Console 上で blocked / soft 404 が増えるのを防ぐ)。
+    // 将来的に公開盆栽プロフィールを出す場合は別 route (例: /public-bonsai/[id]) を
+    // 用意し、その route を sitemap に追加する。
+    const [
+      users,
+      posts,
+      shops,
+      events,
+      terms,
+      pesticides,
+      diseasePests,
+      pesticideColumns,
+      activeIngredients,
+      spreaderTypes,
+      fertilizerColumns,
+      fertilizerNutrients,
+      treeSpecies,
+      hormoneTypes,
+      hormoneColumns,
+    ] = await Promise.all([
+      prisma.user.findMany({
+        where: { isPublic: true, isSuspended: false, email: { not: GUEST_EMAIL } },
+        select: { id: true, updatedAt: true },
+        take: SITEMAP_USERS_LIMIT,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      prisma.post.findMany({
+        // 非公開ユーザー / 停止ユーザー / 隠し投稿 / リポストを除外し、detail page の公開条件と一致させる。
+        where: {
+          user: { isPublic: true, isSuspended: false },
+          repostPostId: null,
+          isHidden: false,
+        },
+        select: { id: true, createdAt: true },
+        take: SITEMAP_POSTS_LIMIT,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.bonsaiShop.findMany({
+        where: { isHidden: false },
+        select: { id: true, updatedAt: true },
+        take: SITEMAP_SHOPS_LIMIT,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      prisma.event.findMany({
+        where: {
+          isHidden: false,
+          OR: [
+            { endDate: { gte: new Date() } },
+            { endDate: null, startDate: { gte: new Date() } },
+          ],
+        },
+        select: { id: true, createdAt: true },
+        take: SITEMAP_EVENTS_LIMIT,
+        orderBy: { startDate: 'asc' },
+      }),
+      prisma.bonsaiTerm.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_DICTIONARY_LIMIT,
+      }),
+      prisma.pesticide.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_PESTICIDES_LIMIT,
+      }),
+      prisma.diseasePest.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_DISEASE_PESTS_LIMIT,
+      }),
+      prisma.pesticideColumn.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_PESTICIDE_COLUMNS_LIMIT,
+      }),
+      prisma.activeIngredient.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_ACTIVE_INGREDIENTS_LIMIT,
+      }),
+      prisma.spreaderType.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_SPREADER_TYPES_LIMIT,
+      }),
+      prisma.fertilizerColumn.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_FERTILIZER_COLUMNS_LIMIT,
+      }),
+      prisma.fertilizerNutrient.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_FERTILIZER_NUTRIENTS_LIMIT,
+      }),
+      prisma.treeSpecies.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_TREE_SPECIES_LIMIT,
+      }),
+      prisma.hormoneType.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_HORMONE_TYPES_LIMIT,
+      }),
+      prisma.hormoneColumn.findMany({
+        select: { slug: true, updatedAt: true },
+        take: SITEMAP_HORMONE_COLUMNS_LIMIT,
+      }),
+    ])
+
+    return {
+      users,
+      posts,
+      shops,
+      events,
+      terms,
+      pesticides,
+      diseasePests,
+      pesticideColumns,
+      activeIngredients,
+      spreaderTypes,
+      fertilizerColumns,
+      fertilizerNutrients,
+      treeSpecies,
+      hormoneTypes,
+      hormoneColumns,
+    }
+  },
+  ['sitemap-dynamic-data'],
+  { revalidate: SITEMAP_REVALIDATE_SECONDS },
+)
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = BASE_URL
 
@@ -150,11 +285,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticPages
   }
 
-  // ROUTE_BONSAI は PROTECTED_PATHS に含まれる認証必須 route のため sitemap には
-  // 出力しない (Search Console 上で blocked / soft 404 が増えるのを防ぐ)。
-  // 将来的に公開盆栽プロフィールを出す場合は別 route (例: /public-bonsai/[id]) を
-  // 用意し、その route を sitemap に追加する。
-  const [
+  const {
     users,
     posts,
     shops,
@@ -170,87 +301,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     treeSpecies,
     hormoneTypes,
     hormoneColumns,
-  ] = await Promise.all([
-    prisma.user.findMany({
-      where: { isPublic: true, isSuspended: false, email: { not: GUEST_EMAIL } },
-      select: { id: true, updatedAt: true },
-      take: SITEMAP_USERS_LIMIT,
-      orderBy: { updatedAt: 'desc' },
-    }),
-    prisma.post.findMany({
-      // 非公開ユーザー / 停止ユーザー / 隠し投稿 / リポストを除外し、detail page の公開条件と一致させる。
-      where: {
-        user: { isPublic: true, isSuspended: false },
-        repostPostId: null,
-        isHidden: false,
-      },
-      select: { id: true, createdAt: true },
-      take: SITEMAP_POSTS_LIMIT,
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.bonsaiShop.findMany({
-      where: { isHidden: false },
-      select: { id: true, updatedAt: true },
-      take: SITEMAP_SHOPS_LIMIT,
-      orderBy: { updatedAt: 'desc' },
-    }),
-    prisma.event.findMany({
-      where: {
-        isHidden: false,
-        OR: [
-          { endDate: { gte: new Date() } },
-          { endDate: null, startDate: { gte: new Date() } },
-        ],
-      },
-      select: { id: true, createdAt: true },
-      take: SITEMAP_EVENTS_LIMIT,
-      orderBy: { startDate: 'asc' },
-    }),
-    prisma.bonsaiTerm.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_DICTIONARY_LIMIT,
-    }),
-    prisma.pesticide.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_PESTICIDES_LIMIT,
-    }),
-    prisma.diseasePest.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_DISEASE_PESTS_LIMIT,
-    }),
-    prisma.pesticideColumn.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_PESTICIDE_COLUMNS_LIMIT,
-    }),
-    prisma.activeIngredient.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_ACTIVE_INGREDIENTS_LIMIT,
-    }),
-    prisma.spreaderType.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_SPREADER_TYPES_LIMIT,
-    }),
-    prisma.fertilizerColumn.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_FERTILIZER_COLUMNS_LIMIT,
-    }),
-    prisma.fertilizerNutrient.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_FERTILIZER_NUTRIENTS_LIMIT,
-    }),
-    prisma.treeSpecies.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_TREE_SPECIES_LIMIT,
-    }),
-    prisma.hormoneType.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_HORMONE_TYPES_LIMIT,
-    }),
-    prisma.hormoneColumn.findMany({
-      select: { slug: true, updatedAt: true },
-      take: SITEMAP_HORMONE_COLUMNS_LIMIT,
-    }),
-  ])
+  } = await fetchSitemapData()
 
   const userPages: MetadataRoute.Sitemap = users.map((user: typeof users[number]) => ({
     url: `${baseUrl}${buildUserPath(user.id)}`,

@@ -821,6 +821,70 @@ describe('ServiceWorkerRegistration', () => {
       // Check that removeEventListener was called on serviceWorker container
       expect(swContainer.removeEventListener).toHaveBeenCalledWith('controllerchange', expect.any(Function))
     })
+
+    it('readyState=loading のときアンマウントで removeEventListener("load") が呼ばれる', async () => {
+      processEnv.NODE_ENV = 'production'
+      const swContainer = createMockServiceWorkerContainer()
+      Object.defineProperty(navigator, 'serviceWorker', { value: swContainer, configurable: true, writable: true })
+      Object.defineProperty(document, 'readyState', { value: 'loading', configurable: true })
+
+      let unmountFn: () => void
+      await act(async () => {
+        const result = render(<ServiceWorkerRegistration />)
+        unmountFn = result.unmount
+      })
+
+      // readyState=loading のとき 'load' リスナーが登録されていること
+      expect(windowListeners['load']).toBeDefined()
+      expect(windowListeners['load']!.length).toBeGreaterThan(0)
+
+      act(() => {
+        unmountFn!()
+      })
+
+      // アンマウント時に 'load' リスナーが削除されること
+      expect(removeEventListenerSpy).toHaveBeenCalledWith('load', expect.any(Function))
+
+      // Restore readyState
+      Object.defineProperty(document, 'readyState', { value: 'complete', configurable: true })
+    })
+
+    it('アンマウント時に clearInterval が呼ばれ、以後 registration.update() が増えない', async () => {
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
+
+      const swContainer = setupProductionSW()
+      const registration = createMockRegistration()
+      swContainer.register.mockResolvedValue(registration)
+
+      let unmountFn: () => void
+      await act(async () => {
+        const result = render(<ServiceWorkerRegistration />)
+        unmountFn = result.unmount
+      })
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      // 1時間進めて interval が1回呼ばれることを確認
+      act(() => {
+        vi.advanceTimersByTime(60 * 60 * 1000)
+      })
+      expect(registration.update).toHaveBeenCalledTimes(1)
+
+      // アンマウント
+      act(() => {
+        unmountFn!()
+      })
+
+      // clearInterval が呼ばれたことを確認
+      expect(clearIntervalSpy).toHaveBeenCalled()
+
+      // さらに1時間進めても update が増えないことを確認（interval 停止の保証）
+      act(() => {
+        vi.advanceTimersByTime(60 * 60 * 1000)
+      })
+      expect(registration.update).toHaveBeenCalledTimes(1)
+    })
   })
 
   // =======================================================

@@ -227,19 +227,20 @@ describe('fetchPostsByHashtag', () => {
     expect(result.nextCursor).toBeUndefined()
   })
 
-  it('findMany の where に content の contains 条件が含まれる', async () => {
+  it('findMany の where に PostHashtag JOIN 形式の hashtags 条件が含まれ content.contains は使わない', async () => {
     mockPostFindMany.mockResolvedValue([])
 
     const { fetchPostsByHashtag } = await import('@/lib/services/explore-posts-service')
     await fetchPostsByHashtag('黒松', VIEWER_ID)
 
     const callArg = mockPostFindMany.mock.calls[0]?.[0] as {
-      where: { content: { contains: string; mode: string } }
+      where: { hashtags?: { some: { hashtag: { name: string } } }; content?: unknown }
     }
-    expect(callArg.where.content).toMatchObject({
-      contains: '#黒松',
-      mode: 'insensitive',
+    expect(callArg.where.hashtags).toMatchObject({
+      some: { hashtag: { name: '黒松' } },
     })
+    // content ILIKE 検索は廃止されているため WHERE に含まれないこと
+    expect(callArg.where.content).toBeUndefined()
   })
 })
 

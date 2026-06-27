@@ -1,22 +1,23 @@
 import { vi } from 'vitest'
- 
+
 // @vitest-environment node
 
 /**
  * Coverage boost tests for various action files.
  *
- * Targets the following uncovered lines:
- * - post.ts line 276: media data mismatch
- * - comment.ts line 236: media data mismatch
- * - scheduled-post.ts lines 201, 550: media data mismatch
- * - event.ts lines 94, 99: invalid date format
- * - follow.ts lines 236-237: DB error catch block
- * - auth.ts lines 163-169: x-real-ip and 'unknown' IP extraction
- * - bonsai.ts lines 77-79: x-real-ip and 'unknown' IP extraction
- * - blacklist.ts lines 224-225: addDeviceToBlacklist error catch
- * - analytics.ts lines 741-743: daily stats aggregation
+ * Target branches:
+ * - createPost: mediaUrls と mediaTypes の長さ不一致
+ * - createComment: mediaUrls と mediaTypes の長さ不一致
+ * - createScheduledPost / updateScheduledPost: mediaUrls と mediaTypes の長さ不一致
+ * - createEvent: 開始日・終了日の形式不正
+ * - toggleFollow: DB エラー catch ブロック
+ * - getClientIp: x-real-ip ヘッダーと 'unknown' フォールバック
+ * - searchBonsais: x-real-ip ヘッダーと 'unknown' フォールバック
+ * - addDeviceToBlacklist: DB エラー catch ブロック
+ * - daily stats aggregation
  */
 
+import { ERR_MEDIA_DATA_INVALID } from '@/lib/constants/errors'
 import { createMockPrismaClient, mockUser } from '../../utils/test-utils'
 
 // ============================================================
@@ -203,7 +204,7 @@ describe('Coverage Boost - Action Files', async () => {
   })
 
   // ============================================================
-  // 1. post.ts line 276 - media data mismatch
+  // 1. createPost: mediaUrls/mediaTypes 長さ不一致
   // ============================================================
   describe('post.ts - createPost media data mismatch', async () => {
     it('mediaUrlsとmediaTypesの長さが異なる場合はエラーを返す', async () => {
@@ -220,12 +221,12 @@ describe('Coverage Boost - Action Files', async () => {
       const result = await createPost(formData)
 
       expect(result.success).toBe(false)
-      expect('error' in result && result.error).toBe('メディアデータが不正です')
+      expect('error' in result && result.error).toBe(ERR_MEDIA_DATA_INVALID)
     })
   })
 
   // ============================================================
-  // 2. comment.ts line 236 - media data mismatch
+  // 2. createComment: mediaUrls/mediaTypes 長さ不一致
   // ============================================================
   describe('comment.ts - createComment media data mismatch', async () => {
     it('mediaUrlsとmediaTypesの長さが異なる場合はエラーを返す', async () => {
@@ -241,12 +242,12 @@ describe('Coverage Boost - Action Files', async () => {
 
       const result = await createComment(formData)
 
-      expect('error' in result && result.error).toBe('メディアデータが不正です')
+      expect('error' in result && result.error).toBe(ERR_MEDIA_DATA_INVALID)
     })
   })
 
   // ============================================================
-  // 3. scheduled-post.ts lines 201, 550 - media data mismatch
+  // 3. createScheduledPost / updateScheduledPost: mediaUrls/mediaTypes 長さ不一致
   // ============================================================
   describe('scheduled-post.ts - media data mismatch', async () => {
     it('createScheduledPost: mediaUrlsとmediaTypesの長さが異なる場合はエラーを返す', async () => {
@@ -267,7 +268,7 @@ describe('Coverage Boost - Action Files', async () => {
 
       const result = await createScheduledPost(formData)
 
-      expect(result).toMatchObject({ error: 'メディアデータが不正です' })
+      expect(result).toMatchObject({ error: ERR_MEDIA_DATA_INVALID })
     })
 
     it('updateScheduledPost: mediaUrlsとmediaTypesの長さが異なる場合はエラーを返す', async () => {
@@ -296,12 +297,12 @@ describe('Coverage Boost - Action Files', async () => {
 
       const result = await updateScheduledPost('scheduled-1', formData)
 
-      expect(result).toMatchObject({ error: 'メディアデータが不正です' })
+      expect(result).toMatchObject({ error: ERR_MEDIA_DATA_INVALID })
     })
   })
 
   // ============================================================
-  // 4. event.ts lines 94, 99 - invalid date format
+  // 4. createEvent: 開始日・終了日の形式不正
   // ============================================================
   describe('event.ts - invalid date format', async () => {
     it('開始日の形式が不正な場合はエラーを返す', async () => {
@@ -333,7 +334,7 @@ describe('Coverage Boost - Action Files', async () => {
   })
 
   // ============================================================
-  // 5. follow.ts lines 236-237 - DB error catch block
+  // 5. toggleFollow: DB エラー catch ブロック
   // ============================================================
   describe('follow.ts - toggleFollow DB error', async () => {
     it('DB操作がエラーの場合はフォロー操作に失敗しましたを返す', async () => {
@@ -376,7 +377,7 @@ describe('Coverage Boost - Action Files', async () => {
   })
 
   // ============================================================
-  // 7. bonsai.ts lines 77-79 - IP extraction (x-real-ip and 'unknown')
+  // 7. searchBonsais: IP 抽出（x-real-ip と 'unknown' フォールバック）
   // ============================================================
   describe('bonsai.ts - getClientIpFromHeaders IP extraction', async () => {
     it('x-real-ipヘッダーがある場合はそのIPを使用する', async () => {
@@ -415,7 +416,7 @@ describe('Coverage Boost - Action Files', async () => {
   })
 
   // ============================================================
-  // 8. blacklist.ts lines 224-225 - error catch
+  // 8. addDeviceToBlacklist: DB エラー catch ブロック
   // ============================================================
   describe('blacklist.ts - addDeviceToBlacklist error catch', async () => {
     it('prisma操作がエラーの場合はブラックリストへの追加に失敗しましたを返す', async () => {

@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
 import { createNotification } from '@/lib/services/notification-core'
 import { createNotificationsBulk } from '@/lib/services/notification-bulk'
+import { COMMENT_THREAD_MAX_DEPTH } from '@/lib/constants/limits'
 
 /**
  * コメント作成時に関係するユーザーへ通知を送信する。
@@ -43,7 +44,7 @@ export async function notifyCommentParticipants(
         UNION ALL
         SELECT c.id, c.user_id, c.parent_id, a.depth + 1 FROM comments c
         INNER JOIN ancestors a ON c.id = a.parent_id
-        WHERE a.depth < 50
+        WHERE a.depth < ${COMMENT_THREAD_MAX_DEPTH}
       )
       SELECT id, user_id, parent_id FROM ancestors LIMIT 100
     `.catch((err: unknown) => {

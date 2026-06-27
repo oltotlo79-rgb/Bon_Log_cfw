@@ -89,4 +89,31 @@ describe('LikeButton', () => {
     rerender(<LikeButton postId="post-1" initialLiked={true} initialCount={15} />)
     expect(screen.getByText('15')).toBeInTheDocument()
   })
+
+  it('1回目いいね成功後に2回目取消がサーバー失敗した場合、直前の楽観値(11)に戻る', async () => {
+    // 1回目: いいね成功 / 2回目: 取消サーバー失敗
+    mockTogglePostLike
+      .mockResolvedValueOnce({ success: true, data: { liked: true } })
+      .mockResolvedValueOnce({ success: false, error: 'サーバーエラー' })
+
+    const user = userEvent.setup()
+    render(<LikeButton postId="post-1" initialLiked={false} initialCount={10} />)
+
+    // クリック1: いいね → 楽観で count=11、liked=true になる
+    await user.click(screen.getByRole('button'))
+    await waitFor(() => {
+      expect(screen.getByText('11')).toBeInTheDocument()
+    })
+    // いいね済み状態を確認
+    expect(screen.getByRole('button')).toHaveClass('text-rose-500')
+
+    // クリック2: 取消 → 楽観で count=10 になるが、サーバー失敗でロールバック
+    await user.click(screen.getByRole('button'))
+    await waitFor(() => {
+      // initialCount(10) ではなく直前の楽観値(11)に戻ること（off-by-one 防止）
+      expect(screen.getByText('11')).toBeInTheDocument()
+    })
+    // liked も true（いいね済み）に戻ること
+    expect(screen.getByRole('button')).toHaveClass('text-rose-500')
+  })
 })

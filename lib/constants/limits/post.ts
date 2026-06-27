@@ -72,6 +72,14 @@ export const MAX_COMMENT_LENGTH = 500
 /** 1日のコメント上限数 */
 export const DAILY_COMMENT_LIMIT = 100
 
+/**
+ * 再帰 CTE でスレッド祖先をたどる最大深さ。
+ * pg_bigm の無限ループ防止として `WHERE depth < N` で打ち切る。
+ * 深さ 50 は通常の会話スレッドの上限として十分であり、
+ * CTE の再帰展開コストを実用範囲内に抑える。
+ */
+export const COMMENT_THREAD_MAX_DEPTH = 50
+
 /** メッセージの最大文字数 */
 export const MAX_MESSAGE_LENGTH = 1000
 

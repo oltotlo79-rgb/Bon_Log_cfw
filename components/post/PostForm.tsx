@@ -131,7 +131,6 @@ export function PostForm({ genres, limits = DEFAULT_LIMITS, draftCount = 0, draf
     !uploading &&
     remainingChars >= 0
 
-  // #9: 下書き自動保存（draftId がある場合のみ）
   useEffect(() => {
     if (!isMountedRef.current) {
       isMountedRef.current = true

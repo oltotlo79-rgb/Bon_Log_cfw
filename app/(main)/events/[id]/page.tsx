@@ -14,7 +14,7 @@ import { EventJsonLd } from '@/components/seo/JsonLd'
 import { parseAdmissionFeeToOfferPrice } from '@/components/seo/utils'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { EVENT_DESCRIPTION_PREVIEW_LENGTH } from '@/lib/constants/limits'
-import { ROUTE_HOME } from '@/lib/constants/routes'
+import { ROUTE_HOME, ROUTE_EVENTS } from '@/lib/constants/routes'
 import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 import { buildEventPath, buildEventEditPath, buildUserPath } from '@/lib/constants/path-builders'
 
@@ -217,7 +217,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       <Breadcrumb
         items={[
           { name: 'ホーム', href: ROUTE_HOME },
-          { name: 'イベント', href: '/events' },
+          { name: 'イベント', href: ROUTE_EVENTS },
           { name: event.title },
         ]}
       />
@@ -233,7 +233,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       />
     <div className="space-y-6">
       <Link
-        href="/events"
+        href={ROUTE_EVENTS}
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="w-4 h-4" />

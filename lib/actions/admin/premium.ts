@@ -316,8 +316,8 @@ export async function searchUserForPremium(query: string) {
     const users = await prisma.user.findMany({
       where: {
         OR: [
-          { email: { contains: query, mode: 'insensitive' } },
-          { nickname: { contains: query, mode: 'insensitive' } },
+          { email: containsInsensitive(query) },
+          { nickname: containsInsensitive(query) },
         ],
       },
       select: {

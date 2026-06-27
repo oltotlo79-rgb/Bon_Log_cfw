@@ -16,35 +16,10 @@ import 'server-only'
 
 import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
+import { extractHashtags } from '@/lib/utils/hashtag-extract'
 
-/**
- * ハッシュタグを抽出する正規表現。
- *
- * ## マッチするパターン
- * - #盆栽 / #bonsai / #盆栽_入門 / #Bonsai2024
- *
- * ## Unicode 範囲
- * - `\u3040-\u309F` ひらがな
- * - `\u30A0-\u30FF` カタカナ
- * - `\u4E00-\u9FFF` CJK 統合漢字
- */
-const HASHTAG_REGEX = /#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g
-
-/**
- * テキストからハッシュタグを抽出する。
- *
- * `#` 除去 + 小文字化 + 重複除去を行う。
- *
- * @example
- * extractHashtags('今日の #盆栽 #Bonsai') // → ['盆栽', 'bonsai']
- */
-export function extractHashtags(text: string): string[] {
-  if (!text) return []
-  const matches = text.match(HASHTAG_REGEX)
-  if (!matches) return []
-  const hashtags = matches.map((tag: string) => tag.slice(1).toLowerCase())
-  return [...new Set(hashtags)]
-}
+// lib/utils/hashtag-extract に移動した純粋関数を re-export して既存の import パスを維持する
+export { extractHashtags }
 
 /**
  * 投稿本文から抽出したハッシュタグを `Hashtag` / `PostHashtag` に反映する。

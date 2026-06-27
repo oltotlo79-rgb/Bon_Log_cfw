@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth, signOut } from '@/lib/auth'
@@ -69,6 +70,8 @@ import {
 
 // DB 接続を伴う認可チェックを毎リクエスト実行するため静的生成を無効化する
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = { robots: { index: false, follow: false } }
 
 type NavSection = {
   title: string

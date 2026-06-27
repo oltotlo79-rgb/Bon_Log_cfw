@@ -192,7 +192,7 @@ export const MAX_PESTICIDE_LIST_LIMIT = 500
  *   フィード等にリークする潜在バグがあった
  * - 50,000 は実運用上の P99 を吸収しつつ、配列処理・転送コストの許容範囲内
  *
- * ## TODO（長期改善）
+ * ## 既知の制約 / 将来の改善方針
  * 真の解決は Prisma の relational filter
  * (`where: { user: { NOT: { blockedBy: { some: { blockerId: me } } } } }`)
  * へ移行し、in-memory フィルタ自体を廃すること。

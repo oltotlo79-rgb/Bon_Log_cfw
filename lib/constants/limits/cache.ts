@@ -76,3 +76,11 @@ export const MAINTENANCE_CACHE_TTL_MS = 30_000
  */
 export const OG_CACHE_MAX_AGE_SECONDS = 3600
 export const OG_CACHE_SWR_SECONDS = 86400
+
+/**
+ * サイトマップ動的 DB クエリの unstable_cache 再検証間隔（秒）: 1時間。
+ *
+ * `export const dynamic = 'force-dynamic'` でルート自体は常に動的に実行されるが、
+ * 内部の DB クエリをキャッシュすることで 1 リクエストごとの DB 負荷を抑える。
+ */
+export const SITEMAP_REVALIDATE_SECONDS = 3600

@@ -50,7 +50,6 @@ export async function getTrendingHashtags(limit: number = DEFAULT_HASHTAG_LIMIT)
 /**
  * 指定ハッシュタグを含む投稿をカーソルベースで検索する。
  *
- * `content` の `#hashtagName` 部分一致（大小文字無視）。
  * `hashtag.count` は `Hashtag` テーブルに保持された総投稿数を返す（今回のページ件数ではない）。
  */
 export async function getPostsByHashtag(
@@ -72,10 +71,9 @@ export async function getPostsByHashtag(
           isHidden: false,
           // 著者の公開可否を適用（非表示/非公開/停止著者の投稿を露出させない）
           user: visibleAuthorFilter(currentUserId),
-          content: {
-            contains: `#${hashtagName}`,
-            mode: 'insensitive',
-          },
+          // PostHashtag JOIN: content ILIKE より hashtagId インデックス経由で効率的に絞り込む。
+          // Hashtag.name は extractHashtags() により lowercase 正規化済みのため .toLowerCase() が前提。
+          hashtags: { some: { hashtag: { name: hashtagName.toLowerCase() } } },
         },
         include: {
           user: USER_MINIMAL_RELATION,

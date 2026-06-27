@@ -14,6 +14,7 @@ import {
   ONE_MINUTE_MS,
   FIFTEEN_MINUTES_MS,
   ONE_HOUR_MS,
+  ONE_DAY_MS,
   ONE_DAY_SECONDS,
   ONE_SECOND_MS,
   MIDNIGHT_BUFFER_SECONDS,
@@ -293,7 +294,7 @@ export async function checkDailyLimit(
     if (newCount === 1) {
       // 新規キー: JST 翌日 00:00 まで + バッファで期限設定
       const jstTodayStart = getStartOfToday()
-      const jstTomorrow = new Date(jstTodayStart.getTime() + 24 * 60 * 60 * 1000)
+      const jstTomorrow = new Date(jstTodayStart.getTime() + ONE_DAY_MS)
       const msUntilMidnight = jstTomorrow.getTime() - Date.now()
       const secondsUntilMidnight = Math.ceil(msUntilMidnight / ONE_SECOND_MS) + MIDNIGHT_BUFFER_SECONDS
       await redis.expire(key, secondsUntilMidnight)

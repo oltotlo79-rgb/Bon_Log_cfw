@@ -15,7 +15,7 @@ import { LocalBusinessJsonLd } from '@/components/seo/JsonLd'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { ShopActions } from '@/components/shop/ShopActions'
 import { ShopGenreEditor } from '@/components/shop/ShopGenreEditor'
-import { ROUTE_HOME, ROUTE_SHOPS } from '@/lib/constants/routes'
+import { ROUTE_HOME, ROUTE_SHOPS, ROUTE_LOGIN } from '@/lib/constants/routes'
 import { buildShopPath } from '@/lib/constants/path-builders'
 import { pageCanonical, pageTitle } from '@/lib/utils/seo'
 
@@ -315,7 +315,7 @@ export default async function ShopDetailPage({ params }: ShopDetailPageProps) {
               レビューを投稿するにはログインしてください
             </p>
             <Link
-              href="/login"
+              href={ROUTE_LOGIN}
               className="text-sm text-primary hover:underline"
             >
               ログイン
