@@ -145,6 +145,16 @@ describe('listHormones', () => {
     expect(result.hormones).toHaveLength(0)
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('Error インスタンス以外が throw されたときも { hormones: [] } を返す', async () => {
+    mockHormoneTypeFindMany.mockRejectedValue('network timeout')
+
+    const { listHormones } = await import('@/lib/services/hormone-read-service')
+    const result = await listHormones()
+
+    expect(result.hormones).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
 })
 
 describe('getHormoneBySlug', () => {
@@ -215,6 +225,16 @@ describe('getHormoneBySlug', () => {
 
   it('DB エラー時は null を返す', async () => {
     mockHormoneTypeFindUnique.mockRejectedValue(new Error('DB error'))
+
+    const { getHormoneBySlug } = await import('@/lib/services/hormone-read-service')
+    const result = await getHormoneBySlug('auxin')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('Error インスタンス以外が throw されたときも null を返す', async () => {
+    mockHormoneTypeFindUnique.mockRejectedValue({ code: 'CONNECTION_RESET' })
 
     const { getHormoneBySlug } = await import('@/lib/services/hormone-read-service')
     const result = await getHormoneBySlug('auxin')

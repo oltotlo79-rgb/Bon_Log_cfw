@@ -2,6 +2,9 @@
 
 import { vi } from 'vitest'
 
+// vi.hoisted ensures this is created before vi.mock factories run
+const mockShouldSkip = vi.hoisted(() => vi.fn(() => false))
+
 const mockPrisma = {
   fertilizerNutrient: { findMany: vi.fn(), findUnique: vi.fn() },
   fertilizerCategory: { findMany: vi.fn() },
@@ -10,7 +13,7 @@ const mockPrisma = {
   fertilizerColumn: { findMany: vi.fn(), findUnique: vi.fn() },
 }
 
-vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: mockShouldSkip }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockRequireAuth = vi.fn()
@@ -303,6 +306,64 @@ describe('Fertilizer Actions', () => {
       const result = await getFertilizerColumnBySlug('unknown')
 
       expect(result).toBeNull()
+    })
+  })
+
+  describe('shouldSkipBuildTimeDbAccess が true のとき早期 return する', () => {
+    it('getNutrients は DB を呼ばず { nutrients: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getNutrients } = await import('@/lib/actions/fertilizer')
+      const result = await getNutrients()
+      expect(result).toEqual({ nutrients: [] })
+      expect(mockPrisma.fertilizerNutrient.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getNutrientBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getNutrientBySlug } = await import('@/lib/actions/fertilizer')
+      const result = await getNutrientBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.fertilizerNutrient.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getFertilizerCategories は DB を呼ばず { categories: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getFertilizerCategories } = await import('@/lib/actions/fertilizer')
+      const result = await getFertilizerCategories()
+      expect(result).toEqual({ categories: [] })
+      expect(mockPrisma.fertilizerCategory.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getTreeSpecies は DB を呼ばず { treeSpecies: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getTreeSpecies } = await import('@/lib/actions/fertilizer')
+      const result = await getTreeSpecies()
+      expect(result).toEqual({ treeSpecies: [] })
+      expect(mockPrisma.treeSpecies.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getFertilizationSchedule は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getFertilizationSchedule } = await import('@/lib/actions/fertilizer')
+      const result = await getFertilizationSchedule('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.treeSpecies.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getFertilizerColumns は DB を呼ばず { columns: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getFertilizerColumns } = await import('@/lib/actions/fertilizer')
+      const result = await getFertilizerColumns()
+      expect(result).toEqual({ columns: [] })
+      expect(mockPrisma.fertilizerColumn.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getFertilizerColumnBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getFertilizerColumnBySlug } = await import('@/lib/actions/fertilizer')
+      const result = await getFertilizerColumnBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.fertilizerColumn.findUnique).not.toHaveBeenCalled()
     })
   })
 })

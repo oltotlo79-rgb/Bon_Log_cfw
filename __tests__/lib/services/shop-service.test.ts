@@ -160,6 +160,90 @@ const mockRatingAggs = [
 ]
 
 // ──────────────────────────────────────────────────
+// スキーマバリデーション
+// ──────────────────────────────────────────────────
+
+describe('listShopsV1QuerySchema.prefecture.refine', () => {
+  it('prefecture が undefined のとき refine を通過する', async () => {
+    const { listShopsV1QuerySchema } = await import('@/lib/services/shop-service')
+    const result = listShopsV1QuerySchema.safeParse({})
+    expect(result.success).toBe(true)
+  })
+
+  it('有効な都道府県（東京都）は refine を通過する', async () => {
+    const { listShopsV1QuerySchema } = await import('@/lib/services/shop-service')
+    const result = listShopsV1QuerySchema.safeParse({ prefecture: '東京都' })
+    expect(result.success).toBe(true)
+  })
+
+  it('無効な都道府県は refine で失敗する', async () => {
+    const { listShopsV1QuerySchema } = await import('@/lib/services/shop-service')
+    const result = listShopsV1QuerySchema.safeParse({ prefecture: '架空県' })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('createShopV1Schema.website.refine', () => {
+  const base = { name: 'テスト盆栽園', address: '東京都渋谷区1-1-1', genreIds: [] }
+
+  it('website が null のとき refine を通過する', async () => {
+    const { createShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = createShopV1Schema.safeParse({ ...base, website: null })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が空文字のとき refine を通過する', async () => {
+    const { createShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = createShopV1Schema.safeParse({ ...base, website: '' })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が https URL のとき refine を通過する', async () => {
+    const { createShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = createShopV1Schema.safeParse({ ...base, website: 'https://example.com' })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が http URL のとき refine を通過する', async () => {
+    const { createShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = createShopV1Schema.safeParse({ ...base, website: 'http://example.com' })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が ftp:// で始まる場合 refine で失敗する', async () => {
+    const { createShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = createShopV1Schema.safeParse({ ...base, website: 'ftp://example.com' })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('updateShopV1Schema.website.refine', () => {
+  it('website が https URL のとき refine を通過する', async () => {
+    const { updateShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = updateShopV1Schema.safeParse({ website: 'https://example.com' })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が空文字のとき refine を通過する', async () => {
+    const { updateShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = updateShopV1Schema.safeParse({ website: '' })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が null のとき refine を通過する', async () => {
+    const { updateShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = updateShopV1Schema.safeParse({ website: null })
+    expect(result.success).toBe(true)
+  })
+
+  it('website が無効な URL のとき refine で失敗する', async () => {
+    const { updateShopV1Schema } = await import('@/lib/services/shop-service')
+    const result = updateShopV1Schema.safeParse({ website: 'not-a-url' })
+    expect(result.success).toBe(false)
+  })
+})
+
+// ──────────────────────────────────────────────────
 // listShopsV1
 // ──────────────────────────────────────────────────
 describe('listShopsV1', () => {
@@ -398,6 +482,58 @@ describe('listShopsV1', () => {
 
     expect(result).toMatchObject({ ok: false })
   })
+
+  it('search フィルタ: where に名前・住所の OR 条件が含まれる', async () => {
+    mockBonsaiShopFindMany.mockResolvedValue([])
+    mockGetCachedShopRatings.mockResolvedValue([])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    await listShopsV1({ search: '盆栽' }, null)
+
+    const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as {
+      where: { AND?: unknown[] }
+    }
+    const andConds = callArgs?.where?.AND
+    expect(Array.isArray(andConds)).toBe(true)
+    if (!Array.isArray(andConds)) throw new Error()
+    const orCond = andConds.find(
+      (c) => typeof c === 'object' && c !== null && 'OR' in c,
+    )
+    expect(orCond).toBeDefined()
+  })
+
+  it('search と prefecture 両方指定: AND に OR 条件と address.startsWith 条件の両方が含まれる', async () => {
+    mockBonsaiShopFindMany.mockResolvedValue([])
+    mockGetCachedShopRatings.mockResolvedValue([])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    await listShopsV1({ search: '盆栽', prefecture: '東京都' }, null)
+
+    const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as {
+      where: { AND?: unknown[] }
+    }
+    const andConds = callArgs?.where?.AND
+    expect(Array.isArray(andConds)).toBe(true)
+    if (!Array.isArray(andConds)) throw new Error()
+    expect(andConds).toHaveLength(2)
+    const orCond = andConds.find((c) => typeof c === 'object' && c !== null && 'OR' in c)
+    const prefCond = andConds.find((c) => typeof c === 'object' && c !== null && 'address' in c)
+    expect(orCond).toBeDefined()
+    expect(prefCond).toBeDefined()
+  })
+
+  it('ratingMap にないショップ: averageRating が null で reviewCount は _count.reviews から取得される', async () => {
+    mockBonsaiShopFindMany.mockResolvedValue([makeShopRow({ id: 'shop-no-rating', _count: { reviews: 7 } })])
+    mockGetCachedShopRatings.mockResolvedValue([])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    const result = await listShopsV1({}, null)
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    expect(result.items[0]?.averageRating).toBeNull()
+    expect(result.items[0]?.reviewCount).toBe(7)
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -572,6 +708,32 @@ describe('createShopV1', () => {
     const { ERR_SHOP_CREATE_FAILED } = await import('@/lib/constants/errors')
     expect(result.error).toBe(ERR_SHOP_CREATE_FAILED)
   })
+
+  it('phone/website/businessHours/closedDays/latitude/longitude を設定した場合 create data に含まれる', async () => {
+    const { createShopV1 } = await import('@/lib/services/shop-service')
+    const result = await createShopV1(
+      {
+        name: 'テスト盆栽園',
+        address: '東京都渋谷区テスト1-1-1',
+        latitude: 35.6895,
+        longitude: 139.6917,
+        phone: '03-0000-0000',
+        website: 'https://example.com',
+        businessHours: '10:00-18:00',
+        closedDays: '水曜定休',
+        genreIds: [],
+      },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: true })
+    const callArgs = mockBonsaiShopCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.phone).toBe('03-0000-0000')
+    expect(callArgs?.data?.website).toBe('https://example.com')
+    expect(callArgs?.data?.businessHours).toBe('10:00-18:00')
+    expect(callArgs?.data?.closedDays).toBe('水曜定休')
+    expect(callArgs?.data?.latitude).toBe(35.6895)
+    expect(callArgs?.data?.longitude).toBe(139.6917)
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -671,6 +833,110 @@ describe('updateShopV1', () => {
     if (result.ok) throw new Error('ok=true')
     const { ERR_SHOP_UPDATE_FAILED } = await import('@/lib/constants/errors')
     expect(result.error).toBe(ERR_SHOP_UPDATE_FAILED)
+  })
+
+  it('有効な genreIds を設定した場合 shopGenre.deleteMany が呼ばれる', async () => {
+    mockGenreFindMany.mockResolvedValue([{ id: 'genre-1' }])
+
+    const { updateShopV1 } = await import('@/lib/services/shop-service')
+    const result = await updateShopV1(SHOP_ID, { genreIds: ['genre-1'] }, OWNER_ID)
+
+    expect(result).toMatchObject({ ok: true })
+    expect(mockShopGenreDeleteMany).toHaveBeenCalledWith({ where: { shopId: SHOP_ID } })
+  })
+
+  it('すべてのフィールドを指定した場合 update の data に各フィールドが含まれる', async () => {
+    mockGenreFindMany.mockResolvedValue([{ id: 'genre-1' }])
+
+    let capturedData: Record<string, unknown> = {}
+    mockTransaction.mockImplementationOnce(async (fn: unknown) => {
+      if (typeof fn === 'function') {
+        const tx = {
+          shopGenre: { deleteMany: mockShopGenreDeleteMany },
+          bonsaiShop: {
+            update: vi.fn().mockImplementation((args: { where: unknown; data: Record<string, unknown> }) => {
+              capturedData = args.data
+            }),
+          },
+        }
+        return fn(tx)
+      }
+    })
+
+    const { updateShopV1 } = await import('@/lib/services/shop-service')
+    const result = await updateShopV1(
+      SHOP_ID,
+      {
+        name: '更新後の名前',
+        address: '更新後の住所',
+        latitude: 35.0,
+        longitude: 139.0,
+        phone: '06-0000-0000',
+        website: 'https://updated.example.com',
+        businessHours: '9:00-17:00',
+        closedDays: '日曜',
+        genreIds: ['genre-1'],
+      },
+      OWNER_ID,
+    )
+
+    expect(result).toMatchObject({ ok: true })
+    expect(capturedData.name).toBe('更新後の名前')
+    expect(capturedData.address).toBe('更新後の住所')
+    expect(capturedData.latitude).toBe(35.0)
+    expect(capturedData.longitude).toBe(139.0)
+    expect(capturedData.phone).toBe('06-0000-0000')
+    expect(capturedData.website).toBe('https://updated.example.com')
+    expect(capturedData.businessHours).toBe('9:00-17:00')
+    expect(capturedData.closedDays).toBe('日曜')
+    expect(capturedData.genres).toBeDefined()
+  })
+
+  it('genreIds が空配列のとき genres.create は含まれず deleteMany は呼ばれる', async () => {
+    let capturedData: Record<string, unknown> = {}
+    mockTransaction.mockImplementationOnce(async (fn: unknown) => {
+      if (typeof fn === 'function') {
+        const tx = {
+          shopGenre: { deleteMany: mockShopGenreDeleteMany },
+          bonsaiShop: {
+            update: vi.fn().mockImplementation((args: { where: unknown; data: Record<string, unknown> }) => {
+              capturedData = args.data
+            }),
+          },
+        }
+        return fn(tx)
+      }
+    })
+
+    const { updateShopV1 } = await import('@/lib/services/shop-service')
+    const result = await updateShopV1(SHOP_ID, { genreIds: [] }, OWNER_ID)
+
+    expect(result).toMatchObject({ ok: true })
+    expect(capturedData.genres).toBeUndefined()
+    expect(mockShopGenreDeleteMany).toHaveBeenCalledWith({ where: { shopId: SHOP_ID } })
+  })
+
+  it('phone が空文字のとき update data の phone が null になる', async () => {
+    let capturedData: Record<string, unknown> = {}
+    mockTransaction.mockImplementationOnce(async (fn: unknown) => {
+      if (typeof fn === 'function') {
+        const tx = {
+          shopGenre: { deleteMany: mockShopGenreDeleteMany },
+          bonsaiShop: {
+            update: vi.fn().mockImplementation((args: { where: unknown; data: Record<string, unknown> }) => {
+              capturedData = args.data
+            }),
+          },
+        }
+        return fn(tx)
+      }
+    })
+
+    const { updateShopV1 } = await import('@/lib/services/shop-service')
+    const result = await updateShopV1(SHOP_ID, { phone: '' }, OWNER_ID)
+
+    expect(result).toMatchObject({ ok: true })
+    expect(capturedData.phone).toBeNull()
   })
 })
 

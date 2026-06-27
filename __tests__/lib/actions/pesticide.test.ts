@@ -2,6 +2,9 @@
 
 import { vi } from 'vitest'
 
+// vi.hoisted ensures this is created before vi.mock factories run
+const mockShouldSkip = vi.hoisted(() => vi.fn(() => false))
+
 const mockPrisma = {
   user: { findUnique: vi.fn() },
   adminUser: { findUnique: vi.fn() },
@@ -14,7 +17,7 @@ const mockPrisma = {
   pesticideIncompatibility: { findMany: vi.fn() },
 }
 
-vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: mockShouldSkip }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockRequireAuth = vi.fn()
@@ -507,6 +510,156 @@ describe('Pesticide Actions', () => {
           orderBy: { name: 'asc' },
         }),
       )
+    })
+  })
+
+  describe('shouldSkipBuildTimeDbAccess が true のとき早期 return する', () => {
+    it('getDiseasePests は DB を呼ばず { diseasePests: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getDiseasePests } = await import('@/lib/actions/pesticide')
+      const result = await getDiseasePests()
+      expect(result).toEqual({ diseasePests: [] })
+      expect(mockPrisma.diseasePest.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getDiseasePestBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getDiseasePestBySlug } = await import('@/lib/actions/pesticide')
+      const result = await getDiseasePestBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.diseasePest.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getPesticides は DB を呼ばず { pesticides: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getPesticides } = await import('@/lib/actions/pesticide')
+      const result = await getPesticides()
+      expect(result).toEqual({ pesticides: [] })
+      expect(mockPrisma.pesticide.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getPesticideBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getPesticideBySlug } = await import('@/lib/actions/pesticide')
+      const result = await getPesticideBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.pesticide.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getActiveIngredients は DB を呼ばず { ingredients: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getActiveIngredients } = await import('@/lib/actions/pesticide')
+      const result = await getActiveIngredients()
+      expect(result).toEqual({ ingredients: [] })
+      expect(mockPrisma.activeIngredient.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getActiveIngredientBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getActiveIngredientBySlug } = await import('@/lib/actions/pesticide')
+      const result = await getActiveIngredientBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.activeIngredient.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getSpreaderTypes は DB を呼ばず { spreaders: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getSpreaderTypes } = await import('@/lib/actions/pesticide')
+      const result = await getSpreaderTypes()
+      expect(result).toEqual({ spreaders: [] })
+      expect(mockPrisma.spreaderType.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getSpreaderProducts は DB を呼ばず { pesticides: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getSpreaderProducts } = await import('@/lib/actions/pesticide')
+      const result = await getSpreaderProducts()
+      expect(result).toEqual({ pesticides: [] })
+      expect(mockPrisma.pesticide.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getSpreaderTypeBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getSpreaderTypeBySlug } = await import('@/lib/actions/pesticide')
+      const result = await getSpreaderTypeBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.spreaderType.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getPesticideIncompatibilities は DB を呼ばず { incompatibilities: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getPesticideIncompatibilities } = await import('@/lib/actions/pesticide')
+      const result = await getPesticideIncompatibilities()
+      expect(result).toEqual({ incompatibilities: [] })
+      expect(mockPrisma.pesticideIncompatibility.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getPesticideOptions は DB を呼ばず { pesticides: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getPesticideOptions } = await import('@/lib/actions/pesticide')
+      const result = await getPesticideOptions()
+      expect(result).toEqual({ pesticides: [] })
+      expect(mockPrisma.pesticide.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getColumns は DB を呼ばず { columns: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getColumns } = await import('@/lib/actions/pesticide')
+      const result = await getColumns()
+      expect(result).toEqual({ columns: [] })
+      expect(mockPrisma.pesticideColumn.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getColumnBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getColumnBySlug } = await import('@/lib/actions/pesticide')
+      const result = await getColumnBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.pesticideColumn.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getFormulationTypes は DB を呼ばず { formulations: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getFormulationTypes } = await import('@/lib/actions/pesticide')
+      const result = await getFormulationTypes()
+      expect(result).toEqual({ formulations: [] })
+      expect(mockPrisma.formulationType.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getFormulationTypeByCode は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getFormulationTypeByCode } = await import('@/lib/actions/pesticide')
+      const result = await getFormulationTypeByCode('WP')
+      expect(result).toBeNull()
+      expect(mockPrisma.formulationType.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('applyImageFallback のブランチカバレッジ', () => {
+    it('imageUrl が存在する場合はそのまま返す（truthy ブランチ）', async () => {
+      const item = {
+        id: 'dp1',
+        slug: 'kabura-habachi',
+        imageUrl: 'https://cdn.example.com/img.png',
+        _count: { effects: 0 },
+      }
+      mockPrisma.diseasePest.findMany.mockResolvedValueOnce([item])
+      const { getDiseasePests } = await import('@/lib/actions/pesticide')
+      const result = await getDiseasePests()
+      expect(result.diseasePests[0]?.imageUrl).toBe('https://cdn.example.com/img.png')
+    })
+
+    it('imageUrl が null でスラッグが PEST_IMAGE_FALLBACK にある場合はフォールバック画像を適用する', async () => {
+      const item = {
+        id: 'dp2',
+        slug: 'kabura-habachi',
+        imageUrl: null,
+        _count: { effects: 0 },
+      }
+      mockPrisma.diseasePest.findMany.mockResolvedValueOnce([item])
+      const { getDiseasePests } = await import('@/lib/actions/pesticide')
+      const result = await getDiseasePests()
+      expect(result.diseasePests[0]?.imageUrl).toBe('/images/pesticides/kabura-habachi.png')
     })
   })
 })

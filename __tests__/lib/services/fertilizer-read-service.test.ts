@@ -133,6 +133,16 @@ describe('listNutrients', () => {
     expect(result.nutrients).toHaveLength(0)
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('Error インスタンス以外が throw されたときも { nutrients: [] } を返す', async () => {
+    mockFertilizerNutrientFindMany.mockRejectedValue('connection refused')
+
+    const { listNutrients } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listNutrients()
+
+    expect(result.nutrients).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
 })
 
 describe('getNutrientBySlug', () => {
@@ -178,6 +188,16 @@ describe('getNutrientBySlug', () => {
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('Error インスタンス以外が throw されたときも null を返す', async () => {
+    mockFertilizerNutrientFindUnique.mockRejectedValue({ code: 'TIMEOUT' })
+
+    const { getNutrientBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getNutrientBySlug('nitrogen')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
 })
 
 describe('listFertilizerCategories', () => {
@@ -206,6 +226,16 @@ describe('listFertilizerCategories', () => {
 
   it('DB エラー時は { categories: [] } を返す', async () => {
     mockFertilizerCategoryFindMany.mockRejectedValue(new Error('DB error'))
+
+    const { listFertilizerCategories } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerCategories()
+
+    expect(result.categories).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('Error インスタンス以外が throw されたときも { categories: [] } を返す', async () => {
+    mockFertilizerCategoryFindMany.mockRejectedValue('read timeout')
 
     const { listFertilizerCategories } = await import('@/lib/services/fertilizer-read-service')
     const result = await listFertilizerCategories()
@@ -260,6 +290,16 @@ describe('listTreeSpecies', () => {
     expect(result.treeSpecies).toHaveLength(0)
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('Error インスタンス以外が throw されたときも { treeSpecies: [] } を返す', async () => {
+    mockTreeSpeciesFindMany.mockRejectedValue(42)
+
+    const { listTreeSpecies } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listTreeSpecies()
+
+    expect(result.treeSpecies).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
 })
 
 describe('getFertilizationScheduleBySlug', () => {
@@ -298,6 +338,16 @@ describe('getFertilizationScheduleBySlug', () => {
 
   it('DB エラー時は null を返す', async () => {
     mockTreeSpeciesFindUnique.mockRejectedValue(new Error('DB error'))
+
+    const { getFertilizationScheduleBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizationScheduleBySlug('kuromatsu')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('Error インスタンス以外が throw されたときも null を返す', async () => {
+    mockTreeSpeciesFindUnique.mockRejectedValue({ message: 'not an Error instance' })
 
     const { getFertilizationScheduleBySlug } = await import('@/lib/services/fertilizer-read-service')
     const result = await getFertilizationScheduleBySlug('kuromatsu')

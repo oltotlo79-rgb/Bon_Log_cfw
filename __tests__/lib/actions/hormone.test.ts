@@ -2,6 +2,9 @@
 
 import { vi } from 'vitest'
 
+// vi.hoisted ensures this is created before vi.mock factories run
+const mockShouldSkip = vi.hoisted(() => vi.fn(() => false))
+
 const mockPrisma = {
   hormoneType: { findMany: vi.fn(), findUnique: vi.fn() },
   hormoneInteraction: { findMany: vi.fn() },
@@ -10,7 +13,7 @@ const mockPrisma = {
   hormoneSeasonalLevel: { findMany: vi.fn() },
 }
 
-vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: () => false }))
+vi.mock('@/lib/build/db-availability', () => ({ shouldSkipBuildTimeDbAccess: mockShouldSkip }))
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockRequireAuth = vi.fn()
@@ -409,6 +412,90 @@ describe('Hormone Actions', () => {
           where: { category: 'major' },
         })
       )
+    })
+  })
+
+  describe('shouldSkipBuildTimeDbAccess が true のとき早期 return する', () => {
+    it('getHormones は DB を呼ばず { hormones: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormones } = await import('@/lib/actions/hormone')
+      const result = await getHormones()
+      expect(result).toEqual({ hormones: [] })
+      expect(mockPrisma.hormoneType.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneBySlug } = await import('@/lib/actions/hormone')
+      const result = await getHormoneBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.hormoneType.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneInteractions は DB を呼ばず { interactions: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneInteractions } = await import('@/lib/actions/hormone')
+      const result = await getHormoneInteractions()
+      expect(result).toEqual({ interactions: [] })
+      expect(mockPrisma.hormoneInteraction.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneInteractionsBySlug は DB を呼ばず { interactions: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneInteractionsBySlug } = await import('@/lib/actions/hormone')
+      const result = await getHormoneInteractionsBySlug('some-slug')
+      expect(result).toEqual({ interactions: [] })
+      expect(mockPrisma.hormoneInteraction.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneColumns は DB を呼ばず { columns: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneColumns } = await import('@/lib/actions/hormone')
+      const result = await getHormoneColumns()
+      expect(result).toEqual({ columns: [] })
+      expect(mockPrisma.hormoneColumn.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneColumnBySlug は DB を呼ばず null を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneColumnBySlug } = await import('@/lib/actions/hormone')
+      const result = await getHormoneColumnBySlug('some-slug')
+      expect(result).toBeNull()
+      expect(mockPrisma.hormoneColumn.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneTechniques は DB を呼ばず { techniques: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneTechniques } = await import('@/lib/actions/hormone')
+      const result = await getHormoneTechniques()
+      expect(result).toEqual({ techniques: [] })
+      expect(mockPrisma.hormoneTechnique.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getHormoneTechniquesBySlug は DB を呼ばず { techniques: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormoneTechniquesBySlug } = await import('@/lib/actions/hormone')
+      const result = await getHormoneTechniquesBySlug('some-slug')
+      expect(result).toEqual({ techniques: [] })
+      expect(mockPrisma.hormoneTechnique.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getHormonesWithSeasonalLevels は DB を呼ばず { hormones: [] } を返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getHormonesWithSeasonalLevels } = await import('@/lib/actions/hormone')
+      const result = await getHormonesWithSeasonalLevels()
+      expect(result).toEqual({ hormones: [] })
+      expect(mockPrisma.hormoneType.findMany).not.toHaveBeenCalled()
+    })
+
+    it('getSimulatorData は DB を呼ばず空データを返す', async () => {
+      mockShouldSkip.mockReturnValueOnce(true)
+      const { getSimulatorData } = await import('@/lib/actions/hormone')
+      const result = await getSimulatorData()
+      expect(result).toEqual({ hormones: [], techniques: [], seasonalLevels: [] })
+      expect(mockPrisma.hormoneType.findMany).not.toHaveBeenCalled()
+      expect(mockPrisma.hormoneTechnique.findMany).not.toHaveBeenCalled()
+      expect(mockPrisma.hormoneSeasonalLevel.findMany).not.toHaveBeenCalled()
     })
   })
 })

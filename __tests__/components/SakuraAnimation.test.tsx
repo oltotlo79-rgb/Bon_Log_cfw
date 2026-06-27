@@ -1,6 +1,6 @@
 import React from 'react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { render, act, waitFor } from '@testing-library/react'
+import { render, act } from '@testing-library/react'
 
 const mockGetBgAnimationType = vi.fn()
 const mockSetBgAnimationType = vi.fn()
@@ -53,27 +53,31 @@ describe('SakuraAnimation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // fake timers で setTimeout(0) を決定的に制御する。
+    // waitFor のポーリングと React passive effects スケジューリング間の競合を排除するため。
+    vi.useFakeTimers()
     vi.resetModules()
     mockGetBgAnimationType.mockReturnValue('sakura')
     originalGetContext = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = mockGetContext as unknown as typeof HTMLCanvasElement.prototype.getContext
-    // requestAnimationFrame スタブ
+    // vi.useFakeTimers() が rAF/cAF も置き換えるため、その後に stubGlobal で上書きする
     vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
   })
 
   afterEach(() => {
     HTMLCanvasElement.prototype.getContext = originalGetContext
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
   it('sakura モードのとき canvas が描画される', async () => {
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    // 初期 state は "none"。useEffect 内の setTimeout(0) で preference (sakura) に切り替わる。
-    await waitFor(() => {
-      expect(container.querySelector('canvas')).toBeInTheDocument()
+    await act(async () => {
+      vi.advanceTimersByTime(1)
     })
+    expect(container.querySelector('canvas')).toBeInTheDocument()
     const canvas = container.querySelector('canvas')
     expect(canvas).toHaveAttribute('aria-hidden', 'true')
   })
@@ -82,20 +86,19 @@ describe('SakuraAnimation', () => {
     mockGetBgAnimationType.mockReturnValue('none')
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    // 初期 animType は 'sakura' で、useEffect 内の setTimeout(0) で 'none' に
-    // 切り替わる。waitFor は最終状態まで polling するのでスケジューラ遅延に強い。
-    await waitFor(() => {
-      expect(container.querySelector('canvas')).not.toBeInTheDocument()
+    await act(async () => {
+      vi.advanceTimersByTime(1)
     })
+    expect(container.querySelector('canvas')).not.toBeInTheDocument()
   })
 
   it('BG_ANIMATION_CHANGE_EVENT で animType が変わる', async () => {
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    // setTimeout(0) で preference (sakura) に切り替わってから canvas を確認する。
-    await waitFor(() => {
-      expect(container.querySelector('canvas')).toBeInTheDocument()
+    await act(async () => {
+      vi.advanceTimersByTime(1)
     })
+    expect(container.querySelector('canvas')).toBeInTheDocument()
 
     // none に切り替えるイベントを発火
     act(() => {
@@ -110,9 +113,8 @@ describe('SakuraAnimation', () => {
     mockGetBgAnimationType.mockReturnValue('none')
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    // コンポーネント内の setTimeout(0) による初期 animType 同期を完了させる
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      vi.advanceTimersByTime(1)
     })
     expect(container.querySelector('canvas')).not.toBeInTheDocument()
 
@@ -127,10 +129,11 @@ describe('SakuraAnimation', () => {
   it('canvas に fixed クラスが付いている', async () => {
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    await waitFor(() => {
-      expect(container.querySelector('canvas')).toBeInTheDocument()
+    await act(async () => {
+      vi.advanceTimersByTime(1)
     })
     const canvas = container.querySelector('canvas')
+    expect(canvas).toBeInTheDocument()
     expect(canvas?.className).toContain('fixed')
     expect(canvas?.className).toContain('pointer-events-none')
   })
@@ -139,7 +142,7 @@ describe('SakuraAnimation', () => {
     const SakuraAnimation = await importComponent()
     const { unmount } = render(<SakuraAnimation />)
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      vi.advanceTimersByTime(1)
     })
     expect(() => unmount()).not.toThrow()
   })
@@ -147,9 +150,14 @@ describe('SakuraAnimation', () => {
   it('タブ非表示時にアニメーションが停止される', async () => {
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    await waitFor(() => {
-      expect(container.querySelector('canvas')).toBeInTheDocument()
+    // fake timers で setTimeout(0) を同期的に進め、setAnimType('sakura') と
+    // 第2 useEffect（handleVisibilityChange 登録）を act() 内で確実にフラッシュする。
+    // waitFor では React passive effects が macrotask でスケジュールされる前に
+    // 解決してしまい、CI 並列負荷下で非決定的になる。
+    await act(async () => {
+      vi.advanceTimersByTime(1)
     })
+    expect(container.querySelector('canvas')).toBeInTheDocument()
 
     // タブ非表示をシミュレート
     Object.defineProperty(document, 'hidden', { value: true, writable: true, configurable: true })
@@ -181,11 +189,11 @@ describe('SakuraAnimation', () => {
 
     const SakuraAnimation = await importComponent()
     const { container } = render(<SakuraAnimation />)
-    // setTimeout(0) で animType が sakura に切り替わるまで待つ。
-    // canvas DOM は描画されるが、effect 内で reduced-motion を検知して早期 return する。
-    await waitFor(() => {
-      expect(container.querySelector('canvas')).toBeInTheDocument()
+    await act(async () => {
+      vi.advanceTimersByTime(1)
     })
+    // canvas DOM は描画されるが、effect 内で reduced-motion を検知して早期 return する。
+    expect(container.querySelector('canvas')).toBeInTheDocument()
     // requestAnimationFrame は呼ばれない (effect 内で reduced-motion 早期 return)。
     expect(requestAnimationFrame).not.toHaveBeenCalled()
     window.matchMedia = originalMatchMedia

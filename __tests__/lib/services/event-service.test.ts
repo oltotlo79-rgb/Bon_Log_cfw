@@ -76,6 +76,58 @@ const makeEventRecord = (overrides: Record<string, unknown> = {}) => ({
 })
 
 // ──────────────────────────────────────────────────
+// スキーマバリデーション
+// ──────────────────────────────────────────────────
+
+describe('listEventsV1QuerySchema', () => {
+  describe('region.refine', () => {
+    it('region が undefined のとき refine を通過する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({})
+      expect(result.success).toBe(true)
+    })
+
+    it('有効な地方名（関東）は refine を通過する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({ region: '関東' })
+      expect(result.success).toBe(true)
+    })
+
+    it('有効な地方名（九州・沖縄）は refine を通過する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({ region: '九州・沖縄' })
+      expect(result.success).toBe(true)
+    })
+
+    it('無効な地方名は refine で失敗する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({ region: '架空地方' })
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('prefecture.refine', () => {
+    it('prefecture が undefined のとき refine を通過する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({})
+      expect(result.success).toBe(true)
+    })
+
+    it('有効な都道府県（大阪府）は refine を通過する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({ prefecture: '大阪府' })
+      expect(result.success).toBe(true)
+    })
+
+    it('無効な都道府県は refine で失敗する', async () => {
+      const { listEventsV1QuerySchema } = await import('@/lib/services/event-service')
+      const result = listEventsV1QuerySchema.safeParse({ prefecture: '架空県' })
+      expect(result.success).toBe(false)
+    })
+  })
+})
+
+// ──────────────────────────────────────────────────
 // listEventsV1
 // ──────────────────────────────────────────────────
 describe('listEventsV1', () => {
@@ -434,6 +486,32 @@ describe('createEventV1', () => {
 
     expect(result).toMatchObject({ ok: false })
   })
+
+  it('オプションフィールドをすべて設定した場合 sanitizeEventFields の truthy ブランチを通る', async () => {
+    const { createEventV1 } = await import('@/lib/services/event-service')
+    const result = await createEventV1(
+      {
+        title: 'テストイベント',
+        startDate: '2025-06-01',
+        hasSales: true,
+        city: '渋谷区',
+        venue: '渋谷ヒカリエ',
+        organizer: '主催者名',
+        admissionFee: '1000円',
+        description: '詳細説明文',
+        externalUrl: 'https://example.com/event',
+      },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: true })
+    const callArgs = mockEventCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.city).toBe('渋谷区')
+    expect(callArgs?.data?.venue).toBe('渋谷ヒカリエ')
+    expect(callArgs?.data?.organizer).toBe('主催者名')
+    expect(callArgs?.data?.admissionFee).toBe('1000円')
+    expect(callArgs?.data?.description).toBe('詳細説明文')
+    expect(callArgs?.data?.externalUrl).toBe('https://example.com/event')
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -534,6 +612,73 @@ describe('updateEventV1', () => {
     const result = await updateEventV1(EVENT_ID, { title: '更新' }, OWNER_ID)
 
     expect(result).toMatchObject({ ok: false })
+  })
+
+  it('description/city/venue/organizer/admissionFee/externalUrl を null に更新できる', async () => {
+    const { updateEventV1 } = await import('@/lib/services/event-service')
+    await updateEventV1(
+      EVENT_ID,
+      {
+        description: null,
+        city: null,
+        venue: null,
+        organizer: null,
+        admissionFee: null,
+        externalUrl: null,
+      },
+      OWNER_ID,
+    )
+
+    const callArgs = mockEventUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.description).toBeNull()
+    expect(callArgs?.data?.city).toBeNull()
+    expect(callArgs?.data?.venue).toBeNull()
+    expect(callArgs?.data?.organizer).toBeNull()
+    expect(callArgs?.data?.admissionFee).toBeNull()
+    expect(callArgs?.data?.externalUrl).toBeNull()
+  })
+
+  it('prefecture を null に更新できる', async () => {
+    const { updateEventV1 } = await import('@/lib/services/event-service')
+    await updateEventV1(EVENT_ID, { prefecture: null }, OWNER_ID)
+
+    const callArgs = mockEventUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.prefecture).toBeNull()
+  })
+
+  it('endDate が不正な日付文字列なら ok: false と ERR_INVALID_END_DATE', async () => {
+    const { updateEventV1 } = await import('@/lib/services/event-service')
+    const result = await updateEventV1(EVENT_ID, { endDate: 'not-a-date' }, OWNER_ID)
+
+    expect(result).toMatchObject({ ok: false })
+    if (result.ok) throw new Error('ok=true')
+    const { ERR_INVALID_END_DATE } = await import('@/lib/constants/errors')
+    expect(result.error).toBe(ERR_INVALID_END_DATE)
+  })
+
+  it('description/city/venue/organizer/admissionFee/hasSales/externalUrl を設定した場合 updateData に含まれる', async () => {
+    const { updateEventV1 } = await import('@/lib/services/event-service')
+    await updateEventV1(
+      EVENT_ID,
+      {
+        description: '詳細説明文',
+        city: '渋谷区',
+        venue: '渋谷ヒカリエ',
+        organizer: '主催者名',
+        admissionFee: '1000円',
+        hasSales: true,
+        externalUrl: 'https://example.com/event',
+      },
+      OWNER_ID,
+    )
+    const callArgs = mockEventUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.description).toBe('詳細説明文')
+    expect(callArgs?.data?.city).toBe('渋谷区')
+    expect(callArgs?.data?.venue).toBe('渋谷ヒカリエ')
+    expect(callArgs?.data?.organizer).toBe('主催者名')
+    expect(callArgs?.data?.admissionFee).toBe('1000円')
+    expect(callArgs?.data?.hasSales).toBe(true)
+    expect(callArgs?.data?.externalUrl).toBe('https://example.com/event')
   })
 })
 

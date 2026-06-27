@@ -238,6 +238,48 @@ describe('createPostV1', () => {
     const result = await createPostV1(validInput, OWNER_ID)
     expect(result).toMatchObject({ ok: false, status: 500 })
   })
+
+  it('mediaUrls が設定されている場合 post.create の data に media.create が含まれる', async () => {
+    const { createPostV1 } = await import('@/lib/services/post-write-service')
+    await createPostV1(
+      { ...validInput, mediaUrls: ['/uploads/img.webp'], mediaTypes: ['image' as const] },
+      OWNER_ID,
+    )
+    const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.media).toBeDefined()
+  })
+
+  it('genreIds が設定されている場合 post.create の data に genres.create が含まれる', async () => {
+    const { createPostV1 } = await import('@/lib/services/post-write-service')
+    await createPostV1({ ...validInput, genreIds: ['genre-1', 'genre-2'] }, OWNER_ID)
+    const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.genres).toBeDefined()
+  })
+
+  it('content が空でも mediaUrls があれば ok: true、data.content は null', async () => {
+    const { createPostV1 } = await import('@/lib/services/post-write-service')
+    const result = await createPostV1(
+      { ...validInput, content: '', mediaUrls: ['/uploads/img.webp'], mediaTypes: ['image' as const] },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: true })
+    const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs?.data?.content).toBeNull()
+  })
+
+  it('attachHashtagsToPost が例外をスローしても ok: true を返す（エラー握りつぶし）', async () => {
+    mockAttachHashtags.mockRejectedValue(new Error('hashtag失敗'))
+    const { createPostV1 } = await import('@/lib/services/post-write-service')
+    const result = await createPostV1(validInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: true })
+  })
+
+  it('notifyMentionedUsers が例外をスローしても ok: true を返す（エラー握りつぶし）', async () => {
+    mockNotifyMentioned.mockRejectedValue(new Error('mention失敗'))
+    const { createPostV1 } = await import('@/lib/services/post-write-service')
+    const result = await createPostV1(validInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: true })
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -357,6 +399,110 @@ describe('updatePostV1', () => {
     const { updatePostV1 } = await import('@/lib/services/post-write-service')
     const result = await updatePostV1(POST_ID, validInput, OWNER_ID)
     expect(result).toMatchObject({ ok: false, status: 500 })
+  })
+
+  it('postId が空文字のとき → { ok: false, status: 400 }', async () => {
+    const { updatePostV1 } = await import('@/lib/services/post-write-service')
+    const result = await updatePostV1('', validInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('mediaUrls が設定されている場合 transaction の post.update に media.create が含まれる', async () => {
+    let capturedUpdateData: Record<string, unknown> = {}
+    mockPrismaTransaction.mockImplementationOnce(
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          postMedia: { deleteMany: mockPrismaPostMediaDeleteMany },
+          postGenre: { deleteMany: mockPrismaPostGenreDeleteMany },
+          post: {
+            update: (args: { where: unknown; data: Record<string, unknown> }) => {
+              capturedUpdateData = args.data
+              return mockPrismaPostUpdate(args)
+            },
+          },
+        }),
+    )
+
+    const { updatePostV1 } = await import('@/lib/services/post-write-service')
+    await updatePostV1(
+      POST_ID,
+      { ...validInput, mediaUrls: ['/uploads/img.webp'], mediaTypes: ['image' as const] },
+      OWNER_ID,
+    )
+
+    expect(capturedUpdateData.media).toBeDefined()
+  })
+
+  it('genreIds が設定されている場合 transaction の post.update に genres.create が含まれる', async () => {
+    let capturedUpdateData: Record<string, unknown> = {}
+    mockPrismaTransaction.mockImplementationOnce(
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          postMedia: { deleteMany: mockPrismaPostMediaDeleteMany },
+          postGenre: { deleteMany: mockPrismaPostGenreDeleteMany },
+          post: {
+            update: (args: { where: unknown; data: Record<string, unknown> }) => {
+              capturedUpdateData = args.data
+              return mockPrismaPostUpdate(args)
+            },
+          },
+        }),
+    )
+
+    const { updatePostV1 } = await import('@/lib/services/post-write-service')
+    await updatePostV1(POST_ID, { ...validInput, genreIds: ['genre-1'] }, OWNER_ID)
+
+    expect(capturedUpdateData.genres).toBeDefined()
+  })
+
+  it('content が空でも mediaUrls があれば ok: true、transaction data.content は null', async () => {
+    let capturedUpdateData: Record<string, unknown> = {}
+    mockPrismaTransaction.mockImplementationOnce(
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          postMedia: { deleteMany: mockPrismaPostMediaDeleteMany },
+          postGenre: { deleteMany: mockPrismaPostGenreDeleteMany },
+          post: {
+            update: (args: { where: unknown; data: Record<string, unknown> }) => {
+              capturedUpdateData = args.data
+              return mockPrismaPostUpdate(args)
+            },
+          },
+        }),
+    )
+
+    const { updatePostV1 } = await import('@/lib/services/post-write-service')
+    const result = await updatePostV1(
+      POST_ID,
+      { ...validInput, content: '', mediaUrls: ['/uploads/img.webp'], mediaTypes: ['image' as const] },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: true })
+    expect(capturedUpdateData.content).toBeNull()
+  })
+
+  it('attachHashtagsToPost が例外をスローしても ok: true を返す（エラー握りつぶし）', async () => {
+    mockAttachHashtags.mockRejectedValue(new Error('hashtag失敗'))
+    const { updatePostV1 } = await import('@/lib/services/post-write-service')
+    const result = await updatePostV1(POST_ID, validInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: true })
+  })
+})
+
+// ──────────────────────────────────────────────────
+// fetchCreatedPost
+// ──────────────────────────────────────────────────
+describe('fetchCreatedPost', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetchPostDetail.mockResolvedValue({ id: POST_ID, content: 'テスト投稿' })
+  })
+
+  it('fetchPostDetail の結果をそのまま返す', async () => {
+    const { fetchCreatedPost } = await import('@/lib/services/post-write-service')
+    const result = await fetchCreatedPost(POST_ID, OWNER_ID)
+    expect(result).toMatchObject({ id: POST_ID })
+    expect(mockFetchPostDetail).toHaveBeenCalledWith(POST_ID, OWNER_ID)
   })
 })
 
