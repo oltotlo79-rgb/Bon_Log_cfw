@@ -8,8 +8,10 @@
 | ActiveUser | セッション + 凍結チェック + レート制限 (`requireActiveUser()`) |
 | ActiveNonGuest | セッション + 非ゲスト + 凍結チェック + レート制限 (`requireActiveNonGuestUser()`) |
 | Admin | セッション + `adminUser` レコード + 権限チェック (`requireAdmin()`) |
+| JWT Bearer | モバイル v1 API: `Authorization: Bearer <accessToken>` — JWT アクセストークン（`lib/api/v1/auth-guard.ts` の `requireBearerUser()` で検証。有効期限切れ時は `/api/v1/auth/refresh` でトークンペア更新） |
 | HMAC-SHA256 | Cron ジョブ用: タイムスタンプ + 署名検証 (`verifyCronAuth()`) |
 | Stripe Webhook | `stripe.webhooks.constructEvent()` 署名検証 |
+| RevenueCat Webhook | `Authorization` ヘッダーと環境変数 `REVENUECAT_WEBHOOK_AUTH_HEADER` をタイミングセーフ比較 (`timingSafeEqual`) |
 | Bearer | Bearer トークン (タイミングセーフ比較) — シードエンドポイント用 |
 | None | 認証不要 |
 
@@ -33,10 +35,11 @@
 
 ---
 
-## API Routes (`app/api/` 配下 24 Route Handlers + `/feed.xml` + `/auth/callback` = 26 エンドポイント)
+## API Routes (`app/api/` 配下 100 Route Handlers: 非 v1 エンドポイント 25 本 + モバイル REST API v1 75 本)
 
-`app/api/` 配下: `.ts` 形式の Route Handler 23 本 + `og/route.tsx`（動的 OG 画像生成、Node.js ランタイム）の合計 24 本。
-さらに `app/api/upload/_shared/` 配下に `profile-image-upload.ts` と `validate-upload-file.ts` の 2 本のアップロード共有ヘルパーを配置（`_shared/` プレフィックスにより Next.js のルート対象外）。
+`app/api/` 配下: `.ts` 形式の Route Handler 99 本 + `og/route.tsx`（動的 OG 画像生成、Node.js ランタイム）の合計 100 本。
+内訳: 非 v1 エンドポイント 25 本（ad-frame / admin / analytics / auth / badges / cron / health / maintenance / og / push / upload / webhooks）+ モバイル REST API v1 75 本（`/api/v1/*`、JWT Bearer 認証）。
+`app/api/upload/_shared/` 配下に `profile-image-upload.ts` / `require-upload-user.ts` / `validate-upload-file.ts` の 3 本のアップロード共有ヘルパーを配置（`_shared/` プレフィックスにより Next.js のルート対象外）。
 `app/feed.xml/route.ts` は RSS フィード（API ではなく公開コンテンツのため `/api/` 外配置）、
 `app/auth/callback/route.ts` は NextAuth の OAuth コールバック処理用（NextAuth 内部フロー）。
 
@@ -179,6 +182,18 @@
   - `invoice.payment_failed` — 決済失敗記録（system 通知作成）
   - `invoice.payment_succeeded` — 決済成功記録
 
+#### POST `/api/webhooks/revenuecat`
+- **認証:** 共有シークレット定数時間比較（`timingSafeEqual`）— `Authorization` ヘッダーと環境変数 `REVENUECAT_WEBHOOK_AUTH_HEADER` を照合。環境変数未設定時は fail-closed（503）
+- **レート制限:** `RATE_LIMITS.api`（60req/分・IPベース、fail-open）— 正規 RevenueCat webhook を優先するため fail-open
+- **冪等性:** `ensureWebhookEventOnce(WEBHOOK_PROVIDER_REVENUECAT, event.id)` で `webhook_events` テーブルへ UNIQUE INSERT。重複イベントは `200 { received: true, duplicate: true }` を返す。処理失敗時はロックを `deleteWebhookEvent` で解放してリトライを許容
+- **ペイロード検証:** `revenueCatPayloadSchema`（Zod）でペイロード形状を検証。スキーマ不一致時は 200 + `{ received: true, error }` を返す（RevenueCat の永久リトライ防止）
+- **説明:** RevenueCat モバイルサブスクリプションライフサイクルイベント処理（`lib/services/revenuecat.ts` の `processRevenueCatEvent()` に委譲）
+- **対応イベント:**
+  - `INITIAL_PURCHASE` — isPremium=true、premiumExpiresAt 更新
+  - `RENEWAL` — isPremium=true、premiumExpiresAt 更新
+  - `CANCELLATION` — premiumCancelledAt 更新（isPremium は EXPIRATION まで維持）
+  - `EXPIRATION` — isPremium=false、premiumExpiresAt=null
+
 ---
 
 ### Cron ジョブ
@@ -276,7 +291,233 @@
 
 ---
 
-## Server Actions (90 ファイル: ルート 69 + 管理者 20 + schemas 1。うち `'use server'` ディレクティブ付きは 75 本)
+## モバイル REST API v1 (`/api/v1/` 配下 75 Route Handlers)
+
+モバイルアプリ（Expo/React Native）向けの JWT ベース REST API。Web の NextAuth cookie セッションとは独立した認証基盤を持つ。
+
+### 共通仕様
+
+- **認証:** `Authorization: Bearer <accessToken>` ヘッダー（`lib/api/v1/auth-guard.ts` の `requireBearerUser()` で検証）
+- **アクセストークン:** 短命 JWT（`lib/api/v1/jwt.ts`）。ペイロードに `userId` を格納
+- **リフレッシュトークン:** SHA-256 ハッシュで DB 保存（`refresh_tokens` テーブル）。ローテーション + 再利用検知（盗難時に当該ユーザーの全トークンを即時失効）
+- **モバイルデバイス:** Expo Push Token を `mobile_devices` テーブルで管理（`/api/v1/devices`）
+- **エラーコード:** `lib/constants/errors/mobile-api.ts` の `MOBILE_API_ERROR_CODES` 定数
+- **制限定数:** `lib/constants/limits/mobile-auth.ts`（トークン有効期限等）、`lib/constants/limits/mobile-device.ts`
+- **共有基盤:** `lib/api/v1/`（auth-guard, jwt, token-pair, mention-resolver, follow-state-resolver, pagination, response, types + schemas/）
+- **OpenAPI:** `scripts/generate-openapi.ts`（`@asteasolutions/zod-to-openapi` 使用）。`npm run generate:openapi` で生成
+- **ゲスト:** ゲストアカウントでの書き込み操作は 403 `GUEST_NOT_ALLOWED`。読み取りは認証任意のエンドポイントあり
+- **ページネーション:** カーソルベース（`cursor` / `limit` クエリパラメータ）。レスポンス形式: `{ items: T[], nextCursor?: string }`
+
+### 認証エンドポイント
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| POST | `/api/v1/auth/register` | None | 新規ユーザー登録（メール/パスワード/ニックネーム）。確認メール送信後 201 + `{ success: true }` |
+| POST | `/api/v1/auth/login` | None | メール/パスワード認証。2FA 無効: 200 + tokenPair; 2FA 有効: 202 + `{ requires2FA: true, ticket }` |
+| POST | `/api/v1/auth/logout` | None | リフレッシュトークン失効（冪等） |
+| POST | `/api/v1/auth/refresh` | None | トークンペア更新。ローテーション + 再利用検知 |
+| POST | `/api/v1/auth/google` | None | Google ID トークン認証（`jose` + JWKS 検証）。Account 経由でユーザー解決・作成 |
+| POST | `/api/v1/auth/2fa/verify` | None (チケット) | 2FA コード検証（TOTP またはバックアップコード）。チケットは GETDEL で単回使用 |
+| POST | `/api/v1/auth/password-reset/request` | None | パスワードリセット申請（列挙攻撃対策: 常に 200） |
+| POST | `/api/v1/auth/password-reset/confirm` | None | パスワードリセット実行 |
+| POST | `/api/v1/auth/verify-email/resend` | None | 確認メール再送（列挙攻撃対策: 常に 200） |
+
+### フィード
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/feed` | JWT Bearer | タイムライン取得（フォロー中ユーザーの投稿。ブロック/ミュート除外）。カーソルページネーション |
+
+### 投稿
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| POST | `/api/v1/posts` | JWT Bearer（非ゲスト） | 投稿作成（テキスト/ジャンル/メディア URL） |
+| GET | `/api/v1/posts/{id}` | JWT Bearer | 投稿詳細取得 |
+| PATCH | `/api/v1/posts/{id}` | JWT Bearer（非ゲスト） | 投稿編集（所有者のみ） |
+| DELETE | `/api/v1/posts/{id}` | JWT Bearer（非ゲスト） | 投稿削除（所有者のみ） |
+| POST | `/api/v1/posts/{id}/like` | JWT Bearer | いいね（冪等） |
+| DELETE | `/api/v1/posts/{id}/like` | JWT Bearer（非ゲスト） | いいね解除（冪等） |
+| GET | `/api/v1/posts/{id}/comments` | JWT Bearer | コメント一覧取得。カーソルページネーション |
+| POST | `/api/v1/posts/{id}/comments` | JWT Bearer（非ゲスト） | コメント作成 |
+| DELETE | `/api/v1/posts/{id}/comments/{commentId}` | JWT Bearer（非ゲスト） | コメント削除（コメント所有者または投稿所有者） |
+| POST | `/api/v1/posts/{id}/bookmark` | JWT Bearer（非ゲスト） | ブックマーク（冪等） |
+| DELETE | `/api/v1/posts/{id}/bookmark` | JWT Bearer（非ゲスト） | ブックマーク解除（冪等） |
+
+### ユーザー
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/users/{id}` | JWT Bearer | ユーザープロフィール取得（email 非公開） |
+| POST | `/api/v1/users/{id}/follow` | JWT Bearer（非ゲスト） | フォロー（公開: 確立、非公開: リクエスト送信）。レスポンス: `{ following, requested, followerCount }` |
+| DELETE | `/api/v1/users/{id}/follow` | JWT Bearer（非ゲスト） | フォロー解除またはリクエスト取消 |
+| POST | `/api/v1/users/{id}/block` | JWT Bearer（非ゲスト） | ブロック（冪等） |
+| DELETE | `/api/v1/users/{id}/block` | JWT Bearer（非ゲスト） | ブロック解除（冪等） |
+| POST | `/api/v1/users/{id}/mute` | JWT Bearer（非ゲスト） | ミュート（冪等） |
+| DELETE | `/api/v1/users/{id}/mute` | JWT Bearer（非ゲスト） | ミュート解除（冪等） |
+| GET | `/api/v1/users/me` | JWT Bearer | 自分の基本情報取得 |
+| PATCH | `/api/v1/users/me` | JWT Bearer（非ゲスト） | プロフィール編集（nickname / bio / avatarUrl / headerUrl 等） |
+| DELETE | `/api/v1/users/me` | JWT Bearer（非ゲスト） | アカウント削除（不可逆） |
+| GET | `/api/v1/users/me/bookmarks` | JWT Bearer（非ゲスト） | ブックマーク投稿一覧。カーソルページネーション |
+| GET | `/api/v1/users/me/blocks` | JWT Bearer（非ゲスト） | ブロック一覧。カーソルページネーション |
+| GET | `/api/v1/users/me/mutes` | JWT Bearer（非ゲスト） | ミュート一覧。カーソルページネーション |
+| GET | `/api/v1/users/me/follow-requests` | JWT Bearer（非ゲスト） | 受信フォローリクエスト一覧（pending のみ） |
+| POST | `/api/v1/users/me/follow-requests/{id}/approve` | JWT Bearer（非ゲスト） | フォローリクエスト承認 |
+| POST | `/api/v1/users/me/follow-requests/{id}/reject` | JWT Bearer（非ゲスト） | フォローリクエスト拒否 |
+| GET | `/api/v1/users/me/notification-settings` | JWT Bearer（非ゲスト） | 通知設定取得 |
+| PATCH | `/api/v1/users/me/notification-settings` | JWT Bearer（非ゲスト） | 通知設定部分更新（system / subscription_expiring 除外） |
+
+### 通知
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/notifications` | JWT Bearer | 通知一覧取得。カーソルページネーション |
+| GET | `/api/v1/notifications/unread-count` | JWT Bearer | 未読通知件数取得 |
+| PATCH | `/api/v1/notifications/read` | JWT Bearer | 通知既読化。`ids` 指定: 特定通知群を既読; `ids` 省略: 全未読を既読 |
+
+### 検索
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/search/posts` | JWT Bearer | 投稿キーワード検索（FTS / LIKE フォールバック）。`q` / `cursor` / `limit` |
+| GET | `/api/v1/search/users` | JWT Bearer | ユーザーキーワード検索。`q` / `cursor` / `limit` |
+
+### 探索
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/explore/trending-hashtags` | JWT Bearer（ゲスト可） | トレンドハッシュタグ一覧。`limit` |
+| GET | `/api/v1/explore/trending-genres` | JWT Bearer（ゲスト可） | トレンドジャンル一覧（直近 48 時間の投稿数付き）。`limit` |
+| GET | `/api/v1/explore/recommended-users` | JWT Bearer（ゲスト可） | おすすめユーザー一覧。ゲスト時は空配列 |
+| GET | `/api/v1/explore/posts` | JWT Bearer（ゲスト可） | ハッシュタグまたはジャンル別投稿一覧。`hashtag` / `genreId` いずれか一方必須 |
+
+### 通報
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| POST | `/api/v1/reports` | JWT Bearer（非ゲスト） | 通報作成（投稿/コメント/ユーザー）。AUTO_HIDE_THRESHOLD 到達で自動非表示 |
+
+### デバイス（Push 通知）
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| POST | `/api/v1/devices` | JWT Bearer（非ゲスト） | Expo Push Token 登録（冪等 upsert）。`lib/services/device-service.ts` の `registerDevice()` |
+| DELETE | `/api/v1/devices/{token}` | JWT Bearer（非ゲスト） | Push Token 解除（冪等。他人・不存在トークンも 200） |
+
+### アップロード
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| POST | `/api/v1/upload/image` | JWT Bearer（非ゲスト） | 画像アップロード（multipart/form-data）。EXIF/GPS 除去済みで R2 保存。プレミアム不問 |
+| POST | `/api/v1/upload/presigned` | JWT Bearer（非ゲスト・プレミアム限定） | 動画 presigned PUT URL 生成。既存 `/api/upload/presigned` の Bearer 版 |
+
+### 盆栽
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/bonsai` | JWT Bearer | 自分の盆栽一覧取得 |
+| POST | `/api/v1/bonsai` | JWT Bearer（非ゲスト） | 盆栽作成 |
+| GET | `/api/v1/bonsai/{id}` | JWT Bearer | 盆栽詳細取得 |
+| PATCH | `/api/v1/bonsai/{id}` | JWT Bearer（非ゲスト） | 盆栽更新（所有者のみ） |
+| DELETE | `/api/v1/bonsai/{id}` | JWT Bearer（非ゲスト） | 盆栽削除（所有者のみ） |
+| GET | `/api/v1/bonsai/{id}/records` | JWT Bearer | 成長記録一覧取得。カーソルページネーション |
+| POST | `/api/v1/bonsai/{id}/records` | JWT Bearer（非ゲスト） | 成長記録作成 |
+| PATCH | `/api/v1/bonsai/{id}/records/{recordId}` | JWT Bearer（非ゲスト） | 成長記録更新（所有者のみ） |
+| DELETE | `/api/v1/bonsai/{id}/records/{recordId}` | JWT Bearer（非ゲスト） | 成長記録削除（所有者のみ） |
+| GET | `/api/v1/bonsai/care-logs` | JWT Bearer（非ゲスト） | 手入れログ一覧（盆栽に紐付かないユーザー全体のメモ）。カーソルページネーション |
+| POST | `/api/v1/bonsai/care-logs` | JWT Bearer（非ゲスト） | 手入れログ作成 |
+| PATCH | `/api/v1/bonsai/care-logs/{logId}` | JWT Bearer（非ゲスト） | 手入れログ更新（所有者のみ） |
+| DELETE | `/api/v1/bonsai/care-logs/{logId}` | JWT Bearer（非ゲスト） | 手入れログ削除（所有者のみ） |
+
+### イベント
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/events` | JWT Bearer（ゲスト可） | イベント一覧取得（日付・地域フィルタ可） |
+| POST | `/api/v1/events` | JWT Bearer（非ゲスト） | イベント作成 |
+| GET | `/api/v1/events/{id}` | JWT Bearer（ゲスト可） | イベント詳細取得 |
+| PATCH | `/api/v1/events/{id}` | JWT Bearer（非ゲスト） | イベント更新（作成者のみ） |
+| DELETE | `/api/v1/events/{id}` | JWT Bearer（非ゲスト） | イベント削除（作成者のみ） |
+
+### 盆栽園
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/shops` | JWT Bearer（ゲスト可） | 盆栽園一覧取得（地域・ジャンルフィルタ可） |
+| POST | `/api/v1/shops` | JWT Bearer（非ゲスト） | 盆栽園登録 |
+| GET | `/api/v1/shops/{id}` | JWT Bearer（ゲスト可） | 盆栽園詳細取得 |
+| PATCH | `/api/v1/shops/{id}` | JWT Bearer（非ゲスト） | 盆栽園編集（作成者または admin） |
+| GET | `/api/v1/shops/{id}/reviews` | JWT Bearer（ゲスト可） | レビュー一覧取得。カーソルページネーション |
+| POST | `/api/v1/shops/{id}/reviews` | JWT Bearer（非ゲスト） | レビュー投稿（星 + テキスト + 画像 URL） |
+
+### 予約投稿（プレミアム限定）
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/scheduled-posts` | JWT Bearer（非ゲスト・プレミアム） | 予約投稿一覧 |
+| POST | `/api/v1/scheduled-posts` | JWT Bearer（非ゲスト・プレミアム） | 予約投稿作成 |
+| GET | `/api/v1/scheduled-posts/{id}` | JWT Bearer（非ゲスト・プレミアム） | 予約投稿詳細取得（所有者のみ） |
+| PATCH | `/api/v1/scheduled-posts/{id}` | JWT Bearer（非ゲスト・プレミアム） | 予約投稿更新（pending 状態のみ） |
+| DELETE | `/api/v1/scheduled-posts/{id}` | JWT Bearer（非ゲスト・プレミアム） | 予約投稿削除（published 不可） |
+| POST | `/api/v1/scheduled-posts/{id}/cancel` | JWT Bearer（非ゲスト・プレミアム） | 予約投稿ソフトキャンセル（status→cancelled） |
+
+### ジャンル
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/genres` | JWT Bearer（ゲスト可） | ジャンル一覧。`type=shop\|post` クエリでフィルタ |
+
+### 盆栽用語辞典
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/dictionary` | JWT Bearer（ゲスト可） | 用語一覧。`search` / `category` / `row` フィルタ。カーソルページネーション |
+| GET | `/api/v1/dictionary/{slug}` | JWT Bearer（ゲスト可） | 用語詳細取得 |
+
+### 肥料ガイド
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/fertilizers/categories` | JWT Bearer（ゲスト可） | 肥料カテゴリ一覧（全件返却） |
+| GET | `/api/v1/fertilizers/nutrients` | JWT Bearer（ゲスト可） | 栄養素一覧。`category` フィルタ |
+| GET | `/api/v1/fertilizers/nutrients/{slug}` | JWT Bearer（ゲスト可） | 栄養素詳細取得 |
+| GET | `/api/v1/fertilizers/tree-species` | JWT Bearer（ゲスト可） | 樹種一覧（施肥プラン数付き） |
+| GET | `/api/v1/fertilizers/tree-species/{slug}/schedule` | JWT Bearer（ゲスト可） | 樹種別月次施肥スケジュール取得 |
+
+### ホルモンガイド
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/hormones` | JWT Bearer（ゲスト可） | ホルモン一覧。カーソルページネーション |
+| GET | `/api/v1/hormones/{slug}` | JWT Bearer（ゲスト可） | ホルモン詳細取得（効果・季節レベル・相互作用含む） |
+
+### 農薬ガイド
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/pesticides/disease-pests` | JWT Bearer（ゲスト可） | 病害虫一覧。カテゴリフィルタ |
+| GET | `/api/v1/pesticides/disease-pests/{slug}` | JWT Bearer（ゲスト可） | 病害虫詳細取得 |
+| GET | `/api/v1/pesticides/products` | JWT Bearer（ゲスト可） | 農薬製品一覧。`type` フィルタ（herbicide→other 正規化） |
+| GET | `/api/v1/pesticides/products/{slug}` | JWT Bearer（ゲスト可） | 農薬製品詳細取得 |
+| GET | `/api/v1/pesticides/ingredients` | JWT Bearer（ゲスト可） | 有効成分一覧 |
+| GET | `/api/v1/pesticides/ingredients/{slug}` | JWT Bearer（ゲスト可） | 有効成分詳細取得 |
+
+### 法的文章
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/legal` | JWT Bearer（ゲスト可） | 利用可能な法的文章の slug/title 一覧 |
+| GET | `/api/v1/legal/{slug}` | JWT Bearer（ゲスト可） | 法的文章詳細取得 |
+
+### アナリティクス（プレミアム限定）
+
+| メソッド | パス | 認証 | 概要 |
+|---------|------|------|------|
+| GET | `/api/v1/analytics/summary` | JWT Bearer（非ゲスト・プレミアム） | 自分の投稿分析サマリ。`days=7\|30\|90`（省略時 30） |
+
+---
+
+## Server Actions (89 ファイル: ルート 68 + 管理者 20 + schemas 1。うち `'use server'` ディレクティブ付きは 83 本)
 
 ### 戻り値型ポリシー（CLAUDE.md ルール2）
 
@@ -292,66 +533,176 @@ type ActionResult<T = void> =
 
 #### `'use server'` を持たないモジュール（規約対象外）
 
-`lib/actions/` 配下でも以下は **クライアントから RPC 公開しない内部 helper / RSC データ取得モジュール** として `'use server'` を外し、`'server-only'` ガードのみを置く設計に統一されている。これらは Server Action ではないため ActionResult 規約は適用されず、ドメイン型を直接返す（**lib/actions/ ルート 69 ファイル中 13 ファイル** + `admin/_schemas.ts` + `schemas/common.ts` が該当）:
+`lib/actions/` 配下でも以下は **クライアントから RPC 公開しない内部 helper / schema 定義** として `'use server'` を外した設計となっている。これらは Server Action ではないため ActionResult 規約は適用されない。**89 ファイル中、`'use server'` を一切含まないファイルは 6 本**:
 
-**RSC データ取得モジュール（読み取り専用 query、RSC からの直接 await 用途）:**
-- `lib/actions/dictionary.ts` — 盆栽用語辞典の取得（`getTerms` / `getTermBySlug` / `getAdjacentTerms`）
-- `lib/actions/fertilizer.ts` — 肥料・栄養素・樹種・施肥スケジュール・コラム取得
-- `lib/actions/hormone.ts` — 植物ホルモン・相互作用・季節レベル・技法マッピング・コラム取得
-- `lib/actions/pesticide.ts` — 農薬・病害虫・有効成分・剤型・展着剤・コラム取得
-- `lib/actions/search-meta.ts` — 検索メタ情報（`getPopularTags` / `getAllGenres` / `getSearchModeInfo`）
-
-**内部 helper（任意 input で外部から呼ばれない設計）:**
-- `lib/actions/admin.ts` — admin Server Component 専用の認可ヘルパー（`isAdmin` / `getAdminInfo`）。`'use server'` を付けると `isAdmin` が公開 RPC になり攻撃面が増えるため `'server-only'` 化（write 系 admin Action は `lib/actions/admin/*.ts`）
-- `lib/actions/filter-helper.ts` — ブロック/ミュート除外 ID 取得（`getExcludedUserIds` / `getBlockedUserIds` / `getMutedUserIds`）。以前は `'use server'` 配下で公開されており任意 userId で他人の関係を取得できる懸念があったため、`'server-only'` 化により RPC 露出を遮断
-- `lib/actions/post-include.ts` — Prisma include 共有定義（`POST_LIST_INCLUDE` / `POST_QUOTE_INCLUDE` / `POST_REPOST_INCLUDE` / `buildPostPollInclude(currentUserId?)` / `formatPostForClient`）
-- `lib/actions/post-validation.ts` — `createPost` の純粋検証ヘルパー（`validatePollOptions` / `parseCreatePostShape` / `applyCreatePostBusinessRules`）
-- `lib/actions/prisma-filters.ts` — Prisma where 句生成 helper（ブロック・非公開・凍結除外）
+**内部 helper（任意 input で外部から直接呼ばれない設計）:**
+- `lib/actions/filter-helper.ts` — ブロック/ミュート除外 ID 取得（`getExcludedUserIds` / `getBlockedUserIds` / `getMutedUserIds`）。`'server-only'` 化により RPC 露出を遮断
 - `lib/actions/pagination.ts` — カーソルベース pagination ヘルパ（`MAX_PAGE_LIMIT` で clamp）
-- `lib/actions/utils.ts` — 認証/権限ゲート（`requireAuth`, `requireActiveNonGuestUser` 等）・media 検証・relation キャッシュ・`ActionResult` 再エクスポート
+- `lib/actions/prisma-filters.ts` — Prisma where 句生成 helper（ブロック・非公開・凍結除外）
 
 **barrel re-export:**
-- `lib/actions/user.ts` — `user-profile` / `user-media` / `user-account` の再エクスポート（`export *` のみ、`'use server'` ディレクティブを持たないが、再エクスポート先の各ファイルが `'use server'` を持つ）
+- `lib/actions/user.ts` — `user-profile` / `user-media` / `user-account` の再エクスポート（`export *` のみ。再エクスポート先の各ファイルは `'use server'` を持つ）
 
-**schema 定義モジュール（`'use server'` 不付与）:**
+**schema 定義モジュール:**
 - `lib/actions/schemas/common.ts` — 共有 Zod schema 定義
 - `lib/actions/admin/_schemas.ts` — admin Action 用 Zod schema 定義
 
+上記以外にも `lib/actions/dictionary.ts` / `lib/actions/fertilizer.ts` / `lib/actions/hormone.ts` / `lib/actions/pesticide.ts` / `lib/actions/search-meta.ts` / `lib/actions/admin.ts` / `lib/actions/post-include.ts` / `lib/actions/post-validation.ts` / `lib/actions/utils.ts` 等は `'use server'` ディレクティブを持たない RSC 専用モジュール・内部 helper として設計されているが、これらはファイル内のコメントに `'use server'` への言及を含む（「付与しない理由」の説明として）ため上記 6 本とは区別して扱う。
+
 > 共有 Prisma select/include 定数（`USER_MINIMAL_SELECT` / `USER_MINIMAL_RELATION` / `USER_MINIMAL_WITH_BIO_SELECT` / `GENRE_MINIMAL_SELECT` / `POST_GENRE_RELATION` 等）は `lib/actions/` ではなく **`lib/prisma/shared-includes.ts`** に集約されている（依存方向中立のため actions/services 双方から import 可能）。
 
-これらのうち、client component から呼ぶ必要があるものは `lib/actions/search.ts` バレル等が `'use server'` で再エクスポートしているため、従来通り呼び出せる。RSC データ取得モジュール（fertilizer/hormone/pesticide/dictionary/search-meta）は **page.tsx から直接 await** することを想定。
+RSC データ取得モジュール（fertilizer/hormone/pesticide/dictionary/search-meta）は **page.tsx から直接 await** することを想定。client component から呼ぶ必要があるものは `lib/actions/search.ts` バレル等が `'use server'` で再エクスポートしている。
 
 ### ファイル一覧
 
-**ルートActions (69):** admin\*, analytics, announcement, auth, auth-email-verify, auth-password-reset, blacklist, block, bonsai, bonsai-care-log, bonsai-record, bookmark, comment, comment-thread-mute, contact, dictionary\*, draft, event, event-import, feed, fertilizer\*, filter-helper\*, follow, follow-request, hashtag, hide-post, hormone\*, like, maintenance, mention, message, message-conversations, message-messages, mute, notification, notification-preferences, onboarding, pagination\*, pesticide\*, pin-post, poll, post, post-include\*, post-validation\*, prisma-filters\*, push-subscription, report, report-admin, report-user, review, scheduled-post, scheduled-post-crud, scheduled-post-publish, search, search-entities, search-meta\*, search-posts, search-users, security-activity, shop, shop-change-request, subscription, two-factor, user\*\*, user-account, user-media, user-profile, utils\*, weather
+**ルートActions (68):** admin†, analytics, announcement, auth, auth-email-verify, auth-password-reset, blacklist, block, bonsai, bonsai-care-log, bonsai-record, bookmark, comment, comment-thread-mute, contact, dictionary†, draft, event, event-import, feed, fertilizer†, filter-helper‡, follow, follow-request, hashtag, hide-post, hormone†, like, maintenance, mention, message, message-conversations, message-messages, mute, notification, notification-preferences, onboarding, pagination‡, pesticide†, pin-post, poll, post, post-include†, post-validation†, prisma-filters‡, push-subscription, report, report-admin, report-user, review, scheduled-post, scheduled-post-crud, search, search-entities, search-meta†, search-posts, search-users, security-activity, shop, shop-change-request, subscription, two-factor, user‡, user-account, user-media, user-profile, utils†, weather
 
-\* 印は `'use server'` を持たない RSC データ取得 / 内部 helper モジュール（`'server-only'` ガード付き）。
-\*\* `user.ts` は `user-profile` / `user-media` / `user-account` の barrel re-export（自身は `'use server'` を持たないが、再エクスポート先は持つ）。
+† `'use server'` ディレクティブを持たない RSC 専用モジュール / 内部 helper（ファイル内コメントで理由を説明）。
+‡ `'use server'` を一切含まないモジュール（上記 6 ファイルに該当）。
 
-**管理者Actions (20):** activity, analytics, announcements, cms, content, hidden, ip-management, logs, moderation, monitoring, pesticide-data, posts, premium, roles, security, segments, stats, users, warnings, _schemas（`'use server'` 不付与の Zod schema 定義）
+**管理者Actions (20):** activity, analytics, announcements, cms, content, hidden, ip-management, logs, moderation, monitoring, pesticide-data, posts, premium, roles, security, segments, stats, users, warnings, _schemas‡（Zod schema 定義）
 
-**schemas (1):** common（`'use server'` 不付与の Zod schema 定義）
+**schemas (1):** common‡（Zod schema 定義）
 
-### サービス層ヘルパー（CLAUDE.md ルール6 / lib/services/）
+### サービス層ヘルパー（CLAUDE.md ルール6 / lib/services/ 全 61 ファイル）
 
-| 関数 | 場所 | 用途 |
-|------|------|------|
-| `createNotification(params)` | `lib/services/notification-core.ts` | **単発通知** — ブロック/設定/重複チェック + push 配信。`system` / `subscription_expiring` 型はブロックチェックをスキップし、actor=userId 自身の self-notification を許容 |
-| `deleteNotification(params)` | `lib/services/notification-core.ts` | 通知削除 |
-| `createNotificationsBulk(params)` | `lib/services/notification-bulk.ts` | **複数受信者への同種通知** — block/prefs フィルタ + `createMany({ skipDuplicates: true })` + 個別 push（`Promise.allSettled`）|
-| （各種通知コア処理） | `lib/services/notification-core.ts` | 通知フィルタリング・設定チェック等の内部ヘルパー |
-| `ensureWebhookEventOnce(provider, eventId)` | `lib/services/webhook-idempotency.ts` | UNIQUE INSERT による冪等性ロック（Stripe 等のリトライ抑止）。重複は `{ alreadyProcessed: true }` を返す |
-| `requireAuthorization(...)` | `lib/services/authorization.ts` | 認可チェック共通化 |
-| `commentNotifications` | `lib/services/comment-notifications.ts` | コメント関連通知（`createNotification`/`createNotificationsBulk` へ delegate） |
-| `attachHashtagsToPost` / `detachHashtagsFromPost` | `lib/services/hashtag-sync.ts` | 投稿ハッシュタグの同期・差分更新（`post.ts` の投稿作成/削除から呼ばれる） |
-| `hashtag-recount` | `lib/services/hashtag-recount.ts` | ハッシュタグ参照件数の再計算（管理操作 / cron 用） |
-| `notifyMentionedUsers` / `resolveMentionUsers` | `lib/services/mention.ts` | メンション通知送信・メンションユーザー情報解決（`post.ts` / `comment.ts` から呼ばれる） |
-| `logSecurityEvent` | `lib/services/security-events.ts` | セキュリティイベント記録 |
-| `shop/change-request` | `lib/shop/change-request.ts` | 盆栽園変更リクエストの型・Zod schema・parser（純粋関数のみ。dependency-neutral として `lib/shop/` 配下に配置） |
-| `usage` | `lib/services/usage.ts` | Vercel / Supabase / R2 / Resend の利用量集計 |
-| `weather-service` | `lib/services/weather-service.ts` | Open-Meteo API 連携・天気キャッシュ・盆栽管理アドバイス生成 |
-| `analytics-service` | `lib/services/analytics-service.ts` | アナリティクスデータ取得・集計 |
-| `analytics-recording` | `lib/services/analytics-recording.ts` | UserAnalytics の累積カウンタ更新（`recordPostViewService` / `recordProfileViewService` / `recordLikeReceivedService` / `recordNewFollowerService`）。閲覧/いいね/フォロー beacon の Route Handler（`/api/analytics/view`）から呼ばれる共有 domain logic（個別の `record*` Server Action は廃止済み） |
+`lib/services/` 配下のサービスは複数の Action から共有される再利用ロジック。外部（components/）からは直接呼ばれない。
+
+#### 通知系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `notification-core.ts` | `createNotification(params)` — **単発通知**（ブロック/設定/重複チェック + push 配信）。`system` / `subscription_expiring` 型はブロックチェックをスキップ。`deleteNotification(params)` — 通知削除。`prisma.notification.create` 直接呼出禁止 |
+| `notification-bulk.ts` | `createNotificationsBulk(params)` — **複数受信者への同種通知**（block/prefs フィルタ + `createMany({ skipDuplicates: true })` + 個別 push） |
+| `notification-read-service.ts` | `fetchNotifications` / `fetchUnreadNotificationCount` — v1 通知一覧・未読数取得 |
+| `notification-preferences-utils.ts` | 通知設定の get/update ロジック共有 |
+| `comment-notifications.ts` | コメント関連通知（`createNotification`/`createNotificationsBulk` へ delegate） |
+| `push/expo-push.ts` | Expo Push Notification Service 連携（モバイル push 送信） |
+
+#### 認証・登録系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `credential-verification.ts` | `verifyCredentials(email, password)` — throttle / bcrypt / 停止 / 未確認チェックを含む credentials 照合 |
+| `registration-service.ts` | `registerUserCore(params)` — Web/モバイル共通のユーザー作成 + 確認メール送信 |
+| `email-verify-core.ts` | メール認証トークン発行・検証ロジック |
+| `password-reset-service.ts` | パスワードリセットメール送信・トークン検証 |
+| `login-throttle.ts` | ログイン試行回数の throttle / ロックアウト管理（Redis） |
+| `blacklist-check.ts` | メール / デバイスのブラックリスト照合 |
+| `user-eligibility.ts` | ユーザーの操作資格判定（凍結チェック等） |
+
+#### ユーザー系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `user-read-service.ts` | `fetchUserProfile` — v1 ユーザープロフィール取得 |
+| `user-profile-write-service.ts` | プロフィール更新（PATCH /api/v1/users/me 等） |
+| `account-deletion-service.ts` | アカウント削除処理（データ完全削除の cascade 処理） |
+| `follow-service.ts` | `followUser` / `unfollowUser` / `sendFollowRequest` — フォロー関係の作成・解除・リクエスト処理 |
+| `block-service.ts` | `blockUserService` / `unblockUserService` / `getBlockedUsersService` |
+| `mute-service.ts` | `muteUserService` / `unmuteUserService` / `getMutedUsersService` |
+| `authorization.ts` | `requireAuthorization(...)` — 認可チェック共通化 |
+
+#### 投稿系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `post-read-service.ts` | `fetchPostDetail` — 投稿詳細取得（v1 用） |
+| `post-write-service.ts` | `createPostV1` / `updatePostV1` / `deletePostV1` / `fetchCreatedPost` — 投稿 CRUD（v1 用） |
+| `post-visibility.ts` | 投稿の可視性判定（ブロック・非公開・凍結除外） |
+| `like-service.ts` | いいね追加・解除・状態取得（v1 用） |
+| `bookmark-service.ts` | `addBookmark` / `removeBookmark` / `getBookmarkedPosts` — ブックマーク管理 |
+| `feed-service.ts` | `fetchTimeline` — タイムライン取得（フォロー中ユーザーの投稿） |
+| `hashtag-sync.ts` | `attachHashtagsToPost` / `detachHashtagsFromPost` — 投稿ハッシュタグの同期・差分更新 |
+| `hashtag-recount.ts` | ハッシュタグ参照件数の再計算（管理操作 / cron 用） |
+| `mention.ts` | `notifyMentionedUsers` / `resolveMentionUsers` — メンション通知送信・ユーザー情報解決 |
+
+#### コメント系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `comment-read-service.ts` | `fetchComments` — コメント一覧取得（v1 用） |
+| `comment-write-service.ts` | `createCommentV1` — コメント作成（v1 用） |
+| `comment-thread-mute.ts` | `isThreadMuted(userId, rootCommentId)` — スレッドミュート状態判定 |
+
+#### 検索・探索系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `search-service.ts` | `fetchSearchPosts` / `fetchSearchUsers` — FTS / LIKE フォールバック検索 |
+| `explore-service.ts` | おすすめユーザー・トレンドジャンル・トレンドハッシュタグ取得 |
+| `explore-posts-service.ts` | ハッシュタグ / ジャンル別投稿一覧取得 |
+
+#### 通報系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `report-service.ts` | 通報作成・自動非表示ロジック（AUTO_HIDE_THRESHOLD 到達時） |
+
+#### 盆栽系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `bonsai-service.ts` | 盆栽 CRUD（v1 用） |
+| `bonsai-record-service.ts` | 成長記録 CRUD（v1 用） |
+| `bonsai-care-log-service.ts` | 手入れログ CRUD・期間取得（v1 用） |
+
+#### イベント・ショップ系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `event-service.ts` | イベント CRUD / 一覧取得（v1 用） |
+| `shop-service.ts` | 盆栽園 CRUD / レビュー投稿（v1 用） |
+
+#### 予約投稿系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `scheduled-post-publisher.ts` | `publishDueScheduledPosts()` — cron から呼ばれる予約投稿公開バッチ |
+| `scheduled-post-service.ts` | `cancelScheduledPostV1` 等 — 予約投稿 CRUD（v1 用） |
+
+#### マスターデータ系（読み取り専用）
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `dictionary-read-service.ts` | 盆栽用語辞典の読み取り（v1 用） |
+| `fertilizer-read-service.ts` | 肥料・栄養素・樹種・施肥スケジュール（v1 用） |
+| `hormone-read-service.ts` | ホルモン・相互作用・季節レベル（v1 用） |
+| `pesticide-read-service.ts` | 農薬・病害虫・有効成分（v1 用） |
+| `legal-service.ts` | `listLegalDocuments` / 法的文章取得（v1 用） |
+
+#### デバイス・Push 通知系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `device-service.ts` | `registerDevice` / `removeDevice` — Expo Push Token の登録・解除（v1 用） |
+| `device-tracking.ts` | デバイスフィンガープリントの追跡・ブラックリスト照合 |
+
+#### 課金・RevenueCat 系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `revenuecat.ts` | `processRevenueCatEvent(event)` — RevenueCat webhook イベント処理（INITIAL_PURCHASE / RENEWAL / CANCELLATION / EXPIRATION）。`revenueCatPayloadSchema` — ペイロード Zod 検証スキーマ |
+
+#### アナリティクス系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `analytics-recording.ts` | `recordPostViewService` / `recordProfileViewService` / `recordLikeReceivedService` / `recordNewFollowerService` — UserAnalytics 累積カウンタ更新（`/api/analytics/view` から呼ばれる） |
+| `analytics-service.ts` | アナリティクスデータ取得・集計 |
+| `analytics-read-service.ts` | v1 向け分析サマリ取得 |
+
+#### インフラ・共通系
+
+| ファイル | 主要エクスポート / 用途 |
+|---------|----------------------|
+| `webhook-idempotency.ts` | `ensureWebhookEventOnce(provider, eventId)` — UNIQUE INSERT による冪等性ロック。`deleteWebhookEvent` — ロック解放。重複は `{ alreadyProcessed: true }` を返す |
+| `media-cleanup.ts` | R2 から未使用メディアを削除（管理 cron 用） |
+| `media-url-validator.ts` | `assertMediaUrlsFromOwnStorage` — アップロード済み URL が自プロジェクトの R2 を指すことを検証（SSRF 防止） |
+| `security-events.ts` | `logSecurityEvent` — セキュリティイベント記録（ログイン失敗・パスワード変更・2FA 切替等） |
+| `segment-evaluation.ts` | `evaluateSegment` — ユーザーセグメントの対象者算出 |
+| `usage.ts` | Vercel / Supabase / R2 / Resend の利用量集計 |
+| `weather-service.ts` | Open-Meteo API 連携・天気キャッシュ・盆栽管理アドバイス生成 |
 
 `prisma.notification.create` / `createMany` の直接呼び出しは禁止。バリデーション失敗時は `actionError(ERR_INVALID_INPUT)` を返す。
 
@@ -1419,5 +1770,6 @@ Upstash Redis によるスライディングウィンドウ方式。
 | `requireActiveUser(action)` | セッション + 凍結チェック + レート制限 |
 | `requireActiveNonGuestUser(action)` | セッション + 非ゲスト + 凍結チェック + レート制限 |
 | `requireAdmin(requiredAction?)` | 管理者ロール + オプション権限チェック |
+| `requireBearerUser(request, options?)` | v1 API: JWT Bearer 検証（`lib/api/v1/auth-guard.ts`）。`options.rejectGuest=true` でゲスト拒否 |
 | `verifyCronAuth()` | HMAC-SHA256署名（cronジョブ用） |
 | Bearer トークン | タイミングセーフ比較（シードエンドポイント用） |

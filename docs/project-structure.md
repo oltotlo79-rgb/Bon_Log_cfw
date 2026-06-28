@@ -56,11 +56,11 @@ bonsai-sns-project/
 ```
 app/
 ├── (auth)/           # 認証ページ
-├── (legal)/          # 法務・規約ページ
+├── (legal)/          # 法務・規約ページ（5ページ）
 ├── (main)/           # メインアプリケーション（19機能エリア）
 ├── (public)/         # 公開ページ
 ├── admin/            # 管理者ダッシュボード（28サブディレクトリ）
-├── api/              # APIルート（23 route.ts + 1 route.tsx = 24 ハンドラ、`upload/_shared/` に共有ヘルパー 2 本）
+├── api/              # APIルート（100 ハンドラ: route.ts 99 + og/route.tsx 1。Web 用 + モバイル API v1 `/api/v1/*` 75 本）
 ├── auth/             # 特殊認証ページ（NextAuth コールバック）
 ├── maintenance/      # メンテナンスページ
 └── feed.xml/         # RSSフィード（Route Handler）
@@ -96,10 +96,14 @@ app/
 
 ### app/(main)/ — メインアプリケーション（認証必須・19機能エリア）
 
+> 機能エリア: analytics, bonsai, bookmarks, dictionary, drafts, events, explore, feed, fertilizers, hormones, messages, notifications, onboarding, pesticides, posts, search, settings, shops, users（+ 共通 layout/loading）
+
 | ファイル | 役割 |
 |---------|------|
 | `layout.tsx` | 3カラムレイアウト（サイドバー、コンテンツ、右サイドバー） |
 | `loading.tsx` | メインエリア共通ローディング |
+
+> モバイル（iOS/Android）クライアントは `/api/v1/*`（Bearer JWT 認証の Route Handler）経由でアクセスする。Web 用の Server Component / Server Action とロジックを共有しつつ、認可・レスポンス形式はモバイル合意仕様に統一（`lib/api/v1/` 基盤）。
 
 #### app/(main)/analytics/ — アナリティクス
 
@@ -359,7 +363,9 @@ app/
 | ファイル | 役割 |
 |---------|------|
 | `layout.tsx` | 法務ページ共通レイアウト |
+| `error.tsx` | 法務ページエラー表示 |
 | `accessibility/page.tsx` | アクセシビリティページ |
+| `account-deletion/page.tsx` | アカウント削除のご案内（Google Play デベロッパーポリシー要件。ログイン不要・クロール可能、設定からの削除手順とログインなし削除依頼・削除/保持データを案内） |
 | `privacy/page.tsx` | プライバシーポリシー |
 | `terms/page.tsx` | 利用規約 |
 | `tokushoho/page.tsx` | 特定商取引法に基づく表記 |
@@ -510,6 +516,7 @@ app/
 |---------|------|
 | `page.tsx` | プレミアム会員一覧ページ |
 | `PremiumActionsDropdown.tsx` | プレミアム会員アクションメニュー |
+| `GrantPremiumPanel.tsx` | 任意ユーザーへのプレミアム会員権付与UI（ユーザー検索 → 期間指定で付与） |
 
 #### app/admin/reports/ — 通報管理
 
@@ -600,7 +607,11 @@ app/
 | `IssueWarningDialog.tsx` | 警告発行ダイアログ |
 | `loading.tsx` | ローディング表示 |
 
-### app/api/ — APIルート（23 .ts + 1 .tsx = 24 エンドポイント + `_shared/` 共有ヘルパー 2 本 + 別途 `/feed.xml` の RSS ルート）
+### app/api/ — APIルート（合計 100 ハンドラ: `route.ts` 99 + `og/route.tsx` 1 + 別途 `/feed.xml` の RSS ルート）
+
+トップレベルグループ: `ad-frame`, `admin`, `analytics`, `auth`, `badges`, `cron`, `health`, `maintenance`, `og`, `push`, `upload`, `v1`（モバイル API・75 route）, `webhooks`。`upload/_shared/` に共有ヘルパー 3 本（Next.js ルート対象外）。モバイル v1 の共有基盤は `lib/api/`（旧記述にあった `app/api/_shared` は存在しない）。
+
+#### Web 用 API（`/api/v1` 以外、25 route + 共有ヘルパー 3）
 
 | ファイル | 役割 |
 |---------|------|
@@ -611,11 +622,13 @@ app/
 | `upload/presigned/route.ts` | R2 presigned URL発行（フォルダ ホワイトリスト検証付き） |
 | `upload/_shared/profile-image-upload.ts` | アバター / ヘッダー処理の共有ロジック（Next.js ルート対象外） |
 | `upload/_shared/validate-upload-file.ts` | アップロードファイル検証の共有ヘルパー（MIME / マジックバイト / サイズ。検証順序を統一） |
+| `upload/_shared/require-upload-user.ts` | upload 系 Route Handler のユーザー認証 / 認可ガードの共有ヘルパー（`requireActiveNonGuestUser` で認証 + 停止 + 非ゲストを確認。未認証 401 / 停止・ゲスト 403 を `NextResponse` で返す。Next.js ルート対象外） |
 | `cron/publish-scheduled/route.ts` | 予約投稿の自動公開（Cron） |
 | `cron/check-subscriptions/route.ts` | サブスクリプション状態確認（Cron） |
 | `cron/cleanup-events/route.ts` | 終了イベント自動クリーンアップ（Cron） |
 | `cron/update-weather/route.ts` | 天気データ更新（Open-Meteo連携、盆栽管理アドバイス生成） |
-| `webhooks/stripe/route.ts` | Stripe Webhook受信 |
+| `webhooks/stripe/route.ts` | Stripe Webhook受信（署名検証 + 冪等性ガード） |
+| `webhooks/revenuecat/route.ts` | RevenueCat Webhook受信（モバイル課金。共有シークレットの `timingSafeEqual` 検証 + IP レート制限 + `webhook_events` 冪等性ガード。`lib/services/revenuecat.ts` で isPremium/期限を更新） |
 | `health/route.ts` | ヘルスチェック |
 | `maintenance/status/route.ts` | メンテナンスモード状態確認 |
 | `badges/route.ts` | 未読通知数・未読メッセージ数（直近200会話で概算、messagesCapReachedで200+表示用） |
@@ -630,6 +643,45 @@ app/
 | `admin/seed/route.ts` | 薬剤以外（ジャンル / 辞典 / 肥料 / ホルモン / ゲスト）の統合シード投入API（管理者用、Bearer 認証 + maxDuration=300、`{ domain }` リクエスト） |
 | `admin/apply-migration/route.ts` | 一回限りのマイグレーション適用バックドア（管理者用、Bearer 認証、allowlist 内 SQL のみ実行可、すべて `IF NOT EXISTS` で冪等） |
 | `admin/search/setup/route.ts` | 検索（FTS）セットアップAPI（管理者用） |
+
+#### モバイル API v1（`/api/v1/*`、75 route）
+
+iOS/Android アプリ向けの Route Handler 群。`lib/api/v1/` の基盤（Bearer JWT 認証 `requireBearerUser`、統一エラーレスポンス `apiError`、`{ items, nextCursor }` ページネーション）を共有し、ドメインロジックは Web と同じ `lib/services/` を再利用する。proxy.ts の保護対象外のため各 route 内で fail-closed の認証・認可を実施する。
+
+| ディレクトリ | 役割 |
+|---------|------|
+| `v1/auth/login`, `auth/register`, `auth/logout`, `auth/refresh` | メール/パスワード認証・登録・ログアウト・アクセストークン更新（トークンペア発行） |
+| `v1/auth/2fa/verify` | ログイン 2 段階目（TOTP）検証。`lib/api/v1/mobile-2fa-ticket.ts` の一時チケットを消費 |
+| `v1/auth/google` | Google OAuth（ID トークン）ログイン |
+| `v1/auth/password-reset/request`, `password-reset/confirm` | パスワードリセット要求・実行 |
+| `v1/auth/verify-email/resend` | メール確認トークン再送 |
+| `v1/feed` | タイムライン取得 |
+| `v1/posts`, `posts/[id]` | 投稿の作成・一覧・取得・更新・削除 |
+| `v1/posts/[id]/like`, `posts/[id]/bookmark` | 投稿のいいね・ブックマーク |
+| `v1/posts/[id]/comments`, `posts/[id]/comments/[commentId]` | コメントの一覧・作成・取得・削除 |
+| `v1/explore/posts`, `explore/trending-hashtags`, `explore/trending-genres`, `explore/recommended-users` | 発見（人気投稿・トレンドタグ/ジャンル・おすすめユーザー） |
+| `v1/search/posts`, `search/users` | 投稿・ユーザー検索 |
+| `v1/users/[id]`, `users/me` | ユーザープロフィール取得・自プロフィール取得/更新 |
+| `v1/users/[id]/follow`, `users/[id]/block`, `users/[id]/mute` | フォロー・ブロック・ミュート |
+| `v1/users/me/blocks`, `users/me/mutes`, `users/me/bookmarks` | 自分のブロック/ミュート/ブックマーク一覧 |
+| `v1/users/me/follow-requests`, `follow-requests/[id]/approve`, `follow-requests/[id]/reject` | フォローリクエスト一覧・承認・拒否 |
+| `v1/users/me/notification-settings` | 通知設定の取得・更新 |
+| `v1/notifications`, `notifications/unread-count`, `notifications/read` | 通知一覧・未読件数・既読化 |
+| `v1/devices`, `devices/[token]` | モバイル Push デバイス（Expo トークン）の登録・削除 |
+| `v1/bonsai`, `bonsai/[id]`, `bonsai/[id]/records`, `bonsai/[id]/records/[recordId]` | 盆栽 CRUD・成長記録 |
+| `v1/bonsai/care-logs`, `care-logs/[logId]` | 盆栽手入れログ |
+| `v1/events`, `events/[id]` | イベント一覧・詳細 |
+| `v1/shops`, `shops/[id]`, `shops/[id]/reviews` | 盆栽園一覧・詳細・レビュー |
+| `v1/scheduled-posts`, `scheduled-posts/[id]`, `scheduled-posts/[id]/cancel` | 予約投稿の一覧・CRUD・キャンセル |
+| `v1/reports` | 通報 |
+| `v1/upload/presigned`, `upload/image` | R2 presigned URL 発行・画像アップロード |
+| `v1/genres` | ジャンルマスタ |
+| `v1/dictionary`, `dictionary/[slug]` | 盆栽用語辞典 |
+| `v1/fertilizers/categories`, `fertilizers/nutrients`, `nutrients/[slug]`, `fertilizers/tree-species`, `tree-species/[slug]/schedule` | 肥料ガイド |
+| `v1/hormones`, `hormones/[slug]` | 植物ホルモンガイド |
+| `v1/pesticides/products`, `products/[slug]`, `disease-pests`, `disease-pests/[slug]`, `ingredients`, `ingredients/[slug]` | 農薬・病害虫図鑑 |
+| `v1/analytics/summary` | アナリティクスサマリー（プレミアム） |
+| `v1/legal`, `legal/[slug]` | 法務文書（規約・プライバシー等） |
 
 ### app/auth/ — 特殊認証ページ
 
@@ -646,7 +698,9 @@ app/
 
 ---
 
-## components/ — Reactコンポーネント（262ファイル、34サブディレクトリ）
+## components/ — Reactコンポーネント（283ファイル: .tsx 268 / .ts 15、35サブディレクトリ）
+
+> サブディレクトリ: admin, ads, analytics, animation, auth, bonsai, comment, common, contact, dictionary, draft, event, feed, fertilizer, help, hormone, landing, layout, message, notification, onboarding, pesticide, post, premium, pwa, report, search, seo, settings, shop, subscription, theme, ui, user, weather
 
 ### components/ ルートファイル
 
@@ -812,6 +866,13 @@ app/
 | `NutrientCategoryBadge.tsx` | 栄養素カテゴリバッジ |
 | `NutrientLevelIndicator.tsx` | 栄養素レベルインジケーター |
 | `TreeSpeciesCard.tsx` | 樹種カード表示 |
+
+### components/help/ — ヘルプ
+
+| ファイル | 役割 |
+|---------|------|
+| `HelpFaqSearch.tsx` | ヘルプ/FAQ 検索コンポーネント |
+| `HelpIcons.tsx` | ヘルプページ用アイコンコンポーネント |
 
 ### components/hormone/ — 植物ホルモンガイド
 
@@ -1058,6 +1119,7 @@ app/
 | `ProfileIcons.tsx` | プロフィール用アイコンコンポーネント |
 | `ProfileTabs.tsx` | プロフィールタブ（投稿/いいね等） |
 | `profile-utils.ts` | プロフィール関連ユーティリティ |
+| `RecommendedUserList.tsx` | おすすめユーザー一覧（発見・オンボーディングで共用、フォローボタン付き） |
 | `UserCard.tsx` | ユーザーカード表示 |
 | `UserList.tsx` | ユーザー一覧 |
 
@@ -1090,18 +1152,21 @@ app/
 
 ```
 lib/
-├── actions/          # Server Actions（root 69 + admin/20 + schemas/1 = 90 .ts）
-├── constants/        # 定数（22ルートファイル + limits/18 + errors/7 = 47）
+├── actions/          # Server Actions（root 68 + admin/20 + schemas/1 = 89 .ts）
+├── api/              # 管理 API 認可 + モバイル API v1 基盤（seed-auth + v1/）
+├── build/            # ビルド時ヘルパー（DB 可用性判定 / generateStaticParams ラッパー）
+├── config/           # 設定ロジック（next.config 用 image remotePatterns 等）
+├── constants/        # 定数（24ルートファイル + limits/20 + errors/8 + legal/1 = 53）
 ├── email/            # メール送信（index.ts + templates/5）
 ├── prisma/           # Prisma 形状共有定義（shared-includes.ts）
 ├── scraping/         # スクレイピング
 ├── search/           # 全文検索（3ファイル）
-├── security/         # セキュリティ
-├── services/         # サービス層（19ファイル）
+├── security/         # セキュリティ（index / nonce / oauth-guard）
+├── services/         # サービス層（61ファイル、push/ サブ含む）
 ├── shop/             # Shop ドメイン共有ユーティリティ（1ファイル）
 ├── storage/          # ストレージ（R2 / S3 / local 切替）
-├── utils/            # ドメイン別ユーティリティ（12ファイル）
-├── validations/      # バリデーション
+├── utils/            # ドメイン別ユーティリティ（14ファイル）
+├── validations/      # バリデーション（password.ts）
 └── （29ルートファイル）
 ```
 
@@ -1139,7 +1204,7 @@ lib/
 | `utils.ts` | 汎用ユーティリティ関数（cn等） |
 | `web-push.ts` | Web Push通知送信 |
 
-### lib/actions/ — Server Actions（root 69 + admin/20 + schemas/1 = 90 .ts）
+### lib/actions/ — Server Actions（root 68 + admin/20 + schemas/1 = 89 .ts）
 
 > 戻り値型ポリシー: すべての Server Action は `ActionResult<T>` を返す（`types/action-result.ts`、CLAUDE.md ルール2）。
 > 例外として、RSC からのみ呼ばれる / 内部 helper として使う読み取り専用モジュールは `'use server'` を付けず `'server-only'` ガードのみを置き、ドメイン型を直接返す。
@@ -1160,7 +1225,6 @@ lib/
 |---------|------|
 | `admin.ts` | 管理者判定・情報取得（isAdmin, getAdminInfo） |
 | `analytics.ts` | ユーザーアナリティクスデータ取得 |
-| `analytics-recording.ts` | アナリティクス記録（`recordProfileView`/`recordPostView`/`recordLikeReceived`/`recordNewFollower` を `ActionResult<void>` で返却。Zod で `userId` を境界検証） |
 | `announcement.ts` | お知らせ（公開用取得） |
 | `auth.ts` | 認証関連（登録、ログイン、ゲストログイン） |
 | `auth-email-verify.ts` | メールアドレス確認トークンの送信・検証 |
@@ -1210,8 +1274,7 @@ lib/
 | `report-user.ts` | 通報（ユーザー側の処理） |
 | `review.ts` | 盆栽園レビュー操作 |
 | `scheduled-post.ts` | 予約投稿（バレル） |
-| `scheduled-post-crud.ts` | 予約投稿 CRUD |
-| `scheduled-post-publish.ts` | 予約投稿の公開処理（cron から呼び出し） |
+| `scheduled-post-crud.ts` | 予約投稿 CRUD（公開処理は `lib/services/scheduled-post-publisher.ts` へ委譲） |
 | `search.ts` | 検索処理（バレル） |
 | `search-entities.ts` | 検索エンティティ操作（ショップ・イベント・盆栽） |
 | `search-meta.ts` | 検索メタ情報（人気タグ・ジャンル・検索モード）。**RSC データ取得モジュール**（`'use server'` 不付与・`'server-only'`） |
@@ -1255,17 +1318,53 @@ lib/
 | `users.ts` | ユーザー管理 |
 | `warnings.ts` | ユーザー警告管理 |
 
-### lib/constants/ — 定数（ルート22ファイル + errors/7 + limits/18）
+### lib/api/ — 管理 API 認可 + モバイル API v1 基盤
+
+| ファイル | 役割 |
+|---------|------|
+| `seed-auth.ts` | 管理 API（`/api/admin/seed` / `seed-pesticide` / `apply-migration`）共通の認可ヘルパー（Bearer + IP allowlist + 本番でのスタックトレース非返却） |
+| `v1/index.ts` | モバイル API v1 共通基盤のバレル（route handler はここ経由で import） |
+| `v1/jwt.ts` | v1 向け JWT 発行・検証（`MOBILE_JWT_SECRET` から導出、HS256） |
+| `v1/auth-guard.ts` | v1 向け Bearer 認証ガード `requireBearerUser`（fail-closed、`/api/v1/*` の認可責任を集約） |
+| `v1/token-pair.ts` | アクセス + リフレッシュトークンのペア発行（login / 2fa / refresh / google で共有） |
+| `v1/mobile-2fa-ticket.ts` | モバイル専用の 2FA 一時チケット発行・検証（Web の `lib/two-factor-login-ticket.ts` とは用途が別） |
+| `v1/response.ts` | v1 統一レスポンスビルダー（`apiError` / `apiZodError` / `apiRateLimited`、`{ error: { code, message, status } }` 形式） |
+| `v1/pagination.ts` | v1 ページネーション共通スキーマ・型（`{ items, nextCursor }` 形式） |
+| `v1/types.ts` | v1 共通型定義 |
+| `v1/mention-resolver.ts` | レスポンス用メンション一括解決（`<@userId>` を 1 回の findMany で nickname/avatar に解決） |
+| `v1/follow-state-resolver.ts` | レスポンス用フォロー状態一括解決（閲覧者のフォロー状態をバッチクエリで付加） |
+| `v1/schemas/index.ts` | v1 リクエスト/レスポンススキーマのバレル |
+| `v1/schemas/request.ts` | v1 リクエストボディの Zod スキーマ（route handler と `generate-openapi.ts` が共有） |
+| `v1/schemas/response.ts` | v1 レスポンスボディの Zod スキーマ（OpenAPI ジェネレータと共有、エラーコードは `MOBILE_API_ERROR_CODES` から z.enum 化） |
+
+### lib/build/ — ビルド時ヘルパー
+
+| ファイル | 役割 |
+|---------|------|
+| `db-availability.ts` | ビルド/起動時に DB アクセスをスキップすべきか判定（`SKIP_DB_CONNECTION` / `DATABASE_URL` 未設定・ダミー値） |
+| `static-params.ts` | `generateStaticParams` 用 DB ロードラッパー（本番 build では失敗を握りつぶさず伝播させる） |
+
+### lib/config/ — 設定ロジック
+
+| ファイル | 役割 |
+|---------|------|
+| `image-remote-patterns.ts` | `next.config.ts` の `images.remotePatterns` を環境別に組み立て（vitest から import 可能にするため切り出し） |
+
+### lib/constants/ — 定数（ルート24ファイル + errors/8 + limits/20 + legal/1 = 53）
 
 | ファイル | 役割 |
 |---------|------|
 | `admin-actions.ts` | 管理者アクション定数 |
 | `admin-stats.ts` | 管理者統計ダッシュボードの集計対象・期間オプション定数 |
+| `animation.ts` | 季節背景アニメーション（パーティクル種別・密度等）の定数 |
 | `bonsai-care.ts` | 盆栽手入れログ用のラベル・順序・enum 定数（`BonsaiCareType` 表示名等） |
+| `contact.ts` | 連絡先定数（`SUPPORT_EMAIL` / `OPERATOR_NAME` 等） |
+| `contact-categories.ts` | お問い合わせカテゴリ定数 |
 | `dictionary.ts` | 盆栽用語辞典のカテゴリラベル・配色・並び順を集約（2026-05-12 に新設） |
-| `guest.ts` | ゲストユーザー関連定数 |
+| `guest.ts` | ゲストユーザー関連定数（`GUEST_EMAIL` 等） |
 | `hormone-techniques.ts` | 盆栽技法×ホルモン定数（9技法定義、effectType/magnitude定数、ダイアグラムSVG設定、シミュレーター閾値） |
 | `images.ts` | イラスト画像パス定数（ラベル・パスの対応表） |
+| `landing-animation.ts` | ランディングページの墨筆ストローク演出設定定数 |
 | `locations.ts` | 地域・都道府県定数（8地方ブロック） |
 | `messages.ts` | UI メッセージ（フォーム・通知等）の定数 |
 | `path-builders.ts` | 動的パス生成ヘルパー（例: `postPath(id)`） |
@@ -1278,9 +1377,12 @@ lib/
 | `storage.ts` | ストレージフォルダパス定数（アバター、投稿画像等） |
 | `storage-keys.ts` | ストレージキー定数 |
 | `system-settings.ts` | `systemSetting` テーブルの固定キー（`maintenance_mode` 等） |
-| `errors/` | エラーメッセージ定数（7ファイル: auth, content, entity, features, social, admin, index。旧 `errors.ts` はドメイン別に分割済） |
+| `theme.ts` | テーマ（ライト/ダーク）関連定数 |
+| `errors/` | エラーメッセージ定数（8ファイル。下記参照） |
+| `legal/` | 法務文書スラッグ・メタ定数（`index.ts`） |
+| `limits/` | 制限値定数（20ファイル。下記参照） |
 
-#### lib/constants/errors/ — エラー定数（7ファイル）
+#### lib/constants/errors/ — エラー定数（8ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1291,8 +1393,9 @@ lib/
 | `features.ts` | 機能別（ショップ・レビュー・下書き・予約投稿・お問い合わせ 等） |
 | `social.ts` | フォロー・ブロック・ミュート・メッセージ |
 | `admin.ts` | 管理者・セグメント・ブラックリスト + API_ERR_* 英語 |
+| `mobile-api.ts` | モバイル API v1 のエラーコード・メッセージ（`MOBILE_API_ERROR_CODES` 等） |
 
-#### lib/constants/limits/ — 制限値定数（18ファイル）
+#### lib/constants/limits/ — 制限値定数（20ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1309,6 +1412,8 @@ lib/
 | `fertilizer.ts` | 肥料関連制限値 |
 | `hormone.ts` | 植物ホルモン関連制限値 |
 | `media.ts` | メディア関連制限値 |
+| `mobile-auth.ts` | モバイル API 認証関連制限値（JWT/リフレッシュトークン有効期限・レート制限等） |
+| `mobile-device.ts` | モバイル Push デバイス登録関連制限値 |
 | `pagination.ts` | ページネーション関連制限値（`DEFAULT_PAGE_LIMIT` / `MAX_PAGE_LIMIT`） |
 | `pesticide.ts` | 農薬関連制限値（一覧件数上限・スラッグ長等） |
 | `post.ts` | 投稿関連制限値 |
@@ -1354,28 +1459,72 @@ lib/
 | `oauth-guard.ts` | OAuth プロバイダー連携時の検証ガード |
 | `index.ts` | エクスポートまとめ |
 
-### lib/services/ — サービス層（19ファイル）
+### lib/services/ — サービス層（61ファイル、`push/` サブ含む）
+
+複数の Server Action / Route Handler（Web + モバイル v1）から共有される再利用ドメインロジック。Web/モバイル両 API がロジックを共有できるよう、多くのドメインで read/write service を分離している。認証・認可は呼び出し元（Action / Route Handler）が済ませている前提。
 
 | ファイル | 役割 |
 |---------|------|
-| `analytics-recording.ts` | UserAnalytics 累積カウンタ更新 (`recordPostViewService` / `recordProfileViewService` / `recordLikeReceivedService` / `recordNewFollowerService`)。Server Action と Route Handler（`/api/analytics/view`）双方から呼ばれる共有 domain logic |
-| `analytics-service.ts` | アナリティクスデータ取得・集計サービス |
+| `account-deletion-service.ts` | アカウント削除の実体処理（関連データのカスケード削除・課金記録の匿名化） |
+| `analytics-read-service.ts` | アナリティクスデータ取得・整形（読み取り） |
+| `analytics-recording.ts` | UserAnalytics 累積カウンタ更新（`recordPostViewService` / `recordProfileViewService` / `recordLikeReceivedService` / `recordNewFollowerService`）。Server Action と `/api/analytics/view` 双方から呼ばれる |
+| `analytics-service.ts` | アナリティクス集計サービス |
 | `authorization.ts` | 認可チェックサービス（権限判定の共通化） |
+| `blacklist-check.ts` | メール/デバイスのブラックリスト照合 |
+| `block-service.ts` | ブロックの作成/解除・状態判定 |
+| `bonsai-care-log-service.ts` | 盆栽手入れログのドメイン処理 |
+| `bonsai-record-service.ts` | 盆栽成長記録のドメイン処理 |
+| `bonsai-service.ts` | 盆栽 CRUD のドメイン処理 |
+| `bookmark-service.ts` | ブックマークの作成/解除・一覧取得 |
 | `comment-notifications.ts` | コメント通知サービス（`createNotification` / `createNotificationsBulk` へ delegate） |
+| `comment-read-service.ts` | コメント取得（読み取り） |
 | `comment-thread-mute.ts` | コメントスレッドミュート状態の判定共有ロジック |
+| `comment-write-service.ts` | コメント作成/削除（書き込み） |
+| `credential-verification.ts` | メール/パスワード資格情報の検証（bcrypt 照合） |
+| `device-service.ts` | モバイル Push デバイス（Expo トークン）の登録・削除・一覧 |
 | `device-tracking.ts` | デバイス識別・追跡共有ロジック（UserDevice 記録、ブラックリスト照合） |
+| `dictionary-read-service.ts` | 盆栽用語辞典の取得（読み取り） |
+| `email-verify-core.ts` | メール確認トークンの発行・検証コアロジック |
+| `event-service.ts` | イベントのドメイン処理 |
+| `explore-posts-service.ts` | 発見の人気投稿取得 |
+| `explore-service.ts` | 発見（トレンドタグ/ジャンル・おすすめユーザー）取得 |
+| `feed-service.ts` | タイムライン取得のドメイン処理 |
+| `fertilizer-read-service.ts` | 肥料ガイドの取得（読み取り） |
+| `follow-service.ts` | フォロー/アンフォロー・フォローリクエストのドメイン処理 |
 | `hashtag-recount.ts` | ハッシュタグ参照件数の再計算（管理操作 / 定期 cron 用） |
 | `hashtag-sync.ts` | 投稿ハッシュタグの同期・差分更新（attach/detach 内部処理） |
+| `hormone-read-service.ts` | 植物ホルモンガイドの取得（読み取り） |
+| `legal-service.ts` | 法務文書の取得（規約・プライバシー等） |
+| `like-service.ts` | いいねの作成/解除（投稿・コメント） |
+| `login-throttle.ts` | ログイン試行スロットリング（ブルートフォース対策） |
 | `media-cleanup.ts` | アップロード済みメディアの実体削除（投稿/コメント/下書き/予約投稿/レビュー/盆栽記録の削除時に R2/local のオーファンを回収） |
+| `media-url-validator.ts` | メディア URL の検証（自ストレージ由来かのガード） |
 | `mention.ts` | メンション関連の解決・通知共有ロジック |
+| `mute-service.ts` | ミュートの作成/解除・状態判定 |
 | `notification-bulk.ts` | **複数受信者への通知一括作成**（block/prefs フィルタ + `createMany skipDuplicates` + push 並列） |
-| `notification-core.ts` | 通知のブロック/設定/重複チェック等の内部ヘルパー |
+| `notification-core.ts` | 通知のブロック/設定/重複チェック等の内部ヘルパー（Web Push + Expo Push を発火） |
+| `notification-preferences-utils.ts` | 通知設定の判定ユーティリティ |
+| `notification-read-service.ts` | 通知取得・未読件数・既読化（読み取り） |
+| `password-reset-service.ts` | パスワードリセットのコアロジック |
+| `pesticide-read-service.ts` | 農薬・病害虫の取得（読み取り） |
+| `post-read-service.ts` | 投稿取得（読み取り） |
 | `post-visibility.ts` | 投稿の可視性判定共有ロジック（公開/非公開/ブロック関係を考慮したアクセス可否） |
+| `post-write-service.ts` | 投稿の作成/更新/削除（書き込み） |
+| `push/expo-push.ts` | Expo Push API を使ったモバイル Push 送信（fire-and-forget、無効トークン自動削除） |
+| `registration-service.ts` | ユーザー登録のコアロジック |
+| `report-service.ts` | 通報のドメイン処理 |
+| `revenuecat.ts` | RevenueCat Webhook イベント処理（イベント種別に応じて `isPremium` / `premiumExpiresAt` を更新。送信元検証・冪等性は Route Handler 側） |
+| `scheduled-post-publisher.ts` | 予約投稿の公開処理（cron から呼び出し。旧 `lib/actions/scheduled-post-publish.ts` を移設） |
+| `scheduled-post-service.ts` | 予約投稿の CRUD ドメイン処理 |
+| `search-service.ts` | 検索のドメイン処理（FTS / LIKE フォールバック） |
 | `security-events.ts` | セキュリティイベント記録サービス |
 | `segment-evaluation.ts` | ユーザーセグメント条件の評価ロジック（セグメントビルダー条件→対象ユーザー判定） |
+| `shop-service.ts` | 盆栽園 CRUD・レビューのドメイン処理 |
 | `usage.ts` | fly.io / Supabase / R2 / Resend 利用量集計サービス |
 | `user-eligibility.ts` | ユーザーの操作適格性判定（停止/ゲスト/プレミアム等の状態に基づく許可判定） |
-| `webhook-idempotency.ts` | **外部 Webhook 冪等性ガード**（`webhook_events` UNIQUE INSERT、Stripe 等のリトライ抑止） |
+| `user-profile-write-service.ts` | ユーザープロフィール更新（書き込み） |
+| `user-read-service.ts` | ユーザー取得・関係解決（読み取り） |
+| `webhook-idempotency.ts` | **外部 Webhook 冪等性ガード**（`webhook_events` UNIQUE INSERT、Stripe / RevenueCat 等のリトライ抑止） |
 | `weather-service.ts` | 天気サービス（Open-Meteo API連携、天気データ取得・キャッシュ、盆栽管理アドバイス生成） |
 
 ### lib/shop/ — Shop ドメイン共有ユーティリティ（1ファイル）
@@ -1397,7 +1546,7 @@ lib/
 | `image-sanitize.ts` | アップロード画像のサニタイズ（EXIF 除去等） |
 | `s3-sign.ts` | S3/R2 presigned URL署名生成 |
 
-### lib/utils/ — ユーティリティ（ドメイン別、12ファイル）
+### lib/utils/ — ユーティリティ（ドメイン別、14ファイル）
 
 | ファイル | 役割 |
 |---------|------|
@@ -1407,10 +1556,12 @@ lib/
 | `client-ip.ts` | Request からの IP 抽出ヘルパー（rate-limit / login-tracker 等で共有） |
 | `fertilizer.ts` | 肥料関連ユーティリティ |
 | `form-data.ts` | FormData → typed object 変換ヘルパー |
+| `hashtag-extract.ts` | 本文からのハッシュタグ抽出ユーティリティ |
 | `json.ts` | JSON 安全パース・シリアライズヘルパー（`parseCachedWithSchema` 等 Redis キャッシュの型安全復元用） |
 | `pesticide.ts` | 農薬関連（getMaffUrl、getResistanceRiskLabel、RESISTANCE_RISK_LABELS） |
 | `pesticide-badge.ts` | 農薬バッジ表示ユーティリティ |
 | `preserve-order.ts` | 検索/ページネーション時の順序保持 |
+| `request-ip.ts` | Route Handler の Request からの IP 抽出（webhook / モバイル API のレート制限で共有） |
 | `season.ts` | 季節判定ユーティリティ（getCurrentSeason、getSeasonInfo、getSeasonImagePath） |
 | `seo.ts` | SEO メタデータ・JSON-LD 生成ヘルパー |
 
@@ -1436,7 +1587,7 @@ lib/
 
 ---
 
-## prisma/ — データベース（90モデル、24 enum、41マイグレーション）
+## prisma/ — データベース（92モデル、25 enum、43マイグレーション）
 
 ```
 prisma/
@@ -1489,10 +1640,10 @@ prisma/
 │       ├── additions2-parser.ts     # seed-pesticide-additions2.ts用パーサー
 │       ├── spray-parser.ts          # スプレー製品データ用パーサー
 │       └── supplement-parser.ts     # 効果補完データ用パーサー（互換性のため残存）
-└── migrations/                      # マイグレーション（41ディレクトリ）
+└── migrations/                      # マイグレーション（43ディレクトリ）
 ```
 
-### マイグレーション一覧（41ディレクトリ）
+### マイグレーション一覧（43ディレクトリ）
 
 | ディレクトリ | 内容 |
 |---------|------|
@@ -1537,6 +1688,8 @@ prisma/
 | `20260531000000_add_post_edited_at_and_user_pinned_post` | 投稿に編集日時（`edited_at`）、ユーザーに固定投稿（pinned post）フィールド追加 |
 | `20260531100000_add_comment_edited_at_and_user_onboarded_at` | コメントに編集日時、ユーザーにオンボーディング完了日時（`onboarded_at`）追加 |
 | `20260602000000_add_repost_unique_constraint` | リポストの重複防止 UNIQUE 制約追加 |
+| `20260612000000_add_refresh_tokens` | モバイル API v1 のリフレッシュトークンテーブル追加 |
+| `20260618000000_add_mobile_devices` | モバイル Push デバイス（Expo トークン）テーブル追加 |
 
 ---
 
@@ -1634,11 +1787,14 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 
 ---
 
-## scripts/ — ユーティリティスクリプト（14ファイル）
+## scripts/ — ユーティリティスクリプト（17ファイル）
 
 | ファイル | 役割 |
 |---------|------|
 | `setup-fts.ts` | 全文検索（FTS）セットアップ |
+| `generate-openapi.ts` | モバイル API v1 の OpenAPI 仕様生成（`lib/api/v1/schemas/` を参照） |
+| `backfill-hashtags.ts` | 既存投稿のハッシュタグ抽出・バックフィル |
+| `audit-test-data.mjs` | テストデータの監査スクリプト |
 | `call-seed-pesticide-api.mjs` | 本番環境の農薬シード投入API呼び出し |
 | `call-seed-api.mjs` | 本番環境の統合シード投入API呼び出し（domain 引数: `genres` / `dictionary` / `fertilizer` / `hormone` / `guest` / `all`） |
 | `call-apply-migration-api.mjs` | 本番環境のマイグレーション適用API（`/api/admin/apply-migration`）呼び出し |
@@ -1733,38 +1889,41 @@ TypeScript 厳格設定: `strict: true` + `noUncheckedIndexedAccess: true`（202
 
 ---
 
-## 統計サマリー（2026-06-07時点）
+## 統計サマリー（2026-06-28時点）
 
 | 項目 | 数量 |
 |------|------|
 | app/ ルートグループ | 4 (auth, legal, main, public) + admin + api + auth + feed.xml + maintenance |
 | app/(main)/ 機能エリア | 19 |
-| app/(legal)/ ページ | 4 (accessibility, privacy, terms, tokushoho) |
-| app/ 全 page.tsx | 131 |
+| app/(legal)/ ページ | 5 (accessibility, account-deletion, privacy, terms, tokushoho) |
+| app/ 全 page.tsx | 132 |
 | app/ 全 layout.tsx | 9 |
 | app/admin/ サブディレクトリ | 28 |
-| app/api/ 総ルート | 24 ハンドラ（`.ts` 23 + `.tsx` 1、`upload/_shared/` 2 ヘルパー）+ `/feed.xml` + `/auth/callback` |
-| components/ サブディレクトリ | 34 |
-| components/ ファイル数 | 262 |
+| app/api/ 総ルート | 100 ハンドラ（`route.ts` 99 + `og/route.tsx` 1。うちモバイル API v1 `/api/v1/*` 75 本）+ `upload/_shared/` 2 ヘルパー + `/feed.xml` + `/auth/callback` |
+| components/ サブディレクトリ | 35 |
+| components/ ファイル数 | 283（`.tsx` 268 + `.ts` 15） |
 | hooks/ カスタムフック | 7 |
 | lib/ ルートファイル | 29 |
-| lib/actions/ ファイル | root 69 + admin/20 + schemas/1（合計 90 .ts）。大半が `'use server'`、残りが `'server-only'` データ取得 / 内部 helper / barrel |
+| lib/actions/ ファイル | root 68 + admin/20 + schemas/1（合計 89 .ts）。大半が `'use server'`、残りが `'server-only'` データ取得 / 内部 helper / barrel |
+| lib/api/ ファイル | 14（seed-auth + v1/ モバイル基盤: jwt / auth-guard / token-pair / mobile-2fa-ticket / response / pagination / types / mention-resolver / follow-state-resolver / index / schemas×3） |
+| lib/build/ ファイル | 2（db-availability / static-params） |
+| lib/config/ ファイル | 1（image-remote-patterns） |
 | lib/prisma/ ファイル | 1（shared-includes.ts — 依存方向中立な Prisma include/select 形状の集約） |
-| lib/services/ ファイル | 19（analytics-recording / analytics-service / authorization / comment-notifications / comment-thread-mute / device-tracking / hashtag-recount / hashtag-sync / media-cleanup / mention / notification-bulk / notification-core / post-visibility / security-events / segment-evaluation / usage / user-eligibility / webhook-idempotency / weather-service） |
+| lib/services/ ファイル | 61（`push/expo-push.ts` を含む。read/write service の分離で Web/モバイル両 API がドメインロジックを共有） |
 | lib/search/ ファイル | 3（fulltext / fulltext-config / fulltext-search） |
 | lib/shop/ ファイル | 1（change-request.ts — 旧 services/shop-change-helpers から layer-neutral utility として移動） |
 | lib/storage/ ファイル | 8（index barrel + types/helpers/image-sanitize + r2/local/supabase provider + s3-sign） |
-| lib/constants/ ファイル | ルート 22 + errors/ 7 + limits/ 18（合計 47） |
-| lib/utils/ ファイル | 12 |
+| lib/constants/ ファイル | ルート 24 + errors/ 8 + limits/ 20 + legal/ 1（合計 53） |
+| lib/utils/ ファイル | 14 |
 | types/ ファイル | 7 |
-| prisma/ モデル数 | 90 |
-| prisma/ enum数 | 24 |
-| prisma/ マイグレーション | 41 |
+| prisma/ モデル数 | 92 |
+| prisma/ enum数 | 25 |
+| prisma/ マイグレーション | 43 |
 | prisma/ シード構成 | `seed.ts` + `seed/` ドメイン別（dictionary, e2e, fertilizer, genre, hormone, pesticide, shared） |
-| __tests__/ テストファイル | 845（`.test.ts` 353 + `.test.tsx` 492。components / lib / app / coverage-boost / prisma / hooks / types / その他） |
+| __tests__/ テストファイル | 968（`.test.ts` 468 + `.test.tsx` 500。components / lib / app / coverage-boost / prisma / hooks / types / その他） |
 | __tests__/ カバレッジ閾値 | Branches 80% / Functions 85% / Lines 85% / Statements 85% |
 | TypeScript 厳格設定 | `strict: true` + `noUncheckedIndexedAccess: true`（2026-05-13 に true 化） |
 | e2e/ specファイル | 60（Playwright、CI ワーカー数 3） |
-| scripts/ ファイル | 14 |
+| scripts/ ファイル | 17 |
 | .github/workflows/ | 5（ci / fly-deploy / cron / lighthouse / seed-pesticide-production） |
 | デプロイ基盤 | fly.io（app `bon-log`、nrt/東京）。DB=Supabase / Storage=Cloudflare R2 / Cache=Upstash Redis / Email=Resend / 決済=Stripe / 監視=Sentry はすべて外部サービス。本番ドメイン: https://www.bon-log.com |

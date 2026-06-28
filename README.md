@@ -15,9 +15,10 @@ BON-LOGは、盆栽愛好家が日々の管理記録・作品共有・情報交�
 | 機能 | 説明 |
 |---|---|
 | 投稿 | テキスト + 画像4枚 or 動画1本（動画はプレミアム限定）、ハッシュタグ、投票 |
+| モバイルアプリ向け REST API（v1） | JWT 認証 + リフレッシュトークンのネイティブアプリ向け API（OpenAPI 自動生成）、Expo Push 通知、RevenueCat 課金連携 |
 | 引用・リポスト | ツイッター的な投稿共有 |
 | ソーシャル | フォロー / ブロック / ミュート / 非公開アカウント |
-| 通知 | いいね・コメント・フォロー等15種 + Web Push |
+| 通知 | いいね・コメント・フォロー等15種 + Web Push（Web）+ Expo Push（モバイル） |
 | DM | ダイレクトメッセージ |
 | 盆栽記録 | 樹種ごとの成長記録・写真管理 |
 | 盆栽園マップ | Leaflet + OpenStreetMapによる店舗情報・レビュー |
@@ -30,8 +31,9 @@ BON-LOGは、盆栽愛好家が日々の管理記録・作品共有・情報交�
 | 季節テーマ | 月に応じた水墨画バナー・背景アニメーション自動切替 |
 | OGP | 水墨画ベースのOG画像（各ページで個別指定） |
 | 植物ホルモンガイド | 五大ホルモン・技法影響・相互作用・年間カレンダー・シミュレーター |
-| プレミアム | 月額350円 / 年額3,500円、予約投稿・アナリティクス・ゴールドフレーム |
-| 管理者 | コンテンツモデレーション・ユーザー管理・監査ログ（28サブディレクトリ / 35画面） |
+| プレミアム | 月額350円 / 年額3,500円（Web: Stripe / モバイル: RevenueCat）、予約投稿・アナリティクス・ゴールドフレーム |
+| アカウント削除案内 | アプリストア審査向けの公開削除手順ページ（`/account-deletion`） |
+| 管理者 | コンテンツモデレーション・ユーザー管理・監査ログ・任意ユーザーへのプレミアム付与（28サブディレクトリ / 35画面） |
 
 ---
 
@@ -43,16 +45,17 @@ BON-LOGは、盆栽愛好家が日々の管理記録・作品共有・情報交�
 | Language | TypeScript 5 (strict mode) |
 | UI | React 19.2.3 + Tailwind CSS 4 + shadcn/ui (Radix UI primitives) |
 | State | TanStack React Query 5.90.16 |
-| ORM | Prisma 6.19.2 |
+| ORM | Prisma 6.19.3 |
 | Database | PostgreSQL (Supabase) |
-| Auth | NextAuth.js v5 beta (Auth.js — `5.0.0-beta.31` を pinned、JWT戦略 + サーバーサイド2FA) |
-| Validation | Zod 4 |
+| Auth | NextAuth.js v5 beta (Auth.js — `5.0.0-beta.31` を pinned、JWT戦略 + サーバーサイド2FA)。モバイル API は独自 JWT + リフレッシュトークン（`jose`） |
+| Validation | Zod 4.3.5（`@asteasolutions/zod-to-openapi` で v1 OpenAPI を生成） |
 | Cache | Upstash Redis |
 | Storage | Cloudflare R2 |
-| Payment | Stripe |
-| Email | Resend |
+| Payment | Stripe 20.1.2（Web）+ RevenueCat（モバイル課金 Webhook） |
+| Notification | web-push（Web Push）+ Expo Push（モバイル） |
+| Email | Resend 6.7.0 |
 | Map | Leaflet + OpenStreetMap |
-| Monitoring | Sentry |
+| Monitoring | Sentry 10.34.0 |
 | Testing | Vitest 4.0.18 + Playwright 1.57.0 |
 | Deploy | fly.io（app `bon-log` / region `nrt`、Docker standalone）+ GitHub Actions（デプロイ・Cron） |
 
@@ -123,6 +126,14 @@ npx prisma generate  # Prismaクライアント再生成
 npm run db:seed              # 基本シード
 npm run db:seed-pesticide    # 農薬データ
 npm run db:seed-pesticide-all # 農薬関連全データ
+npm run db:setup-fts         # 全文検索インデックスのセットアップ
+# 本番（API 経由でリモート DB に投入）
+npm run db:seed-production            # 基本シード（本番）
+npm run db:seed-pesticide-production  # 農薬データ（本番）
+npm run db:apply-migration-production # マイグレーション適用（本番）
+
+# モバイル REST API v1
+npm run generate:openapi     # v1 の OpenAPI 仕様を生成
 
 # テスト
 npm test                # ユニットテスト
@@ -158,6 +169,9 @@ curl http://localhost:3000/api/health
 | `STRIPE_SECRET_KEY` | Stripe シークレットキー |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Webhookシークレット |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe 公開キー |
+| `REVENUECAT_WEBHOOK_AUTH_HEADER` | RevenueCat Webhook 共有シークレット（モバイル課金 / fly.io secret） |
+| `MOBILE_JWT_SECRET` | モバイル REST API v1 のアクセストークン署名鍵（hex） |
+| `EXPO_ACCESS_TOKEN` | Expo Push 送信用アクセストークン（モバイル通知、任意） |
 | `SENTRY_DSN` | Sentry DSN |
 | `TWO_FACTOR_ENCRYPTION_KEY` | 2FA暗号化キー（32バイトhex、v1 鍵として扱われる後方互換用） |
 | `TWO_FACTOR_ENCRYPTION_KEY_v1`, `_v2`, ... | 鍵バージョニング対応（無停止ローテーション用、任意） |
@@ -182,8 +196,8 @@ bonsai-sns-project/
 │   ├── auth/callback/    # NextAuth コールバック（Route Handler）
 │   ├── maintenance/      # メンテナンス中ページ
 │   ├── feed.xml/         # 公開投稿の RSS 2.0 フィード（Route Handler）
-│   └── api/              # Route Handlers（24本: upload×4, cron×4, admin×6, webhooks/stripe, push/vapid-key, badges, ad-frame, og, auth/[...nextauth], analytics×2, health, maintenance/status）
-├── components/           # 33サブディレクトリ
+│   └── api/              # Route Handlers（100本）。Web 用 25本（upload×4, cron×4, admin×6, webhooks×2[stripe, revenuecat], push/vapid-key, badges, ad-frame, og, auth/[...nextauth], analytics×2, health, maintenance/status）＋ モバイル REST API v1（`api/v1/`）75本
+├── components/           # 35サブディレクトリ
 │   ├── post/             # 投稿関連（最大ディレクトリ）
 │   ├── shop/             # 盆栽園
 │   ├── ui/               # shadcn/ui + Radix UI 基本
@@ -200,15 +214,16 @@ bonsai-sns-project/
 │   ├── layout/           # ナビ・サイドバー
 │   └── admin/            # 管理者UI
 ├── lib/
-│   ├── actions/          # Server Actions（87ファイル: ルート 66 + admin/ 20 + schemas/ 1）。`'use server'` を持つ Server Action 公開モジュールは 73 本、残りは `'server-only'` の RSC データ取得 / 内部 helper（filter-helper, post-include, post-validation, prisma-filters, shared-includes, utils 等）
-│   ├── services/         # サービス層（15ファイル: 通知バルク／コア、Webhook冪等性、認可、セキュリティイベント、ハッシュタグ同期 / 再計算、コメント通知 / スレッドミュート、メンション、利用統計、天気、アナリティクス記録／取得）
+│   ├── actions/          # Server Actions（89ファイル）。`'use server'` を持つ Server Action 公開モジュールは 83 本、残りは `'server-only'` の RSC データ取得 / 内部 helper（filter-helper, post-include, post-validation, prisma-filters, shared-includes, utils 等）
+│   ├── services/         # サービス層（61ファイル: 通知バルク／コア、Expo Push、Webhook冪等性、認可、セキュリティイベント、ハッシュタグ同期 / 再計算、コメント通知 / スレッドミュート、メンション、利用統計、天気、アナリティクス記録／取得 等）
+│   ├── api/              # モバイル REST API v1 基盤（`api/v1/` のルート群と JWT / リフレッシュトークン helper、seed-auth）
 │   ├── shop/             # Shop ドメイン共有ユーティリティ（change-request.ts: 変更リクエストの型・schema・parser。旧 services/shop-change-helpers を layer-neutral 配置へ移動）
 │   ├── security/         # セキュリティユーティリティ
 │   ├── validations/      # Zodスキーマ
 │   ├── email/            # メールテンプレート
 │   ├── storage/          # ファイルアップロード
-│   ├── constants/        # 定数・制限値（ルート 22 + limits/ 18 + errors/ 7、合計 47 ファイル。system-settings.ts で DB キーも定数化、limits/event.ts でイベント類似度閾値も集約、constants/dictionary.ts で辞典カテゴリ・配色を集約）
-│   ├── utils/            # ユーティリティ（admin-cursor, avatar, calendar-grid, client-ip, fertilizer, form-data, json, pesticide, pesticide-badge, preserve-order, season, seo の 12 ファイル）
+│   ├── constants/        # 定数・制限値（limits/ 20 + errors/ 8 ほか、合計 53 ファイル。system-settings.ts で DB キーも定数化、limits/event.ts でイベント類似度閾値、constants/dictionary.ts で辞典カテゴリ・配色、errors/mobile-api.ts でモバイル API のエラーコードを集約）
+│   ├── utils/            # ユーティリティ（admin-cursor, avatar, calendar-grid, client-ip, fertilizer, form-data, hashtag-extract, json, pesticide, pesticide-badge, preserve-order, request-ip, season, seo の 14 ファイル）
 │   ├── auth.ts           # NextAuth.js設定
 │   ├── db.ts             # Prismaクライアント
 │   ├── env.ts            # 環境変数のゲートウェイ getter（getCronSecret / getBasicAuthConfig / isProduction 等）
@@ -217,14 +232,14 @@ bonsai-sns-project/
 │   ├── logger.ts         # Sentry連携ロガー（static import、開発はconsole・本番はSentryへ送信）
 │   └── cache.ts          # unstable_cache ラッパ
 ├── prisma/
-│   ├── schema.prisma     # DBスキーマ（90モデル, 24 enum）
-│   ├── migrations/       # マイグレーション（38ディレクトリ + fulltext_search_indexes.sql + migration_lock.toml）
+│   ├── schema.prisma     # DBスキーマ（92モデル, 25 enum）
+│   ├── migrations/       # マイグレーション（43ディレクトリ + fulltext_search_indexes.sql + migration_lock.toml）
 │   ├── validation/       # 農薬データMAFF突合バリデーション
 │   ├── seed.ts           # シードエントリポイント
 │   └── seed/             # ドメイン別シード（dictionary, e2e, fertilizer, genre, hormone, pesticide, shared）
-├── __tests__/            # ユニット・コンポーネントテスト（Vitest, 825ファイル）
+├── __tests__/            # ユニット・コンポーネントテスト（Vitest, 968ファイル）
 ├── e2e/                  # E2Eテスト（Playwright, 60 spec, 8プロジェクト構成）
-├── hooks/                # 共有Client Hooks（8ファイル: useFollowAction, useMediaUpload, useToast 等）
+├── hooks/                # 共有Client Hooks（7ファイル: use-follow-action, use-infinite-scroll, use-toast 等）
 ├── docs/                 # ドキュメント
 ├── scripts/              # 保守スクリプト（seed補助・PWAアイコン生成等）
 ├── proxy.ts              # 認証チェック・CSP nonce・HSTS・Origin/Referer 検証・メンテナンスゲート（Edge Runtime、セキュリティイベントは Sentry に送信）
@@ -253,7 +268,7 @@ npm run test:all          # ユニット + E2E
 | Lines（閾値） | 85% |
 | Statements（閾値） | 85% |
 | TypeScript strict 設定 | `strict: true` + `noUncheckedIndexedAccess: true` + `noImplicitOverride: true` |
-| ユニット・コンポーネントテスト | 825ファイル（`.test.ts` + `.test.tsx`） |
+| ユニット・コンポーネントテスト | 968ファイル（`.test.ts` 468 + `.test.tsx` 500） |
 | E2Eテスト | 60 specファイル（Playwright、8プロジェクト構成: setup + 5ブラウザ + chromium-noauth + teardown） |
 | 主要分布 | components / lib / app / coverage-boost / prisma / hooks / types / その他 |
 
@@ -285,7 +300,7 @@ GitHub Actions により PR・mainブランチへのプッシュ時に自動実�
 
 ## デプロイ
 
-本番は **fly.io**（app `bon-log` / primary region `nrt`＝東京）に Docker standalone イメージとしてデプロイされます。DB（Supabase）・Storage（R2）・Cache（Upstash）・Stripe・Resend・Sentry は外部サービスを継続利用します。
+本番は **fly.io**（app `bon-log` / primary region `nrt`＝東京）に Docker standalone イメージとしてデプロイされます。DB（Supabase）・Storage（R2）・Cache（Upstash）・Stripe・RevenueCat・Resend・Expo Push・Sentry は外部サービスを継続利用します。
 
 ### デプロイ（GitHub Actions 経由）
 
@@ -334,7 +349,7 @@ docker compose --profile prod up -d
 | [`CLAUDE.md`](CLAUDE.md) + [`.claude/rules/`](.claude/rules/) | Claude Code向けプロジェクト指示書（機能別ルール分割） |
 | [`docs/requirements.md`](docs/requirements.md) | 要件定義書 |
 | [`docs/project-structure.md`](docs/project-structure.md) | ファイル構成詳細 |
-| [`docs/api-spec.md`](docs/api-spec.md) | Route Handler仕様（`app/api/` 24ルート + `/feed.xml` + `/auth/callback`） + Server Actions一覧（90ファイル） |
+| [`docs/api-spec.md`](docs/api-spec.md) | Route Handler仕様（`app/api/` 100ルート＝Web 25 + モバイル v1 75 + `/feed.xml` + `/auth/callback`） + Server Actions一覧（89ファイル） |
 | [`docs/TESTING.md`](docs/TESTING.md) | テスト戦略・パターン集 |
 | [`docs/tutorial/`](docs/tutorial/) | 開発チュートリアル |
 | [`docs/code-reference/`](docs/code-reference/) | コードリファレンス |

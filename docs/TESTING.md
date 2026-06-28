@@ -20,11 +20,11 @@ Vitest は `vitest.config.ts` で次を設定している:
 
 > **`--configLoader runner` について**: `package.json` の test スクリプトは `vitest run --configLoader runner` を使う。Windows sandbox 等で設定ファイル解決が落ちるのを避けるための指定であり、`npm test` 経由なら自動で付与される。`npx vitest run` を直接叩く場合（CI もこちら）はこのフラグは不要。
 
-## テスト統計（2026-06-07時点）
+## テスト統計（2026-06-28時点）
 
 | 項目 | 数値 |
 |------|------|
-| テストファイル数（Vitest） | 845（`.test.ts` 353 + `.test.tsx` 492） |
+| テストファイル数（Vitest） | 968（`.test.ts` 468 + `.test.tsx` 500） |
 | カバレッジ閾値 | Branches 80% / Functions 85% / Lines 85% / Statements 85% |
 | カバレッジ実測（参考） | Statements ~96.7% / Branches ~90.9% / Functions ~97.4% / Lines ~98.0%（閾値を大きく上回る） |
 | TypeScript strict | `strict: true` + `noUncheckedIndexedAccess: true` + `noImplicitOverride: true` |
@@ -34,6 +34,7 @@ Vitest は `vitest.config.ts` で次を設定している:
 | E2E ワーカー数（CI） | 3（`PLAYWRIGHT_WORKERS` 環境変数で上書き可） |
 | パーサーテスト | 6ファイル・98テストケース |
 | カバレッジ向上テスト | 24ファイル（__tests__/coverage-boost/） |
+| モバイル REST API v1 テスト | 75ファイル（`__tests__/app/api/v1/` 68 + `__tests__/lib/api/v1/` 7） |
 | モックオブジェクト数 | 30+（test-utils.tsx） |
 | 通知ヘルパーテスト | `__tests__/lib/services/notification-bulk.test.ts`（25 ケース）/ `notification-core.test.ts` |
 | Webhook 冪等性テスト | `__tests__/lib/services/webhook-idempotency.test.ts` |
@@ -107,6 +108,9 @@ npx vitest run --configLoader runner __tests__/lib/actions/post.test.ts
 # 全E2Eテストを実行
 npm run test:e2e
 
+# 全E2Eテストを実行（test:e2e と同一。テストユーザーをクリーンアップして再実行する際に使用）
+npm run test:e2e:clean
+
 # UIモードで実行（テスト選択・デバッグが可能）
 npm run test:e2e:ui
 
@@ -141,23 +145,31 @@ npm run test:all
 
 ```
 project/
-├── __tests__/                    # Vitestテスト（845ファイル）
+├── __tests__/                    # Vitestテスト（968ファイル）
 │   ├── utils/
 │   │   └── test-utils.tsx        # テストユーティリティ、モック（30+モックデータ + Prismaクライアントモック）
 │   ├── helpers/
 │   │   └── action-result.ts      # ActionResult型テスト用ヘルパー（expectSuccess/expectError）
-│   ├── api/                      # APIルートテスト
-│   ├── app/                      # ページコンポーネントテスト（layouts/root-page も含む）
+│   ├── app/                      # ページコンポーネント・APIルートテスト
+│   │   ├── api/                  # APIルートテスト
+│   │   │   ├── v1/               # モバイル REST API v1 テスト（68ファイル: auth/, users/, posts/, feed/, bonsai/ 等21カテゴリ）
+│   │   │   ├── admin/, analytics/, badges/, cron/, health/, maintenance/, push/, upload/, webhooks/
+│   │   │   └── analytics-view-route.test.ts, feed-xml.test.ts, upload-validation-order.test.ts 等
+│   │   ├── admin/                # 管理者ページテスト
+│   │   ├── auth/                 # 認証ページテスト
+│   │   ├── main/                 # メインアプリページテスト
+│   │   └── layouts.test.tsx, root-page.test.tsx 等
 │   ├── components/               # UIコンポーネントテスト
-│   │   ├── ads/, analytics/, auth/, bonsai/, comment/, common/
-│   │   ├── dictionary/, draft/, event/, feed/, fertilizer/
-│   │   ├── hormone/, layout/, message/, notification/, pesticide/
-│   │   ├── post/, report/, search/, settings/, shop/
-│   │   ├── subscription/, user/, weather/
-│   │   └── coverage-boost*.test.tsx
+│   │   ├── admin/, ads/, analytics/, animation/, auth/, bonsai/, comment/, common/
+│   │   ├── contact/, dictionary/, draft/, event/, feed/, fertilizer/, help/
+│   │   ├── hormone/, landing/, layout/, message/, notification/, onboarding/, pesticide/
+│   │   ├── post/, premium/, pwa/, report/, search/, seo/, settings/, shop/
+│   │   ├── subscription/, theme/, ui/, user/, weather/
+│   │   └── coverage-boost*.test.tsx, low-coverage-batch.test.tsx, SakuraAnimation*.test.tsx
 │   ├── hooks/                    # カスタムフックテスト
 │   ├── lib/
 │   │   ├── actions/              # Server Actionsテスト（多数。analytics-recording / search-users 等は ActionResult 形に追従）
+│   │   ├── api/v1/               # モバイル REST API v1 ライブラリテスト（7ファイル: jwt, auth-guard, token-pair, response 等）
 │   │   ├── constants/            # 定数バリデーションテスト（new-constants.test.ts で MAINTENANCE_CACHE_TTL_MS 等を検証）
 │   │   ├── email/                # メールテンプレートテスト
 │   │   ├── scraping/             # スクレイパーテスト
@@ -171,7 +183,8 @@ project/
 │   ├── coverage-boost/           # カバレッジ向上テスト（24ファイル）
 │   ├── unit/actions/             # 追加ユニットテスト
 │   ├── types/                    # 型定義テスト
-│   └── proxy/                    # proxy.tsテスト
+│   ├── proxy/                    # proxy.tsテスト
+│   └── public/                   # Service Worker・その他テスト
 ├── e2e/                          # Playwright E2Eテスト（60 specファイル）
 │   ├── auth.setup.ts             # 認証セットアップ（storageState 保存）
 │   ├── global-teardown.ts        # 全E2E終了後のクリーンアップ（globalTeardown）

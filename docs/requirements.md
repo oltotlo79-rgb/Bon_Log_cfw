@@ -34,7 +34,8 @@
 
 | 収益源 | 状態 | 内容 |
 |--------|------|------|
-| プレミアム会員 | 実装済み | 月額350円 / 年額3,500円 |
+| プレミアム会員（Web 決済） | 実装済み | 月額350円 / 年額3,500円（Stripe） |
+| プレミアム会員（モバイルアプリ内課金） | 実装済み | ネイティブアプリの App Store / Google Play 課金を RevenueCat 経由で連携 |
 | 広告掲載 | 実装済み | Google AdSense / 忍者AdMax |
 
 ---
@@ -45,41 +46,46 @@
 
 | 技術 | バージョン | 用途 |
 |------|-----------|------|
-| Next.js | 16.x (App Router) | フレームワーク |
-| React | 19.x | UIライブラリ |
-| TypeScript | 5.x (strict mode) | 型安全な開発 |
-| Tailwind CSS | 4 | スタイリング |
+| Next.js | ^16.2.1 (App Router) | フレームワーク |
+| React | 19.2.3 | UIライブラリ |
+| TypeScript | ^5 (strict mode) | 型安全な開発 |
+| Tailwind CSS | ^4 | スタイリング |
 | shadcn/ui (Radix UI) | - | UIコンポーネント |
-| React Query | 5.x | サーバー状態管理 |
-| Recharts | 3.x | グラフ・チャート |
-| Leaflet | 1.x | 地図表示 |
-| react-leaflet | 5.x | React用Leafletラッパー |
+| React Query | ^5.90.16 | サーバー状態管理 |
+| Recharts | ^3.6.0 | グラフ・チャート |
+| Leaflet | ^1.9.4 | 地図表示 |
+| react-leaflet | ^5.0.0 | React用Leafletラッパー |
 
 ### 2.2 バックエンド
 
 | 技術 | バージョン | 用途 |
 |------|-----------|------|
-| Next.js Server Actions | - | API実装（85ファイル: 64ルート + 20管理者 + 1 schemas）。`'use server'` を持たず `'server-only'` のみで運用するモジュール 13 本（`dictionary.ts` / `fertilizer.ts` / `hormone.ts` / `pesticide.ts` / `search-meta.ts` の RSC データ取得 + `filter-helper.ts` / `post-include.ts` / `post-validation.ts` / `shared-includes.ts` / `prisma-filters.ts` / `pagination.ts` / `utils.ts` の内部 helper、および barrel re-export の `user.ts`）はこの数に含む |
-| NextAuth.js v5 | 5.0.0-beta.31 | 認証（JWT戦略） |
+| Next.js Server Actions | - | API実装（89ファイル: 68ルート + 20管理者 + 1 schemas）。`'use server'` を持たないモジュール 6 本（`admin/_schemas.ts` / `filter-helper.ts` / `pagination.ts` / `prisma-filters.ts` / `schemas/common.ts` の内部 helper・スキーマ、および barrel re-export の `user.ts`）はこの数に含む。共有 include 形状定数は `lib/prisma/shared-includes.ts` に集約（依存方向中立のため `lib/actions/` 外） |
+| NextAuth.js v5 | 5.0.0-beta.31 | 認証（Web、JWT戦略） |
+| jose | ^6.2.3 | モバイル API v1 用 JWT（HS256）の署名・検証 |
 | Google OAuth 2.0 | - | ソーシャルログイン |
-| Prisma | 6.19.2 | ORM（`@prisma/adapter-pg` + `pg` ^8.16 ドライバアダプタ経由） |
-| Zod | 4.x | バリデーション |
-| Stripe | 20.x | 決済処理 |
-| Resend | 6.x | メール送信 |
-| @sentry/nextjs | 10.x | エラー監視 |
-| Upstash Redis | 1.x | キャッシュ・レート制限 |
-| web-push | 3.x | プッシュ通知 |
-| Sharp | 0.34.x | 画像処理（リサイズ・WebP変換） |
-| otplib | 13.x | TOTP（2段階認証） |
+| Prisma / @prisma/client | 6.19.3 | ORM（`@prisma/adapter-pg` + `pg` ^8.16.3 ドライバアダプタ経由） |
+| Zod | ^4.3.5 | バリデーション |
+| Stripe | ^20.1.2 | 決済処理（Web） |
+| RevenueCat | - | モバイルアプリ内課金 Webhook 連携 |
+| Resend | ^6.7.0 | メール送信 |
+| @sentry/nextjs | ^10.34.0 | エラー監視 |
+| Upstash Redis | ^1.36.1 | キャッシュ・レート制限 |
+| web-push | ^3.6.7 | Web プッシュ通知 |
+| Expo Push | - | モバイルプッシュ通知（Expo Push API） |
+| @asteasolutions/zod-to-openapi | ^8.5.0 | モバイル API v1 の OpenAPI スキーマ生成 |
+| Sharp | ^0.34.5 | 画像処理（リサイズ・WebP変換） |
+| otplib | ^13.2.1 | TOTP（2段階認証） |
+| bcryptjs | ^3.0.3 | パスワードハッシュ化 |
 | FingerprintJS | 5.x | デバイス識別 |
 
 ### 2.3 テスト
 
 | 技術 | バージョン | 用途 |
 |------|-----------|------|
-| Vitest | 4.0.18 | ユニットテスト |
-| @vitest/coverage-istanbul | 4.0.18 | カバレッジ計測（`vi.mock()` 多用環境での集計精度のため v8 から移行） |
-| Playwright | 1.57.0 | E2Eテスト |
+| Vitest | ^4.0.18 | ユニットテスト |
+| @vitest/coverage-istanbul | ^4.0.18 | カバレッジ計測（`vi.mock()` 多用環境での集計精度のため v8 から移行） |
+| Playwright | ^1.57.0 | E2Eテスト |
 | React Testing Library | - | コンポーネントテスト |
 
 ### 2.4 インフラストラクチャ
@@ -116,7 +122,9 @@
 | Cloudflare R2 | S3互換オブジェクトストレージ |
 | Upstash Redis | サーバーレスRedis（キャッシュ・レート制限） |
 | Resend | トランザクショナルメール |
-| Stripe | サブスクリプション決済 |
+| Stripe | サブスクリプション決済（Web） |
+| RevenueCat | モバイルアプリ内課金（App Store / Google Play）の Webhook 連携 |
+| Expo Push API | モバイルプッシュ通知の送信 |
 | Sentry | エラー監視・パフォーマンス追跡 |
 | Leaflet / OpenStreetMap | 地図表示 |
 | Open-Meteo API | 天気データ取得 |
@@ -618,6 +626,13 @@
 - 菊紋画像によるプレミアムバッジ（sm/md/lg 3サイズ、ライト/ダーク対応、ツールチップ付き）
 - サブスクリプション設定ページに金箔背景パターン
 
+#### 3.15.5 管理者による手動プレミアム付与
+- Stripe / RevenueCat の自動サブスクリプションとは独立した、管理者による手動付与・取り消し・延長フロー（プロモーション / カスタマーサポート / テスト用途）
+- UI: `/admin/premium`（`GrantPremiumPanel`）で任意ユーザーを検索しプレミアム資格を付与・延長・取り消し
+- 付与期限は現在時刻 + `DEFAULT_PREMIUM_GRANT_DAYS` を既定とする日数指定
+- 全操作で `requireAdmin('premium:*')` による認可、変更系は `AdminLog` に監査記録（`ACTION_GRANT_PREMIUM` / `ACTION_REVOKE_PREMIUM` / `ACTION_EXTEND_PREMIUM`）
+- 実装: `lib/actions/admin/premium.ts`
+
 ### 3.16 アナリティクス
 
 #### 3.16.1 ユーザー向け（プレミアム限定）
@@ -903,6 +918,110 @@
 - セマンティックHTML
 - WCAG 2.1 AA 目標
 
+### 3.29 発見（Explore）
+
+#### 3.29.1 概要
+- ログインユーザー向けの発見ページ（`/explore`）
+- トレンドのハッシュタグ・人気ジャンル・おすすめユーザーを集約表示
+- 認証必須のアプリ内ページのため `robots: { index: false, follow: false }`
+
+#### 3.29.2 表示内容
+- トレンドハッシュタグ（`getTrendingHashtags`、`EXPLORE_TRENDING_HASHTAGS_LIMIT` 件）
+- トレンドジャンル（`getTrendingGenres`、`EXPLORE_TRENDING_GENRES_LIMIT` 件）
+- おすすめユーザー（`getRecommendedUsers`、`EXPLORE_RECOMMENDED_USERS_LIMIT` 件、`RecommendedUserList`）
+
+### 3.30 オンボーディング
+
+#### 3.30.1 概要
+- 新規登録ユーザー向けの初期セットアップページ（`/onboarding`）
+- 未ログインは `/login`、ゲストは `/feed` にリダイレクト
+- 既にオンボーディング済みのユーザーには再表示しない
+
+#### 3.30.2 内容
+- おすすめユーザーのフォロー（`RecommendedUserList`）
+- 天気アドバイス用の地域設定（`WeatherLocationSetting`）
+- 完了操作（`OnboardingComplete`）
+
+### 3.31 モバイル向け REST API v1
+
+#### 3.31.1 概要
+- ネイティブモバイルアプリ向けの JWT 認証ベース REST API（`/api/v1/*`、75 ルート）
+- Web の Server Actions とは別系統。`app/api/v1/` 配下に Route Handler として実装し、リクエスト/レスポンスは Zod スキーマで検証
+
+#### 3.31.2 認証方式（JWT）
+- **アクセストークン**: jose による HS256 署名 JWT。`MOBILE_JWT_SECRET`（32バイトhex）から鍵を導出。TTL 15分（`MOBILE_ACCESS_TOKEN_TTL_SECONDS`）。issuer `bon-log-api` / audience `bon-log-mobile`、`typ: "access"` クレームを付加
+- **リフレッシュトークン**: `crypto.randomBytes`（32バイト）で生成。生トークンは保存せず SHA-256 ハッシュのみを `refresh_tokens` テーブルに保存。TTL 30日（`MOBILE_REFRESH_TOKEN_TTL_SECONDS`）。`revokedAt` が null かつ `expiresAt` 未到来のものだけ有効
+- トークンペア発行は `lib/api/v1/token-pair.ts` に集約（login / 2fa/verify / refresh / google の 4 エンドポイントで共有）
+- モバイル 2FA チケット TTL は 5分（`MOBILE_2FA_TICKET_TTL_SECONDS`、Web の 120秒とは別値）
+- 鍵未設定時はリクエスト時に `SERVER_MISCONFIGURED`（503）を返す（モジュール読込時に throw せず Web 動作を阻害しない）
+
+#### 3.31.3 リソース概要
+| リソース | 主なルート |
+|---------|-----------|
+| auth | login / logout / refresh / register / google / 2fa/verify / password-reset(request·confirm) / verify-email/resend（9） |
+| users | プロフィール・関連操作（12、アカウント削除含む） |
+| posts | 投稿 CRUD・操作（6） |
+| bonsai | 盆栽記録（6） |
+| pesticides | 農薬・病害虫（6） |
+| fertilizers | 肥料ガイド（5） |
+| explore | 発見（トレンド/おすすめ、4） |
+| notifications | 通知（3） |
+| scheduled-posts | 予約投稿（3） |
+| shops | 盆栽園（3） |
+| devices | モバイルデバイス（Push トークン）管理（2: 登録・トークン削除） |
+| dictionary / events / hormones / legal / search / upload | 各 2 |
+| feed / genres / reports / analytics | 各 1 |
+
+#### 3.31.4 デバイス・Push トークン管理
+- `mobile_devices` テーブルでモバイルの Push トークン（Expo / APNs / FCM）を管理。`token` はグローバル一意で端末の現所有者に紐付く
+- `/api/v1/devices`（登録）/ `/api/v1/devices/[token]`（削除）
+
+#### 3.31.5 OpenAPI
+- `@asteasolutions/zod-to-openapi` でリクエスト/レスポンス Zod スキーマ（`lib/api/v1/schemas/`）から OpenAPI 仕様を生成
+- 生成スクリプト `scripts/generate-openapi.ts`、成果物 `openapi/openapi.json`
+
+### 3.32 モバイルアプリ内課金（RevenueCat）
+
+#### 3.32.1 概要
+- ネイティブアプリの App Store / Google Play 課金を RevenueCat 経由で連携し、プレミアム資格を付与/失効
+- Web の Stripe 決済と併存（プレミアム資格は両経路で同じ User フィールドを更新）
+
+#### 3.32.2 Webhook
+- エンドポイント: `/api/webhooks/revenuecat`
+- 送信元検証: 共有シークレット（`REVENUECAT_WEBHOOK_AUTH_HEADER`、fly.io secret）を `crypto.timingSafeEqual` で定数時間比較
+- ペイロードは Zod（`revenueCatPayloadSchema`）で検証し `processRevenueCatEvent` で処理
+- 冪等性: `webhook_events` テーブル + `ensureWebhookEventOnce()` でリトライによる重複処理を防止（provider = RevenueCat）
+- レート制限・JSON/ペイロード検証エラーを API エラー定数で返却
+- 実装: `lib/services/revenuecat.ts`
+
+### 3.33 モバイルプッシュ通知（Expo Push）
+
+#### 3.33.1 概要
+- Expo Push API を使ったモバイルプッシュ通知の送信
+- Web Push（PushSubscription）と併存。`mobile_devices` のトークン宛に配信
+- 通知作成（`notification-core`）から fire-and-forget で呼び出し、送信失敗が通知作成の成否を壊さない設計
+
+#### 3.33.2 動作
+- バッチ送信（`EXPO_PUSH_BATCH_SIZE`）・タイムアウト（`EXPO_PUSH_TIMEOUT_MS`）
+- 無効トークン（DeviceNotRegistered / InvalidCredentials）は `mobile_devices` から自動削除
+- 実装: `lib/services/push/expo-push.ts`
+
+### 3.34 アカウント削除案内ページ
+
+#### 3.34.1 概要
+- Google Play デベロッパーポリシーが要求するアカウント削除手順の公開ページ（`/account-deletion`）
+- ログイン不要・クロール可能（`PROTECTED_PATHS` に含まない）
+
+#### 3.34.2 内容
+- ログイン中: 設定 → アカウント →「アカウントを削除」からの自己削除手順を案内
+- 非ログイン（アンインストール済み等）: サポートメール宛の削除依頼手順を案内
+- 削除時のデータの取り扱い・復元不可の注意を明記
+
+#### 3.34.3 モバイル API 経由の削除
+- モバイル API v1 専用のアカウント削除サービス `lib/services/account-deletion-service.ts`（`deleteUserAccount`）
+- Web Action（`lib/actions/user-account.ts` の `deleteAccount`）と削除順序を完全一致させたトランザクション移植（UserAnalytics → Message → ConversationParticipant → Notification → User の Cascade）
+- `refresh_tokens` は User の onDelete: Cascade により自動失効
+
 ---
 
 ## 4. データベース設計
@@ -911,9 +1030,9 @@
 
 | 項目 | 数 |
 |------|-----|
-| モデル数 | 90 |
-| Enum数 | 24 |
-| ORM | Prisma 6.x |
+| モデル数 | 92 |
+| Enum数 | 25 |
+| ORM | Prisma 6.19.3 |
 | DB | PostgreSQL（Supabase） |
 
 ### 4.2 主要テーブル
@@ -1046,6 +1165,12 @@
 |---------|------|
 | contact_inquiries | お問い合わせ |
 
+#### モバイルAPI v1
+| テーブル | 説明 |
+|---------|------|
+| refresh_tokens | モバイル API v1 リフレッシュトークン（SHA-256 ハッシュのみ保存、`token_hash` UNIQUE、`revokedAt`/`expiresAt` で有効判定、User Cascade Delete） |
+| mobile_devices | モバイル Push 通知デバイストークン（Expo/APNs/FCM、`token` グローバル一意、platform、User Cascade Delete） |
+
 #### 管理
 | テーブル | 説明 |
 |---------|------|
@@ -1074,7 +1199,7 @@
 | user_analytics | ユーザー分析データ |
 | daily_visitors | 日次の実訪問者ログ（`(date, visitor_id)` UNIQUE で同日重複抑止、HttpOnly Cookie の opaque UUID で識別。管理ダッシュボードのアクセス推移グラフが参照） |
 
-### 4.3 Enum一覧（24種）
+### 4.3 Enum一覧（25種）
 
 | Enum | 用途 |
 |------|------|
@@ -1082,6 +1207,7 @@
 | AnnouncementType | お知らせ種別 |
 | BonsaiCareType | 盆栽手入れログ種別（watering/fertilizing/pruning/wiring/repotting/other 等） |
 | ContactStatus | お問い合わせステータス |
+| DevicePlatform | モバイルデバイスのプラットフォーム（android/ios） |
 | DiseasePestCategory | 病害虫カテゴリ（disease/pest） |
 | EffectRating | 薬剤効果評価 |
 | FertilizerAction | 施肥アクション |
@@ -1230,7 +1356,7 @@
 | `isMaintenanceMode` | メンテナンスモード判定 |
 | `toggleMaintenanceMode` | メンテナンス有効/無効切替 |
 
-### 5.12 API Routes（`app/api/` 24 ハンドラ + `/feed.xml` + `/auth/callback` = 26 エンドポイント）
+### 5.12 API Routes（`app/api/` 24 ハンドラ + `/feed.xml` + `/auth/callback` = 26 エンドポイント。別系統のモバイル API v1 は `app/api/v1/` に 75 ルート → 5.13 参照）
 
 | パス | 説明 |
 |------|------|
@@ -1245,6 +1371,7 @@
 | `/api/cron/cleanup-events` | 終了イベント自動クリーンアップ（毎月 1 日 00:00 UTC） |
 | `/api/cron/update-weather` | 天気データ更新（Open-Meteo 連携） |
 | `/api/webhooks/stripe` | Stripe Webhook（`webhook_events` による冪等性保証） |
+| `/api/webhooks/revenuecat` | RevenueCat Webhook（共有シークレット定数時間比較 + `webhook_events` 冪等性保証、モバイルアプリ内課金） |
 | `/api/health` | ヘルスチェック（DB 接続検証 + IP レート制限） |
 | `/api/maintenance/status` | メンテナンス状態確認 |
 | `/api/badges` | 未読通知・メッセージ数 |
@@ -1260,6 +1387,38 @@
 | `/api/admin/seed` | 統合シード投入（Bearer トークン、5 ドメイン） |
 | `/api/admin/apply-migration` | 一回限りのマイグレーション適用バックドア（Bearer トークン + allowlist 内 SQL のみ） |
 | `/auth/callback` | NextAuth コールバック（OAuth フロー内部用 Route Handler） |
+
+### 5.13 モバイル REST API v1（`app/api/v1/`、75 ルート）
+
+ネイティブモバイルアプリ向けの JWT 認証ベース REST API。詳細は 3.31 を参照。
+
+| リソース | ルート数 | 説明 |
+|---------|---------|------|
+| `/api/v1/auth/*` | 9 | login / logout / refresh / register / google / 2fa/verify / password-reset(request·confirm) / verify-email/resend |
+| `/api/v1/users/*` | 12 | プロフィール・関連操作・アカウント削除 |
+| `/api/v1/posts/*` | 6 | 投稿 CRUD・操作 |
+| `/api/v1/bonsai/*` | 6 | 盆栽記録 |
+| `/api/v1/pesticides/*` | 6 | 農薬・病害虫 |
+| `/api/v1/fertilizers/*` | 5 | 肥料ガイド |
+| `/api/v1/explore/*` | 4 | 発見（トレンド/おすすめ） |
+| `/api/v1/notifications/*` | 3 | 通知 |
+| `/api/v1/scheduled-posts/*` | 3 | 予約投稿 |
+| `/api/v1/shops/*` | 3 | 盆栽園 |
+| `/api/v1/devices/*` | 2 | モバイルデバイス（Push トークン）登録・削除 |
+| `/api/v1/dictionary/*` | 2 | 盆栽用語辞典 |
+| `/api/v1/events/*` | 2 | イベント |
+| `/api/v1/hormones/*` | 2 | 植物ホルモンガイド |
+| `/api/v1/legal/*` | 2 | 法的文書 |
+| `/api/v1/search/*` | 2 | 検索 |
+| `/api/v1/upload/*` | 2 | アップロード |
+| `/api/v1/feed` | 1 | フィード |
+| `/api/v1/genres` | 1 | ジャンル |
+| `/api/v1/reports` | 1 | 通報 |
+| `/api/v1/analytics` | 1 | アナリティクス |
+
+- 認証: jose による HS256 JWT（アクセストークン TTL 15分） + リフレッシュトークン（`refresh_tokens`、SHA-256 ハッシュ保存、TTL 30日）。鍵は `MOBILE_JWT_SECRET`（32バイトhex）
+- スキーマ: リクエスト/レスポンスは Zod（`lib/api/v1/schemas/`）。`@asteasolutions/zod-to-openapi` で `openapi/openapi.json` を生成（`scripts/generate-openapi.ts`）
+- トークンペア発行は `lib/api/v1/token-pair.ts`、JWT 署名・検証は `lib/api/v1/jwt.ts` に集約
 
 ---
 
@@ -1281,6 +1440,8 @@
 | パス | 説明 |
 |------|------|
 | `/feed` | タイムライン |
+| `/explore` | 発見（トレンド・おすすめ） |
+| `/onboarding` | オンボーディング（新規ユーザー初期設定） |
 | `/posts/[id]` | 投稿詳細 |
 | `/bookmarks` | ブックマーク一覧 |
 | `/drafts` | 下書き一覧 |
@@ -1432,6 +1593,7 @@
 | `/terms` | 利用規約 |
 | `/privacy` | プライバシーポリシー |
 | `/tokushoho` | 特定商取引法に基づく表記 |
+| `/account-deletion` | アカウント削除のご案内（公開・クロール可、Google Play ポリシー対応） |
 | `/help` | ヘルプ |
 | `/contact` | お問い合わせ |
 | `/maintenance` | メンテナンス中ページ |
@@ -1740,12 +1902,18 @@ EMAIL_FROM="BON-LOG <noreply@bon-log.com>"
 # 検索（PostgreSQL 全文検索）
 SEARCH_MODE="trgm"   # like / trgm（pg_trgm）/ bigm（pg_bigm）
 
-# 決済（Stripe）
+# 決済（Stripe / Web）
 STRIPE_SECRET_KEY="..."
 STRIPE_WEBHOOK_SECRET="..."
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="..."
 STRIPE_PRICE_ID_MONTHLY="..."
 STRIPE_PRICE_ID_YEARLY="..."
+
+# モバイルアプリ内課金（RevenueCat Webhook 共有シークレット / fly.io secret）
+REVENUECAT_WEBHOOK_AUTH_HEADER="..."
+
+# モバイル REST API v1（JWT）
+MOBILE_JWT_SECRET="..."   # openssl rand -hex 32（32バイトのhex文字列）
 
 # 広告（忍者AdMax / Google AdSense）
 NEXT_PUBLIC_AD_PROVIDER="ninja"   # ninja / adsense
@@ -1808,5 +1976,6 @@ BASIC_AUTH_PASSWORD="..."
 | 2026-05-27 | エンジニアリングレビュー (engineering-review-verified 2026-05-27) の妥当な指摘へ全対応。**規約逸脱**: `lib/services/shop-change-helpers.ts`（純粋型・schema・parser のみ）を layer 規約遵守のため `lib/shop/change-request.ts` へ移設、admin page からの直接 import を解消。**SEO**: `app/(main)/settings/subscription/page.tsx` に `robots: { index: false, follow: false }` 追加（他 settings/auth ページは既に対応済み）。**セキュリティ**: `/api/webhooks/stripe` と `/api/ad-frame` に `RATE_LIMITS.api`（60req/分・IPベース fail-open）を追加し DoS 保険強化。**型安全**: `tsconfig.json` に `noImplicitOverride: true` を追加（class override 強制）。**P3 配慮**: `UserCard` を `memo()` 化、`lib/services/analytics-service.ts` の `gId` → `genreId` リネーム、admin events / contact ページのハードコード href を `ROUTE_ADMIN_EVENTS_IMPORT` / `ROUTE_ADMIN_CONTACT` 定数化。**comments.md 規約**: `lib/constants/locations.ts` の `// === REGION ===` 装飾区切り 15 箇所を空行 + シンプルコメントへ置換、`lib/actions/blacklist.ts` / `two-factor.ts` / `admin/ip-management.ts` の WHAT コメント計 7 箇所を削除。**count update**: Server Actions 85（64 ルート + 20 admin + 1 schemas）、lib/services 14、lib/shop 新設、lib/constants 47（ルート 22 + limits 18 + errors 7）、lib/utils 12、構成サマリ修正。lint / 全 15,168 テスト / build いずれもエラー警告ゼロで通過。 |
 | 2026-05-30 | 制限値・機能リストをコード（`lib/constants/limits/`）と `app/(main)` 構成に対して再検証し追従。**修正**: コメント上限を「1投稿あたり最大100件」→「1ユーザーあたり1日100件（`DAILY_COMMENT_LIMIT`、投稿単位ではない）」に訂正、コメントのメディア添付仕様（画像2 + 動画1 = 最大3点）と最大文字数500を明記。成長記録の画像枚数を「最大3枚」→「最大4枚」（`MAX_BONSAI_RECORD_IMAGES=4`）に訂正。ページ構成 6.7 の `/hormones` 配下に techniques / diagram / calendar / simulator / interactions を追加（3.14.3 と整合）。**検証済み（変更なし）**: 投稿制限（無料 500字 / 4画像 / 1動画 / 20件/日、プレミアム 2000字 / 6画像 / 3動画 / 40件/日）、ジャンル最大3、レビュー画像最大3、2FA バックアップコード 8桁×10個、動画形式 MP4/WebM/MOV、`lib/actions` 全機能の実在。 |
 | 2026-06-07 | **ホスティングを Vercel から fly.io へ移行**（本番ドメイン `https://www.bon-log.com` を fly.io app `bon-log` / region `nrt` 東京へ切替）。コンピュートのみ fly.io、DB(Supabase) / Storage(R2) / Cache(Upstash) / Stripe / Resend / Sentry は外部サービス継続。**デプロイ**: GitHub Actions `fly-deploy.yml`（master push → `flyctl deploy --local-only`）。秘匿値は `fly secrets`、`NEXT_PUBLIC_*` は `fly.toml [build.args]`。**Cron**: fly に組込 cron が無いため GitHub Actions `cron.yml` の schedule から Bearer `CRON_SECRET` で叩く（publish-scheduled */5分・update-weather 毎時・check-subscriptions 毎日01:00 UTC・cleanup-events 毎月1日00:00 UTC）。**環境変数**: `AUTH_TRUST_HOST=true` / `CRON_SECRET` / `SUPABASE_CA_CERT` / `SEARCH_MODE` / `EMAIL_FROM` / `VAPID_SUBJECT` / `NEXT_PUBLIC_NINJA_AD_ID_*` / `GUEST_PASSWORD` を env 一覧に反映、広告スロット名を `_INFEED` / `_POST_DETAIL` に訂正。インフラ・運用コスト・サービス選定理由・IP検出（`cf-connecting-ip` 優先）の記述を fly.io 構成に追従。Prisma は `@prisma/adapter-pg` + `pg` ドライバアダプタ経由であることを明記。 |
+| 2026-06-28 | **モバイル対応の現状追従**。技術スタック実バージョンを更新（next ^16.2.1 / react 19.2.3 / @prisma/client 6.19.3 / stripe ^20.1.2 / resend ^6.7.0 / @sentry/nextjs ^10.34.0 / zod ^4.3.5 等）。**新機能を要件化**: モバイル向け REST API v1（`/api/v1/*` 75 ルート、jose HS256 JWT + `refresh_tokens` リフレッシュトークン + `mobile_devices` デバイス管理 + `@asteasolutions/zod-to-openapi` で `openapi/openapi.json` 生成、3.31/5.13）、モバイルアプリ内課金 RevenueCat（`/api/webhooks/revenuecat`、共有シークレット定数時間比較 + `webhook_events` 冪等性、3.32）、Expo Push 通知（`lib/services/push/expo-push.ts`、3.33）、アカウント削除案内ページ `/account-deletion`（`lib/services/account-deletion-service.ts`、3.34）、管理者による手動プレミアム付与 `/admin/premium`（`lib/actions/admin/premium.ts`、3.15.5）、発見 `/explore`（3.29）・オンボーディング `/onboarding`（3.30）。**DB**: モデル 92 / Enum 25（`DevicePlatform` 追加、`refresh_tokens` / `mobile_devices` テーブル追加）。ビジネスモデルに「モバイルアプリ内課金（RevenueCat）」追記、外部サービスに RevenueCat / Expo Push 追加。環境変数に `REVENUECAT_WEBHOOK_AUTH_HEADER` / `MOBILE_JWT_SECRET` 追記。 |
 | 2026-05-27 (追) | Supabase 2026-10-30 仕様変更 (public schema テーブルが Data API デフォルト非露出化) への先回り対応。Security Advisor で全 90 テーブルが anon / authenticated に GRANT ALL されている状態を検出 (旧 Supabase デフォルト)、Defense in Depth で API + DB 両層を遮断。**API 層**: Dashboard 操作で Exposed schemas から `public` を削除し Exposed tables を 0/90 化（`graphql_public` のみ残置で REST/GraphQL から public テーブル不可視）。**DB 層**: `prisma/migrations/20260527000000_revoke_data_api_grants_from_public/` 新設で `REVOKE ALL ON ALL TABLES/SEQUENCES/ROUTINES IN SCHEMA public FROM anon, authenticated` + `REVOKE USAGE ON SCHEMA public` + `ALTER DEFAULT PRIVILEGES FOR ROLE postgres ... REVOKE ALL` を一括適用。`pg_roles` 存在チェック付き DO block でローカル Docker postgres では noop。`app/api/admin/apply-migration/route.ts` の `MIGRATION_NAMES` に `revoke_data_api_grants_from_public` を追加し本番手動適用経路 (`npm run db:apply-migration-production`) を確保。**規約**: `.claude/rules/prisma-database.md` に「Supabase Data API 非使用方針」を明文化、`eslint.config.mjs` に `no-restricted-imports` で `@supabase/supabase-js` 等を禁止。**検証**: `__tests__/app/api/admin/apply-migration/route.test.ts` に新 migration の allowlist 包含 + SQL 内容（REVOKE / ALTER DEFAULT PRIVILEGES / ロール存在チェック）を assert するテスト追加。マイグレーション数 37 ディレクトリ。 |
 
