@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.21.0",
+    "version": "1.24.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -531,6 +531,98 @@
         },
         "description": "検索クエリパラメータ（q, cursor, limit）。"
       },
+      "SearchPostsQuery": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 100,
+            "default": ""
+          },
+          "genreId": {
+            "type": "string"
+          },
+          "dateFrom": {
+            "type": "string"
+          },
+          "dateTo": {
+            "type": "string"
+          },
+          "minLikes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "none"
+            ]
+          }
+        },
+        "description": "投稿検索クエリパラメータ。SearchQuery を拡張して投稿専用フィルタを追加。\nmediaType は image / video / none のいずれか（image=画像あり / video=動画あり / none=テキストのみ）。"
+      },
+      "SearchHashtagsQuery": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 50,
+            "default": ""
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "description": "ハッシュタグ候補検索クエリパラメータ（q, limit）。オートコンプリート用。"
+      },
+      "HashtagSearchResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "count"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "ハッシュタグ候補検索結果（id, name, count）。count 降順。"
+      },
       "BlockResponse": {
         "type": "object",
         "properties": {
@@ -754,9 +846,495 @@
               ]
             },
             "default": []
+          },
+          "poll": {
+            "type": "object",
+            "properties": {
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "minItems": 2,
+                "maxItems": 10
+              },
+              "durationSeconds": {
+                "type": "integer",
+                "default": 86400
+              }
+            },
+            "required": [
+              "options"
+            ]
           }
         },
-        "description": "投稿作成リクエスト。content / mediaUrls のどちらか一方は必須。\ngenreIds は最大 3 つ。mediaUrls と mediaTypes は同数で対応させること。\nbonsai 紐付け・アンケートはモバイル MVP 外（将来別途追加）。"
+        "description": "投稿作成リクエスト。content / mediaUrls のどちらか一方は必須。\ngenreIds は最大 3 つ。mediaUrls と mediaTypes は同数で対応させること。\npoll を指定するとアンケート付き投稿になる。"
+      },
+      "CreateQuoteRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "default": ""
+          },
+          "genreIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "default": []
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "mediaTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video"
+              ]
+            },
+            "default": []
+          }
+        },
+        "description": "引用投稿リクエスト（POST /api/v1/posts/{id}/quote）。\ncontent は必須（空文字は 400）。\ngenreIds は最大 3 つ。"
+      },
+      "PollVoteRequest": {
+        "type": "object",
+        "properties": {
+          "optionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "optionId"
+        ],
+        "description": "アンケート投票リクエスト。optionId は投票する選択肢の ID。"
+      },
+      "UserPostsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "userId": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isBlocked": {
+                      "type": "boolean"
+                    },
+                    "isMuted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nickname",
+                    "avatarUrl",
+                    "isBlocked",
+                    "isMuted"
+                  ]
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "url",
+                      "type",
+                      "sortOrder"
+                    ]
+                  }
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "category"
+                    ]
+                  }
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                },
+                "repostCount": {
+                  "type": "integer"
+                },
+                "isLiked": {
+                  "type": "boolean"
+                },
+                "isBookmarked": {
+                  "type": "boolean"
+                },
+                "isReposted": {
+                  "type": "boolean"
+                },
+                "quotePost": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nickname",
+                        "avatarUrl"
+                      ]
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "type",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "user"
+                  ]
+                },
+                "repostPost": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nickname",
+                        "avatarUrl"
+                      ]
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "type",
+                          "sortOrder"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "user"
+                  ]
+                },
+                "poll": {},
+                "mentionedUsers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "nickname": {
+                        "type": "string"
+                      },
+                      "avatarUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "nickname",
+                      "avatarUrl"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "updatedAt",
+                "userId",
+                "user",
+                "media",
+                "genres",
+                "likeCount",
+                "commentCount",
+                "repostCount",
+                "isLiked",
+                "isBookmarked",
+                "isReposted",
+                "quotePost",
+                "repostPost",
+                "mentionedUsers"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "ユーザー投稿一覧レスポンス。カーソルページネーション形式。"
+      },
+      "RepostResponse": {
+        "type": "object",
+        "properties": {
+          "reposted": {
+            "type": "boolean"
+          },
+          "repostCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reposted",
+          "repostCount"
+        ],
+        "description": "リポスト操作後の状態。reposted は操作後の状態、repostCount は最新の総リポスト数。"
+      },
+      "PollOptionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "voteCount": {
+            "type": "integer"
+          },
+          "percentage": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "voteCount",
+          "percentage"
+        ],
+        "description": "アンケート選択肢（投票後）。percentage は全票に占める割合（0〜100, 小数第 1 位）。"
+      },
+      "PollVoteResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isExpired": {
+            "type": "boolean"
+          },
+          "totalVotes": {
+            "type": "integer"
+          },
+          "userVoteOptionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "voteCount": {
+                  "type": "integer"
+                },
+                "percentage": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "text",
+                "voteCount",
+                "percentage"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "expiresAt",
+          "isExpired",
+          "totalVotes",
+          "userVoteOptionId",
+          "options"
+        ],
+        "description": "アンケート投票後の最新集計結果。"
       },
       "UpdatePostRequest": {
         "type": "object",
@@ -1908,6 +2486,9 @@
           },
           "isMuted": {
             "type": "boolean"
+          },
+          "isPremium": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1929,7 +2510,8 @@
           "requested",
           "isSelf",
           "isBlocked",
-          "isMuted"
+          "isMuted",
+          "isPremium"
         ],
         "description": "ユーザープロフィール取得レスポンス。"
       },
@@ -3139,6 +3721,9 @@
           },
           "category": {
             "type": "string"
+          },
+          "description": {
+            "type": "string"
           }
         },
         "required": [
@@ -3146,7 +3731,8 @@
           "slug",
           "term",
           "reading",
-          "category"
+          "category",
+          "description"
         ],
         "description": "辞典用語の一覧項目（description 省略）。"
       },
@@ -3204,6 +3790,9 @@
                 },
                 "category": {
                   "type": "string"
+                },
+                "description": {
+                  "type": "string"
                 }
               },
               "required": [
@@ -3211,7 +3800,8 @@
                 "slug",
                 "term",
                 "reading",
-                "category"
+                "category",
+                "description"
               ]
             }
           },
@@ -3282,6 +3872,9 @@
               },
               "category": {
                 "type": "string"
+              },
+              "description": {
+                "type": "string"
               }
             },
             "required": [
@@ -3289,7 +3882,8 @@
               "slug",
               "term",
               "reading",
-              "category"
+              "category",
+              "description"
             ]
           },
           "next": {
@@ -3312,6 +3906,9 @@
               },
               "category": {
                 "type": "string"
+              },
+              "description": {
+                "type": "string"
               }
             },
             "required": [
@@ -3319,7 +3916,8 @@
               "slug",
               "term",
               "reading",
-              "category"
+              "category",
+              "description"
             ]
           },
           "related": {
@@ -3341,6 +3939,9 @@
                 },
                 "category": {
                   "type": "string"
+                },
+                "description": {
+                  "type": "string"
                 }
               },
               "required": [
@@ -3348,7 +3949,8 @@
                 "slug",
                 "term",
                 "reading",
-                "category"
+                "category",
+                "description"
               ]
             }
           }
@@ -3640,6 +4242,12 @@
       "FertilizationScheduleResponse": {
         "type": "object",
         "properties": {
+          "treeSpeciesName": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
           "months": {
             "type": "array",
             "items": {
@@ -3695,9 +4303,11 @@
           }
         },
         "required": [
+          "treeSpeciesName",
+          "slug",
           "months"
         ],
-        "description": "GET /api/v1/fertilizers/tree-species/{slug}/schedule 成功レスポンス。months は月順で最大 12 件。"
+        "description": "GET /api/v1/fertilizers/tree-species/{slug}/schedule 成功レスポンス。treeSpeciesName・slug を含む。months は月順で最大 12 件。"
       },
       "HormoneCategory": {
         "type": "string",
@@ -4009,13 +4619,82 @@
                   "compound",
                   "other"
                 ]
+              },
+              "formulationType": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "code"
+                ]
+              },
+              "activeIngredients": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "fracCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "iracCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "resistanceRisk": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        null
+                      ]
+                    },
+                    "slug": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "fracCode",
+                    "iracCode",
+                    "resistanceRisk",
+                    "slug"
+                  ]
+                }
               }
             },
             "required": [
               "id",
               "name",
               "slug",
-              "pesticideType"
+              "pesticideType",
+              "formulationType",
+              "activeIngredients"
             ]
           },
           "rating": {
@@ -4156,13 +4835,82 @@
                         "compound",
                         "other"
                       ]
+                    },
+                    "formulationType": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "code"
+                      ]
+                    },
+                    "activeIngredients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "fracCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "iracCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "resistanceRisk": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high",
+                              null
+                            ]
+                          },
+                          "slug": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "fracCode",
+                          "iracCode",
+                          "resistanceRisk",
+                          "slug"
+                        ]
+                      }
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "slug",
-                    "pesticideType"
+                    "pesticideType",
+                    "formulationType",
+                    "activeIngredients"
                   ]
                 },
                 "rating": {
@@ -6802,9 +7550,12 @@
               "newest",
               "location"
             ]
+          },
+          "region": {
+            "type": "string"
           }
         },
-        "description": "GET /api/v1/shops クエリパラメータ。sortBy は rating/name/newest/location。"
+        "description": "GET /api/v1/shops クエリパラメータ。sortBy は rating/name/newest/location。region は地方名フィルタ（prefecture 指定時は無視）。"
       },
       "CreateShopRequest": {
         "type": "object",
@@ -7781,6 +8532,645 @@
         },
         "description": "集計期間クエリパラメータ。days は 7 / 30 / 90 の文字列のみ許容（省略時 30）。"
       },
+      "AnalyticsDailyCount": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "count"
+        ],
+        "description": "日次カウント 1 件（YYYY-MM-DD + count）。いいね日次分布などで使用。"
+      },
+      "AnalyticsPostsResponse": {
+        "type": "object",
+        "properties": {
+          "totalPosts": {
+            "type": "integer"
+          },
+          "totalLikes": {
+            "type": "integer"
+          },
+          "totalComments": {
+            "type": "integer"
+          },
+          "avgEngagement": {
+            "type": "number"
+          },
+          "topPosts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "likeCount",
+                "commentCount"
+              ]
+            }
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "likeCount",
+                "commentCount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "totalPosts",
+          "totalLikes",
+          "totalComments",
+          "avgEngagement",
+          "topPosts",
+          "posts"
+        ],
+        "description": "GET /api/v1/analytics/posts の成功レスポンス。\ntopPosts はエンゲージメント上位 5 件。posts は期間内の全投稿（作成日降順）。\navgEngagement は 1 投稿あたりの（いいね＋コメント）数（小数第 1 位まで）。"
+      },
+      "AnalyticsLikesResponse": {
+        "type": "object",
+        "properties": {
+          "totalLikes": {
+            "type": "integer"
+          },
+          "hourlyData": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "weekdayData": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "dailyData": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "count"
+              ]
+            }
+          },
+          "peakHour": {
+            "type": "integer"
+          },
+          "peakWeekday": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "totalLikes",
+          "hourlyData",
+          "weekdayData",
+          "dailyData",
+          "peakHour",
+          "peakWeekday"
+        ],
+        "description": "GET /api/v1/analytics/likes の成功レスポンス。\nhourlyData: 24 要素（0〜23 時）。weekdayData: 7 要素（0=日〜6=土）。\ndailyData: YYYY-MM-DD 昇順の日次いいね数。"
+      },
+      "AnalyticsQuoteItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "nickname": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nickname",
+              "avatarUrl"
+            ]
+          },
+          "originalPostId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "originalContent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "likeCount": {
+            "type": "integer"
+          },
+          "commentCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "user",
+          "originalPostId",
+          "originalContent",
+          "likeCount",
+          "commentCount",
+          "createdAt"
+        ],
+        "description": "引用投稿 1 件。user は USER_MINIMAL_SELECT 相当（id, nickname, avatarUrl）。"
+      },
+      "AnalyticsQuotesResponse": {
+        "type": "object",
+        "properties": {
+          "totalQuotes": {
+            "type": "integer"
+          },
+          "totalReposts": {
+            "type": "integer"
+          },
+          "quotes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nickname",
+                    "avatarUrl"
+                  ]
+                },
+                "originalPostId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "originalContent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "likeCount": {
+                  "type": "integer"
+                },
+                "commentCount": {
+                  "type": "integer"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "user",
+                "originalPostId",
+                "originalContent",
+                "likeCount",
+                "commentCount",
+                "createdAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "totalQuotes",
+          "totalReposts",
+          "quotes"
+        ],
+        "description": "GET /api/v1/analytics/quotes の成功レスポンス（days パラメータなし・全期間集計）。\nquotes は最大 ANALYTICS_POSTS_LIMIT = 50 件。"
+      },
+      "AnalyticsKeywordItem": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "word",
+          "count"
+        ],
+        "description": "キーワード 1 件（word + count）。count 降順。"
+      },
+      "AnalyticsKeywordsResponse": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "word": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "word",
+                "count"
+              ]
+            }
+          },
+          "totalWords": {
+            "type": "integer"
+          },
+          "uniqueWords": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "keywords",
+          "totalWords",
+          "uniqueWords"
+        ],
+        "description": "GET /api/v1/analytics/keywords の成功レスポンス。\nkeywords は出現頻度上位最大 TOP_KEYWORDS_LIMIT = 30 件（頻度降順）。\nストップワード（助詞等）・2 文字未満の単語は除外。"
+      },
+      "AnalyticsEngagementTrendResponse": {
+        "type": "object",
+        "properties": {
+          "trend": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "posts": {
+                  "type": "integer"
+                },
+                "likes": {
+                  "type": "integer"
+                },
+                "comments": {
+                  "type": "integer"
+                },
+                "engagement": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "posts",
+                "likes",
+                "comments",
+                "engagement"
+              ]
+            }
+          }
+        },
+        "required": [
+          "trend"
+        ],
+        "description": "GET /api/v1/analytics/engagement-trend の成功レスポンス。\ntrend は days 日分の日次エンゲージメント（YYYY-MM-DD 昇順）。\nengagement = likes + comments。投稿ゼロの日もエントリが存在する。"
+      },
+      "AnalyticsGenreItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "postCount": {
+            "type": "integer"
+          },
+          "avgLikes": {
+            "type": "number"
+          },
+          "avgComments": {
+            "type": "number"
+          },
+          "avgEngagement": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "postCount",
+          "avgLikes",
+          "avgComments",
+          "avgEngagement"
+        ],
+        "description": "ジャンル別パフォーマンス 1 件。\n注意: genreId は含まれない（name のみ）。avgEngagement 降順で返る。"
+      },
+      "AnalyticsGenrePerformanceResponse": {
+        "type": "object",
+        "properties": {
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "postCount": {
+                  "type": "integer"
+                },
+                "avgLikes": {
+                  "type": "number"
+                },
+                "avgComments": {
+                  "type": "number"
+                },
+                "avgEngagement": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "name",
+                "postCount",
+                "avgLikes",
+                "avgComments",
+                "avgEngagement"
+              ]
+            }
+          }
+        },
+        "required": [
+          "genres"
+        ],
+        "description": "GET /api/v1/analytics/genre-performance の成功レスポンス。\ngenres は avgEngagement 降順、最大 GENRE_PERFORMANCE_LIMIT = 10 件。\n注意: genreId は返却されない（実関数の戻り値が name のみ）。"
+      },
+      "AnalyticsFollowerGrowthResponse": {
+        "type": "object",
+        "properties": {
+          "currentFollowers": {
+            "type": "integer"
+          },
+          "totalNewInPeriod": {
+            "type": "integer"
+          },
+          "growth": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "newFollowers": {
+                  "type": "integer"
+                },
+                "totalFollowers": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "newFollowers",
+                "totalFollowers"
+              ]
+            }
+          }
+        },
+        "required": [
+          "currentFollowers",
+          "totalNewInPeriod",
+          "growth"
+        ],
+        "description": "GET /api/v1/analytics/follower-growth の成功レスポンス。\ngrowth の totalFollowers は推定累積値（新規数を積算した近似値）。\ncurrentFollowers は正確な現在値（COUNT クエリ）。"
+      },
+      "AnalyticsPeriodMetric": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": "integer"
+          },
+          "previous": {
+            "type": "integer"
+          },
+          "change": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "current",
+          "previous",
+          "change"
+        ],
+        "description": "前期比較の単一指標。change は前期比変化率（%整数）。前期・現期ともに 0 の場合は null。"
+      },
+      "AnalyticsPeriodComparisonResponse": {
+        "type": "object",
+        "properties": {
+          "posts": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "integer"
+              },
+              "previous": {
+                "type": "integer"
+              },
+              "change": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "current",
+              "previous",
+              "change"
+            ]
+          },
+          "likes": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "integer"
+              },
+              "previous": {
+                "type": "integer"
+              },
+              "change": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "current",
+              "previous",
+              "change"
+            ]
+          },
+          "comments": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "integer"
+              },
+              "previous": {
+                "type": "integer"
+              },
+              "change": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "current",
+              "previous",
+              "change"
+            ]
+          },
+          "followers": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "integer"
+              },
+              "previous": {
+                "type": "integer"
+              },
+              "change": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "current",
+              "previous",
+              "change"
+            ]
+          }
+        },
+        "required": [
+          "posts",
+          "likes",
+          "comments",
+          "followers"
+        ],
+        "description": "GET /api/v1/analytics/period-comparison の成功レスポンス。\n現期（直近 days 日）と前期（その前 days 日）の比較。\n注意: handoff 目安の { current, previous, ratios } 形式とは異なる。\n実形は { posts, likes, comments, followers } 各フィールドが { current, previous, change } を持つ。"
+      },
       "ExplorePostsQuery": {
         "type": "object",
         "properties": {
@@ -8523,6 +9913,358 @@
           "preferences"
         ],
         "description": "GET /api/v1/users/me/notification-settings の成功レスポンス。"
+      },
+      "DmLastMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "senderId",
+          "createdAt"
+        ],
+        "description": "会話一覧の最終メッセージサマリ。senderId で自分/相手を区別できる。"
+      },
+      "ConversationItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "otherUser": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "nickname": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nickname",
+              "avatarUrl"
+            ]
+          },
+          "lastMessage": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "senderId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "senderId",
+              "createdAt"
+            ]
+          },
+          "hasUnread": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "updatedAt",
+          "otherUser",
+          "lastMessage",
+          "hasUnread"
+        ],
+        "description": "会話一覧の 1 件。otherUser は id / nickname / avatarUrl の最小情報。"
+      },
+      "ConversationListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "otherUser": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nickname",
+                    "avatarUrl"
+                  ]
+                },
+                "lastMessage": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "senderId": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "senderId",
+                    "createdAt"
+                  ]
+                },
+                "hasUnread": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "updatedAt",
+                "otherUser",
+                "lastMessage",
+                "hasUnread"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "会話一覧レスポンス（カーソルページネーション）。"
+      },
+      "StartConversationResponse": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "description": "会話開始（取得/新規作成）の成功レスポンス。"
+      },
+      "MessageItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "sender": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "nickname": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nickname",
+              "avatarUrl"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "senderId",
+          "sender",
+          "createdAt"
+        ],
+        "description": "メッセージ 1 件。sender は id / nickname / avatarUrl の最小情報。"
+      },
+      "MessageListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "conversationId": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "senderId": {
+                  "type": "string"
+                },
+                "sender": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nickname",
+                    "avatarUrl"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "conversationId",
+                "content",
+                "senderId",
+                "sender",
+                "createdAt"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "メッセージ一覧レスポンス（カーソルページネーション）。\nitems は createdAt 昇順（古い→新しい）。\nnextCursor は最古メッセージの id で、次回呼び出しでより古いメッセージを取得できる。\nGET するたびに lastReadAt が更新される（ポーリング前提）。"
+      },
+      "StartConversationRequest": {
+        "type": "object",
+        "properties": {
+          "targetUserId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "targetUserId"
+        ],
+        "description": "会話開始リクエスト。targetUserId は相手のユーザー ID。"
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "description": "メッセージ送信リクエスト。content は必須・非空・最大 1000 文字。"
       }
     },
     "parameters": {}
@@ -10076,13 +11818,129 @@
         }
       }
     },
+    "/api/v1/users/{id}/posts": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ユーザーの投稿一覧を取得（カーソルページネーション）",
+        "description": "指定ユーザーの投稿をカーソルページネーションで返す。\n\n重要仕様:\n- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す\n- ゲストアクセス可: 公開アカウントの投稿を閲覧できる\n- 自分自身の投稿: 非公開投稿も含む\n- ブロック・ミュート・停止ユーザーへのアクセスは 404 NOT_FOUND\n- レート制限: timeline（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ユーザー ID"
+            },
+            "required": true,
+            "description": "ユーザー ID",
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "カーソル"
+            },
+            "required": false,
+            "description": "カーソル",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "取得上限件数"
+            },
+            "required": false,
+            "description": "取得上限件数",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ユーザー投稿一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPostsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/posts": {
       "get": {
         "tags": [
           "search"
         ],
         "summary": "投稿検索",
-        "description": "キーワードで投稿を全文検索する。\n\n2 文字以上: pg_bigm trigram 検索。1 文字: LIKE フォールバック。\nブロック・ミュート・非公開・停止ユーザーの投稿は除外される。",
+        "description": "キーワードで投稿を全文検索する。\n\n2 文字以上: pg_bigm trigram 検索。1 文字: LIKE フォールバック。\nブロック・ミュート・非公開・停止ユーザーの投稿は除外される。\n\nフィルタ:\n- mediaType: image / video / none（image=画像あり / video=動画あり / none=テキストのみ）\n- dateFrom / dateTo: ISO8601 日付（YYYY-MM-DD）での期間絞り込み\n- minLikes: 最低いいね数でフィルタ\n- genreId: ジャンル ID で絞り込み",
         "security": [
           {
             "bearerAuth": []
@@ -10117,6 +11975,62 @@
             "required": false,
             "description": "取得上限件数",
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "ジャンル ID でフィルタ"
+            },
+            "required": false,
+            "description": "ジャンル ID でフィルタ",
+            "name": "genreId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿日時の開始日（ISO8601 YYYY-MM-DD）"
+            },
+            "required": false,
+            "description": "投稿日時の開始日（ISO8601 YYYY-MM-DD）",
+            "name": "dateFrom",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿日時の終了日（ISO8601 YYYY-MM-DD）"
+            },
+            "required": false,
+            "description": "投稿日時の終了日（ISO8601 YYYY-MM-DD）",
+            "name": "dateTo",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "最低いいね数"
+            },
+            "required": false,
+            "description": "最低いいね数",
+            "name": "minLikes",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "none"
+              ],
+              "description": "メディア種別フィルタ: image / video / none"
+            },
+            "required": false,
+            "description": "メディア種別フィルタ: image / video / none",
+            "name": "mediaType",
             "in": "query"
           }
         ],
@@ -10233,6 +12147,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SearchUsersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/hashtags": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "ハッシュタグ候補検索（オートコンプリート）",
+        "description": "ハッシュタグ名の部分一致で候補を検索する。count 降順で返す。\n\n重要仕様:\n- count=0 のハッシュタグは除外される\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: search（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "検索キーワード（空文字は人気順で返す）"
+            },
+            "required": false,
+            "description": "検索キーワード（空文字は人気順で返す）",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "取得件数（デフォルト 10、最大 50）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 10、最大 50）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ハッシュタグ候補検索成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HashtagSearchResponse"
                 }
               }
             }
@@ -10525,6 +12537,292 @@
           },
           "404": {
             "description": "投稿が存在しないか閲覧権限なし (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/repost": {
+      "post": {
+        "tags": [
+          "posts"
+        ],
+        "summary": "投稿をリポストする（冪等）",
+        "description": "対象投稿をリポストする。既にリポスト済みでも 200 を返す（冪等設計）。\n\n重要仕様:\n- 自己リポストは 400 VALIDATION_ERROR\n- 不存在・非公開・非表示の投稿は 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- repostCount は操作後の最新値（楽観更新の確定値として使用できる）\n- 通知（repost）は相手に送信される（自己の場合は送信しない）\n- レート制限: engagement（30/分）、超過時は 429 + Retry-After ヘッダー",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿 ID"
+            },
+            "required": true,
+            "description": "投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "リポスト成功（既にリポスト済みでも 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "自己リポスト (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "投稿が存在しないか閲覧権限なし (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "posts"
+        ],
+        "summary": "投稿のリポストを解除する（冪等）",
+        "description": "対象投稿のリポストを解除する。リポストしていなくても 200 を返す（冪等設計）。\n\n重要仕様:\n- 不存在の投稿は 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- repostCount は操作後の最新値\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "投稿 ID"
+            },
+            "required": true,
+            "description": "投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "リポスト解除成功（リポストしていなくても 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepostResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "投稿が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/quote": {
+      "post": {
+        "tags": [
+          "posts"
+        ],
+        "summary": "引用投稿を作成する（201）",
+        "description": "指定投稿を引用した新規投稿を作成する。\n\n重要仕様:\n- content は必須（空文字は 400 VALIDATION_ERROR）\n- 引用元が存在しない・閲覧不可の場合は 404 NOT_FOUND\n- 1日投稿上限に達した場合は 429 RATE_LIMITED\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 成功時は 201 Created と新規投稿の PostResponse を返す\n- レート制限: post（3/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "引用元の投稿 ID"
+            },
+            "required": true,
+            "description": "引用元の投稿 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "引用投稿作成成功。新規投稿の詳細を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — content 空・メディア超過等",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "引用元投稿が存在しないか閲覧権限なし (NOT_FOUND)",
             "content": {
               "application/json": {
                 "schema": {
@@ -12286,6 +14584,112 @@
         }
       }
     },
+    "/api/v1/polls/{id}/vote": {
+      "post": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "アンケートに投票する",
+        "description": "指定アンケートに 1 票を投じる。\n\n重要仕様:\n- 投票は 1 ユーザー 1 回のみ（二重投票は 400 VALIDATION_ERROR）\n- 期限切れアンケートへの投票は 400 VALIDATION_ERROR\n- 不正な optionId（当該アンケートに属さない）は 400 VALIDATION_ERROR\n- アンケートが存在しない場合は 404 NOT_FOUND\n- ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 成功時は最新の集計結果（percentage 付き）を返す\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "アンケート ID"
+            },
+            "required": true,
+            "description": "アンケート ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollVoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "投票成功。最新の集計結果を返す",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollVoteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 二重投票 / 期限切れ / 不正 optionId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "アンケートが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/bookmarks": {
       "get": {
         "tags": [
@@ -13778,7 +16182,7 @@
           "pesticides"
         ],
         "summary": "病害虫詳細",
-        "description": "指定 slug の病害虫詳細を返す。effects（有効農薬一覧）を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は pesticide.name ASC 順\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "description": "指定 slug の病害虫詳細を返す。effects（有効農薬一覧）を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は pesticide.name ASC 順\n- effects[].pesticide には formulationType（剤型、null 可）と activeIngredients（有効成分一覧）を含む\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
         "security": [
           {
             "bearerAuth": []
@@ -13865,13 +16269,82 @@
                                   "compound",
                                   "other"
                                 ]
+                              },
+                              "formulationType": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "code"
+                                ]
+                              },
+                              "activeIngredients": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "fracCode": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "iracCode": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "resistanceRisk": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ],
+                                      "enum": [
+                                        "low",
+                                        "medium",
+                                        "high",
+                                        null
+                                      ]
+                                    },
+                                    "slug": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "fracCode",
+                                    "iracCode",
+                                    "resistanceRisk",
+                                    "slug"
+                                  ]
+                                }
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "slug",
-                              "pesticideType"
+                              "pesticideType",
+                              "formulationType",
+                              "activeIngredients"
                             ]
                           },
                           "rating": {
@@ -16178,7 +18651,7 @@
           "shops"
         ],
         "summary": "盆栽園一覧を取得する（ゲスト可）",
-        "description": "盆栽園をフィルタ・ソート条件付きでカーソルページネーションで返す。\n\n重要仕様:\n- isHidden=true の盆栽園は除外される\n- sortBy=rating はメモリソート（DB 集計困難なため）。他は DB 側ソート\n- cursor は BonsaiShop.id の lt フィルタとして機能する\n- latitude / longitude は Decimal から変換済みの number（null の場合は座標未登録）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "description": "盆栽園をフィルタ・ソート条件付きでカーソルページネーションで返す。\n\n重要仕様:\n- isHidden=true の盆栽園は除外される\n- sortBy=rating はメモリソート（DB 集計困難なため）。他は DB 側ソート\n- cursor は BonsaiShop.id の lt フィルタとして機能する\n- latitude / longitude は Decimal から変換済みの number（null の場合は座標未登録）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- region と prefecture を同時指定した場合は prefecture が優先される（より狭い絞り込みを尊重）\n- レート制限: read（60/分）",
         "security": [
           {
             "bearerAuth": []
@@ -16230,11 +18703,21 @@
           {
             "schema": {
               "type": "string",
-              "description": "都道府県でフィルタ（住所の前方一致）"
+              "description": "都道府県でフィルタ（住所の前方一致）。region と同時指定時は prefecture が優先"
             },
             "required": false,
-            "description": "都道府県でフィルタ（住所の前方一致）",
+            "description": "都道府県でフィルタ（住所の前方一致）。region と同時指定時は prefecture が優先",
             "name": "prefecture",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "地方名でフィルタ（北海道 / 東北 / 関東 / 中部 / 近畿 / 中国 / 四国 / 九州沖縄）。prefecture 指定時は無視される"
+            },
+            "required": false,
+            "description": "地方名でフィルタ（北海道 / 東北 / 関東 / 中部 / 近畿 / 中国 / 四国 / 九州沖縄）。prefecture 指定時は無視される",
+            "name": "region",
             "in": "query"
           },
           {
@@ -17798,6 +20281,707 @@
         }
       }
     },
+    "/api/v1/analytics/posts": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "期間内の投稿分析データを取得する",
+        "description": "認証ユーザー自身の投稿統計（件数・いいね・コメント・上位投稿）を返す。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "投稿分析データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsPostsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/likes": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "期間内のいいね分析データを取得する",
+        "description": "認証ユーザーの投稿が受け取ったいいねの時間帯別・曜日別・日次分布を返す。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "いいね分析データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsLikesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/quotes": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "自分の投稿への引用・リポスト分析データを取得する（全期間）",
+        "description": "認証ユーザーの投稿への引用数・リポスト数と、最新の引用一覧を返す。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- days パラメータなし（全期間集計）\n- quotes は最大 ANALYTICS_POSTS_LIMIT = 50 件\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "引用・リポスト分析データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsQuotesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/keywords": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "期間内の投稿キーワード分析データを取得する",
+        "description": "認証ユーザーの投稿本文からキーワードを抽出し、出現頻度上位を返す。\nストップワード（助詞等）・2 文字未満の単語は除外される。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "キーワード分析データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsKeywordsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/engagement-trend": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "期間内の日次エンゲージメント推移を取得する",
+        "description": "認証ユーザーの投稿の日次エンゲージメント（いいね＋コメント）推移を返す。\n投稿ゼロの日もエントリが存在する（posts/likes/comments/engagement = 0）。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "エンゲージメント推移データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsEngagementTrendResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/genre-performance": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "期間内のジャンル別パフォーマンスを取得する",
+        "description": "認証ユーザーの投稿をジャンル別に集計し、平均エンゲージメント降順で返す。\n注意: レスポンスに genreId は含まれない（name のみ）。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ジャンル別パフォーマンスデータ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsGenrePerformanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/follower-growth": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "期間内のフォロワー増加推移を取得する",
+        "description": "認証ユーザーの日次フォロワー増加数と累積フォロワー数の推移を返す。\ntotalFollowers は推定累積値（新規数を積算）。currentFollowers は正確な現在値。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "フォロワー増加推移データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsFollowerGrowthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/period-comparison": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "現期間と前期間の比較データを取得する",
+        "description": "直近 days 日（現期）とその前 days 日（前期）の投稿・いいね・コメント・フォロワー数を比較する。\nchange は前期比変化率（%整数）。前期・現期ともに 0 の場合のみ null。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED\n- 自分のデータのみ（他ユーザーの分析は取得不可）\n- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）\n- レート制限: analytics_summary（10/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）"
+            },
+            "required": false,
+            "description": "集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）",
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "期間比較データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsPeriodComparisonResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — days が不正な値",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/explore/posts": {
       "get": {
         "tags": [
@@ -18794,6 +21978,652 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/conversations": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "自分の会話一覧を取得する",
+        "description": "認証ユーザーが参加しているすべての会話を updatedAt 降順で返す。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 相手ユーザー・最終メッセージ・未読フラグを 1 クエリで取得（N+1 なし）\n- レート制限: read（60/分）\n- ポーリング前提: リアルタイム通信なし。推奨ポーリング間隔は 5〜30 秒",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会話一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — limit / cursor 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "会話を開始する（取得または新規作成）",
+        "description": "指定ユーザーとの会話を取得、なければ新規作成する。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 自己 DM は 400 VALIDATION_ERROR\n- ブロック関係（双方向）は 403 NOT_FOUND（存在を秘匿）\n- 対象ユーザーが停止・存在しない場合は 404 NOT_FOUND\n- 既存会話がある場合は作成せずその id を返す（冪等）\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "会話取得/作成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartConversationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — targetUserId 欠落 / 自己 DM",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / ブロック関係 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "対象ユーザーが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/conversations/{id}/messages": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "会話のメッセージ一覧を取得する",
+        "description": "指定会話のメッセージをカーソルページネーションで返す（参加者のみ）。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 非参加者は 403 NOT_FOUND（存在を秘匿）\n- items は createdAt 昇順（古い→新しい）\n- nextCursor は最古メッセージの id。次回呼び出しでより古いメッセージを取得できる（無限スクロール上向き）\n- GET するたびに lastReadAt が更新される（既読自動化）\n- デフォルト limit は 50（MESSAGES_PAGE_LIMIT）\n- レート制限: read（60/分）\n- ポーリング前提: 推奨間隔は 3〜10 秒",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "会話 ID"
+            },
+            "required": true,
+            "description": "会話 ID",
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（最古メッセージ id）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（最古メッセージ id）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 50、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 50、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "メッセージ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — limit / cursor 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 非参加者 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "メッセージを送信する",
+        "description": "指定会話にメッセージを送信する（参加者のみ）。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 非参加者は 403 NOT_FOUND（存在を秘匿）\n- content は必須・非空・最大 1000 文字\n- 日次送信上限 100 通（DAILY_MESSAGE_LIMIT）を超えると 400 VALIDATION_ERROR\n- 会話作成後にブロックが発生していた場合は 403 NOT_FOUND\n- レート制限: send_message（20/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "会話 ID"
+            },
+            "required": true,
+            "description": "会話 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "メッセージ送信成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — content 欠落 / 空 / 文字数超過 / 日次上限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 非参加者またはブロック (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/conversations/{id}/messages/{messageId}": {
+      "delete": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "メッセージを削除する（送信者のみ）",
+        "description": "自分が送信したメッセージを削除する。他人のメッセージは削除不可。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 不存在のメッセージは 404 NOT_FOUND\n- 他人のメッセージは 403 NOT_FOUND（存在を秘匿）\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "会話 ID"
+            },
+            "required": true,
+            "description": "会話 ID",
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "メッセージ ID"
+            },
+            "required": true,
+            "description": "メッセージ ID",
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "メッセージ削除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 他人のメッセージ (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "メッセージが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/conversations/{id}/read": {
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "会話を既読にする",
+        "description": "会話の lastReadAt を現在時刻に更新して既読化する（参加者のみ）。\n\n重要仕様:\n- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED\n- 非参加者は 403 NOT_FOUND（存在を秘匿）\n- GET /api/v1/messages/conversations/{id}/messages でも自動的に既読化される\n- レート制限: engagement（30/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "会話 ID"
+            },
+            "required": true,
+            "description": "会話 ID",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "既読化成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 非参加者 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
             "content": {
               "application/json": {
                 "schema": {

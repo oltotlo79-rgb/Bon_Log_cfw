@@ -9,6 +9,7 @@ import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { fetchUserProfile } from '@/lib/services/user-read-service'
 import { resolveFollowStateForOne, resolveBlockMuteStateForOne } from '@/lib/api/v1/follow-state-resolver'
+import { isPremiumUser } from '@/lib/premium'
 
 export async function GET(
   request: NextRequest,
@@ -31,11 +32,12 @@ export async function GET(
     return apiError(MOBILE_API_ERROR_CODES.NOT_FOUND, 404)
   }
 
-  // 4. フォロー状態・ブロック/ミュート状態を付与（共有サービスを変更しない v1 専用後付け）
-  const [followState, blockMuteState] = await Promise.all([
+  // 4. フォロー状態・ブロック/ミュート状態・プレミアム状態を付与（共有サービスを変更しない v1 専用後付け）
+  const [followState, blockMuteState, premium] = await Promise.all([
     resolveFollowStateForOne(auth.userId, targetUserId),
     resolveBlockMuteStateForOne(auth.userId, targetUserId),
+    isPremiumUser(targetUserId),
   ])
 
-  return NextResponse.json({ ...result.user, ...followState, ...blockMuteState })
+  return NextResponse.json({ ...result.user, ...followState, ...blockMuteState, isPremium: premium })
 }

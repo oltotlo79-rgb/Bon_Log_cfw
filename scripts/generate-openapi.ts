@@ -46,6 +46,9 @@ async function main() {
     passwordResetConfirmSchema,
     readPaginationQuerySchema,
     searchQuerySchema,
+    searchPostsQuerySchema,
+    searchHashtagsQuerySchema,
+    SEARCH_POST_MEDIA_TYPE_VALUES,
     registerRequestSchema,
     createReportRequestSchema,
     createPostRequestSchema,
@@ -77,6 +80,11 @@ async function main() {
     MAX_CARE_LOG_RANGE_DAYS,
     MAX_BONSAI_CARE_NOTE_LENGTH,
     verifyEmailResendRequestSchema,
+    createQuoteRequestSchema,
+    pollVoteRequestSchema,
+    startConversationRequestSchema,
+    sendMessageRequestSchema,
+    MAX_MESSAGE_LENGTH,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -193,6 +201,30 @@ async function main() {
     followRequestsListResponseSchema,
     notificationPreferencesResponseSchema,
     notificationSettingsResponseSchema,
+    userPostsResponseSchema,
+    repostResponseSchema,
+    pollOptionResponseSchema,
+    pollVoteResponseSchema,
+    hashtagSearchResponseSchema,
+    analyticsDailyCountSchema,
+    analyticsPostsResponseSchema,
+    analyticsLikesResponseSchema,
+    analyticsQuoteItemSchema,
+    analyticsQuotesResponseSchema,
+    analyticsKeywordItemSchema,
+    analyticsKeywordsResponseSchema,
+    analyticsEngagementTrendResponseSchema,
+    analyticsGenreItemSchema,
+    analyticsGenrePerformanceResponseSchema,
+    analyticsFollowerGrowthResponseSchema,
+    analyticsPeriodMetricSchema,
+    analyticsPeriodComparisonResponseSchema,
+    dmLastMessageSchema,
+    conversationItemSchema,
+    conversationListResponseSchema,
+    startConversationResponseSchema,
+    messageItemSchema,
+    messageListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -338,6 +370,30 @@ async function main() {
     }),
   )
 
+  registry.register(
+    'SearchPostsQuery',
+    searchPostsQuerySchema.openapi({
+      description: [
+        '投稿検索クエリパラメータ。SearchQuery を拡張して投稿専用フィルタを追加。',
+        `mediaType は ${SEARCH_POST_MEDIA_TYPE_VALUES.join(' / ')} のいずれか（image=画像あり / video=動画あり / none=テキストのみ）。`,
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'SearchHashtagsQuery',
+    searchHashtagsQuerySchema.openapi({
+      description: 'ハッシュタグ候補検索クエリパラメータ（q, limit）。オートコンプリート用。',
+    }),
+  )
+
+  const HashtagSearchResponse = registry.register(
+    'HashtagSearchResponse',
+    hashtagSearchResponseSchema.openapi({
+      description: 'ハッシュタグ候補検索結果（id, name, count）。count 降順。',
+    }),
+  )
+
   // ──────────────────────────────────────────────────
   // 書き込み系エンドポイントのスキーマ
   // ──────────────────────────────────────────────────
@@ -417,8 +473,54 @@ async function main() {
       description: [
         '投稿作成リクエスト。content / mediaUrls のどちらか一方は必須。',
         'genreIds は最大 3 つ。mediaUrls と mediaTypes は同数で対応させること。',
-        'bonsai 紐付け・アンケートはモバイル MVP 外（将来別途追加）。',
+        'poll を指定するとアンケート付き投稿になる。',
       ].join('\n'),
+    }),
+  )
+
+  const CreateQuoteRequest = registry.register(
+    'CreateQuoteRequest',
+    createQuoteRequestSchema.openapi({
+      description: [
+        '引用投稿リクエスト（POST /api/v1/posts/{id}/quote）。',
+        'content は必須（空文字は 400）。',
+        'genreIds は最大 3 つ。',
+      ].join('\n'),
+    }),
+  )
+
+  const PollVoteRequest = registry.register(
+    'PollVoteRequest',
+    pollVoteRequestSchema.openapi({
+      description: 'アンケート投票リクエスト。optionId は投票する選択肢の ID。',
+    }),
+  )
+
+  const UserPostsResponse = registry.register(
+    'UserPostsResponse',
+    userPostsResponseSchema.openapi({
+      description: 'ユーザー投稿一覧レスポンス。カーソルページネーション形式。',
+    }),
+  )
+
+  const RepostResponse = registry.register(
+    'RepostResponse',
+    repostResponseSchema.openapi({
+      description: 'リポスト操作後の状態。reposted は操作後の状態、repostCount は最新の総リポスト数。',
+    }),
+  )
+
+  registry.register(
+    'PollOptionResponse',
+    pollOptionResponseSchema.openapi({
+      description: 'アンケート選択肢（投票後）。percentage は全票に占める割合（0〜100, 小数第 1 位）。',
+    }),
+  )
+
+  const PollVoteResponse = registry.register(
+    'PollVoteResponse',
+    pollVoteResponseSchema.openapi({
+      description: 'アンケート投票後の最新集計結果。',
     }),
   )
 
@@ -1096,6 +1198,42 @@ async function main() {
 
   registry.registerPath({
     method: 'get',
+    path: '/api/v1/users/{id}/posts',
+    tags: ['users'],
+    summary: 'ユーザーの投稿一覧を取得（カーソルページネーション）',
+    description: [
+      '指定ユーザーの投稿をカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す',
+      '- ゲストアクセス可: 公開アカウントの投稿を閲覧できる',
+      '- 自分自身の投稿: 非公開投稿も含む',
+      '- ブロック・ミュート・停止ユーザーへのアクセスは 404 NOT_FOUND',
+      '- レート制限: timeline（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ユーザー ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ユーザー投稿一覧',
+        content: { 'application/json': { schema: UserPostsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
     path: '/api/v1/search/posts',
     tags: ['search'],
     summary: '投稿検索',
@@ -1104,6 +1242,12 @@ async function main() {
       '',
       '2 文字以上: pg_bigm trigram 検索。1 文字: LIKE フォールバック。',
       'ブロック・ミュート・非公開・停止ユーザーの投稿は除外される。',
+      '',
+      'フィルタ:',
+      `- mediaType: ${SEARCH_POST_MEDIA_TYPE_VALUES.join(' / ')}（image=画像あり / video=動画あり / none=テキストのみ）`,
+      '- dateFrom / dateTo: ISO8601 日付（YYYY-MM-DD）での期間絞り込み',
+      '- minLikes: 最低いいね数でフィルタ',
+      '- genreId: ジャンル ID で絞り込み',
     ].join('\n'),
     security: [{ bearerAuth: [] }],
     request: {
@@ -1111,6 +1255,13 @@ async function main() {
         q: z.string().optional().openapi({ description: '検索キーワード' }),
         cursor: z.string().optional().openapi({ description: 'カーソル' }),
         limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+        genreId: z.string().optional().openapi({ description: 'ジャンル ID でフィルタ' }),
+        dateFrom: z.string().optional().openapi({ description: '投稿日時の開始日（ISO8601 YYYY-MM-DD）' }),
+        dateTo: z.string().optional().openapi({ description: '投稿日時の終了日（ISO8601 YYYY-MM-DD）' }),
+        minLikes: z.number().int().min(0).optional().openapi({ description: '最低いいね数' }),
+        mediaType: z.enum(SEARCH_POST_MEDIA_TYPE_VALUES).optional().openapi({
+          description: `メディア種別フィルタ: ${SEARCH_POST_MEDIA_TYPE_VALUES.join(' / ')}`,
+        }),
       }),
     },
     responses: {
@@ -1148,6 +1299,38 @@ async function main() {
       200: {
         description: 'ユーザー検索結果',
         content: { 'application/json': { schema: SearchUsersResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/search/hashtags',
+    tags: ['search'],
+    summary: 'ハッシュタグ候補検索（オートコンプリート）',
+    description: [
+      'ハッシュタグ名の部分一致で候補を検索する。count 降順で返す。',
+      '',
+      '重要仕様:',
+      '- count=0 のハッシュタグは除外される',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: search（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        q: z.string().optional().openapi({ description: '検索キーワード（空文字は人気順で返す）' }),
+        limit: z.number().int().min(1).max(50).optional().openapi({ description: '取得件数（デフォルト 10、最大 50）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ハッシュタグ候補検索成功',
+        content: { 'application/json': { schema: HashtagSearchResponse } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -1248,6 +1431,108 @@ async function main() {
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
       404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/posts/{id}/repost',
+    tags: ['posts'],
+    summary: '投稿をリポストする（冪等）',
+    description: [
+      '対象投稿をリポストする。既にリポスト済みでも 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 自己リポストは 400 VALIDATION_ERROR',
+      '- 不存在・非公開・非表示の投稿は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- repostCount は操作後の最新値（楽観更新の確定値として使用できる）',
+      '- 通知（repost）は相手に送信される（自己の場合は送信しない）',
+      '- レート制限: engagement（30/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'リポスト成功（既にリポスト済みでも 200）',
+        content: { 'application/json': { schema: RepostResponse } },
+      },
+      400: errorResponse('自己リポスト (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/posts/{id}/repost',
+    tags: ['posts'],
+    summary: '投稿のリポストを解除する（冪等）',
+    description: [
+      '対象投稿のリポストを解除する。リポストしていなくても 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 不存在の投稿は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- repostCount は操作後の最新値',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '投稿 ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'リポスト解除成功（リポストしていなくても 200）',
+        content: { 'application/json': { schema: RepostResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('投稿が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/posts/{id}/quote',
+    tags: ['posts'],
+    summary: '引用投稿を作成する（201）',
+    description: [
+      '指定投稿を引用した新規投稿を作成する。',
+      '',
+      '重要仕様:',
+      '- content は必須（空文字は 400 VALIDATION_ERROR）',
+      '- 引用元が存在しない・閲覧不可の場合は 404 NOT_FOUND',
+      '- 1日投稿上限に達した場合は 429 RATE_LIMITED',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 成功時は 201 Created と新規投稿の PostResponse を返す',
+      '- レート制限: post（3/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '引用元の投稿 ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: CreateQuoteRequest },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: '引用投稿作成成功。新規投稿の詳細を返す',
+        content: { 'application/json': { schema: PostResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — content 空・メディア超過等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('引用元投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
       429: rateLimitedResponse,
     },
   })
@@ -2088,6 +2373,48 @@ async function main() {
   })
 
   registry.registerPath({
+    method: 'post',
+    path: '/api/v1/polls/{id}/vote',
+    tags: ['polls'],
+    summary: 'アンケートに投票する',
+    description: [
+      '指定アンケートに 1 票を投じる。',
+      '',
+      '重要仕様:',
+      '- 投票は 1 ユーザー 1 回のみ（二重投票は 400 VALIDATION_ERROR）',
+      '- 期限切れアンケートへの投票は 400 VALIDATION_ERROR',
+      '- 不正な optionId（当該アンケートに属さない）は 400 VALIDATION_ERROR',
+      '- アンケートが存在しない場合は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 成功時は最新の集計結果（percentage 付き）を返す',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'アンケート ID' }) }),
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: PollVoteRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '投票成功。最新の集計結果を返す',
+        content: { 'application/json': { schema: PollVoteResponse } },
+      },
+      400: errorResponse(
+        'バリデーションエラー (VALIDATION_ERROR) — 二重投票 / 期限切れ / 不正 optionId',
+      ),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('アンケートが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
     method: 'get',
     path: '/api/v1/users/me/bookmarks',
     tags: ['bookmarks'],
@@ -2331,7 +2658,7 @@ async function main() {
   const FertilizationScheduleResponse = registry.register(
     'FertilizationScheduleResponse',
     fertilizationScheduleResponseSchema.openapi({
-      description: 'GET /api/v1/fertilizers/tree-species/{slug}/schedule 成功レスポンス。months は月順で最大 12 件。',
+      description: 'GET /api/v1/fertilizers/tree-species/{slug}/schedule 成功レスポンス。treeSpeciesName・slug を含む。months は月順で最大 12 件。',
     }),
   )
 
@@ -2839,6 +3166,7 @@ async function main() {
       '重要仕様:',
       '- slug 不存在は 404 NOT_FOUND',
       '- effects は pesticide.name ASC 順',
+      '- effects[].pesticide には formulationType（剤型、null 可）と activeIngredients（有効成分一覧）を含む',
       '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
       '- レート制限: read（60/分）',
     ].join('\n'),
@@ -3676,7 +4004,7 @@ async function main() {
   registry.register(
     'ListShopsQuery',
     listShopsQuerySchema.openapi({
-      description: 'GET /api/v1/shops クエリパラメータ。sortBy は rating/name/newest/location。',
+      description: 'GET /api/v1/shops クエリパラメータ。sortBy は rating/name/newest/location。region は地方名フィルタ（prefecture 指定時は無視）。',
     }),
   )
 
@@ -3728,6 +4056,7 @@ async function main() {
       '- cursor は BonsaiShop.id の lt フィルタとして機能する',
       '- latitude / longitude は Decimal から変換済みの number（null の場合は座標未登録）',
       '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- region と prefecture を同時指定した場合は prefecture が優先される（より狭い絞り込みを尊重）',
       '- レート制限: read（60/分）',
     ].join('\n'),
     security: [{ bearerAuth: [] }],
@@ -3737,7 +4066,8 @@ async function main() {
         limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
         search: z.string().optional().openapi({ description: '名称・住所の部分一致検索' }),
         genreId: z.string().optional().openapi({ description: 'ジャンル ID でフィルタ（type=shop のジャンルのみ有効）' }),
-        prefecture: z.string().optional().openapi({ description: '都道府県でフィルタ（住所の前方一致）' }),
+        prefecture: z.string().optional().openapi({ description: '都道府県でフィルタ（住所の前方一致）。region と同時指定時は prefecture が優先' }),
+        region: z.string().optional().openapi({ description: '地方名でフィルタ（北海道 / 東北 / 関東 / 中部 / 近畿 / 中国 / 四国 / 九州沖縄）。prefecture 指定時は無視される' }),
         sortBy: z.string().optional().openapi({ description: 'ソート順: rating / name / newest / location（デフォルト: location）' }),
       }),
     },
@@ -4412,6 +4742,136 @@ async function main() {
   )
 
   // ──────────────────────────────────────────────────
+  // §D — 分析拡張エンドポイント スキーマ登録（Wave 3 領域 D）
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'AnalyticsDailyCount',
+    analyticsDailyCountSchema.openapi({
+      description: '日次カウント 1 件（YYYY-MM-DD + count）。いいね日次分布などで使用。',
+    }),
+  )
+
+  const AnalyticsPostsResponse = registry.register(
+    'AnalyticsPostsResponse',
+    analyticsPostsResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/posts の成功レスポンス。',
+        'topPosts はエンゲージメント上位 5 件。posts は期間内の全投稿（作成日降順）。',
+        'avgEngagement は 1 投稿あたりの（いいね＋コメント）数（小数第 1 位まで）。',
+      ].join('\n'),
+    }),
+  )
+
+  const AnalyticsLikesResponse = registry.register(
+    'AnalyticsLikesResponse',
+    analyticsLikesResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/likes の成功レスポンス。',
+        'hourlyData: 24 要素（0〜23 時）。weekdayData: 7 要素（0=日〜6=土）。',
+        'dailyData: YYYY-MM-DD 昇順の日次いいね数。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'AnalyticsQuoteItem',
+    analyticsQuoteItemSchema.openapi({
+      description: '引用投稿 1 件。user は USER_MINIMAL_SELECT 相当（id, nickname, avatarUrl）。',
+    }),
+  )
+
+  const AnalyticsQuotesResponse = registry.register(
+    'AnalyticsQuotesResponse',
+    analyticsQuotesResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/quotes の成功レスポンス（days パラメータなし・全期間集計）。',
+        'quotes は最大 ANALYTICS_POSTS_LIMIT = 50 件。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'AnalyticsKeywordItem',
+    analyticsKeywordItemSchema.openapi({
+      description: 'キーワード 1 件（word + count）。count 降順。',
+    }),
+  )
+
+  const AnalyticsKeywordsResponse = registry.register(
+    'AnalyticsKeywordsResponse',
+    analyticsKeywordsResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/keywords の成功レスポンス。',
+        'keywords は出現頻度上位最大 TOP_KEYWORDS_LIMIT = 30 件（頻度降順）。',
+        'ストップワード（助詞等）・2 文字未満の単語は除外。',
+      ].join('\n'),
+    }),
+  )
+
+  const AnalyticsEngagementTrendResponse = registry.register(
+    'AnalyticsEngagementTrendResponse',
+    analyticsEngagementTrendResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/engagement-trend の成功レスポンス。',
+        'trend は days 日分の日次エンゲージメント（YYYY-MM-DD 昇順）。',
+        'engagement = likes + comments。投稿ゼロの日もエントリが存在する。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'AnalyticsGenreItem',
+    analyticsGenreItemSchema.openapi({
+      description: [
+        'ジャンル別パフォーマンス 1 件。',
+        '注意: genreId は含まれない（name のみ）。avgEngagement 降順で返る。',
+      ].join('\n'),
+    }),
+  )
+
+  const AnalyticsGenrePerformanceResponse = registry.register(
+    'AnalyticsGenrePerformanceResponse',
+    analyticsGenrePerformanceResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/genre-performance の成功レスポンス。',
+        'genres は avgEngagement 降順、最大 GENRE_PERFORMANCE_LIMIT = 10 件。',
+        '注意: genreId は返却されない（実関数の戻り値が name のみ）。',
+      ].join('\n'),
+    }),
+  )
+
+  const AnalyticsFollowerGrowthResponse = registry.register(
+    'AnalyticsFollowerGrowthResponse',
+    analyticsFollowerGrowthResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/follower-growth の成功レスポンス。',
+        'growth の totalFollowers は推定累積値（新規数を積算した近似値）。',
+        'currentFollowers は正確な現在値（COUNT クエリ）。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'AnalyticsPeriodMetric',
+    analyticsPeriodMetricSchema.openapi({
+      description: '前期比較の単一指標。change は前期比変化率（%整数）。前期・現期ともに 0 の場合は null。',
+    }),
+  )
+
+  const AnalyticsPeriodComparisonResponse = registry.register(
+    'AnalyticsPeriodComparisonResponse',
+    analyticsPeriodComparisonResponseSchema.openapi({
+      description: [
+        'GET /api/v1/analytics/period-comparison の成功レスポンス。',
+        '現期（直近 days 日）と前期（その前 days 日）の比較。',
+        '注意: handoff 目安の { current, previous, ratios } 形式とは異なる。',
+        '実形は { posts, likes, comments, followers } 各フィールドが { current, previous, change } を持つ。',
+      ].join('\n'),
+    }),
+  )
+
+  // ──────────────────────────────────────────────────
   // §1.20 explore/posts + 盆栽手入れログ スキーマ登録
   // ──────────────────────────────────────────────────
 
@@ -4526,6 +4986,226 @@ async function main() {
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
       429: rateLimitedResponse,
       500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
+  // §D — 分析拡張エンドポイント パス登録（Wave 3 領域 D）
+  // ──────────────────────────────────────────────────
+
+  const analyticsCommonDescription = [
+    '重要仕様:',
+    '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+    '- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED',
+    '- 自分のデータのみ（他ユーザーの分析は取得不可）',
+    '- days: 7 / 30 / 90 の文字列のみ許容（省略時 30）',
+    '- レート制限: analytics_summary（10/分）',
+  ].join('\n')
+
+  const analyticsDaysQuery = z.object({
+    days: z
+      .enum(['7', '30', '90'])
+      .optional()
+      .openapi({ description: '集計期間（日）。7 / 30 / 90 のいずれか（省略時 30）' }),
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/posts',
+    tags: ['analytics'],
+    summary: '期間内の投稿分析データを取得する',
+    description: [
+      '認証ユーザー自身の投稿統計（件数・いいね・コメント・上位投稿）を返す。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: '投稿分析データ取得成功',
+        content: { 'application/json': { schema: AnalyticsPostsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/likes',
+    tags: ['analytics'],
+    summary: '期間内のいいね分析データを取得する',
+    description: [
+      '認証ユーザーの投稿が受け取ったいいねの時間帯別・曜日別・日次分布を返す。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: 'いいね分析データ取得成功',
+        content: { 'application/json': { schema: AnalyticsLikesResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/quotes',
+    tags: ['analytics'],
+    summary: '自分の投稿への引用・リポスト分析データを取得する（全期間）',
+    description: [
+      '認証ユーザーの投稿への引用数・リポスト数と、最新の引用一覧を返す。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- プレミアム会員限定: 非プレミアムは 403 PREMIUM_REQUIRED',
+      '- days パラメータなし（全期間集計）',
+      '- quotes は最大 ANALYTICS_POSTS_LIMIT = 50 件',
+      '- レート制限: analytics_summary（10/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '引用・リポスト分析データ取得成功',
+        content: { 'application/json': { schema: AnalyticsQuotesResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/keywords',
+    tags: ['analytics'],
+    summary: '期間内の投稿キーワード分析データを取得する',
+    description: [
+      '認証ユーザーの投稿本文からキーワードを抽出し、出現頻度上位を返す。',
+      'ストップワード（助詞等）・2 文字未満の単語は除外される。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: 'キーワード分析データ取得成功',
+        content: { 'application/json': { schema: AnalyticsKeywordsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/engagement-trend',
+    tags: ['analytics'],
+    summary: '期間内の日次エンゲージメント推移を取得する',
+    description: [
+      '認証ユーザーの投稿の日次エンゲージメント（いいね＋コメント）推移を返す。',
+      '投稿ゼロの日もエントリが存在する（posts/likes/comments/engagement = 0）。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: 'エンゲージメント推移データ取得成功',
+        content: { 'application/json': { schema: AnalyticsEngagementTrendResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/genre-performance',
+    tags: ['analytics'],
+    summary: '期間内のジャンル別パフォーマンスを取得する',
+    description: [
+      '認証ユーザーの投稿をジャンル別に集計し、平均エンゲージメント降順で返す。',
+      '注意: レスポンスに genreId は含まれない（name のみ）。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: 'ジャンル別パフォーマンスデータ取得成功',
+        content: { 'application/json': { schema: AnalyticsGenrePerformanceResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/follower-growth',
+    tags: ['analytics'],
+    summary: '期間内のフォロワー増加推移を取得する',
+    description: [
+      '認証ユーザーの日次フォロワー増加数と累積フォロワー数の推移を返す。',
+      'totalFollowers は推定累積値（新規数を積算）。currentFollowers は正確な現在値。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: 'フォロワー増加推移データ取得成功',
+        content: { 'application/json': { schema: AnalyticsFollowerGrowthResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/analytics/period-comparison',
+    tags: ['analytics'],
+    summary: '現期間と前期間の比較データを取得する',
+    description: [
+      '直近 days 日（現期）とその前 days 日（前期）の投稿・いいね・コメント・フォロワー数を比較する。',
+      'change は前期比変化率（%整数）。前期・現期ともに 0 の場合のみ null。',
+      '',
+      analyticsCommonDescription,
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: { query: analyticsDaysQuery },
+    responses: {
+      200: {
+        description: '期間比較データ取得成功',
+        content: { 'application/json': { schema: AnalyticsPeriodComparisonResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — days が不正な値'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / プレミアム限定 (PREMIUM_REQUIRED)'),
+      429: rateLimitedResponse,
     },
   })
 
@@ -4949,6 +5629,294 @@ async function main() {
   })
 
   // ──────────────────────────────────────────────────
+  // Wave 4 領域 F — ダイレクトメッセージ (DM) スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'DmLastMessage',
+    dmLastMessageSchema.openapi({
+      description: '会話一覧の最終メッセージサマリ。senderId で自分/相手を区別できる。',
+    }),
+  )
+
+  const ConversationItem = registry.register(
+    'ConversationItem',
+    conversationItemSchema.openapi({
+      description: '会話一覧の 1 件。otherUser は id / nickname / avatarUrl の最小情報。',
+    }),
+  )
+
+  const ConversationListResponse = registry.register(
+    'ConversationListResponse',
+    conversationListResponseSchema.openapi({
+      description: '会話一覧レスポンス（カーソルページネーション）。',
+    }),
+  )
+
+  const StartConversationResponse = registry.register(
+    'StartConversationResponse',
+    startConversationResponseSchema.openapi({
+      description: '会話開始（取得/新規作成）の成功レスポンス。',
+    }),
+  )
+
+  const MessageItem = registry.register(
+    'MessageItem',
+    messageItemSchema.openapi({
+      description: 'メッセージ 1 件。sender は id / nickname / avatarUrl の最小情報。',
+    }),
+  )
+
+  const MessageListResponse = registry.register(
+    'MessageListResponse',
+    messageListResponseSchema.openapi({
+      description: [
+        'メッセージ一覧レスポンス（カーソルページネーション）。',
+        'items は createdAt 昇順（古い→新しい）。',
+        'nextCursor は最古メッセージの id で、次回呼び出しでより古いメッセージを取得できる。',
+        'GET するたびに lastReadAt が更新される（ポーリング前提）。',
+      ].join('\n'),
+    }),
+  )
+
+  const StartConversationRequest = registry.register(
+    'StartConversationRequest',
+    startConversationRequestSchema.openapi({
+      description: '会話開始リクエスト。targetUserId は相手のユーザー ID。',
+    }),
+  )
+
+  const SendMessageRequest = registry.register(
+    'SendMessageRequest',
+    sendMessageRequestSchema.openapi({
+      description: `メッセージ送信リクエスト。content は必須・非空・最大 ${MAX_MESSAGE_LENGTH} 文字。`,
+    }),
+  )
+
+  // DM パス登録
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/messages/conversations',
+    tags: ['messages'],
+    summary: '自分の会話一覧を取得する',
+    description: [
+      '認証ユーザーが参加しているすべての会話を updatedAt 降順で返す。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 相手ユーザー・最終メッセージ・未読フラグを 1 クエリで取得（N+1 なし）',
+      '- レート制限: read（60/分）',
+      '- ポーリング前提: リアルタイム通信なし。推奨ポーリング間隔は 5〜30 秒',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({
+          description: '取得件数（デフォルト 20、最大 100）',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '会話一覧取得成功',
+        content: { 'application/json': { schema: ConversationListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — limit / cursor 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/messages/conversations',
+    tags: ['messages'],
+    summary: '会話を開始する（取得または新規作成）',
+    description: [
+      '指定ユーザーとの会話を取得、なければ新規作成する。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 自己 DM は 400 VALIDATION_ERROR',
+      '- ブロック関係（双方向）は 403 NOT_FOUND（存在を秘匿）',
+      '- 対象ユーザーが停止・存在しない場合は 404 NOT_FOUND',
+      '- 既存会話がある場合は作成せずその id を返す（冪等）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: { 'application/json': { schema: StartConversationRequest } },
+      },
+    },
+    responses: {
+      200: {
+        description: '会話取得/作成成功',
+        content: { 'application/json': { schema: StartConversationResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — targetUserId 欠落 / 自己 DM'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / ブロック関係 (NOT_FOUND)'),
+      404: errorResponse('対象ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/messages/conversations/{id}/messages',
+    tags: ['messages'],
+    summary: '会話のメッセージ一覧を取得する',
+    description: [
+      '指定会話のメッセージをカーソルページネーションで返す（参加者のみ）。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 非参加者は 403 NOT_FOUND（存在を秘匿）',
+      '- items は createdAt 昇順（古い→新しい）',
+      '- nextCursor は最古メッセージの id。次回呼び出しでより古いメッセージを取得できる（無限スクロール上向き）',
+      '- GET するたびに lastReadAt が更新される（既読自動化）',
+      '- デフォルト limit は 50（MESSAGES_PAGE_LIMIT）',
+      '- レート制限: read（60/分）',
+      '- ポーリング前提: 推奨間隔は 3〜10 秒',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '会話 ID' }),
+      }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（最古メッセージ id）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({
+          description: '取得件数（デフォルト 50、最大 100）',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'メッセージ一覧取得成功',
+        content: { 'application/json': { schema: MessageListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — limit / cursor 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 非参加者 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/messages/conversations/{id}/messages',
+    tags: ['messages'],
+    summary: 'メッセージを送信する',
+    description: [
+      '指定会話にメッセージを送信する（参加者のみ）。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 非参加者は 403 NOT_FOUND（存在を秘匿）',
+      `- content は必須・非空・最大 ${MAX_MESSAGE_LENGTH} 文字`,
+      '- 日次送信上限 100 通（DAILY_MESSAGE_LIMIT）を超えると 400 VALIDATION_ERROR',
+      '- 会話作成後にブロックが発生していた場合は 403 NOT_FOUND',
+      '- レート制限: send_message（20/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '会話 ID' }),
+      }),
+      body: {
+        required: true,
+        content: { 'application/json': { schema: SendMessageRequest } },
+      },
+    },
+    responses: {
+      201: {
+        description: 'メッセージ送信成功',
+        content: { 'application/json': { schema: MessageItem } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — content 欠落 / 空 / 文字数超過 / 日次上限'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 非参加者またはブロック (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/messages/conversations/{id}/messages/{messageId}',
+    tags: ['messages'],
+    summary: 'メッセージを削除する（送信者のみ）',
+    description: [
+      '自分が送信したメッセージを削除する。他人のメッセージは削除不可。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 不存在のメッセージは 404 NOT_FOUND',
+      '- 他人のメッセージは 403 NOT_FOUND（存在を秘匿）',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '会話 ID' }),
+        messageId: z.string().openapi({ description: 'メッセージ ID' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'メッセージ削除成功',
+        content: { 'application/json': { schema: z.object({ success: z.literal(true) }) } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 他人のメッセージ (NOT_FOUND)'),
+      404: errorResponse('メッセージが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/messages/conversations/{id}/read',
+    tags: ['messages'],
+    summary: '会話を既読にする',
+    description: [
+      '会話の lastReadAt を現在時刻に更新して既読化する（参加者のみ）。',
+      '',
+      '重要仕様:',
+      '- Bearer 必須・ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- 非参加者は 403 NOT_FOUND（存在を秘匿）',
+      '- GET /api/v1/messages/conversations/{id}/messages でも自動的に既読化される',
+      '- レート制限: engagement（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: '会話 ID' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '既読化成功',
+        content: { 'application/json': { schema: z.object({ success: z.literal(true) }) } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) / ゲスト不可 (GUEST_NOT_ALLOWED) / 非参加者 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
+
+  // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
 
@@ -4958,7 +5926,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.21.0',
+      version: '1.24.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

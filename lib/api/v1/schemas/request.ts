@@ -107,6 +107,27 @@ export const searchQuerySchema = paginationSchema.extend({
 })
 export type SearchQuery = z.infer<typeof searchQuerySchema>
 
+/** GET /api/v1/search/posts の mediaType 値（v1 API 表現）。サービス層の SearchMediaType とは異なる。 */
+export const SEARCH_POST_MEDIA_TYPE_VALUES = ['image', 'video', 'none'] as const
+export type SearchPostMediaTypeValue = (typeof SEARCH_POST_MEDIA_TYPE_VALUES)[number]
+
+/** GET /api/v1/search/posts — 投稿専用の追加フィルタを含む検索クエリパラメータ */
+export const searchPostsQuerySchema = searchQuerySchema.extend({
+  genreId: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  minLikes: z.coerce.number().int().min(0).optional(),
+  mediaType: z.enum(SEARCH_POST_MEDIA_TYPE_VALUES).optional(),
+})
+export type SearchPostsQuery = z.infer<typeof searchPostsQuerySchema>
+
+/** GET /api/v1/search/hashtags のクエリパラメータ */
+export const searchHashtagsQuerySchema = z.object({
+  q: z.string().max(MAX_HASHTAG_QUERY_LENGTH).optional().default(''),
+  limit: z.coerce.number().int().min(1).max(MAX_HASHTAG_LIMIT).optional(),
+})
+export type SearchHashtagsQuery = z.infer<typeof searchHashtagsQuerySchema>
+
 // ──────────────────────────────────────────────────
 // Phase 2 Batch 2b — 通報・ブロック・ミュート
 // ──────────────────────────────────────────────────
@@ -141,11 +162,19 @@ import {
   MAX_COMMENT_LENGTH,
 } from '@/lib/constants/limits'
 
+import {
+  MIN_POLL_OPTIONS,
+  MAX_POLL_OPTIONS,
+  MAX_POLL_OPTION_LENGTH,
+  VALID_POLL_DURATIONS,
+  DEFAULT_POLL_DURATION_SECONDS,
+} from '@/lib/constants/limits'
+
 /**
  * POST /api/v1/posts
  *
  * content / genreIds / mediaUrls / mediaTypes を受ける。
- * bonsai 紐付け・poll はモバイル MVP 対象外のため本バッチでは含まない。
+ * poll を省略するとアンケートなし投稿になる。
  * mediaUrls の URL 検証は Web の createPost と同等（文字列存在チェックのみ）。
  */
 export const createPostRequestSchema = z.object({
@@ -153,8 +182,43 @@ export const createPostRequestSchema = z.object({
   genreIds: z.array(z.string()).max(MAX_GENRES_PER_POST).default([]),
   mediaUrls: z.array(z.string()).default([]),
   mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+  poll: z
+    .object({
+      options: z.array(z.string().min(1).max(MAX_POLL_OPTION_LENGTH)).min(MIN_POLL_OPTIONS).max(MAX_POLL_OPTIONS),
+      durationSeconds: z
+        .number()
+        .int()
+        .refine((v) => (VALID_POLL_DURATIONS as readonly number[]).includes(v))
+        .optional()
+        .default(DEFAULT_POLL_DURATION_SECONDS),
+    })
+    .optional(),
 })
 export type CreatePostRequest = z.infer<typeof createPostRequestSchema>
+
+/**
+ * POST /api/v1/posts/{id}/quote
+ *
+ * 引用元投稿のコンテンツ。content は必須（空文字は 400）。
+ * genreIds / mediaUrls / mediaTypes は POST /api/v1/posts と同形。
+ */
+export const createQuoteRequestSchema = z.object({
+  content: z.string().optional().default(''),
+  genreIds: z.array(z.string()).max(MAX_GENRES_PER_POST).default([]),
+  mediaUrls: z.array(z.string()).default([]),
+  mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+})
+export type CreateQuoteRequest = z.infer<typeof createQuoteRequestSchema>
+
+/**
+ * POST /api/v1/polls/{id}/vote
+ *
+ * optionId: 投票する選択肢の ID。
+ */
+export const pollVoteRequestSchema = z.object({
+  optionId: z.string().min(1),
+})
+export type PollVoteRequest = z.infer<typeof pollVoteRequestSchema>
 
 /**
  * PATCH /api/v1/posts/{id}
@@ -452,6 +516,10 @@ export const listShopsQuerySchema = z.object({
   genreId: z.string().optional(),
   prefecture: z.string().max(20).optional(),
   sortBy: z.enum(SHOP_SORT_BY_VALUES).optional(),
+  region: z.string().optional().refine(
+    (v) => v === undefined || (REGION_NAME_LIST as readonly string[]).includes(v),
+    { message: ERR_INVALID_INPUT },
+  ),
 })
 export type ListShopsQuery = z.infer<typeof listShopsQuerySchema>
 
@@ -567,7 +635,7 @@ export { MAX_PENDING_SCHEDULED_POSTS, MAX_SCHEDULED_DAYS_AHEAD }
 // §1.20 explore/posts — ハッシュタグ / ジャンル別投稿一覧
 // ──────────────────────────────────────────────────
 
-import { MAX_HASHTAG_QUERY_LENGTH } from '@/lib/constants/limits'
+import { MAX_HASHTAG_QUERY_LENGTH, MAX_HASHTAG_LIMIT } from '@/lib/constants/limits'
 
 /**
  * GET /api/v1/explore/posts クエリパラメータスキーマ。
@@ -672,3 +740,39 @@ export const updateEventRequestSchema = z.object({
   externalUrl: z.string().url().max(MAX_EVENT_EXTERNAL_URL_LENGTH_REQ).nullable().optional(),
 })
 export type UpdateEventRequest = z.infer<typeof updateEventRequestSchema>
+
+// ──────────────────────────────────────────────────
+// Wave 4 領域 F — ダイレクトメッセージ (DM)
+// ──────────────────────────────────────────────────
+
+import { MAX_MESSAGE_LENGTH } from '@/lib/constants/limits'
+
+/**
+ * POST /api/v1/messages/conversations
+ *
+ * 指定ユーザーとの会話を取得または新規作成する。
+ * ブロック関係・自己 DM は 403 FORBIDDEN。
+ */
+export const startConversationRequestSchema = z.object({
+  targetUserId: z.string().min(1),
+})
+export type StartConversationRequest = z.infer<typeof startConversationRequestSchema>
+
+/**
+ * POST /api/v1/messages/conversations/{id}/messages
+ *
+ * メッセージを送信する。content は必須・非空・MAX_MESSAGE_LENGTH 以内。
+ * Zod refine で空文字と長さ超過を弾く（エラーメッセージは既存定数と一致させる）。
+ */
+export const sendMessageRequestSchema = z.object({
+  content: z
+    .string()
+    .refine((s) => s.trim().length > 0, { message: 'メッセージを入力してください' })
+    .refine((s) => s.length <= MAX_MESSAGE_LENGTH, {
+      message: `メッセージは${MAX_MESSAGE_LENGTH}文字以内で入力してください`,
+    }),
+})
+export type SendMessageRequest = z.infer<typeof sendMessageRequestSchema>
+
+// MAX_MESSAGE_LENGTH は OpenAPI description で参照
+export { MAX_MESSAGE_LENGTH }

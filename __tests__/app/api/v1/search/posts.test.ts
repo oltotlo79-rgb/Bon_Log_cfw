@@ -154,6 +154,7 @@ describe('GET /api/v1/search/posts', () => {
       undefined,
       'c123',
       5,
+      undefined,
     )
   })
 

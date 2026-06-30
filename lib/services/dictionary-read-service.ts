@@ -48,6 +48,7 @@ export type DictionaryTermSummary = {
   term: string
   reading: string
   category: string
+  description: string
 }
 
 export type DictionaryTermDetail = DictionaryTermSummary & {
@@ -88,6 +89,7 @@ export async function listDictionaryTerms(query: DictionaryListQuery): Promise<{
         term: true,
         reading: true,
         category: true,
+        description: true,
       },
       orderBy: [{ reading: 'asc' }, { sortOrder: 'asc' }],
       take: dbTake,
@@ -155,13 +157,13 @@ export async function getDictionaryTermBySlug(slug: string): Promise<{
     const [adjacentResult, relatedResult] = await Promise.all([
       prisma.bonsaiTerm.findMany({
         where: { category: term.category },
-        select: { id: true, slug: true, term: true, reading: true, category: true },
+        select: { id: true, slug: true, term: true, reading: true, category: true, description: true },
         orderBy: [{ reading: 'asc' }, { sortOrder: 'asc' }],
         take: MAX_DICTIONARY_TERMS_LIMIT,
       }),
       prisma.bonsaiTerm.findMany({
         where: { category: term.category, slug: { not: slug } },
-        select: { id: true, slug: true, term: true, reading: true, category: true },
+        select: { id: true, slug: true, term: true, reading: true, category: true, description: true },
         orderBy: [{ reading: 'asc' }, { sortOrder: 'asc' }],
         take: DICTIONARY_RELATED_TERMS_LIMIT,
       }),

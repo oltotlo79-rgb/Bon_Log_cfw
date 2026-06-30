@@ -50,7 +50,7 @@ import {
   ERR_RATING_RANGE,
   ERR_REVIEW_IMAGE_LIMIT,
 } from '@/lib/constants/errors'
-import { PREFECTURES } from '@/lib/prefectures'
+import { PREFECTURES, REGION_NAME_LIST, isRegionName, getPrefecturesByRegion } from '@/lib/prefectures'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
 import { SHOP_SORT_BY_VALUES, type ShopSortByValue } from '@/lib/api/v1/schemas/request'
 
@@ -65,6 +65,9 @@ export { SHOP_SORT_BY_VALUES }
 // ──────────────────────────────────────────────────
 // Zod スキーマ
 // ──────────────────────────────────────────────────
+
+/** region クエリパラメータで許可される値の配列（OpenAPI enum 生成用）。 */
+export const SHOP_REGION_VALUES = REGION_NAME_LIST as readonly string[]
 
 /** GET /api/v1/shops クエリパラメータスキーマ */
 export const listShopsV1QuerySchema = z.object({
@@ -81,6 +84,10 @@ export const listShopsV1QuerySchema = z.object({
       { message: ERR_INVALID_INPUT },
     ),
   sortBy: z.enum(SHOP_SORT_BY_VALUES).optional(),
+  region: z.string().optional().refine(
+    (v) => v === undefined || isRegionName(v),
+    { message: ERR_INVALID_INPUT },
+  ),
 })
 export type ListShopsV1Query = z.infer<typeof listShopsV1QuerySchema>
 
@@ -258,16 +265,18 @@ function buildShopOrderBy(sortBy: ShopSortBy): ShopFindManyOrderBy {
 }
 
 /**
- * isHidden 除外・検索・都道府県フィルタを含む where 節を構築する。
- * Web の buildBonsaiShopWhereClause と同等のロジック。
+ * isHidden 除外・検索・都道府県/地方フィルタを含む where 節を構築する。
+ * prefecture が指定されている場合は prefecture を優先（region より狭い絞り込み）。
+ * region のみ指定の場合は getPrefecturesByRegion で都道府県群に展開して OR 絞り込み。
  */
 function buildShopWhereClause(options: {
   search?: string
   genreId?: string
   prefecture?: string
+  region?: string
   cursor?: string
 }): Prisma.BonsaiShopWhereInput {
-  const { search, genreId, prefecture, cursor } = options
+  const { search, genreId, prefecture, region, cursor } = options
   const andConditions: Prisma.BonsaiShopWhereInput[] = []
 
   if (search) {
@@ -281,6 +290,13 @@ function buildShopWhereClause(options: {
 
   if (prefecture) {
     andConditions.push({ address: { startsWith: prefecture } })
+  } else if (region && isRegionName(region)) {
+    const prefs = getPrefecturesByRegion(region)
+    if (prefs.length > 0) {
+      andConditions.push({
+        OR: prefs.map((pref) => ({ address: { startsWith: pref } })),
+      })
+    }
   }
 
   return {
@@ -320,6 +336,7 @@ export async function listShopsV1(
           search: query.search,
           genreId: query.genreId,
           prefecture: query.prefecture,
+          region: query.region,
           cursor: query.cursor,
         }),
         include: SHOP_LIST_INCLUDE,

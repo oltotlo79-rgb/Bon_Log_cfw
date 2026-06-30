@@ -203,6 +203,8 @@ export const userProfileSchema = z.object({
   isBlocked: z.boolean(),
   /** 閲覧者が対象ユーザーをミュートしているか（自分自身の場合は false） */
   isMuted: z.boolean(),
+  /** 対象ユーザーがプレミアム会員かどうか */
+  isPremium: z.boolean(),
 })
 export type UserProfileResponse = z.infer<typeof userProfileSchema>
 
@@ -389,6 +391,12 @@ export const trendingHashtagsResponseSchema = z.object({
 })
 export type TrendingHashtagsResponse = z.infer<typeof trendingHashtagsResponseSchema>
 
+/** GET /api/v1/search/hashtags 200 */
+export const hashtagSearchResponseSchema = z.object({
+  items: z.array(trendingHashtagItemSchema),
+})
+export type HashtagSearchResponse = z.infer<typeof hashtagSearchResponseSchema>
+
 /** GET /api/v1/explore/trending-genres の 1 件 */
 export const trendingGenreItemSchema = z.object({
   id: z.string(),
@@ -430,13 +438,14 @@ export type RecommendedUsersResponse = z.infer<typeof recommendedUsersResponseSc
 
 // ── 辞典 ─────────────────────────────────────────
 
-/** GET /api/v1/dictionary の 1 件（一覧は description 省略） */
+/** GET /api/v1/dictionary の 1 件（一覧・ナビゲーション共通） */
 export const dictionaryTermSummarySchema = z.object({
   id: z.string(),
   slug: z.string(),
   term: z.string(),
   reading: z.string(),
   category: z.string(),
+  description: z.string(),
 })
 export type DictionaryTermSummaryResponse = z.infer<typeof dictionaryTermSummarySchema>
 
@@ -536,6 +545,8 @@ export type FertilizationMonth = z.infer<typeof fertilizationMonthSchema>
 
 /** GET /api/v1/fertilizers/tree-species/{slug}/schedule 200 */
 export const fertilizationScheduleResponseSchema = z.object({
+  treeSpeciesName: z.string(),
+  slug: z.string(),
   months: z.array(fertilizationMonthSchema),
 })
 export type FertilizationScheduleResponse = z.infer<typeof fertilizationScheduleResponseSchema>
@@ -646,6 +657,24 @@ export const diseasePestItemSchema = z.object({
 })
 export type DiseasePestItem = z.infer<typeof diseasePestItemSchema>
 
+/** 農薬製品詳細の有効成分 1 件 */
+export const pesticideActiveIngredientItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  fracCode: z.string().nullable(),
+  iracCode: z.string().nullable(),
+  resistanceRisk: resistanceRiskSchema.nullable(),
+  slug: z.string(),
+})
+export type PesticideActiveIngredientItem = z.infer<typeof pesticideActiveIngredientItemSchema>
+
+/** 農薬製品詳細の剤型 */
+export const pesticideFormulationTypeSchema = z.object({
+  name: z.string(),
+  code: z.string(),
+})
+export type PesticideFormulationType = z.infer<typeof pesticideFormulationTypeSchema>
+
 /** GET /api/v1/pesticides/disease-pests の効果 1 件 */
 export const diseasePestEffectItemSchema = z.object({
   pesticide: z.object({
@@ -653,6 +682,8 @@ export const diseasePestEffectItemSchema = z.object({
     name: z.string(),
     slug: z.string(),
     pesticideType: pesticideTypeSchema,
+    formulationType: pesticideFormulationTypeSchema.nullable(),
+    activeIngredients: z.array(pesticideActiveIngredientItemSchema),
   }),
   rating: z.object({
     preventionLevel: effectRatingSchema.nullable(),
@@ -688,24 +719,6 @@ export const pesticideItemSchema = z.object({
   slug: z.string(),
 })
 export type PesticideItem = z.infer<typeof pesticideItemSchema>
-
-/** 農薬製品詳細の有効成分 1 件 */
-export const pesticideActiveIngredientItemSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  fracCode: z.string().nullable(),
-  iracCode: z.string().nullable(),
-  resistanceRisk: resistanceRiskSchema.nullable(),
-  slug: z.string(),
-})
-export type PesticideActiveIngredientItem = z.infer<typeof pesticideActiveIngredientItemSchema>
-
-/** 農薬製品詳細の剤型 */
-export const pesticideFormulationTypeSchema = z.object({
-  name: z.string(),
-  code: z.string(),
-})
-export type PesticideFormulationType = z.infer<typeof pesticideFormulationTypeSchema>
 
 /** 農薬製品詳細の効果 1 件 */
 export const pesticideEffectItemSchema = z.object({
@@ -1251,6 +1264,319 @@ export const notificationSettingsResponseSchema = z.object({
   preferences: notificationPreferencesResponseSchema,
 })
 export type NotificationSettingsResponse = z.infer<typeof notificationSettingsResponseSchema>
+
+// ──────────────────────────────────────────────────
+// §A-1 ユーザー投稿一覧
+// ──────────────────────────────────────────────────
+
+/** GET /api/v1/users/{id}/posts 200 */
+export const userPostsResponseSchema = z.object({
+  items: z.array(postSchema),
+  nextCursor: z.string().nullable(),
+})
+export type UserPostsResponse = z.infer<typeof userPostsResponseSchema>
+
+// ──────────────────────────────────────────────────
+// §B-1 リポスト
+// ──────────────────────────────────────────────────
+
+/** POST /api/v1/posts/{id}/repost 200 / DELETE /api/v1/posts/{id}/repost 200 */
+export const repostResponseSchema = z.object({
+  reposted: z.boolean(),
+  repostCount: z.number().int(),
+})
+export type RepostResponse = z.infer<typeof repostResponseSchema>
+
+// ──────────────────────────────────────────────────
+// §B-3 アンケート（ポール）
+// ──────────────────────────────────────────────────
+
+/** アンケート選択肢（投票後レスポンス用） */
+export const pollOptionResponseSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  voteCount: z.number().int(),
+  /** 全票に占める割合（0〜100、小数第1位まで）。totalVotes が 0 なら 0 */
+  percentage: z.number(),
+})
+export type PollOptionResponse = z.infer<typeof pollOptionResponseSchema>
+
+/** POST /api/v1/polls/{id}/vote 200 */
+export const pollVoteResponseSchema = z.object({
+  id: z.string(),
+  expiresAt: z.string().datetime(),
+  isExpired: z.boolean(),
+  totalVotes: z.number().int(),
+  userVoteOptionId: z.string().nullable(),
+  options: z.array(pollOptionResponseSchema),
+})
+export type PollVoteResponse = z.infer<typeof pollVoteResponseSchema>
+
+// ──────────────────────────────────────────────────
+// §D — 分析拡張エンドポイント（Wave 3 領域 D）
+// Bearer 必須・プレミアム限定・自分のデータのみ
+// 実形はそれぞれ lib/services/analytics-service.ts の各関数の戻り値に厳密に一致させる。
+// ──────────────────────────────────────────────────
+
+/** 日次カウント 1 件（いいね日次分布など date + count 形式） */
+export const analyticsDailyCountSchema = z.object({
+  /** YYYY-MM-DD */
+  date: z.string(),
+  count: z.number().int(),
+})
+export type AnalyticsDailyCount = z.infer<typeof analyticsDailyCountSchema>
+
+/**
+ * GET /api/v1/analytics/posts 200
+ *
+ * fetchPostAnalytics の戻り値に一致。topPosts / posts は同形
+ * （analyticsTopPostSchema を共用）。
+ */
+export const analyticsPostsResponseSchema = z.object({
+  /** 期間内の総投稿数 */
+  totalPosts: z.number().int(),
+  /** 期間内に受け取ったいいね総数 */
+  totalLikes: z.number().int(),
+  /** 期間内に受け取ったコメント総数 */
+  totalComments: z.number().int(),
+  /** 1 投稿あたりの平均エンゲージメント（小数第 1 位まで） */
+  avgEngagement: z.number(),
+  /** エンゲージメント上位 5 件の投稿 */
+  topPosts: z.array(analyticsTopPostSchema),
+  /** 期間内の全投稿（作成日降順） */
+  posts: z.array(analyticsTopPostSchema),
+})
+export type AnalyticsPostsResponse = z.infer<typeof analyticsPostsResponseSchema>
+
+/**
+ * GET /api/v1/analytics/likes 200
+ *
+ * fetchLikeAnalytics の戻り値に一致。
+ * hourlyData: 24 要素の配列（インデックス = 時刻）。
+ * weekdayData: 7 要素の配列（インデックス = 曜日, 0=日〜6=土）。
+ */
+export const analyticsLikesResponseSchema = z.object({
+  totalLikes: z.number().int(),
+  /** 時間帯別いいね数（0〜23 時）。24 要素固定 */
+  hourlyData: z.array(z.number().int()),
+  /** 曜日別いいね数（0=日〜6=土）。7 要素固定 */
+  weekdayData: z.array(z.number().int()),
+  /** 日次いいね数（YYYY-MM-DD 昇順） */
+  dailyData: z.array(analyticsDailyCountSchema),
+  /** いいねが最も多い時間帯（0〜23） */
+  peakHour: z.number().int(),
+  /** いいねが最も多い曜日（0=日〜6=土） */
+  peakWeekday: z.number().int(),
+})
+export type AnalyticsLikesResponse = z.infer<typeof analyticsLikesResponseSchema>
+
+/** GET /api/v1/analytics/quotes の引用投稿 1 件 */
+export const analyticsQuoteItemSchema = z.object({
+  id: z.string(),
+  /** 引用投稿本文の先頭 200 文字。メディアのみの場合は null */
+  content: z.string().nullable(),
+  /** 引用した著者（USER_MINIMAL_SELECT と同形） */
+  user: postAuthorSchema,
+  /** 引用元の投稿 ID。元投稿が削除済みの場合は null */
+  originalPostId: z.string().nullable(),
+  /** 引用元本文の先頭 100 文字 */
+  originalContent: z.string().nullable(),
+  likeCount: z.number().int(),
+  commentCount: z.number().int(),
+  createdAt: z.string().datetime(),
+})
+export type AnalyticsQuoteItem = z.infer<typeof analyticsQuoteItemSchema>
+
+/**
+ * GET /api/v1/analytics/quotes 200
+ *
+ * fetchQuoteAnalytics の戻り値に一致。days パラメータ不要。
+ */
+export const analyticsQuotesResponseSchema = z.object({
+  /** 自分の投稿を引用した件数 */
+  totalQuotes: z.number().int(),
+  /** 自分の投稿をリポストした件数 */
+  totalReposts: z.number().int(),
+  /** 最新の引用投稿一覧（最大 ANALYTICS_POSTS_LIMIT = 50 件） */
+  quotes: z.array(analyticsQuoteItemSchema),
+})
+export type AnalyticsQuotesResponse = z.infer<typeof analyticsQuotesResponseSchema>
+
+/** GET /api/v1/analytics/keywords のキーワード 1 件 */
+export const analyticsKeywordItemSchema = z.object({
+  word: z.string(),
+  count: z.number().int(),
+})
+export type AnalyticsKeywordItem = z.infer<typeof analyticsKeywordItemSchema>
+
+/**
+ * GET /api/v1/analytics/keywords 200
+ *
+ * fetchKeywordAnalytics の戻り値に一致。
+ */
+export const analyticsKeywordsResponseSchema = z.object({
+  /** 出現頻度上位のキーワード（最大 TOP_KEYWORDS_LIMIT = 30 件、頻度降順） */
+  keywords: z.array(analyticsKeywordItemSchema),
+  /** 期間内の投稿に登場した単語の総出現数 */
+  totalWords: z.number().int(),
+  /** 期間内の投稿に登場したユニーク単語数 */
+  uniqueWords: z.number().int(),
+})
+export type AnalyticsKeywordsResponse = z.infer<typeof analyticsKeywordsResponseSchema>
+
+/**
+ * GET /api/v1/analytics/engagement-trend 200
+ *
+ * fetchEngagementTrend の戻り値に一致。
+ * trend 各要素は analyticsDailyEngagementSchema（{ date, posts, likes, comments, engagement }）を共用。
+ */
+export const analyticsEngagementTrendResponseSchema = z.object({
+  /** 日次エンゲージメント推移（days 日分、YYYY-MM-DD 昇順） */
+  trend: z.array(analyticsDailyEngagementSchema),
+})
+export type AnalyticsEngagementTrendResponse = z.infer<typeof analyticsEngagementTrendResponseSchema>
+
+/**
+ * GET /api/v1/analytics/genre-performance のジャンル 1 件
+ *
+ * fetchGenrePerformance は genreId を返さない（name のみ）。
+ * handoff 目安との差異: genreId フィールドは存在しない。
+ */
+export const analyticsGenreItemSchema = z.object({
+  name: z.string(),
+  postCount: z.number().int(),
+  /** 1 投稿あたりの平均いいね数（小数第 1 位まで） */
+  avgLikes: z.number(),
+  /** 1 投稿あたりの平均コメント数（小数第 1 位まで） */
+  avgComments: z.number(),
+  /** 1 投稿あたりの平均エンゲージメント（小数第 1 位まで） */
+  avgEngagement: z.number(),
+})
+export type AnalyticsGenreItem = z.infer<typeof analyticsGenreItemSchema>
+
+/**
+ * GET /api/v1/analytics/genre-performance 200
+ *
+ * fetchGenrePerformance の戻り値に一致（avgEngagement 降順、最大 GENRE_PERFORMANCE_LIMIT = 10 件）。
+ */
+export const analyticsGenrePerformanceResponseSchema = z.object({
+  genres: z.array(analyticsGenreItemSchema),
+})
+export type AnalyticsGenrePerformanceResponse = z.infer<typeof analyticsGenrePerformanceResponseSchema>
+
+/**
+ * GET /api/v1/analytics/follower-growth 200
+ *
+ * fetchFollowerGrowth の戻り値に一致。
+ * growth 各要素は analyticsFollowerGrowthEntrySchema を共用。
+ * handoff 目安との差異: フィールド名が currentFollowers / totalNewInPeriod（camelCase）。
+ */
+export const analyticsFollowerGrowthResponseSchema = z.object({
+  /** 現在のフォロワー総数 */
+  currentFollowers: z.number().int(),
+  /** 集計期間内の新規フォロワー数 */
+  totalNewInPeriod: z.number().int(),
+  /** 日次フォロワー推移（days 日分、YYYY-MM-DD 昇順） */
+  growth: z.array(analyticsFollowerGrowthEntrySchema),
+})
+export type AnalyticsFollowerGrowthResponse = z.infer<typeof analyticsFollowerGrowthResponseSchema>
+
+/**
+ * GET /api/v1/analytics/period-comparison の単一指標
+ *
+ * change は前期比の変化率（%整数）。前期が 0 かつ現期が 0 の場合のみ null。
+ */
+export const analyticsPeriodMetricSchema = z.object({
+  current: z.number().int(),
+  previous: z.number().int(),
+  /** 前期比変化率（%整数）。前期 0 かつ現期 0 の場合は null */
+  change: z.number().int().nullable(),
+})
+export type AnalyticsPeriodMetric = z.infer<typeof analyticsPeriodMetricSchema>
+
+/**
+ * GET /api/v1/analytics/period-comparison 200
+ *
+ * fetchPeriodComparison の戻り値に一致。
+ * handoff 目安との差異: { current, previous, ratios } ではなく
+ * { posts, likes, comments, followers } それぞれに { current, previous, change } を持つ。
+ */
+export const analyticsPeriodComparisonResponseSchema = z.object({
+  posts: analyticsPeriodMetricSchema,
+  likes: analyticsPeriodMetricSchema,
+  comments: analyticsPeriodMetricSchema,
+  followers: analyticsPeriodMetricSchema,
+})
+export type AnalyticsPeriodComparisonResponse = z.infer<typeof analyticsPeriodComparisonResponseSchema>
+
+// ──────────────────────────────────────────────────
+// Wave 4 領域 F — ダイレクトメッセージ (DM)
+// ──────────────────────────────────────────────────
+
+/**
+ * 会話一覧の最終メッセージサマリ。
+ * senderId を含めることでクライアントが「自分が最後に送ったか」を判定できる。
+ */
+export const dmLastMessageSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  senderId: z.string(),
+  createdAt: z.string().datetime(),
+})
+export type DmLastMessage = z.infer<typeof dmLastMessageSchema>
+
+/**
+ * 会話一覧の 1 件。
+ * otherUser は postAuthorSchema（id / nickname / avatarUrl）を再利用。
+ */
+export const conversationItemSchema = z.object({
+  id: z.string(),
+  updatedAt: z.string().datetime(),
+  otherUser: postAuthorSchema.nullable(),
+  lastMessage: dmLastMessageSchema.nullable(),
+  hasUnread: z.boolean(),
+})
+export type ConversationItem = z.infer<typeof conversationItemSchema>
+
+/** GET /api/v1/messages/conversations 200 */
+export const conversationListResponseSchema = z.object({
+  items: z.array(conversationItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type ConversationListResponse = z.infer<typeof conversationListResponseSchema>
+
+/** POST /api/v1/messages/conversations 200 — 会話取得/作成成功 */
+export const startConversationResponseSchema = z.object({
+  conversationId: z.string(),
+})
+export type StartConversationResponse = z.infer<typeof startConversationResponseSchema>
+
+/**
+ * メッセージ 1 件。
+ * sender は postAuthorSchema（id / nickname / avatarUrl）を再利用。
+ */
+export const messageItemSchema = z.object({
+  id: z.string(),
+  conversationId: z.string(),
+  content: z.string(),
+  senderId: z.string(),
+  sender: postAuthorSchema,
+  createdAt: z.string().datetime(),
+})
+export type MessageItem = z.infer<typeof messageItemSchema>
+
+/**
+ * GET /api/v1/messages/conversations/{id}/messages 200
+ *
+ * items は createdAt 昇順（古い→新しい）。
+ * nextCursor は最古メッセージの id で、次回呼び出しでより古いメッセージを取得できる。
+ * ポーリング前提: GET するたびに既読時刻が更新される。
+ */
+export const messageListResponseSchema = z.object({
+  items: z.array(messageItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type MessageListResponse = z.infer<typeof messageListResponseSchema>
 
 // ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）

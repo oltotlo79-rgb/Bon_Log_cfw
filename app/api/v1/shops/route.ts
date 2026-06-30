@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     genreId: searchParams.get('genreId') ?? undefined,
     prefecture: searchParams.get('prefecture') ?? undefined,
     sortBy: searchParams.get('sortBy') ?? undefined,
+    region: searchParams.get('region') ?? undefined,
   }
   const parsed = listShopsV1QuerySchema.safeParse(rawQuery)
   if (!parsed.success) return apiZodError(parsed.error)

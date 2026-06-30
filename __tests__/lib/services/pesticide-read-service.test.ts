@@ -92,6 +92,8 @@ const mockDiseasePestDetail = {
         name: 'スミチオン',
         slug: 'sumithion',
         pesticideType: 'insecticide' as const,
+        formulationType: null,
+        ingredients: [],
       },
     },
   ],

@@ -100,6 +100,8 @@ export type DiseasePestEffectItem = {
     name: string
     slug: string
     pesticideType: PesticideType
+    formulationType: PesticideFormulationType | null
+    activeIngredients: PesticideActiveIngredientItem[]
   }
   rating: {
     preventionLevel: string | null
@@ -288,6 +290,21 @@ export async function getDiseasePestBySlug(slug: string): Promise<DiseasePestDet
                 name: true,
                 slug: true,
                 pesticideType: true,
+                formulationType: { select: { name: true, code: true } },
+                ingredients: {
+                  select: {
+                    activeIngredient: {
+                      select: {
+                        id: true,
+                        name: true,
+                        fracCode: true,
+                        iracCode: true,
+                        resistanceRisk: true,
+                        slug: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -313,6 +330,17 @@ export async function getDiseasePestBySlug(slug: string): Promise<DiseasePestDet
           name: e.pesticide.name,
           slug: e.pesticide.slug,
           pesticideType: e.pesticide.pesticideType,
+          formulationType: e.pesticide.formulationType
+            ? { name: e.pesticide.formulationType.name, code: e.pesticide.formulationType.code }
+            : null,
+          activeIngredients: e.pesticide.ingredients.map((ing) => ({
+            id: ing.activeIngredient.id,
+            name: ing.activeIngredient.name,
+            fracCode: ing.activeIngredient.fracCode,
+            iracCode: ing.activeIngredient.iracCode,
+            resistanceRisk: ing.activeIngredient.resistanceRisk,
+            slug: ing.activeIngredient.slug,
+          })),
         },
         rating: {
           preventionLevel: e.preventionLevel ?? null,

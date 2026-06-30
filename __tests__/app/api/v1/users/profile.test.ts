@@ -3,7 +3,8 @@
  * GET /api/v1/users/[id] のユニットテスト
  *
  * 200 / 404 / 401 / 429 の全分岐および v1.4.0 で追加された
- * following / requested / isSelf フィールドの検証を行う。
+ * following / requested / isSelf フィールド、v1.5.0 で追加された
+ * isPremium フィールドの検証を行う。
  * 特に email フィールドがレスポンスに含まれないことを確認する。
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -37,6 +38,11 @@ vi.mock('@/lib/rate-limit', () => ({
 const mockFetchUserProfile = vi.fn()
 vi.mock('@/lib/services/user-read-service', () => ({
   fetchUserProfile: (...args: unknown[]) => mockFetchUserProfile(...args),
+}))
+
+const mockIsPremiumUser = vi.fn()
+vi.mock('@/lib/premium', () => ({
+  isPremiumUser: (...args: unknown[]) => mockIsPremiumUser(...args),
 }))
 
 async function makeAuthenticatedRequest(
@@ -78,6 +84,8 @@ describe('GET /api/v1/users/[id]', () => {
     // デフォルトはフォロー関係なし（空配列）
     mockFollowFindMany.mockResolvedValue([])
     mockFollowRequestFindMany.mockResolvedValue([])
+    // デフォルトは非プレミアム
+    mockIsPremiumUser.mockResolvedValue(false)
   })
 
   afterEach(() => {
@@ -301,6 +309,49 @@ describe('GET /api/v1/users/[id]', () => {
       // 404 の場合は follow クエリが実行されないこと
       expect(mockFollowFindMany).not.toHaveBeenCalled()
       expect(mockFollowRequestFindMany).not.toHaveBeenCalled()
+    })
+  })
+
+  // isPremium フィールド検証（v1.5.0）
+  describe('isPremium フィールド', () => {
+    it('非プレミアムユーザーのとき isPremium:false を返す', async () => {
+      mockIsPremiumUser.mockResolvedValueOnce(false)
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.isPremium).toBe(false)
+    })
+
+    it('プレミアムユーザーのとき isPremium:true を返す', async () => {
+      mockIsPremiumUser.mockResolvedValueOnce(true)
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.isPremium).toBe(true)
+    })
+
+    it('isPremium フィールドがレスポンスに含まれること', async () => {
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      const res = await GET(req, params)
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect('isPremium' in body).toBe(true)
+    })
+
+    it('isPremiumUser に targetUserId が渡される', async () => {
+      const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+      const { GET } = await import('@/app/api/v1/users/[id]/route')
+      await GET(req, params)
+
+      expect(mockIsPremiumUser).toHaveBeenCalledWith('user-target')
     })
   })
 })

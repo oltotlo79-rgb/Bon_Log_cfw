@@ -35,5 +35,9 @@ export async function GET(
     return apiError(MOBILE_API_ERROR_CODES.NOT_FOUND, 404)
   }
 
-  return NextResponse.json({ months: species.plans })
+  return NextResponse.json({
+    treeSpeciesName: species.name,
+    slug: species.slug,
+    months: species.plans,
+  })
 }
