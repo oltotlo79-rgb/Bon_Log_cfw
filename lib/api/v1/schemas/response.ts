@@ -107,6 +107,55 @@ export const mentionedUserSchema = z.object({
 })
 export type MentionedUser = z.infer<typeof mentionedUserSchema>
 
+// ──────────────────────────────────────────────────
+// アンケート（PostResponse 埋め込み用 poll 実形）
+// ──────────────────────────────────────────────────
+
+/**
+ * PostResponse.poll.options の 1 件。
+ *
+ * Prisma の生形をそのまま JSON 化したもの。
+ * 投票後レスポンス用の PollOptionResponse（voteCount/percentage を持つ）とは別スキーマ。
+ */
+export const postPollOptionSchema = z.object({
+  id: z.string(),
+  pollId: z.string(),
+  text: z.string(),
+  sortOrder: z.number().int(),
+  _count: z.object({ votes: z.number().int() }),
+})
+export type PostPollOption = z.infer<typeof postPollOptionSchema>
+
+/** PostResponse.poll.votes の 1 件（認証ユーザーの投票履歴レコード） */
+export const postPollVoteRecordSchema = z.object({
+  id: z.string(),
+  pollId: z.string(),
+  optionId: z.string(),
+  userId: z.string(),
+  createdAt: z.string().datetime(),
+})
+export type PostPollVoteRecord = z.infer<typeof postPollVoteRecordSchema>
+
+/**
+ * PostResponse.poll の型（Prisma 生形をそのまま JSON 化）。
+ *
+ * totalVotes は _count.votes で取得する。閲覧者の投票状態は votes[0].optionId で判定する
+ * （votes フィールドはゲストには含まれない；未投票なら空配列）。
+ * PollVoteResponse（投票後 expiresAt/isExpired/totalVotes/userVoteOptionId を返す）とは別形状。
+ */
+export const postPollSchema = z.object({
+  id: z.string(),
+  postId: z.string(),
+  duration: z.number().int(),
+  expiresAt: z.string().datetime(),
+  createdAt: z.string().datetime(),
+  options: z.array(postPollOptionSchema),
+  /** 認証ユーザーのみ存在。投票済みなら 1 件、未投票なら空配列。ゲストには含まれない。 */
+  votes: z.array(postPollVoteRecordSchema).optional(),
+  _count: z.object({ votes: z.number().int() }),
+})
+export type PostPollResponse = z.infer<typeof postPollSchema>
+
 /**
  * GET /api/v1/feed および /api/v1/posts/[id] の投稿スキーマ
  *
@@ -131,7 +180,7 @@ export const postSchema = z.object({
   isReposted: z.boolean(),
   quotePost: nestedPostSchema.nullable(),
   repostPost: nestedPostSchema.nullable(),
-  poll: z.unknown().nullable(),
+  poll: postPollSchema.nullable(),
   mentionedUsers: z.array(mentionedUserSchema),
 })
 export type PostResponse = z.infer<typeof postSchema>

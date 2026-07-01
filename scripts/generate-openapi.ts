@@ -203,6 +203,9 @@ async function main() {
     notificationSettingsResponseSchema,
     userPostsResponseSchema,
     repostResponseSchema,
+    postPollOptionSchema,
+    postPollVoteRecordSchema,
+    postPollSchema,
     pollOptionResponseSchema,
     pollVoteResponseSchema,
     hashtagSearchResponseSchema,
@@ -507,6 +510,35 @@ async function main() {
     'RepostResponse',
     repostResponseSchema.openapi({
       description: 'リポスト操作後の状態。reposted は操作後の状態、repostCount は最新の総リポスト数。',
+    }),
+  )
+
+  registry.register(
+    'PostPollOption',
+    postPollOptionSchema.openapi({
+      description: [
+        'PostResponse に埋め込まれるアンケート選択肢。Prisma 生形をそのまま JSON 化したもの。',
+        'voteCount は _count.votes で取得する。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'PostPollVoteRecord',
+    postPollVoteRecordSchema.openapi({
+      description: '認証ユーザーの投票履歴レコード（PostResponse.poll.votes の 1 件）。ゲストには含まれない。',
+    }),
+  )
+
+  registry.register(
+    'PostPoll',
+    postPollSchema.openapi({
+      description: [
+        'PostResponse に埋め込まれるアンケートの実形（Prisma 生形 JSON）。',
+        'totalVotes は _count.votes で取得する。閲覧者の投票状態は votes[0].optionId で判定する。',
+        'votes フィールドはゲストには含まれない。未投票なら空配列。',
+        'PollVoteResponse（POST /polls/{id}/vote の応答）とは別形状。',
+      ].join('\n'),
     }),
   )
 
@@ -5926,7 +5958,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.24.0',
+      version: '1.25.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
