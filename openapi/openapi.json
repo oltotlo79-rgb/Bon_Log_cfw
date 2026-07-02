@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.25.0",
+    "version": "1.28.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -5141,6 +5141,335 @@
         ],
         "description": "月別ホルモン活性 1 件（month 1〜12、level: high / moderate / low / minimal）。"
       },
+      "HormoneInteractionItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "hormoneAId": {
+            "type": "string"
+          },
+          "hormoneAName": {
+            "type": "string"
+          },
+          "hormoneASlug": {
+            "type": "string"
+          },
+          "hormoneBId": {
+            "type": "string"
+          },
+          "hormoneBName": {
+            "type": "string"
+          },
+          "hormoneBSlug": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bonsaiRelevance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "hormoneAId",
+          "hormoneAName",
+          "hormoneASlug",
+          "hormoneBId",
+          "hormoneBName",
+          "hormoneBSlug",
+          "type",
+          "description",
+          "bonsaiRelevance"
+        ],
+        "description": "相互作用 1 件。hormoneA / hormoneB の id / name / slug がフラットに展開される。"
+      },
+      "HormoneInteractionListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "hormoneAId": {
+                  "type": "string"
+                },
+                "hormoneAName": {
+                  "type": "string"
+                },
+                "hormoneASlug": {
+                  "type": "string"
+                },
+                "hormoneBId": {
+                  "type": "string"
+                },
+                "hormoneBName": {
+                  "type": "string"
+                },
+                "hormoneBSlug": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bonsaiRelevance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "hormoneAId",
+                "hormoneAName",
+                "hormoneASlug",
+                "hormoneBId",
+                "hormoneBName",
+                "hormoneBSlug",
+                "type",
+                "description",
+                "bonsaiRelevance"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "全ホルモン相互作用一覧レスポンス（ページネーションなし）。"
+      },
+      "HormoneTechniqueItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "techniqueKey": {
+            "type": "string"
+          },
+          "techniqueNameJa": {
+            "type": "string"
+          },
+          "techniqueNameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effectType": {
+            "type": "string"
+          },
+          "magnitude": {
+            "type": "string"
+          },
+          "mechanism": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "techniqueKey",
+          "techniqueNameJa",
+          "techniqueNameEn",
+          "effectType",
+          "magnitude",
+          "mechanism"
+        ],
+        "description": "詳細レスポンス内の技法 1 件（techniqueSlug → techniqueKey / techniqueName → techniqueNameJa にリマップ済み）。"
+      },
+      "HormoneTechniqueEffectItem": {
+        "type": "object",
+        "properties": {
+          "hormoneId": {
+            "type": "string"
+          },
+          "hormoneNameJa": {
+            "type": "string"
+          },
+          "hormoneSlug": {
+            "type": "string"
+          },
+          "effectType": {
+            "type": "string"
+          },
+          "magnitude": {
+            "type": "string"
+          },
+          "mechanism": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "hormoneId",
+          "hormoneNameJa",
+          "hormoneSlug",
+          "effectType",
+          "magnitude",
+          "mechanism"
+        ],
+        "description": "技法グループ内のホルモン効果 1 件。"
+      },
+      "HormoneTechniqueGroup": {
+        "type": "object",
+        "properties": {
+          "techniqueKey": {
+            "type": "string"
+          },
+          "techniqueNameJa": {
+            "type": "string"
+          },
+          "techniqueNameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hormoneId": {
+                  "type": "string"
+                },
+                "hormoneNameJa": {
+                  "type": "string"
+                },
+                "hormoneSlug": {
+                  "type": "string"
+                },
+                "effectType": {
+                  "type": "string"
+                },
+                "magnitude": {
+                  "type": "string"
+                },
+                "mechanism": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "hormoneId",
+                "hormoneNameJa",
+                "hormoneSlug",
+                "effectType",
+                "magnitude",
+                "mechanism"
+              ]
+            }
+          }
+        },
+        "required": [
+          "techniqueKey",
+          "techniqueNameJa",
+          "techniqueNameEn",
+          "effects"
+        ],
+        "description": "技法 1 グループ（techniqueKey 単位）。effects に該当技法が各ホルモンに与える効果を列挙する。\n注: HormoneTechnique モデルに技法レベルの description フィールドが存在しないため description は含まない。"
+      },
+      "HormoneTechniqueListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "techniqueKey": {
+                  "type": "string"
+                },
+                "techniqueNameJa": {
+                  "type": "string"
+                },
+                "techniqueNameEn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hormoneId": {
+                        "type": "string"
+                      },
+                      "hormoneNameJa": {
+                        "type": "string"
+                      },
+                      "hormoneSlug": {
+                        "type": "string"
+                      },
+                      "effectType": {
+                        "type": "string"
+                      },
+                      "magnitude": {
+                        "type": "string"
+                      },
+                      "mechanism": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "hormoneId",
+                      "hormoneNameJa",
+                      "hormoneSlug",
+                      "effectType",
+                      "magnitude",
+                      "mechanism"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "techniqueKey",
+                "techniqueNameJa",
+                "techniqueNameEn",
+                "effects"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "全技法×ホルモン効果一覧レスポンス（techniqueKey 単位でグループ化・ページネーションなし）。"
+      },
       "HormoneDetail": {
         "type": "object",
         "properties": {
@@ -5233,6 +5562,106 @@
                 "level"
               ]
             }
+          },
+          "interactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "hormoneAId": {
+                  "type": "string"
+                },
+                "hormoneAName": {
+                  "type": "string"
+                },
+                "hormoneASlug": {
+                  "type": "string"
+                },
+                "hormoneBId": {
+                  "type": "string"
+                },
+                "hormoneBName": {
+                  "type": "string"
+                },
+                "hormoneBSlug": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bonsaiRelevance": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "hormoneAId",
+                "hormoneAName",
+                "hormoneASlug",
+                "hormoneBId",
+                "hormoneBName",
+                "hormoneBSlug",
+                "type",
+                "description",
+                "bonsaiRelevance"
+              ]
+            }
+          },
+          "techniques": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "techniqueKey": {
+                  "type": "string"
+                },
+                "techniqueNameJa": {
+                  "type": "string"
+                },
+                "techniqueNameEn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "effectType": {
+                  "type": "string"
+                },
+                "magnitude": {
+                  "type": "string"
+                },
+                "mechanism": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "techniqueKey",
+                "techniqueNameJa",
+                "techniqueNameEn",
+                "effectType",
+                "magnitude",
+                "mechanism"
+              ]
+            }
           }
         },
         "required": [
@@ -5248,9 +5677,496 @@
           "practicalTips",
           "activationMethod",
           "effects",
+          "seasonalLevels",
+          "interactions",
+          "techniques"
+        ],
+        "description": "ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels / interactions / techniques を含む）。\ninteractions: 自ホルモンが A 側または B 側である全相互作用をフラットにマージ済み。\ntechniques: techniqueSlug → techniqueKey / techniqueName → techniqueNameJa にリマップ済み。"
+      },
+      "HormoneSimulatorHormoneItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "nameEn"
+        ],
+        "description": "シミュレーター用ホルモン 1 件。nameEn は HormoneType.nameEn（nullable）。"
+      },
+      "HormoneSimulatorEffectItem": {
+        "type": "object",
+        "properties": {
+          "hormoneId": {
+            "type": "string"
+          },
+          "effectType": {
+            "type": "string"
+          },
+          "magnitude": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hormoneId",
+          "effectType",
+          "magnitude"
+        ],
+        "description": "シミュレーター用技法内の効果 1 件（hormoneId / effectType / magnitude のみ）。"
+      },
+      "HormoneSimulatorTechniqueItem": {
+        "type": "object",
+        "properties": {
+          "techniqueKey": {
+            "type": "string"
+          },
+          "nameJa": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hormoneId": {
+                  "type": "string"
+                },
+                "effectType": {
+                  "type": "string"
+                },
+                "magnitude": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "hormoneId",
+                "effectType",
+                "magnitude"
+              ]
+            }
+          }
+        },
+        "required": [
+          "techniqueKey",
+          "nameJa",
+          "nameEn",
+          "effects"
+        ],
+        "description": "シミュレーター用技法 1 件。techniqueSlug → techniqueKey / techniqueName → nameJa にリマップ済み。\neffects: 対象ホルモン一覧（hormoneId / effectType / magnitude）。"
+      },
+      "HormoneSimulatorSeasonalLevelItem": {
+        "type": "object",
+        "properties": {
+          "hormoneId": {
+            "type": "string"
+          },
+          "month": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hormoneId",
+          "month",
+          "level"
+        ],
+        "description": "シミュレーター用月別活性 1 件（hormoneId / month / level）。"
+      },
+      "HormoneSimulatorResponse": {
+        "type": "object",
+        "properties": {
+          "hormones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "nameEn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name",
+                "nameEn"
+              ]
+            }
+          },
+          "techniques": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "techniqueKey": {
+                  "type": "string"
+                },
+                "nameJa": {
+                  "type": "string"
+                },
+                "nameEn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hormoneId": {
+                        "type": "string"
+                      },
+                      "effectType": {
+                        "type": "string"
+                      },
+                      "magnitude": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hormoneId",
+                      "effectType",
+                      "magnitude"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "techniqueKey",
+                "nameJa",
+                "nameEn",
+                "effects"
+              ]
+            }
+          },
+          "seasonalLevels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hormoneId": {
+                  "type": "string"
+                },
+                "month": {
+                  "type": "integer"
+                },
+                "level": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "hormoneId",
+                "month",
+                "level"
+              ]
+            }
+          }
+        },
+        "required": [
+          "hormones",
+          "techniques",
           "seasonalLevels"
         ],
-        "description": "ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels を含む）。interactions/techniques は別バッチで追加予定。"
+        "description": "シミュレーター用一括データ（hormones / techniques / seasonalLevels の全件）。"
+      },
+      "HormoneColumnItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "category",
+          "publishedAt",
+          "sortOrder"
+        ],
+        "description": "ホルモンコラム一覧の 1 件。"
+      },
+      "HormoneColumnDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "category",
+          "publishedAt",
+          "sortOrder",
+          "content",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "ホルモンコラム詳細（content / createdAt / updatedAt を含む）。"
+      },
+      "HormoneColumnListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "publishedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "sortOrder": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "category",
+                "publishedAt",
+                "sortOrder"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "ホルモンコラム一覧レスポンス（カーソルページネーション）。"
+      },
+      "FertilizerColumnItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "category",
+          "publishedAt",
+          "sortOrder"
+        ],
+        "description": "施肥コラム一覧の 1 件。"
+      },
+      "FertilizerColumnDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "category",
+          "publishedAt",
+          "sortOrder",
+          "content",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "施肥コラム詳細（content / createdAt / updatedAt を含む）。"
+      },
+      "FertilizerColumnListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "publishedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "sortOrder": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "category",
+                "publishedAt",
+                "sortOrder"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "施肥コラム一覧レスポンス（カーソルページネーション）。"
       },
       "DiseasePestCategory": {
         "type": "string",
@@ -5329,6 +6245,18 @@
           },
           "slug": {
             "type": "string"
+          },
+          "bodySizeMinMm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "bodySizeMaxMm": {
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -5338,9 +6266,11 @@
           "category",
           "description",
           "imageUrl",
-          "slug"
+          "slug",
+          "bodySizeMinMm",
+          "bodySizeMaxMm"
         ],
-        "description": "病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug）。"
+        "description": "病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug, bodySizeMinMm, bodySizeMaxMm）。bodySizeMinMm/bodySizeMaxMm は害虫・益虫の体長範囲（mm）。未設定は null。"
       },
       "DiseasePestEffectItem": {
         "type": "object",
@@ -5556,6 +6486,18 @@
           "slug": {
             "type": "string"
           },
+          "bodySizeMinMm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "bodySizeMaxMm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "effects": {
             "type": "array",
             "items": {
@@ -5743,6 +6685,8 @@
           "description",
           "imageUrl",
           "slug",
+          "bodySizeMinMm",
+          "bodySizeMaxMm",
           "effects"
         ],
         "description": "病害虫詳細（effects: 有効農薬一覧を含む）。"
@@ -5789,6 +6733,18 @@
                 },
                 "slug": {
                   "type": "string"
+                },
+                "bodySizeMinMm": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "bodySizeMaxMm": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 }
               },
               "required": [
@@ -5798,7 +6754,9 @@
                 "category",
                 "description",
                 "imageUrl",
-                "slug"
+                "slug",
+                "bodySizeMinMm",
+                "bodySizeMaxMm"
               ]
             }
           },
@@ -6590,6 +7548,813 @@
           "nextCursor"
         ],
         "description": "GET /api/v1/pesticides/ingredients 成功レスポンス。name ASC 順。"
+      },
+      "SpreaderProductInSpreaderType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "formulationType": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "code"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "formulationType"
+        ],
+        "description": "展着剤タイプに紐付く製品 1 件（id, slug, name, description, formulationType）。"
+      },
+      "SpreaderTypeItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "formulationType": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "code"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name",
+                "description",
+                "formulationType"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "sortOrder",
+          "products"
+        ],
+        "description": "展着剤タイプ一覧の 1 件（id, slug, name, description, sortOrder, products）。"
+      },
+      "SpreaderTypeDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "formulationType": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "code"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name",
+                "description",
+                "formulationType"
+              ]
+            }
+          },
+          "effect": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usageNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "sortOrder",
+          "products",
+          "effect",
+          "usageNote"
+        ],
+        "description": "展着剤タイプ詳細（effect / usageNote を追加）。"
+      },
+      "SpreaderTypeListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sortOrder": {
+                  "type": "integer"
+                },
+                "products": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "formulationType": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "code"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "slug",
+                      "name",
+                      "description",
+                      "formulationType"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name",
+                "description",
+                "sortOrder",
+                "products"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "GET /api/v1/pesticides/spreaders 成功レスポンス。sortOrder ASC / name ASC 順。"
+      },
+      "SpreaderTypeInProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "description": "製品に紐付く展着剤タイプ 1 件（id, slug, name）。"
+      },
+      "SpreaderProductItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "formulationType": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "code"
+            ]
+          },
+          "registrationNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spreaderTypes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "formulationType",
+          "registrationNumber",
+          "spreaderTypes"
+        ],
+        "description": "展着剤製品一覧の 1 件（id, slug, name, formulationType, registrationNumber, spreaderTypes）。"
+      },
+      "SpreaderProductListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "formulationType": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "code"
+                  ]
+                },
+                "registrationNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "spreaderTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "slug",
+                      "name"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name",
+                "formulationType",
+                "registrationNumber",
+                "spreaderTypes"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/pesticides/spreader-products 成功レスポンス。name ASC 順。"
+      },
+      "PesticideColumnItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "category",
+          "publishedAt",
+          "sortOrder"
+        ],
+        "description": "農薬コラム一覧の 1 件（id, slug, title, category, publishedAt, sortOrder）。"
+      },
+      "PesticideColumnDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "category",
+          "publishedAt",
+          "sortOrder",
+          "content",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "農薬コラム詳細（content / createdAt / updatedAt を追加）。"
+      },
+      "PesticideColumnListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "publishedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "sortOrder": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "category",
+                "publishedAt",
+                "sortOrder"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/pesticides/columns 成功レスポンス。sortOrder ASC / publishedAt DESC 順。"
+      },
+      "FormulationTypeItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "pesticidesCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "description",
+          "sortOrder",
+          "pesticidesCount"
+        ],
+        "description": "剤型マスタの 1 件（id, code, name, description, sortOrder, pesticidesCount）。"
+      },
+      "FormulationTypeListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sortOrder": {
+                  "type": "integer"
+                },
+                "pesticidesCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "code",
+                "name",
+                "description",
+                "sortOrder",
+                "pesticidesCount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "GET /api/v1/pesticides/formulations 成功レスポンス。sortOrder ASC / name ASC 順。"
+      },
+      "MixingDataPesticideItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pesticideType": {
+            "type": "string",
+            "enum": [
+              "fungicide",
+              "insecticide",
+              "acaricide",
+              "compound",
+              "other"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "pesticideType"
+        ],
+        "description": "混用チェッカー用農薬 1 件（id, slug, name, pesticideType）。"
+      },
+      "MixingDataIncompatibilityItem": {
+        "type": "object",
+        "properties": {
+          "pesticideId": {
+            "type": "string"
+          },
+          "incompatibleWithId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pesticideId",
+          "incompatibleWithId"
+        ],
+        "description": "混用不可ペア 1 件（pesticideId / incompatibleWithId）。"
+      },
+      "MixingDataResponse": {
+        "type": "object",
+        "properties": {
+          "pesticides": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "pesticideType": {
+                  "type": "string",
+                  "enum": [
+                    "fungicide",
+                    "insecticide",
+                    "acaricide",
+                    "compound",
+                    "other"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name",
+                "pesticideType"
+              ]
+            }
+          },
+          "incompatibilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pesticideId": {
+                  "type": "string"
+                },
+                "incompatibleWithId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pesticideId",
+                "incompatibleWithId"
+              ]
+            }
+          }
+        },
+        "required": [
+          "pesticides",
+          "incompatibilities"
+        ],
+        "description": "GET /api/v1/pesticides/mixing-data 成功レスポンス。pesticides（全件）と incompatibilities（全ペア）を含む。"
       },
       "CreateBonsaiRequest": {
         "type": "object",
@@ -8054,6 +9819,95 @@
           "id"
         ],
         "description": "盆栽園作成成功レスポンス（id を返す）。"
+      },
+      "ShopMapPinItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "address": {
+            "type": "string"
+          },
+          "averageRating": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "reviewCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "latitude",
+          "longitude",
+          "address",
+          "averageRating",
+          "reviewCount"
+        ],
+        "description": "地図マーカー用の軽量店舗 1 件。lat/lng が null の店舗は除外済み。averageRating はレビューなしの場合 null。"
+      },
+      "ShopMapPinsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number"
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "averageRating": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "reviewCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "latitude",
+                "longitude",
+                "address",
+                "averageRating",
+                "reviewCount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "全店舗マップピン一覧レスポンス（ページネーションなし）。"
       },
       "ReviewImage": {
         "type": "object",
@@ -16683,6 +18537,196 @@
         }
       }
     },
+    "/api/v1/fertilizers/columns": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "施肥コラム一覧（F-1）",
+        "description": "publishedAt が設定済みの施肥コラムをカーソルページネーションで返す。\nsortOrder ASC / publishedAt DESC 順。\n\n重要仕様:\n- category: 文字列フィルタ（想定値: product_guide / trouble 等。省略で全件）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前ページ最終件の slug（省略で先頭から取得）"
+            },
+            "required": false,
+            "description": "前ページ最終件の slug（省略で先頭から取得）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "取得件数（1〜100、デフォルト 20）"
+            },
+            "required": false,
+            "description": "取得件数（1〜100、デフォルト 20）",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "カテゴリフィルタ（例: product_guide / trouble）"
+            },
+            "required": false,
+            "description": "カテゴリフィルタ（例: product_guide / trouble）",
+            "name": "category",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "施肥コラム一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FertilizerColumnListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — limit が範囲外等",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fertilizers/columns/{slug}": {
+      "get": {
+        "tags": [
+          "fertilizers"
+        ],
+        "summary": "施肥コラム詳細（F-2）",
+        "description": "指定 slug の施肥コラム詳細を返す。未公開（publishedAt = null）の場合は 404。\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "施肥コラム詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FertilizerColumnDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "コラムが存在しないまたは未公開 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hormones": {
       "get": {
         "tags": [
@@ -16819,7 +18863,7 @@
           "hormones"
         ],
         "summary": "植物ホルモン詳細",
-        "description": "指定 slug のホルモン詳細を返す。effects / seasonalLevels を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は isPromoting による促進/抑制効果の一覧（sortOrder ASC）\n- seasonalLevels は月別活性レベル（month 1〜12 ASC）\n- interactions（ホルモン間相互作用）/ techniques（技法マッピング）は本バッチ対象外\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "description": "指定 slug のホルモン詳細を返す。effects / seasonalLevels / interactions / techniques を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- effects は isPromoting による促進/抑制効果の一覧（sortOrder ASC）\n- seasonalLevels は月別活性レベル（month 1〜12 ASC）\n- interactions: 自ホルモンが A 側または B 側の全相互作用を統一形式でマージ（A 側先出し）\n- techniques: techniqueKey / techniqueNameJa にリマップ済み（sortOrder ASC）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
         "security": [
           {
             "bearerAuth": []
@@ -16880,6 +18924,368 @@
           },
           "404": {
             "description": "ホルモンが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones/interactions": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "全ホルモン相互作用一覧（H-3）",
+        "description": "全ホルモン間相互作用を返す（sortOrder ASC）。ページネーションなし。\n\n重要仕様:\n- hormoneAId / hormoneBId はダイアグラム画面のエッジ情報として使用する\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "相互作用一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HormoneInteractionListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones/techniques": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "全技法×ホルモン効果一覧（技法単位グループ化、H-4）",
+        "description": "全 HormoneTechnique レコードを技法（techniqueKey）単位でグループ化して返す。\n\n重要仕様:\n- 各グループは techniqueKey / techniqueNameJa / techniqueNameEn と、\n  各ホルモンへの効果配列（hormoneId / hormoneNameJa / hormoneSlug / effectType / magnitude / mechanism）を持つ\n- 注: HormoneTechnique モデルに技法レベルの description フィールドが存在しないため description は省略\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "技法一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HormoneTechniqueListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones/simulator": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "シミュレーター用データ一括取得（H-5）",
+        "description": "全ホルモン・全技法効果・全月別活性を 1 リクエストで返す。\n\n重要仕様:\n- hormones: { id, slug, name, nameEn }（nameEn は nullable）\n- techniques: techniqueSlug → techniqueKey / techniqueName → nameJa にリマップ。\n  effects は { hormoneId, effectType, magnitude } のみ（mechanism は含まない）\n- seasonalLevels: { hormoneId, month, level }（全ホルモン全月分）\n- ページネーションなし（全件一括）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "シミュレーターデータ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HormoneSimulatorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones/columns": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "ホルモンコラム一覧（H-6）",
+        "description": "publishedAt が設定済みのホルモンコラムをカーソルページネーションで返す。\nsortOrder ASC / publishedAt DESC 順。\n\n重要仕様:\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前ページ最終件の slug（省略で先頭から取得）"
+            },
+            "required": false,
+            "description": "前ページ最終件の slug（省略で先頭から取得）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "取得件数（1〜100、デフォルト 20）"
+            },
+            "required": false,
+            "description": "取得件数（1〜100、デフォルト 20）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ホルモンコラム一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HormoneColumnListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hormones/columns/{slug}": {
+      "get": {
+        "tags": [
+          "hormones"
+        ],
+        "summary": "ホルモンコラム詳細（H-7）",
+        "description": "指定 slug のホルモンコラム詳細を返す。未公開（publishedAt = null）の場合は 404。\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ホルモンコラム詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HormoneColumnDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "コラムが存在しないまたは未公開 (NOT_FOUND)",
             "content": {
               "application/json": {
                 "schema": {
@@ -17104,6 +19510,18 @@
                     "slug": {
                       "type": "string"
                     },
+                    "bodySizeMinMm": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "bodySizeMaxMm": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
                     "effects": {
                       "type": "array",
                       "items": {
@@ -17291,6 +19709,8 @@
                     "description",
                     "imageUrl",
                     "slug",
+                    "bodySizeMinMm",
+                    "bodySizeMaxMm",
                     "effects"
                   ]
                 }
@@ -18006,6 +20426,719 @@
           },
           "404": {
             "description": "有効成分が存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/spreaders": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "展着剤タイプ一覧",
+        "description": "展着剤タイプの全一覧と各タイプに紐付く製品を返す。\n\n重要仕様:\n- sortOrder ASC / name ASC 順\n- products は各展着剤タイプに紐付く Pesticide（formulationType を含む）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "展着剤タイプ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpreaderTypeListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/spreaders/{slug}": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "展着剤タイプ詳細",
+        "description": "指定 slug の展着剤タイプ詳細を返す。effect / usageNote フィールドと紐付く製品一覧を含む。\n\n重要仕様:\n- slug 不存在は 404 NOT_FOUND\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "展着剤タイプの slug"
+            },
+            "required": true,
+            "description": "展着剤タイプの slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "展着剤タイプ詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "sortOrder": {
+                      "type": "integer"
+                    },
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "formulationType": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "code"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "description",
+                          "formulationType"
+                        ]
+                      }
+                    },
+                    "effect": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "usageNote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "description",
+                    "sortOrder",
+                    "products",
+                    "effect",
+                    "usageNote"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "展着剤タイプが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/spreader-products": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "展着剤製品一覧",
+        "description": "展着剤タイプ（spreaderTypes）を 1 件以上持つ農薬製品の一覧をカーソルページネーションで返す。name ASC 順。\n\n重要仕様:\n- 既存の GET /api/v1/pesticides/products?type=spreader では対応できない（spreader は PesticideType enum 外）ため専用エンドポイント\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（slug）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（slug）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "展着剤製品一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpreaderProductListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/columns": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "農薬コラム一覧",
+        "description": "公開済み（publishedAt が設定済み）農薬コラムの一覧をカーソルページネーションで返す。sortOrder ASC / publishedAt DESC 順。\n\n重要仕様:\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "前回レスポンスの nextCursor 値（slug）"
+            },
+            "required": false,
+            "description": "前回レスポンスの nextCursor 値（slug）",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "取得件数（デフォルト 20、最大 100）"
+            },
+            "required": false,
+            "description": "取得件数（デフォルト 20、最大 100）",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "農薬コラム一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PesticideColumnListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — 不正な limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/columns/{slug}": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "農薬コラム詳細",
+        "description": "指定 slug の農薬コラム詳細を返す。未公開（publishedAt 未設定）の場合は 404。\n\n重要仕様:\n- slug 不存在または未公開は 404 NOT_FOUND\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "農薬コラムの slug"
+            },
+            "required": true,
+            "description": "農薬コラムの slug",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "農薬コラム詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string"
+                    },
+                    "publishedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sortOrder": {
+                      "type": "integer"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "title",
+                    "category",
+                    "publishedAt",
+                    "sortOrder",
+                    "content",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR) — slug 形式不正",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "農薬コラムが存在しないまたは未公開 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/formulations": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "剤型マスタ一覧",
+        "description": "農薬剤型マスタの全一覧を返す。各剤型の農薬件数（pesticidesCount）を含む。sortOrder ASC / name ASC 順。\n\n重要仕様:\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "剤型マスタ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormulationTypeListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pesticides/mixing-data": {
+      "get": {
+        "tags": [
+          "pesticides"
+        ],
+        "summary": "混用チェッカー全データ",
+        "description": "農薬全件（id / slug / name / pesticideType）と混用不可ペア全件を 1 リクエストで返す。\nクライアント側でペア判定を行う混用チェッカー画面向け。変更頻度が低いため長めのキャッシュを推奨。\n\n重要仕様:\n- pesticides: 全農薬（最大 500 件、name ASC 順）\n- incompatibilities: 全混用不可ペア（pesticideId / incompatibleWithId）\n- ページネーションなし（全件一括）\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "混用チェッカー全データ取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MixingDataResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
             "content": {
               "application/json": {
                 "schema": {
@@ -19467,6 +22600,80 @@
           },
           "404": {
             "description": "イベントが存在しないか非表示 (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "内部エラー (INTERNAL_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shops/map-pins": {
+      "get": {
+        "tags": [
+          "shops"
+        ],
+        "summary": "地図用の全店舗ピン取得（M-1、ゲスト可）",
+        "description": "位置情報（lat/lng）付き店舗を全件返す（ページネーションなし）。地図マーカー描画に使用する。\n\n重要仕様:\n- latitude / longitude が null の店舗は除外される\n- 全件一括取得（上限 500 件）のため地図表示に最適\n- averageRating はレビューがない場合 null\n- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）\n- レート制限: read（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "マップピン一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopMapPinsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
             "content": {
               "application/json": {
                 "schema": {

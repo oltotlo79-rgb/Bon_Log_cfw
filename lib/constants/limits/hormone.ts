@@ -20,3 +20,10 @@ export const MAX_HORMONE_TECHNIQUE_LIMIT = 200
 
 /** 盆栽技法の数 */
 export const HORMONE_TECHNIQUE_COUNT = 9
+
+/**
+ * シミュレーターデータ向けに全件取得する hormoneSeasonalLevel の上限。
+ * 12 か月 × MAX_HORMONE_LIST_LIMIT (50 ホルモン) = 600 が理論的最大値。
+ * 余裕を持たせるため 1000 に設定する。
+ */
+export const MAX_HORMONE_SEASONAL_LEVEL_LIMIT = 1000

@@ -17,6 +17,7 @@ import { DiseasePestCategory, PesticideType, ResistanceRisk, type Prisma } from 
 import { normalizePesticideType } from '@/lib/utils/pesticide'
 import {
   MAX_PESTICIDE_LIST_LIMIT,
+  MAX_PESTICIDE_INCOMPATIBILITY_LIMIT,
   MAX_SLUG_LENGTH,
   MAX_SEARCH_QUERY_LENGTH,
   DEFAULT_PAGE_LIMIT,
@@ -92,6 +93,8 @@ export type DiseasePestListItem = {
   description: string | null
   imageUrl: string | null
   slug: string
+  bodySizeMinMm: number | null
+  bodySizeMaxMm: number | null
 }
 
 export type DiseasePestEffectItem = {
@@ -238,6 +241,8 @@ export async function listDiseasePests(params: {
         description: true,
         imageUrl: true,
         slug: true,
+        bodySizeMinMm: true,
+        bodySizeMaxMm: true,
       },
       take: safeLimit + 1,
       ...(params.cursor !== undefined
@@ -278,6 +283,8 @@ export async function getDiseasePestBySlug(slug: string): Promise<DiseasePestDet
         description: true,
         imageUrl: true,
         slug: true,
+        bodySizeMinMm: true,
+        bodySizeMaxMm: true,
         effects: {
           select: {
             preventionLevel: true,
@@ -324,6 +331,8 @@ export async function getDiseasePestBySlug(slug: string): Promise<DiseasePestDet
       description: withFallback.description,
       imageUrl: withFallback.imageUrl,
       slug: withFallback.slug,
+      bodySizeMinMm: withFallback.bodySizeMinMm,
+      bodySizeMaxMm: withFallback.bodySizeMaxMm,
       effects: dp.effects.map((e) => ({
         pesticide: {
           id: e.pesticide.id,
@@ -657,4 +666,416 @@ export function parsePesticideTypeParam(raw: string | null): PesticideType | und
   if (!normalized) return undefined
   const result = z.nativeEnum(PesticideType).safeParse(normalized)
   return result.success ? result.data : undefined
+}
+
+// ── Wave 2 クエリスキーマ ─────────────────────────────────────────────
+
+export const spreaderProductListQuerySchema = z.object({
+  cursor: z.string().min(1).max(MAX_SLUG_LENGTH).optional(),
+  limit: z.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+})
+
+export const pesticideColumnListQuerySchema = z.object({
+  cursor: z.string().min(1).max(MAX_SLUG_LENGTH).optional(),
+  limit: z.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+})
+
+// ── Wave 2 型定義 ─────────────────────────────────────────────────────
+
+export type SpreaderProductInSpreaderType = {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  formulationType: PesticideFormulationType | null
+}
+
+export type SpreaderTypeListItem = {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  sortOrder: number
+  products: SpreaderProductInSpreaderType[]
+}
+
+export type SpreaderTypeDetail = SpreaderTypeListItem & {
+  effect: string | null
+  usageNote: string | null
+}
+
+export type SpreaderProductWithTypes = {
+  id: string
+  slug: string
+  name: string
+  formulationType: PesticideFormulationType | null
+  registrationNumber: string | null
+  spreaderTypes: Array<{ id: string; slug: string; name: string }>
+}
+
+export type PesticideColumnListItem = {
+  id: string
+  slug: string
+  title: string
+  category: string
+  publishedAt: string
+  sortOrder: number
+}
+
+export type PesticideColumnDetail = PesticideColumnListItem & {
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type FormulationTypeListItem = {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  sortOrder: number
+  pesticidesCount: number
+}
+
+export type MixingDataPesticide = {
+  id: string
+  slug: string
+  name: string
+  pesticideType: PesticideType
+}
+
+export type MixingDataResult = {
+  pesticides: MixingDataPesticide[]
+  incompatibilities: Array<{ pesticideId: string; incompatibleWithId: string }>
+}
+
+// ── 展着剤タイプ一覧 ──────────────────────────────────────────────────
+
+export async function listSpreaderTypes(): Promise<{ items: SpreaderTypeListItem[] }> {
+  try {
+    const rows = await prisma.spreaderType.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        sortOrder: true,
+        pesticides: {
+          select: {
+            pesticide: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                description: true,
+                formulationType: { select: { name: true, code: true } },
+              },
+            },
+          },
+        },
+      },
+      take: MAX_PESTICIDE_LIST_LIMIT,
+    })
+
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        description: row.description,
+        sortOrder: row.sortOrder,
+        products: row.pesticides.map((pt) => ({
+          id: pt.pesticide.id,
+          slug: pt.pesticide.slug,
+          name: pt.pesticide.name,
+          description: pt.pesticide.description,
+          formulationType: pt.pesticide.formulationType,
+        })),
+      })),
+    }
+  } catch (error) {
+    logger.error('listSpreaderTypes failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { items: [] }
+  }
+}
+
+// ── 展着剤タイプ詳細 ──────────────────────────────────────────────────
+
+export async function getSpreaderTypeBySlug(slug: string): Promise<SpreaderTypeDetail | null> {
+  const parsed = slugSchema.safeParse(slug)
+  if (!parsed.success) return null
+
+  try {
+    const row = await prisma.spreaderType.findUnique({
+      where: { slug: parsed.data },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        effect: true,
+        usageNote: true,
+        sortOrder: true,
+        pesticides: {
+          select: {
+            pesticide: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                description: true,
+                formulationType: { select: { name: true, code: true } },
+              },
+            },
+          },
+        },
+      },
+    })
+    if (!row) return null
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      description: row.description,
+      effect: row.effect,
+      usageNote: row.usageNote,
+      sortOrder: row.sortOrder,
+      products: row.pesticides.map((pt) => ({
+        id: pt.pesticide.id,
+        slug: pt.pesticide.slug,
+        name: pt.pesticide.name,
+        description: pt.pesticide.description,
+        formulationType: pt.pesticide.formulationType,
+      })),
+    }
+  } catch (error) {
+    logger.error('getSpreaderTypeBySlug failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
+// ── 展着剤製品一覧（カーソルページネーション） ───────────────────────
+
+export async function listSpreaderProducts(params: {
+  cursor?: string
+  limit?: number
+}): Promise<PaginatedResult<SpreaderProductWithTypes>> {
+  const limit = params.limit ?? DEFAULT_PAGE_LIMIT
+  const safeLimit = Math.min(limit, MAX_PESTICIDE_LIST_LIMIT)
+
+  try {
+    const rows = await prisma.pesticide.findMany({
+      where: { spreaderTypes: { some: {} } },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        registrationNumber: true,
+        formulationType: { select: { name: true, code: true } },
+        spreaderTypes: {
+          select: {
+            spreaderType: { select: { id: true, slug: true, name: true } },
+          },
+        },
+      },
+      take: safeLimit + 1,
+      ...(params.cursor !== undefined
+        ? { cursor: { slug: params.cursor }, skip: 1 }
+        : {}),
+    })
+
+    const hasNext = rows.length > safeLimit
+    const items = hasNext ? rows.slice(0, safeLimit) : rows
+    const nextCursor = hasNext ? (items[items.length - 1]?.slug ?? null) : null
+
+    return {
+      items: items.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        registrationNumber: row.registrationNumber,
+        formulationType: row.formulationType,
+        spreaderTypes: row.spreaderTypes.map((st) => ({
+          id: st.spreaderType.id,
+          slug: st.spreaderType.slug,
+          name: st.spreaderType.name,
+        })),
+      })),
+      nextCursor,
+    }
+  } catch (error) {
+    logger.error('listSpreaderProducts failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { items: [], nextCursor: null }
+  }
+}
+
+// ── 農薬コラム一覧（カーソルページネーション） ───────────────────────
+
+export async function listPesticideColumns(params: {
+  cursor?: string
+  limit?: number
+}): Promise<PaginatedResult<PesticideColumnListItem>> {
+  const limit = params.limit ?? DEFAULT_PAGE_LIMIT
+  const safeLimit = Math.min(limit, MAX_PESTICIDE_LIST_LIMIT)
+
+  try {
+    const rows = await prisma.pesticideColumn.findMany({
+      where: { publishedAt: { not: null } },
+      orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        category: true,
+        publishedAt: true,
+        sortOrder: true,
+      },
+      take: safeLimit + 1,
+      ...(params.cursor !== undefined
+        ? { cursor: { slug: params.cursor }, skip: 1 }
+        : {}),
+    })
+
+    const hasNext = rows.length > safeLimit
+    const pageRows = hasNext ? rows.slice(0, safeLimit) : rows
+    const nextCursor = hasNext ? (pageRows[pageRows.length - 1]?.slug ?? null) : null
+
+    // DB filter `publishedAt: { not: null }` guarantees non-null at runtime
+    const items = pageRows
+      .filter((r): r is typeof r & { publishedAt: Date } => r.publishedAt !== null)
+      .map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        category: r.category,
+        publishedAt: r.publishedAt.toISOString(),
+        sortOrder: r.sortOrder,
+      }))
+
+    return { items, nextCursor }
+  } catch (error) {
+    logger.error('listPesticideColumns failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { items: [], nextCursor: null }
+  }
+}
+
+// ── 農薬コラム詳細 ────────────────────────────────────────────────────
+
+export async function getPesticideColumnBySlug(slug: string): Promise<PesticideColumnDetail | null> {
+  const parsed = slugSchema.safeParse(slug)
+  if (!parsed.success) return null
+
+  try {
+    const row = await prisma.pesticideColumn.findUnique({
+      where: { slug: parsed.data },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        content: true,
+        category: true,
+        publishedAt: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+    if (!row || !row.publishedAt) return null
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      category: row.category,
+      publishedAt: row.publishedAt.toISOString(),
+      sortOrder: row.sortOrder,
+      content: row.content,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    }
+  } catch (error) {
+    logger.error('getPesticideColumnBySlug failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
+// ── 剤型マスタ一覧 ────────────────────────────────────────────────────
+
+export async function listFormulationTypes(): Promise<{ items: FormulationTypeListItem[] }> {
+  try {
+    const rows = await prisma.formulationType.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        sortOrder: true,
+        _count: { select: { pesticides: true } },
+      },
+      take: MAX_PESTICIDE_LIST_LIMIT,
+    })
+
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        description: row.description,
+        sortOrder: row.sortOrder,
+        pesticidesCount: row._count.pesticides,
+      })),
+    }
+  } catch (error) {
+    logger.error('listFormulationTypes failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { items: [] }
+  }
+}
+
+// ── 混用チェッカー全データ ────────────────────────────────────────────
+
+export async function getMixingData(): Promise<MixingDataResult> {
+  try {
+    const [pesticides, incompatibilities] = await Promise.all([
+      prisma.pesticide.findMany({
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          pesticideType: true,
+        },
+        orderBy: { name: 'asc' },
+        take: MAX_PESTICIDE_LIST_LIMIT,
+      }),
+      prisma.pesticideIncompatibility.findMany({
+        select: {
+          pesticideId: true,
+          incompatibleWithId: true,
+        },
+        take: MAX_PESTICIDE_INCOMPATIBILITY_LIMIT,
+      }),
+    ])
+
+    return { pesticides, incompatibilities }
+  } catch (error) {
+    logger.error('getMixingData failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { pesticides: [], incompatibilities: [] }
+  }
 }

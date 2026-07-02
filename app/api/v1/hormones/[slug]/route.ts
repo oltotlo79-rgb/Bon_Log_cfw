@@ -3,8 +3,7 @@
  * GET /api/v1/hormones/{slug} — 植物ホルモン詳細
  *
  * ゲスト可（認証任意）。slug 不存在は 404 NOT_FOUND。
- * effects（effectName, isPromoting）と seasonalLevels（month, level）を含む。
- * interactions/techniques は本バッチ対象外のため含めない。
+ * effects, seasonalLevels, interactions（A/B 両方向をマージ）、techniques を含む。
  */
 
 import { type NextRequest, NextResponse } from 'next/server'

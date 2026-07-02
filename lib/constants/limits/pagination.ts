@@ -120,6 +120,9 @@ export const MAX_SHOP_GENRES = 5
 /** インメモリソート（rating）時に取得する盆栽園の最大件数 */
 export const MAX_SHOPS_FOR_MEMORY_SORT = 500
 
+/** マップピン用全件取得の上限（位置情報付き店舗の現実的最大数を吸収する） */
+export const MAX_MAP_PINS_LIMIT = 500
+
 /** メッセージ一覧のページ取得件数 */
 export const MESSAGES_PAGE_LIMIT = 50
 

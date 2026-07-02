@@ -625,6 +625,34 @@ export type FertilizerActionEnum = z.infer<typeof fertilizerActionSchema>
 export const nutrientLevelSchema = z.enum(['high', 'balanced', 'low', 'none'])
 export type NutrientLevelEnum = z.infer<typeof nutrientLevelSchema>
 
+// ── Wave 3 F-1 / F-2 施肥コラム ──────────────────────
+
+/** GET /api/v1/fertilizers/columns の 1 件 */
+export const fertilizerColumnItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  category: z.string(),
+  publishedAt: z.string().datetime(),
+  sortOrder: z.number().int(),
+})
+export type FertilizerColumnItem = z.infer<typeof fertilizerColumnItemSchema>
+
+/** GET /api/v1/fertilizers/columns/{slug} の詳細 */
+export const fertilizerColumnDetailSchema = fertilizerColumnItemSchema.extend({
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+export type FertilizerColumnDetail = z.infer<typeof fertilizerColumnDetailSchema>
+
+/** GET /api/v1/fertilizers/columns 200 */
+export const fertilizerColumnListResponseSchema = z.object({
+  items: z.array(fertilizerColumnItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type FertilizerColumnListResponse = z.infer<typeof fertilizerColumnListResponseSchema>
+
 // ── ホルモン ──────────────────────────────────────
 
 /** GET /api/v1/hormones の 1 件 */
@@ -653,7 +681,71 @@ export const hormoneSeasonalLevelSchema = z.object({
 })
 export type HormoneSeasonalLevel = z.infer<typeof hormoneSeasonalLevelSchema>
 
-/** GET /api/v1/hormones/{slug} の詳細 */
+/** GET /api/v1/hormones/interactions の 1 件 / 詳細 interactions 配列要素 */
+export const hormoneInteractionItemSchema = z.object({
+  id: z.string(),
+  hormoneAId: z.string(),
+  hormoneAName: z.string(),
+  hormoneASlug: z.string(),
+  hormoneBId: z.string(),
+  hormoneBName: z.string(),
+  hormoneBSlug: z.string(),
+  type: z.string(),
+  description: z.string().nullable(),
+  bonsaiRelevance: z.string().nullable(),
+})
+export type HormoneInteractionItem = z.infer<typeof hormoneInteractionItemSchema>
+
+/** GET /api/v1/hormones/interactions 200 */
+export const hormoneInteractionListResponseSchema = z.object({
+  items: z.array(hormoneInteractionItemSchema),
+})
+export type HormoneInteractionListResponse = z.infer<typeof hormoneInteractionListResponseSchema>
+
+/** 詳細 techniques 配列要素（techniqueSlug → techniqueKey / techniqueName → techniqueNameJa にリマップ） */
+export const hormoneTechniqueItemSchema = z.object({
+  id: z.string(),
+  techniqueKey: z.string(),
+  techniqueNameJa: z.string(),
+  techniqueNameEn: z.string().nullable(),
+  effectType: z.string(),
+  magnitude: z.string(),
+  mechanism: z.string().nullable(),
+})
+export type HormoneTechniqueItem = z.infer<typeof hormoneTechniqueItemSchema>
+
+/** GET /api/v1/hormones/techniques の effects 1 件 */
+export const hormoneTechniqueEffectItemSchema = z.object({
+  hormoneId: z.string(),
+  hormoneNameJa: z.string(),
+  hormoneSlug: z.string(),
+  effectType: z.string(),
+  magnitude: z.string(),
+  mechanism: z.string().nullable(),
+})
+export type HormoneTechniqueEffectItem = z.infer<typeof hormoneTechniqueEffectItemSchema>
+
+/**
+ * GET /api/v1/hormones/techniques の技法グループ 1 件。
+ *
+ * 注: HormoneTechnique モデルに技法レベルの description フィールドが存在しないため
+ * description は含まない（実データに忠実）。
+ */
+export const hormoneTechniqueGroupSchema = z.object({
+  techniqueKey: z.string(),
+  techniqueNameJa: z.string(),
+  techniqueNameEn: z.string().nullable(),
+  effects: z.array(hormoneTechniqueEffectItemSchema),
+})
+export type HormoneTechniqueGroup = z.infer<typeof hormoneTechniqueGroupSchema>
+
+/** GET /api/v1/hormones/techniques 200 */
+export const hormoneTechniqueListResponseSchema = z.object({
+  items: z.array(hormoneTechniqueGroupSchema),
+})
+export type HormoneTechniqueListResponse = z.infer<typeof hormoneTechniqueListResponseSchema>
+
+/** GET /api/v1/hormones/{slug} の詳細（interactions / techniques を含む） */
 export const hormoneDetailSchema = hormoneItemSchema.extend({
   bonsaiRole: z.string().nullable(),
   productionSite: z.string().nullable(),
@@ -661,6 +753,8 @@ export const hormoneDetailSchema = hormoneItemSchema.extend({
   activationMethod: z.string().nullable(),
   effects: z.array(hormoneEffectSchema),
   seasonalLevels: z.array(hormoneSeasonalLevelSchema),
+  interactions: z.array(hormoneInteractionItemSchema),
+  techniques: z.array(hormoneTechniqueItemSchema),
 })
 export type HormoneDetail = z.infer<typeof hormoneDetailSchema>
 
@@ -669,6 +763,78 @@ export type HormoneDetail = z.infer<typeof hormoneDetailSchema>
 /** HormoneCategory enum（Prisma enum 値と一致） */
 export const hormoneCategorySchema = z.enum(['major', 'secondary'])
 export type HormoneCategoryEnum = z.infer<typeof hormoneCategorySchema>
+
+// ── Wave 3 H-5 シミュレーター ────────────────────────
+
+/** GET /api/v1/hormones/simulator の hormones 配列要素 */
+export const hormoneSimulatorHormoneItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  nameEn: z.string().nullable(),
+})
+export type HormoneSimulatorHormoneItem = z.infer<typeof hormoneSimulatorHormoneItemSchema>
+
+/** GET /api/v1/hormones/simulator の techniques[].effects 配列要素 */
+export const hormoneSimulatorEffectItemSchema = z.object({
+  hormoneId: z.string(),
+  effectType: z.string(),
+  magnitude: z.string(),
+})
+export type HormoneSimulatorEffectItem = z.infer<typeof hormoneSimulatorEffectItemSchema>
+
+/** GET /api/v1/hormones/simulator の techniques 配列要素 */
+export const hormoneSimulatorTechniqueItemSchema = z.object({
+  techniqueKey: z.string(),
+  nameJa: z.string(),
+  nameEn: z.string().nullable(),
+  effects: z.array(hormoneSimulatorEffectItemSchema),
+})
+export type HormoneSimulatorTechniqueItem = z.infer<typeof hormoneSimulatorTechniqueItemSchema>
+
+/** GET /api/v1/hormones/simulator の seasonalLevels 配列要素 */
+export const hormoneSimulatorSeasonalLevelItemSchema = z.object({
+  hormoneId: z.string(),
+  month: z.number().int(),
+  level: z.string(),
+})
+export type HormoneSimulatorSeasonalLevelItem = z.infer<typeof hormoneSimulatorSeasonalLevelItemSchema>
+
+/** GET /api/v1/hormones/simulator 200 */
+export const hormoneSimulatorResponseSchema = z.object({
+  hormones: z.array(hormoneSimulatorHormoneItemSchema),
+  techniques: z.array(hormoneSimulatorTechniqueItemSchema),
+  seasonalLevels: z.array(hormoneSimulatorSeasonalLevelItemSchema),
+})
+export type HormoneSimulatorResponse = z.infer<typeof hormoneSimulatorResponseSchema>
+
+// ── Wave 3 H-6 / H-7 ホルモンコラム ──────────────────
+
+/** GET /api/v1/hormones/columns の 1 件 */
+export const hormoneColumnItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  category: z.string(),
+  publishedAt: z.string().datetime(),
+  sortOrder: z.number().int(),
+})
+export type HormoneColumnItem = z.infer<typeof hormoneColumnItemSchema>
+
+/** GET /api/v1/hormones/columns/{slug} の詳細 */
+export const hormoneColumnDetailSchema = hormoneColumnItemSchema.extend({
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+export type HormoneColumnDetail = z.infer<typeof hormoneColumnDetailSchema>
+
+/** GET /api/v1/hormones/columns 200 */
+export const hormoneColumnListResponseSchema = z.object({
+  items: z.array(hormoneColumnItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type HormoneColumnListResponse = z.infer<typeof hormoneColumnListResponseSchema>
 
 // ──────────────────────────────────────────────────
 // Phase 3 Batch 3c — 農薬・病害虫図鑑（読み取り専用・ゲスト可）
@@ -703,6 +869,8 @@ export const diseasePestItemSchema = z.object({
   description: z.string().nullable(),
   imageUrl: z.string().nullable(),
   slug: z.string(),
+  bodySizeMinMm: z.number().nullable(),
+  bodySizeMaxMm: z.number().nullable(),
 })
 export type DiseasePestItem = z.infer<typeof diseasePestItemSchema>
 
@@ -850,6 +1018,140 @@ export const ingredientListResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 })
 export type IngredientListResponse = z.infer<typeof ingredientListResponseSchema>
+
+// ── 展着剤 ──────────────────────────────────────────
+
+/** 展着剤タイプ内の製品 1 件（P-1 / P-2 products 配列要素） */
+export const spreaderProductInSpreaderTypeSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  formulationType: pesticideFormulationTypeSchema.nullable(),
+})
+export type SpreaderProductInSpreaderType = z.infer<typeof spreaderProductInSpreaderTypeSchema>
+
+/** GET /api/v1/pesticides/spreaders の 1 件 */
+export const spreaderTypeItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  sortOrder: z.number().int(),
+  products: z.array(spreaderProductInSpreaderTypeSchema),
+})
+export type SpreaderTypeItem = z.infer<typeof spreaderTypeItemSchema>
+
+/** GET /api/v1/pesticides/spreaders/{slug} の詳細 */
+export const spreaderTypeDetailSchema = spreaderTypeItemSchema.extend({
+  effect: z.string().nullable(),
+  usageNote: z.string().nullable(),
+})
+export type SpreaderTypeDetail = z.infer<typeof spreaderTypeDetailSchema>
+
+/** GET /api/v1/pesticides/spreaders 200 */
+export const spreaderTypeListResponseSchema = z.object({
+  items: z.array(spreaderTypeItemSchema),
+})
+export type SpreaderTypeListResponse = z.infer<typeof spreaderTypeListResponseSchema>
+
+/** GET /api/v1/pesticides/spreader-products の spreaderTypes 配列要素 */
+export const spreaderTypeInProductSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+})
+export type SpreaderTypeInProduct = z.infer<typeof spreaderTypeInProductSchema>
+
+/** GET /api/v1/pesticides/spreader-products の 1 件 */
+export const spreaderProductItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  formulationType: pesticideFormulationTypeSchema.nullable(),
+  registrationNumber: z.string().nullable(),
+  spreaderTypes: z.array(spreaderTypeInProductSchema),
+})
+export type SpreaderProductItem = z.infer<typeof spreaderProductItemSchema>
+
+/** GET /api/v1/pesticides/spreader-products 200 */
+export const spreaderProductListResponseSchema = z.object({
+  items: z.array(spreaderProductItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type SpreaderProductListResponse = z.infer<typeof spreaderProductListResponseSchema>
+
+// ── 農薬コラム ──────────────────────────────────────
+
+/** GET /api/v1/pesticides/columns の 1 件 */
+export const pesticideColumnItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  category: z.string(),
+  publishedAt: z.string().datetime(),
+  sortOrder: z.number().int(),
+})
+export type PesticideColumnItem = z.infer<typeof pesticideColumnItemSchema>
+
+/** GET /api/v1/pesticides/columns/{slug} の詳細 */
+export const pesticideColumnDetailSchema = pesticideColumnItemSchema.extend({
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+export type PesticideColumnDetail = z.infer<typeof pesticideColumnDetailSchema>
+
+/** GET /api/v1/pesticides/columns 200 */
+export const pesticideColumnListResponseSchema = z.object({
+  items: z.array(pesticideColumnItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type PesticideColumnListResponse = z.infer<typeof pesticideColumnListResponseSchema>
+
+// ── 剤型マスタ ──────────────────────────────────────
+
+/** GET /api/v1/pesticides/formulations の 1 件 */
+export const formulationTypeItemSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  sortOrder: z.number().int(),
+  pesticidesCount: z.number().int(),
+})
+export type FormulationTypeItem = z.infer<typeof formulationTypeItemSchema>
+
+/** GET /api/v1/pesticides/formulations 200 */
+export const formulationTypeListResponseSchema = z.object({
+  items: z.array(formulationTypeItemSchema),
+})
+export type FormulationTypeListResponse = z.infer<typeof formulationTypeListResponseSchema>
+
+// ── 混用チェッカー ──────────────────────────────────
+
+/** GET /api/v1/pesticides/mixing-data の pesticides 配列要素 */
+export const mixingDataPesticideItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  pesticideType: pesticideTypeSchema,
+})
+export type MixingDataPesticideItem = z.infer<typeof mixingDataPesticideItemSchema>
+
+/** GET /api/v1/pesticides/mixing-data の incompatibilities 配列要素 */
+export const mixingDataIncompatibilityItemSchema = z.object({
+  pesticideId: z.string(),
+  incompatibleWithId: z.string(),
+})
+export type MixingDataIncompatibilityItem = z.infer<typeof mixingDataIncompatibilityItemSchema>
+
+/** GET /api/v1/pesticides/mixing-data 200 */
+export const mixingDataResponseSchema = z.object({
+  pesticides: z.array(mixingDataPesticideItemSchema),
+  incompatibilities: z.array(mixingDataIncompatibilityItemSchema),
+})
+export type MixingDataResponse = z.infer<typeof mixingDataResponseSchema>
 
 // ──────────────────────────────────────────────────
 // §3.3 マイ盆栽 CRUD
@@ -1001,6 +1303,24 @@ export const shopCreatedResponseSchema = z.object({
   id: z.string(),
 })
 export type ShopCreatedResponse = z.infer<typeof shopCreatedResponseSchema>
+
+/** GET /api/v1/shops/map-pins の 1 件（地図マーカー用の軽量表現） */
+export const shopMapPinItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  address: z.string(),
+  averageRating: z.number().nullable(),
+  reviewCount: z.number().int(),
+})
+export type ShopMapPinItem = z.infer<typeof shopMapPinItemSchema>
+
+/** GET /api/v1/shops/map-pins 200（全件・ページネーションなし） */
+export const shopMapPinsResponseSchema = z.object({
+  items: z.array(shopMapPinItemSchema),
+})
+export type ShopMapPinsResponse = z.infer<typeof shopMapPinsResponseSchema>
 
 /** レビュー画像 1 件 */
 export const reviewImageSchema = z.object({

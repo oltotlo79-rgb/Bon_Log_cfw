@@ -50,6 +50,13 @@ export const DILUTION_CALCULATOR_WATER_PRESETS = [
   { label: '10L', value: 10000 },
 ] as const
 
+/**
+ * 混用適否シミュレーター向けに全件取得する pesticideIncompatibility ペアの上限。
+ * 農薬間の非適合ペアはマスタデータ（少数）だが、500 製品フル登録時の最大ペア数
+ * (500 × 499 / 2 ≈ 125,000) を上回る可能性は実運用上ないため 2000 で十分吸収できる。
+ */
+export const MAX_PESTICIDE_INCOMPATIBILITY_LIMIT = 2000
+
 /** 1mL あたりの滴数 (一般的な水溶液の粗い目安値)。 */
 export const DROPS_PER_ML = 20
 

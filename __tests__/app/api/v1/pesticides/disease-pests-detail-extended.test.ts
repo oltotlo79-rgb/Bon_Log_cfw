@@ -47,6 +47,8 @@ const MOCK_DETAIL_WITH_EXTENDED_PESTICIDE = {
   description: '葉に寄生する害虫',
   imageUrl: null,
   slug: 'aphid',
+  bodySizeMinMm: null,
+  bodySizeMaxMm: null,
   effects: [
     {
       pesticide: {
@@ -193,6 +195,18 @@ describe('GET /api/v1/pesticides/disease-pests/{slug} — G-3 effects[].pesticid
     expect(body.id).toBe('dp-aphid')
     expect(body.name).toBe('アブラムシ')
     expect(body.slug).toBe('aphid')
+  })
+
+  it('bodySizeMinMm と bodySizeMaxMm がレスポンスに含まれる', async () => {
+    const req = await makeRequest(USER_ID, 'aphid')
+    const { GET } = await import('@/app/api/v1/pesticides/disease-pests/[slug]/route')
+    const res = await GET(req, { params: Promise.resolve({ slug: 'aphid' }) })
+
+    const body = await res.json()
+    expect(body).toHaveProperty('bodySizeMinMm')
+    expect(body).toHaveProperty('bodySizeMaxMm')
+    expect(body.bodySizeMinMm === null || typeof body.bodySizeMinMm === 'number').toBe(true)
+    expect(body.bodySizeMaxMm === null || typeof body.bodySizeMaxMm === 'number').toBe(true)
   })
 
   it('effects 配列が 1 件の場合正しく返る', async () => {

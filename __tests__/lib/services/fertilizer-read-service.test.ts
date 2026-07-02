@@ -15,6 +15,8 @@ const mockFertilizerNutrientFindUnique = vi.fn()
 const mockFertilizerCategoryFindMany = vi.fn()
 const mockTreeSpeciesFindMany = vi.fn()
 const mockTreeSpeciesFindUnique = vi.fn()
+const mockFertilizerColumnFindMany = vi.fn()
+const mockFertilizerColumnFindUnique = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -28,6 +30,10 @@ vi.mock('@/lib/db', () => ({
     treeSpecies: {
       findMany: (...args: unknown[]) => mockTreeSpeciesFindMany(...args),
       findUnique: (...args: unknown[]) => mockTreeSpeciesFindUnique(...args),
+    },
+    fertilizerColumn: {
+      findMany: (...args: unknown[]) => mockFertilizerColumnFindMany(...args),
+      findUnique: (...args: unknown[]) => mockFertilizerColumnFindUnique(...args),
     },
   },
 }))
@@ -351,6 +357,251 @@ describe('getFertilizationScheduleBySlug', () => {
 
     const { getFertilizationScheduleBySlug } = await import('@/lib/services/fertilizer-read-service')
     const result = await getFertilizationScheduleBySlug('kuromatsu')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+})
+
+// ── listFertilizerColumns（F-1） ───────────────────────────────
+
+const mockFertilizerColumnRows = [
+  {
+    id: 'fc1',
+    slug: 'basic-fertilizer',
+    title: '基本の施肥ガイド',
+    category: 'product_guide',
+    publishedAt: new Date('2025-01-01T00:00:00Z'),
+    sortOrder: 1,
+  },
+  {
+    id: 'fc2',
+    slug: 'trouble-shooting',
+    title: '施肥のトラブル対処法',
+    category: 'trouble',
+    publishedAt: new Date('2025-02-01T00:00:00Z'),
+    sortOrder: 2,
+  },
+]
+
+describe('listFertilizerColumns', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFertilizerColumnFindMany.mockResolvedValue(mockFertilizerColumnRows)
+  })
+
+  it('正常系: { items, nextCursor } を返す', async () => {
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(result.items).toHaveLength(2)
+    expect(result.nextCursor).toBeNull()
+  })
+
+  it('各 item に { id, slug, title, category, publishedAt, sortOrder } がある', async () => {
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(result.items[0]).toMatchObject({
+      id: 'fc1',
+      slug: 'basic-fertilizer',
+      title: '基本の施肥ガイド',
+      category: 'product_guide',
+      sortOrder: 1,
+    })
+  })
+
+  it('publishedAt は ISO 文字列で返る', async () => {
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(typeof result.items[0]?.publishedAt).toBe('string')
+    expect(result.items[0]?.publishedAt).toBe('2025-01-01T00:00:00.000Z')
+  })
+
+  it('category フィルタが DB クエリの where に渡される', async () => {
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    await listFertilizerColumns({ category: 'product_guide' })
+
+    expect(mockFertilizerColumnFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ category: 'product_guide' }),
+      }),
+    )
+  })
+
+  it('category 未指定のとき where に category が含まれない', async () => {
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    await listFertilizerColumns({})
+
+    const callArgs = mockFertilizerColumnFindMany.mock.calls[0]?.[0] as {
+      where: Record<string, unknown>
+    }
+    expect(callArgs?.where).not.toHaveProperty('category')
+  })
+
+  it('カーソルページネーション: limit+1 件で hasNext を判定し nextCursor を設定する', async () => {
+    const extraRows = [
+      ...mockFertilizerColumnRows,
+      {
+        id: 'fc3',
+        slug: 'seasonal-guide',
+        title: '季節別施肥ガイド',
+        category: 'product_guide',
+        publishedAt: new Date('2025-03-01T00:00:00Z'),
+        sortOrder: 3,
+      },
+    ]
+    mockFertilizerColumnFindMany.mockResolvedValueOnce(extraRows)
+
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({ limit: 2 })
+
+    expect(result.items).toHaveLength(2)
+    expect(result.nextCursor).toBe('trouble-shooting')
+  })
+
+  it('publishedAt が null の行はフィルタされる', async () => {
+    const rowsWithNull = [
+      ...mockFertilizerColumnRows,
+      {
+        id: 'fc-draft',
+        slug: 'draft',
+        title: '下書き',
+        category: 'product_guide',
+        publishedAt: null,
+        sortOrder: 99,
+      },
+    ]
+    mockFertilizerColumnFindMany.mockResolvedValueOnce(rowsWithNull)
+
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(result.items.some((i) => i.slug === 'draft')).toBe(false)
+  })
+
+  it('空配列のとき { items: [], nextCursor: null } を返す', async () => {
+    mockFertilizerColumnFindMany.mockResolvedValueOnce([])
+
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(result.items).toHaveLength(0)
+    expect(result.nextCursor).toBeNull()
+  })
+
+  it('DB エラー時は { items: [], nextCursor: null } を返す', async () => {
+    mockFertilizerColumnFindMany.mockRejectedValue(new Error('DB error'))
+
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(result.items).toHaveLength(0)
+    expect(result.nextCursor).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('Error インスタンス以外が throw されたときも空を返す', async () => {
+    mockFertilizerColumnFindMany.mockRejectedValue('network error')
+
+    const { listFertilizerColumns } = await import('@/lib/services/fertilizer-read-service')
+    const result = await listFertilizerColumns({})
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+})
+
+// ── getFertilizerColumnBySlug（F-2） ──────────────────────────
+
+const mockFertilizerColumnDetail = {
+  id: 'fc1',
+  slug: 'basic-fertilizer',
+  title: '基本の施肥ガイド',
+  content: '盆栽の施肥は春と秋が基本です。',
+  category: 'product_guide',
+  publishedAt: new Date('2025-01-01T00:00:00Z'),
+  sortOrder: 1,
+  createdAt: new Date('2025-01-01T00:00:00Z'),
+  updatedAt: new Date('2025-01-15T00:00:00Z'),
+}
+
+describe('getFertilizerColumnBySlug', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFertilizerColumnFindUnique.mockResolvedValue(mockFertilizerColumnDetail)
+  })
+
+  it('正常系: コラム詳細を返す', async () => {
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('basic-fertilizer')
+
+    expect(result).not.toBeNull()
+    expect(result?.slug).toBe('basic-fertilizer')
+  })
+
+  it('詳細に content が含まれる', async () => {
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('basic-fertilizer')
+
+    expect(result?.content).toBe('盆栽の施肥は春と秋が基本です。')
+  })
+
+  it('publishedAt / createdAt / updatedAt は ISO 文字列で返る', async () => {
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('basic-fertilizer')
+
+    expect(typeof result?.publishedAt).toBe('string')
+    expect(typeof result?.createdAt).toBe('string')
+    expect(typeof result?.updatedAt).toBe('string')
+    expect(result?.publishedAt).toBe('2025-01-01T00:00:00.000Z')
+  })
+
+  it('不存在 slug → null を返す', async () => {
+    mockFertilizerColumnFindUnique.mockResolvedValueOnce(null)
+
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('no-such')
+
+    expect(result).toBeNull()
+  })
+
+  it('publishedAt が null（未公開）のとき null を返す', async () => {
+    mockFertilizerColumnFindUnique.mockResolvedValueOnce({
+      ...mockFertilizerColumnDetail,
+      publishedAt: null,
+    })
+
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('basic-fertilizer')
+
+    expect(result).toBeNull()
+  })
+
+  it('空スラッグ → null を返す（slugQuerySchema 検証失敗）', async () => {
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('')
+
+    expect(result).toBeNull()
+    expect(mockFertilizerColumnFindUnique).not.toHaveBeenCalled()
+  })
+
+  it('DB エラー時は null を返す', async () => {
+    mockFertilizerColumnFindUnique.mockRejectedValue(new Error('DB error'))
+
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('basic-fertilizer')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('Error インスタンス以外が throw されたときも null を返す', async () => {
+    mockFertilizerColumnFindUnique.mockRejectedValue({ code: 'TIMEOUT' })
+
+    const { getFertilizerColumnBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizerColumnBySlug('basic-fertilizer')
 
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()

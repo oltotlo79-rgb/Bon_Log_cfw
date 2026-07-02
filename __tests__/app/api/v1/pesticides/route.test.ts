@@ -90,6 +90,8 @@ const mockDiseasePestList = {
       description: '葉に寄生する害虫',
       imageUrl: '/images/aphid.jpg',
       slug: 'aphid',
+      bodySizeMinMm: null,
+      bodySizeMaxMm: null,
     },
     {
       id: 'dp2',
@@ -99,6 +101,8 @@ const mockDiseasePestList = {
       description: '葉に白い粉が付く',
       imageUrl: null,
       slug: 'powdery-mildew',
+      bodySizeMinMm: null,
+      bodySizeMaxMm: null,
     },
   ],
   nextCursor: null,
@@ -112,6 +116,8 @@ const mockDiseasePestDetail = {
   description: '葉に寄生する害虫',
   imageUrl: '/images/aphid.jpg',
   slug: 'aphid',
+  bodySizeMinMm: null,
+  bodySizeMaxMm: null,
   effects: [
     {
       pesticide: { id: 'p1', name: 'スミチオン', slug: 'sumithion', pesticideType: 'insecticide' },
@@ -230,6 +236,18 @@ describe('GET /api/v1/pesticides/disease-pests (一覧)', () => {
       category: expect.any(String),
       slug: expect.any(String),
     })
+  })
+
+  it('items に bodySizeMinMm と bodySizeMaxMm（number|null）が含まれる', async () => {
+    const req = await makeAuthenticatedRequest('user-1', 'user@example.com', '/api/v1/pesticides/disease-pests')
+    const { GET } = await import('@/app/api/v1/pesticides/disease-pests/route')
+    const res = await GET(req)
+
+    const body = await res.json()
+    expect(body.items[0]).toHaveProperty('bodySizeMinMm')
+    expect(body.items[0]).toHaveProperty('bodySizeMaxMm')
+    expect(body.items[0].bodySizeMinMm === null || typeof body.items[0].bodySizeMinMm === 'number').toBe(true)
+    expect(body.items[0].bodySizeMaxMm === null || typeof body.items[0].bodySizeMaxMm === 'number').toBe(true)
   })
 
   it('ゲストユーザーも 200 を返す（rejectGuest なし）', async () => {
@@ -404,6 +422,18 @@ describe('GET /api/v1/pesticides/disease-pests/{slug} (詳細)', () => {
       pesticide: expect.objectContaining({ id: expect.any(String), slug: expect.any(String) }),
       rating: expect.any(Object),
     })
+  })
+
+  it('詳細に bodySizeMinMm と bodySizeMaxMm（number|null）が含まれる', async () => {
+    const req = await makeAuthenticatedRequest('user-1', 'user@example.com', '/api/v1/pesticides/disease-pests/aphid')
+    const { GET } = await import('@/app/api/v1/pesticides/disease-pests/[slug]/route')
+    const res = await GET(req, { params: Promise.resolve({ slug: 'aphid' }) })
+
+    const body = await res.json()
+    expect(body).toHaveProperty('bodySizeMinMm')
+    expect(body).toHaveProperty('bodySizeMaxMm')
+    expect(body.bodySizeMinMm === null || typeof body.bodySizeMinMm === 'number').toBe(true)
+    expect(body.bodySizeMaxMm === null || typeof body.bodySizeMaxMm === 'number').toBe(true)
   })
 
   it('ゲストユーザーも 200 を返す', async () => {

@@ -17,7 +17,10 @@ import {
   MAX_NUTRIENT_LIST_LIMIT,
   MAX_FERTILIZER_LIST_LIMIT,
   MAX_TREE_SPECIES_LIMIT,
+  MAX_FERTILIZER_COLUMN_LIMIT,
   MAX_SLUG_LENGTH,
+  DEFAULT_PAGE_LIMIT,
+  MAX_PAGE_LIMIT,
 } from '@/lib/constants/limits'
 import { z } from 'zod'
 
@@ -32,6 +35,35 @@ export const treeCategoryQuerySchema = z.object({
 })
 
 export const slugQuerySchema = z.string().min(1).max(MAX_SLUG_LENGTH)
+
+export const fertilizerColumnListQuerySchema = z.object({
+  cursor: z.string().min(1).max(MAX_SLUG_LENGTH).optional(),
+  limit: z.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+  category: z.string().min(1).max(MAX_SLUG_LENGTH).optional(),
+})
+
+// ── 共通型定義 ─────────────────────────────────────────────
+
+export type PaginatedResult<T> = {
+  items: T[]
+  nextCursor: string | null
+}
+
+// F-1 / F-2 コラム用型
+export type FertilizerColumnListItem = {
+  id: string
+  slug: string
+  title: string
+  category: string
+  publishedAt: string
+  sortOrder: number
+}
+
+export type FertilizerColumnDetail = FertilizerColumnListItem & {
+  content: string
+  createdAt: string
+  updatedAt: string
+}
 
 // ── 栄養素一覧 ────────────────────────────────────────────────
 
@@ -166,6 +198,104 @@ export async function getFertilizationScheduleBySlug(slug: string) {
     return species
   } catch (error) {
     logger.error('getFertilizationScheduleBySlug failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
+// ── 施肥コラム一覧（カーソルページネーション、F-1） ─────────────
+
+export async function listFertilizerColumns(params: {
+  cursor?: string
+  limit?: number
+  category?: string
+}): Promise<PaginatedResult<FertilizerColumnListItem>> {
+  const limit = Math.min(params.limit ?? DEFAULT_PAGE_LIMIT, MAX_FERTILIZER_COLUMN_LIMIT)
+
+  try {
+    const rows = await prisma.fertilizerColumn.findMany({
+      where: {
+        publishedAt: { not: null },
+        ...(params.category !== undefined ? { category: params.category } : {}),
+      },
+      orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        category: true,
+        publishedAt: true,
+        sortOrder: true,
+      },
+      take: limit + 1,
+      ...(params.cursor !== undefined ? { cursor: { slug: params.cursor }, skip: 1 } : {}),
+    })
+
+    const hasNext = rows.length > limit
+    const pageRows = hasNext ? rows.slice(0, limit) : rows
+    const nextCursor = hasNext ? (pageRows[pageRows.length - 1]?.slug ?? null) : null
+
+    // DB filter で publishedAt: { not: null } を指定しているため null 行は来ないが、
+    // TypeScript の型を絞り込むためにガードを入れる
+    const items = pageRows
+      .filter((r): r is typeof r & { publishedAt: Date } => r.publishedAt !== null)
+      .map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        category: r.category,
+        publishedAt: r.publishedAt.toISOString(),
+        sortOrder: r.sortOrder,
+      }))
+
+    return { items, nextCursor }
+  } catch (error) {
+    logger.error('listFertilizerColumns failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { items: [], nextCursor: null }
+  }
+}
+
+// ── 施肥コラム詳細（F-2） ────────────────────────────────────
+
+export async function getFertilizerColumnBySlug(
+  slug: string,
+): Promise<FertilizerColumnDetail | null> {
+  const parsed = slugQuerySchema.safeParse(slug)
+  if (!parsed.success) return null
+
+  try {
+    const row = await prisma.fertilizerColumn.findUnique({
+      where: { slug: parsed.data },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        content: true,
+        category: true,
+        publishedAt: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+    if (!row || !row.publishedAt) return null
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      category: row.category,
+      publishedAt: row.publishedAt.toISOString(),
+      sortOrder: row.sortOrder,
+      content: row.content,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    }
+  } catch (error) {
+    logger.error('getFertilizerColumnBySlug failed', {
       error: error instanceof Error ? error.message : String(error),
     })
     return null

@@ -141,6 +141,12 @@ async function main() {
     hormoneSeasonalLevelSchema,
     hormoneDetailSchema,
     hormoneCategorySchema,
+    hormoneInteractionItemSchema,
+    hormoneInteractionListResponseSchema,
+    hormoneTechniqueItemSchema,
+    hormoneTechniqueEffectItemSchema,
+    hormoneTechniqueGroupSchema,
+    hormoneTechniqueListResponseSchema,
     diseasePestCategorySchema,
     pesticideTypeSchema,
     effectRatingSchema,
@@ -159,6 +165,21 @@ async function main() {
     ingredientItemSchema,
     ingredientDetailSchema,
     ingredientListResponseSchema,
+    spreaderProductInSpreaderTypeSchema,
+    spreaderTypeItemSchema,
+    spreaderTypeDetailSchema,
+    spreaderTypeListResponseSchema,
+    spreaderTypeInProductSchema,
+    spreaderProductItemSchema,
+    spreaderProductListResponseSchema,
+    pesticideColumnItemSchema,
+    pesticideColumnDetailSchema,
+    pesticideColumnListResponseSchema,
+    formulationTypeItemSchema,
+    formulationTypeListResponseSchema,
+    mixingDataPesticideItemSchema,
+    mixingDataIncompatibilityItemSchema,
+    mixingDataResponseSchema,
     bonsaiListItemSchema,
     bonsaiListResponseSchema,
     bonsaiDetailSchema,
@@ -171,6 +192,8 @@ async function main() {
     shopItemSchema,
     shopListResponseSchema,
     shopCreatedResponseSchema,
+    shopMapPinItemSchema,
+    shopMapPinsResponseSchema,
     reviewItemSchema,
     reviewListResponseSchema,
     genreListResponseSchema,
@@ -228,6 +251,17 @@ async function main() {
     startConversationResponseSchema,
     messageItemSchema,
     messageListResponseSchema,
+    hormoneSimulatorHormoneItemSchema,
+    hormoneSimulatorEffectItemSchema,
+    hormoneSimulatorTechniqueItemSchema,
+    hormoneSimulatorSeasonalLevelItemSchema,
+    hormoneSimulatorResponseSchema,
+    hormoneColumnItemSchema,
+    hormoneColumnDetailSchema,
+    hormoneColumnListResponseSchema,
+    fertilizerColumnItemSchema,
+    fertilizerColumnDetailSchema,
+    fertilizerColumnListResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -2722,10 +2756,135 @@ async function main() {
     }),
   )
 
+  registry.register(
+    'HormoneInteractionItem',
+    hormoneInteractionItemSchema.openapi({
+      description: '相互作用 1 件。hormoneA / hormoneB の id / name / slug がフラットに展開される。',
+    }),
+  )
+
+  const HormoneInteractionListResponse = registry.register(
+    'HormoneInteractionListResponse',
+    hormoneInteractionListResponseSchema.openapi({
+      description: '全ホルモン相互作用一覧レスポンス（ページネーションなし）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneTechniqueItem',
+    hormoneTechniqueItemSchema.openapi({
+      description: '詳細レスポンス内の技法 1 件（techniqueSlug → techniqueKey / techniqueName → techniqueNameJa にリマップ済み）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneTechniqueEffectItem',
+    hormoneTechniqueEffectItemSchema.openapi({
+      description: '技法グループ内のホルモン効果 1 件。',
+    }),
+  )
+
+  registry.register(
+    'HormoneTechniqueGroup',
+    hormoneTechniqueGroupSchema.openapi({
+      description: [
+        '技法 1 グループ（techniqueKey 単位）。effects に該当技法が各ホルモンに与える効果を列挙する。',
+        '注: HormoneTechnique モデルに技法レベルの description フィールドが存在しないため description は含まない。',
+      ].join('\n'),
+    }),
+  )
+
+  const HormoneTechniqueListResponse = registry.register(
+    'HormoneTechniqueListResponse',
+    hormoneTechniqueListResponseSchema.openapi({
+      description: '全技法×ホルモン効果一覧レスポンス（techniqueKey 単位でグループ化・ページネーションなし）。',
+    }),
+  )
+
   const HormoneDetail = registry.register(
     'HormoneDetail',
     hormoneDetailSchema.openapi({
-      description: 'ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels を含む）。interactions/techniques は別バッチで追加予定。',
+      description: [
+        'ホルモン詳細（bonsaiRole / productionSite / practicalTips / activationMethod / effects / seasonalLevels / interactions / techniques を含む）。',
+        'interactions: 自ホルモンが A 側または B 側である全相互作用をフラットにマージ済み。',
+        'techniques: techniqueSlug → techniqueKey / techniqueName → techniqueNameJa にリマップ済み。',
+      ].join('\n'),
+    }),
+  )
+
+  // ── Wave 3 H-5 / H-6 / H-7 スキーマ登録 ──────────────────────
+
+  registry.register(
+    'HormoneSimulatorHormoneItem',
+    hormoneSimulatorHormoneItemSchema.openapi({
+      description: 'シミュレーター用ホルモン 1 件。nameEn は HormoneType.nameEn（nullable）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneSimulatorEffectItem',
+    hormoneSimulatorEffectItemSchema.openapi({
+      description: 'シミュレーター用技法内の効果 1 件（hormoneId / effectType / magnitude のみ）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneSimulatorTechniqueItem',
+    hormoneSimulatorTechniqueItemSchema.openapi({
+      description: [
+        'シミュレーター用技法 1 件。techniqueSlug → techniqueKey / techniqueName → nameJa にリマップ済み。',
+        'effects: 対象ホルモン一覧（hormoneId / effectType / magnitude）。',
+      ].join('\n'),
+    }),
+  )
+
+  registry.register(
+    'HormoneSimulatorSeasonalLevelItem',
+    hormoneSimulatorSeasonalLevelItemSchema.openapi({
+      description: 'シミュレーター用月別活性 1 件（hormoneId / month / level）。',
+    }),
+  )
+
+  const HormoneSimulatorResponse = registry.register(
+    'HormoneSimulatorResponse',
+    hormoneSimulatorResponseSchema.openapi({
+      description: 'シミュレーター用一括データ（hormones / techniques / seasonalLevels の全件）。',
+    }),
+  )
+
+  registry.register(
+    'HormoneColumnItem',
+    hormoneColumnItemSchema.openapi({ description: 'ホルモンコラム一覧の 1 件。' }),
+  )
+
+  const HormoneColumnDetail = registry.register(
+    'HormoneColumnDetail',
+    hormoneColumnDetailSchema.openapi({ description: 'ホルモンコラム詳細（content / createdAt / updatedAt を含む）。' }),
+  )
+
+  const HormoneColumnListResponse = registry.register(
+    'HormoneColumnListResponse',
+    hormoneColumnListResponseSchema.openapi({
+      description: 'ホルモンコラム一覧レスポンス（カーソルページネーション）。',
+    }),
+  )
+
+  // ── Wave 3 F-1 / F-2 施肥コラム スキーマ登録 ──────────────────
+
+  registry.register(
+    'FertilizerColumnItem',
+    fertilizerColumnItemSchema.openapi({ description: '施肥コラム一覧の 1 件。' }),
+  )
+
+  const FertilizerColumnDetail = registry.register(
+    'FertilizerColumnDetail',
+    fertilizerColumnDetailSchema.openapi({ description: '施肥コラム詳細（content / createdAt / updatedAt を含む）。' }),
+  )
+
+  const FertilizerColumnListResponse = registry.register(
+    'FertilizerColumnListResponse',
+    fertilizerColumnListResponseSchema.openapi({
+      description: '施肥コラム一覧レスポンス（カーソルページネーション）。',
     }),
   )
 
@@ -2954,6 +3113,64 @@ async function main() {
 
   registry.registerPath({
     method: 'get',
+    path: '/api/v1/fertilizers/columns',
+    tags: ['fertilizers'],
+    summary: '施肥コラム一覧（F-1）',
+    description: [
+      'publishedAt が設定済みの施肥コラムをカーソルページネーションで返す。',
+      'sortOrder ASC / publishedAt DESC 順。',
+      '',
+      '重要仕様:',
+      '- category: 文字列フィルタ（想定値: product_guide / trouble 等。省略で全件）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前ページ最終件の slug（省略で先頭から取得）' }),
+        limit: z.number().int().optional().openapi({ description: `取得件数（1〜100、デフォルト 20）` }),
+        category: z.string().optional().openapi({ description: 'カテゴリフィルタ（例: product_guide / trouble）' }),
+      }),
+    },
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '施肥コラム一覧取得成功',
+        content: { 'application/json': { schema: FertilizerColumnListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — limit が範囲外等'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/fertilizers/columns/{slug}',
+    tags: ['fertilizers'],
+    summary: '施肥コラム詳細（F-2）',
+    description: [
+      '指定 slug の施肥コラム詳細を返す。未公開（publishedAt = null）の場合は 404。',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    request: { params: z.object({ slug: z.string() }) },
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '施肥コラム詳細取得成功',
+        content: { 'application/json': { schema: FertilizerColumnDetail } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('コラムが存在しないまたは未公開 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
     path: '/api/v1/hormones',
     tags: ['hormones'],
     summary: '植物ホルモン一覧',
@@ -2989,13 +3206,14 @@ async function main() {
     tags: ['hormones'],
     summary: '植物ホルモン詳細',
     description: [
-      '指定 slug のホルモン詳細を返す。effects / seasonalLevels を含む。',
+      '指定 slug のホルモン詳細を返す。effects / seasonalLevels / interactions / techniques を含む。',
       '',
       '重要仕様:',
       '- slug 不存在は 404 NOT_FOUND',
       '- effects は isPromoting による促進/抑制効果の一覧（sortOrder ASC）',
       '- seasonalLevels は月別活性レベル（month 1〜12 ASC）',
-      '- interactions（ホルモン間相互作用）/ techniques（技法マッピング）は本バッチ対象外',
+      '- interactions: 自ホルモンが A 側または B 側の全相互作用を統一形式でマージ（A 側先出し）',
+      '- techniques: techniqueKey / techniqueNameJa にリマップ済み（sortOrder ASC）',
       '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
       '- レート制限: read（60/分）',
     ].join('\n'),
@@ -3012,6 +3230,142 @@ async function main() {
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
       404: errorResponse('ホルモンが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones/interactions',
+    tags: ['hormones'],
+    summary: '全ホルモン相互作用一覧（H-3）',
+    description: [
+      '全ホルモン間相互作用を返す（sortOrder ASC）。ページネーションなし。',
+      '',
+      '重要仕様:',
+      '- hormoneAId / hormoneBId はダイアグラム画面のエッジ情報として使用する',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '相互作用一覧取得成功',
+        content: { 'application/json': { schema: HormoneInteractionListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones/techniques',
+    tags: ['hormones'],
+    summary: '全技法×ホルモン効果一覧（技法単位グループ化、H-4）',
+    description: [
+      '全 HormoneTechnique レコードを技法（techniqueKey）単位でグループ化して返す。',
+      '',
+      '重要仕様:',
+      '- 各グループは techniqueKey / techniqueNameJa / techniqueNameEn と、',
+      '  各ホルモンへの効果配列（hormoneId / hormoneNameJa / hormoneSlug / effectType / magnitude / mechanism）を持つ',
+      '- 注: HormoneTechnique モデルに技法レベルの description フィールドが存在しないため description は省略',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '技法一覧取得成功',
+        content: { 'application/json': { schema: HormoneTechniqueListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones/simulator',
+    tags: ['hormones'],
+    summary: 'シミュレーター用データ一括取得（H-5）',
+    description: [
+      '全ホルモン・全技法効果・全月別活性を 1 リクエストで返す。',
+      '',
+      '重要仕様:',
+      '- hormones: { id, slug, name, nameEn }（nameEn は nullable）',
+      '- techniques: techniqueSlug → techniqueKey / techniqueName → nameJa にリマップ。',
+      '  effects は { hormoneId, effectType, magnitude } のみ（mechanism は含まない）',
+      '- seasonalLevels: { hormoneId, month, level }（全ホルモン全月分）',
+      '- ページネーションなし（全件一括）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'シミュレーターデータ取得成功',
+        content: { 'application/json': { schema: HormoneSimulatorResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones/columns',
+    tags: ['hormones'],
+    summary: 'ホルモンコラム一覧（H-6）',
+    description: [
+      'publishedAt が設定済みのホルモンコラムをカーソルページネーションで返す。',
+      'sortOrder ASC / publishedAt DESC 順。',
+      '',
+      '重要仕様:',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前ページ最終件の slug（省略で先頭から取得）' }),
+        limit: z.number().int().optional().openapi({ description: `取得件数（1〜100、デフォルト 20）` }),
+      }),
+    },
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'ホルモンコラム一覧取得成功',
+        content: { 'application/json': { schema: HormoneColumnListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/hormones/columns/{slug}',
+    tags: ['hormones'],
+    summary: 'ホルモンコラム詳細（H-7）',
+    description: [
+      '指定 slug のホルモンコラム詳細を返す。未公開（publishedAt = null）の場合は 404。',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    request: { params: z.object({ slug: z.string() }) },
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'ホルモンコラム詳細取得成功',
+        content: { 'application/json': { schema: HormoneColumnDetail } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('コラムが存在しないまたは未公開 (NOT_FOUND)'),
       429: rateLimitedResponse,
     },
   })
@@ -3051,7 +3405,7 @@ async function main() {
   registry.register(
     'DiseasePestItem',
     diseasePestItemSchema.openapi({
-      description: '病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug）。',
+      description: '病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug, bodySizeMinMm, bodySizeMaxMm）。bodySizeMinMm/bodySizeMaxMm は害虫・益虫の体長範囲（mm）。未設定は null。',
     }),
   )
 
@@ -3143,6 +3497,114 @@ async function main() {
     'IngredientListResponse',
     ingredientListResponseSchema.openapi({
       description: 'GET /api/v1/pesticides/ingredients 成功レスポンス。name ASC 順。',
+    }),
+  )
+
+  // ── Wave 2 — 展着剤 / コラム / 剤型 / 混用チェッカー スキーマ登録
+  // ──────────────────────────────────────────────────
+
+  registry.register(
+    'SpreaderProductInSpreaderType',
+    spreaderProductInSpreaderTypeSchema.openapi({
+      description: '展着剤タイプに紐付く製品 1 件（id, slug, name, description, formulationType）。',
+    }),
+  )
+
+  registry.register(
+    'SpreaderTypeItem',
+    spreaderTypeItemSchema.openapi({
+      description: '展着剤タイプ一覧の 1 件（id, slug, name, description, sortOrder, products）。',
+    }),
+  )
+
+  registry.register(
+    'SpreaderTypeDetail',
+    spreaderTypeDetailSchema.openapi({
+      description: '展着剤タイプ詳細（effect / usageNote を追加）。',
+    }),
+  )
+
+  const SpreaderTypeListResponse = registry.register(
+    'SpreaderTypeListResponse',
+    spreaderTypeListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/spreaders 成功レスポンス。sortOrder ASC / name ASC 順。',
+    }),
+  )
+
+  registry.register(
+    'SpreaderTypeInProduct',
+    spreaderTypeInProductSchema.openapi({
+      description: '製品に紐付く展着剤タイプ 1 件（id, slug, name）。',
+    }),
+  )
+
+  registry.register(
+    'SpreaderProductItem',
+    spreaderProductItemSchema.openapi({
+      description: '展着剤製品一覧の 1 件（id, slug, name, formulationType, registrationNumber, spreaderTypes）。',
+    }),
+  )
+
+  const SpreaderProductListResponse = registry.register(
+    'SpreaderProductListResponse',
+    spreaderProductListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/spreader-products 成功レスポンス。name ASC 順。',
+    }),
+  )
+
+  registry.register(
+    'PesticideColumnItem',
+    pesticideColumnItemSchema.openapi({
+      description: '農薬コラム一覧の 1 件（id, slug, title, category, publishedAt, sortOrder）。',
+    }),
+  )
+
+  registry.register(
+    'PesticideColumnDetail',
+    pesticideColumnDetailSchema.openapi({
+      description: '農薬コラム詳細（content / createdAt / updatedAt を追加）。',
+    }),
+  )
+
+  const PesticideColumnListResponse = registry.register(
+    'PesticideColumnListResponse',
+    pesticideColumnListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/columns 成功レスポンス。sortOrder ASC / publishedAt DESC 順。',
+    }),
+  )
+
+  registry.register(
+    'FormulationTypeItem',
+    formulationTypeItemSchema.openapi({
+      description: '剤型マスタの 1 件（id, code, name, description, sortOrder, pesticidesCount）。',
+    }),
+  )
+
+  const FormulationTypeListResponse = registry.register(
+    'FormulationTypeListResponse',
+    formulationTypeListResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/formulations 成功レスポンス。sortOrder ASC / name ASC 順。',
+    }),
+  )
+
+  registry.register(
+    'MixingDataPesticideItem',
+    mixingDataPesticideItemSchema.openapi({
+      description: '混用チェッカー用農薬 1 件（id, slug, name, pesticideType）。',
+    }),
+  )
+
+  registry.register(
+    'MixingDataIncompatibilityItem',
+    mixingDataIncompatibilityItemSchema.openapi({
+      description: '混用不可ペア 1 件（pesticideId / incompatibleWithId）。',
+    }),
+  )
+
+  const MixingDataResponse = registry.register(
+    'MixingDataResponse',
+    mixingDataResponseSchema.openapi({
+      description: 'GET /api/v1/pesticides/mixing-data 成功レスポンス。pesticides（全件）と incompatibilities（全ペア）を含む。',
     }),
   )
 
@@ -3349,6 +3811,210 @@ async function main() {
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
       404: errorResponse('有効成分が存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  // ── Wave 2 — 展着剤 / コラム / 剤型 / 混用チェッカー パス登録
+  // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/spreaders',
+    tags: ['pesticides'],
+    summary: '展着剤タイプ一覧',
+    description: [
+      '展着剤タイプの全一覧と各タイプに紐付く製品を返す。',
+      '',
+      '重要仕様:',
+      '- sortOrder ASC / name ASC 順',
+      '- products は各展着剤タイプに紐付く Pesticide（formulationType を含む）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '展着剤タイプ一覧取得成功',
+        content: { 'application/json': { schema: SpreaderTypeListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/spreaders/{slug}',
+    tags: ['pesticides'],
+    summary: '展着剤タイプ詳細',
+    description: [
+      '指定 slug の展着剤タイプ詳細を返す。effect / usageNote フィールドと紐付く製品一覧を含む。',
+      '',
+      '重要仕様:',
+      '- slug 不存在は 404 NOT_FOUND',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '展着剤タイプの slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '展着剤タイプ詳細取得成功',
+        content: { 'application/json': { schema: spreaderTypeDetailSchema } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('展着剤タイプが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/spreader-products',
+    tags: ['pesticides'],
+    summary: '展着剤製品一覧',
+    description: [
+      '展着剤タイプ（spreaderTypes）を 1 件以上持つ農薬製品の一覧をカーソルページネーションで返す。name ASC 順。',
+      '',
+      '重要仕様:',
+      '- 既存の GET /api/v1/pesticides/products?type=spreader では対応できない（spreader は PesticideType enum 外）ため専用エンドポイント',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（slug）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '展着剤製品一覧取得成功',
+        content: { 'application/json': { schema: SpreaderProductListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な limit'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/columns',
+    tags: ['pesticides'],
+    summary: '農薬コラム一覧',
+    description: [
+      '公開済み（publishedAt が設定済み）農薬コラムの一覧をカーソルページネーションで返す。sortOrder ASC / publishedAt DESC 順。',
+      '',
+      '重要仕様:',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: '前回レスポンスの nextCursor 値（slug）' }),
+        limit: z.number().int().min(1).max(100).optional().openapi({ description: '取得件数（デフォルト 20、最大 100）' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '農薬コラム一覧取得成功',
+        content: { 'application/json': { schema: PesticideColumnListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — 不正な limit'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/columns/{slug}',
+    tags: ['pesticides'],
+    summary: '農薬コラム詳細',
+    description: [
+      '指定 slug の農薬コラム詳細を返す。未公開（publishedAt 未設定）の場合は 404。',
+      '',
+      '重要仕様:',
+      '- slug 不存在または未公開は 404 NOT_FOUND',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ slug: z.string().openapi({ description: '農薬コラムの slug' }) }),
+    },
+    responses: {
+      200: {
+        description: '農薬コラム詳細取得成功',
+        content: { 'application/json': { schema: pesticideColumnDetailSchema } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('農薬コラムが存在しないまたは未公開 (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/formulations',
+    tags: ['pesticides'],
+    summary: '剤型マスタ一覧',
+    description: [
+      '農薬剤型マスタの全一覧を返す。各剤型の農薬件数（pesticidesCount）を含む。sortOrder ASC / name ASC 順。',
+      '',
+      '重要仕様:',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '剤型マスタ一覧取得成功',
+        content: { 'application/json': { schema: FormulationTypeListResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/pesticides/mixing-data',
+    tags: ['pesticides'],
+    summary: '混用チェッカー全データ',
+    description: [
+      '農薬全件（id / slug / name / pesticideType）と混用不可ペア全件を 1 リクエストで返す。',
+      'クライアント側でペア判定を行う混用チェッカー画面向け。変更頻度が低いため長めのキャッシュを推奨。',
+      '',
+      '重要仕様:',
+      '- pesticides: 全農薬（最大 500 件、name ASC 順）',
+      '- incompatibilities: 全混用不可ペア（pesticideId / incompatibleWithId）',
+      '- ページネーションなし（全件一括）',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '混用チェッカー全データ取得成功',
+        content: { 'application/json': { schema: MixingDataResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
       429: rateLimitedResponse,
     },
   })
@@ -4007,6 +4673,20 @@ async function main() {
   )
 
   registry.register(
+    'ShopMapPinItem',
+    shopMapPinItemSchema.openapi({
+      description: '地図マーカー用の軽量店舗 1 件。lat/lng が null の店舗は除外済み。averageRating はレビューなしの場合 null。',
+    }),
+  )
+
+  const ShopMapPinsResponse = registry.register(
+    'ShopMapPinsResponse',
+    shopMapPinsResponseSchema.openapi({
+      description: '全店舗マップピン一覧レスポンス（ページネーションなし）。',
+    }),
+  )
+
+  registry.register(
     'ReviewImage',
     reviewItemSchema.shape.images.element.openapi({ description: 'レビュー画像 1 件（url）。' }),
   )
@@ -4073,6 +4753,34 @@ async function main() {
   // ──────────────────────────────────────────────────
   // §3.4 盆栽園マップ パス登録
   // ──────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/shops/map-pins',
+    tags: ['shops'],
+    summary: '地図用の全店舗ピン取得（M-1、ゲスト可）',
+    description: [
+      '位置情報（lat/lng）付き店舗を全件返す（ページネーションなし）。地図マーカー描画に使用する。',
+      '',
+      '重要仕様:',
+      '- latitude / longitude が null の店舗は除外される',
+      '- 全件一括取得（上限 500 件）のため地図表示に最適',
+      '- averageRating はレビューがない場合 null',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- レート制限: read（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'マップピン一覧取得成功',
+        content: { 'application/json': { schema: ShopMapPinsResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+      500: errorResponse('内部エラー (INTERNAL_ERROR)'),
+    },
+  })
 
   registry.registerPath({
     method: 'get',
@@ -5958,7 +6666,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.25.0',
+      version: '1.28.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

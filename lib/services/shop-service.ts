@@ -34,6 +34,7 @@ import {
   DEFAULT_PAGE_LIMIT,
   MAX_PAGE_LIMIT,
   MAX_NOTIFICATION_ID_LENGTH,
+  MAX_MAP_PINS_LIMIT,
 } from '@/lib/constants/limits'
 import {
   ERR_SHOP_NOT_FOUND,
@@ -686,6 +687,78 @@ export async function listGenresV1(query: ListGenresV1Query): Promise<{
   } catch (error) {
     logger.error('listGenresV1 failed', {
       type: query.type,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { ok: false, error: ERR_OPERATION_FAILED }
+  }
+}
+
+// ──────────────────────────────────────────────────
+// Service 関数 — マップピン（M-1）
+// ──────────────────────────────────────────────────
+
+type ShopMapPin = {
+  id: string
+  name: string
+  latitude: number
+  longitude: number
+  address: string
+  averageRating: number | null
+  reviewCount: number
+}
+
+/**
+ * GET /api/v1/shops/map-pins — 位置情報付き店舗を全件取得してマーカー用軽量形式で返す。
+ *
+ * lat/lng が null の店舗は where で除外する。Decimal → number 変換は formatShopForApi パターンに倣う。
+ * ratings は getCachedShopRatings() を Promise.all で並列取得して付与する。
+ */
+export async function getShopMapPinsV1(): Promise<{
+  ok: true
+  items: ShopMapPin[]
+} | { ok: false; error: string }> {
+  try {
+    const [shops, ratingAggs] = await Promise.all([
+      prisma.bonsaiShop.findMany({
+        where: {
+          isHidden: false,
+          latitude: { not: null },
+          longitude: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+        },
+        orderBy: { name: 'asc' },
+        take: MAX_MAP_PINS_LIMIT,
+      }),
+      getCachedShopRatings(),
+    ])
+
+    const ratingMap = new Map(
+      ratingAggs.map((r) => [r.shopId, { avg: r._avg.rating, count: r._count.rating }])
+    )
+
+    const items: ShopMapPin[] = shops.map((shop) => {
+      const ratingData = ratingMap.get(shop.id)
+      return {
+        id: shop.id,
+        name: shop.name,
+        // where 条件で null を除外済みだが Prisma 型は Decimal | null のため変換
+        latitude: shop.latitude !== null ? Number(shop.latitude.toString()) : 0,
+        longitude: shop.longitude !== null ? Number(shop.longitude.toString()) : 0,
+        address: shop.address,
+        averageRating: ratingData?.avg ?? null,
+        reviewCount: ratingData?.count ?? 0,
+      }
+    })
+
+    return { ok: true, items }
+  } catch (error) {
+    logger.error('getShopMapPinsV1 failed', {
       error: error instanceof Error ? error.message : String(error),
     })
     return { ok: false, error: ERR_OPERATION_FAILED }

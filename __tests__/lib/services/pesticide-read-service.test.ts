@@ -61,6 +61,8 @@ const mockDiseasePests = [
     description: '葉に寄生する害虫',
     imageUrl: '/images/aphid.jpg',
     slug: 'aphid',
+    bodySizeMinMm: null,
+    bodySizeMaxMm: null,
   },
   {
     id: 'dp2',
@@ -70,6 +72,8 @@ const mockDiseasePests = [
     description: '葉に白い粉が付く',
     imageUrl: null,
     slug: 'powdery-mildew',
+    bodySizeMinMm: null,
+    bodySizeMaxMm: null,
   },
 ]
 
@@ -81,6 +85,8 @@ const mockDiseasePestDetail = {
   description: '葉に寄生する害虫',
   imageUrl: '/images/aphid.jpg',
   slug: 'aphid',
+  bodySizeMinMm: null,
+  bodySizeMaxMm: null,
   effects: [
     {
       preventionLevel: 'high',
@@ -229,6 +235,31 @@ describe('listDiseasePests', () => {
       category: expect.any(String),
       slug: expect.any(String),
     })
+  })
+
+  it('items に bodySizeMinMm と bodySizeMaxMm（number|null）が含まれる', async () => {
+    const { listDiseasePests } = await import('@/lib/services/pesticide-read-service')
+    const result = await listDiseasePests({})
+
+    for (const item of result.items) {
+      expect('bodySizeMinMm' in item).toBe(true)
+      expect('bodySizeMaxMm' in item).toBe(true)
+      expect(item.bodySizeMinMm === null || typeof item.bodySizeMinMm === 'number').toBe(true)
+      expect(item.bodySizeMaxMm === null || typeof item.bodySizeMaxMm === 'number').toBe(true)
+    }
+  })
+
+  it('bodySizeMinMm/bodySizeMaxMm に数値がある場合にも正しく返す', async () => {
+    const withBodySize = [
+      { ...mockDiseasePests[0], bodySizeMinMm: 2.5, bodySizeMaxMm: 5.0 },
+    ]
+    mockDiseasePestFindMany.mockResolvedValueOnce(withBodySize)
+
+    const { listDiseasePests } = await import('@/lib/services/pesticide-read-service')
+    const result = await listDiseasePests({})
+
+    expect(result.items[0]?.bodySizeMinMm).toBe(2.5)
+    expect(result.items[0]?.bodySizeMaxMm).toBe(5.0)
   })
 
   it('category フィルタが DB クエリの where に渡される', async () => {
@@ -386,6 +417,28 @@ describe('getDiseasePestBySlug', () => {
         expect(val === null || typeof val === 'string').toBe(true)
       }
     }
+  })
+
+  it('結果に bodySizeMinMm と bodySizeMaxMm（number|null）が含まれる', async () => {
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result).not.toBeNull()
+    expect('bodySizeMinMm' in result!).toBe(true)
+    expect('bodySizeMaxMm' in result!).toBe(true)
+    expect(result!.bodySizeMinMm === null || typeof result!.bodySizeMinMm === 'number').toBe(true)
+    expect(result!.bodySizeMaxMm === null || typeof result!.bodySizeMaxMm === 'number').toBe(true)
+  })
+
+  it('bodySizeMinMm/bodySizeMaxMm に数値がある場合にも正しく返す', async () => {
+    const detailWithBodySize = { ...mockDiseasePestDetail, bodySizeMinMm: 1.0, bodySizeMaxMm: 3.5 }
+    mockDiseasePestFindUnique.mockResolvedValueOnce(detailWithBodySize)
+
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result?.bodySizeMinMm).toBe(1.0)
+    expect(result?.bodySizeMaxMm).toBe(3.5)
   })
 
   it('PEST_IMAGE_FALLBACK が詳細にも適用される（既知 slug）', async () => {

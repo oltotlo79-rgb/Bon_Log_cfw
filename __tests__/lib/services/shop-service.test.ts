@@ -1198,3 +1198,122 @@ describe('listGenresV1', () => {
     expect(result).toMatchObject({ ok: false })
   })
 })
+
+// ──────────────────────────────────────────────────
+// getShopMapPinsV1（M-1）
+// ──────────────────────────────────────────────────
+
+const mockMapPinShops = [
+  {
+    id: 'shop-1',
+    name: 'テスト盆栽園1',
+    address: '東京都渋谷区テスト1-1-1',
+    latitude: new Decimal('35.6895'),
+    longitude: new Decimal('139.6917'),
+  },
+  {
+    id: 'shop-2',
+    name: 'テスト盆栽園2',
+    address: '大阪府大阪市1-1-1',
+    latitude: new Decimal('34.6937'),
+    longitude: new Decimal('135.5023'),
+  },
+]
+
+const mockMapPinRatings = [
+  { shopId: 'shop-1', _avg: { rating: 4.2 }, _count: { rating: 10 } },
+]
+
+describe('getShopMapPinsV1', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockBonsaiShopFindMany.mockResolvedValue(mockMapPinShops)
+    mockGetCachedShopRatings.mockResolvedValue(mockMapPinRatings)
+  })
+
+  it('正常系: ok: true と items 配列を返す', async () => {
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    expect(result.items).toHaveLength(2)
+  })
+
+  it('各 item に { id, name, latitude, longitude, address, averageRating, reviewCount } がある', async () => {
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    expect(result.items[0]).toMatchObject({
+      id: 'shop-1',
+      name: 'テスト盆栽園1',
+      address: '東京都渋谷区テスト1-1-1',
+    })
+  })
+
+  it('latitude/longitude は Decimal から number に変換される', async () => {
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    expect(typeof result.items[0]?.latitude).toBe('number')
+    expect(typeof result.items[0]?.longitude).toBe('number')
+    expect(result.items[0]?.latitude).toBeCloseTo(35.6895)
+    expect(result.items[0]?.longitude).toBeCloseTo(139.6917)
+  })
+
+  it('評価データがある店舗: averageRating と reviewCount が付与される', async () => {
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    const shop1 = result.items.find((i) => i.id === 'shop-1')
+    expect(shop1?.averageRating).toBe(4.2)
+    expect(shop1?.reviewCount).toBe(10)
+  })
+
+  it('評価データがない店舗: averageRating=null, reviewCount=0', async () => {
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    const shop2 = result.items.find((i) => i.id === 'shop-2')
+    expect(shop2?.averageRating).toBeNull()
+    expect(shop2?.reviewCount).toBe(0)
+  })
+
+  it('空リスト: ok: true と空 items', async () => {
+    mockBonsaiShopFindMany.mockResolvedValueOnce([])
+    mockGetCachedShopRatings.mockResolvedValueOnce([])
+
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    expect(result.items).toHaveLength(0)
+  })
+
+  it('prisma が例外をスローした場合 ok: false を返す', async () => {
+    mockBonsaiShopFindMany.mockRejectedValue(new Error('DB error'))
+
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: false })
+  })
+
+  it('Error インスタンス以外が throw されたときも ok: false を返す', async () => {
+    mockGetCachedShopRatings.mockRejectedValue('cache error')
+
+    const { getShopMapPinsV1 } = await import('@/lib/services/shop-service')
+    const result = await getShopMapPinsV1()
+
+    expect(result).toMatchObject({ ok: false })
+  })
+})

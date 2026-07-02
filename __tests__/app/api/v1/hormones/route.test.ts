@@ -78,6 +78,31 @@ const mockHormoneDetail = {
     { month: 9, level: 'low' },
     { month: 12, level: 'none' },
   ],
+  interactions: [
+    {
+      id: 'int1',
+      hormoneAId: 'h1',
+      hormoneAName: 'オーキシン',
+      hormoneASlug: 'auxin',
+      hormoneBId: 'h2',
+      hormoneBName: 'サイトカイニン',
+      hormoneBSlug: 'cytokinin',
+      type: 'synergistic',
+      description: '相乗作用',
+      bonsaiRelevance: '根の発達に有効',
+    },
+  ],
+  techniques: [
+    {
+      id: 't1',
+      techniqueKey: 'pruning',
+      techniqueNameJa: '剪定',
+      techniqueNameEn: 'Pruning',
+      effectType: 'promote',
+      magnitude: 'moderate',
+      mechanism: '頂芽優勢の解除',
+    },
+  ],
 }
 
 async function makeAuthenticatedRequest(
@@ -306,6 +331,43 @@ describe('GET /api/v1/hormones/{slug} (詳細)', () => {
     const body = await res.json()
     const months = body.seasonalLevels.map((sl: { month: number }) => sl.month)
     expect(months).toEqual([...months].sort((a: number, b: number) => a - b))
+  })
+
+  it('詳細レスポンスに interactions 配列が含まれる（H-1/H-2 後方互換）', async () => {
+    const req = await makeAuthenticatedRequest('user-1', 'user@example.com', '/api/v1/hormones/auxin')
+    const { GET } = await import('@/app/api/v1/hormones/[slug]/route')
+    const res = await GET(req, { params: Promise.resolve({ slug: 'auxin' }) })
+
+    const body = await res.json()
+    expect(Array.isArray(body.interactions)).toBe(true)
+    expect(body.interactions).toHaveLength(1)
+    expect(body.interactions[0]).toMatchObject({
+      id: expect.any(String),
+      hormoneAId: expect.any(String),
+      hormoneAName: expect.any(String),
+      hormoneASlug: expect.any(String),
+      hormoneBId: expect.any(String),
+      hormoneBName: expect.any(String),
+      hormoneBSlug: expect.any(String),
+      type: expect.any(String),
+    })
+  })
+
+  it('詳細レスポンスに techniques 配列が含まれる（H-1/H-2 後方互換）', async () => {
+    const req = await makeAuthenticatedRequest('user-1', 'user@example.com', '/api/v1/hormones/auxin')
+    const { GET } = await import('@/app/api/v1/hormones/[slug]/route')
+    const res = await GET(req, { params: Promise.resolve({ slug: 'auxin' }) })
+
+    const body = await res.json()
+    expect(Array.isArray(body.techniques)).toBe(true)
+    expect(body.techniques).toHaveLength(1)
+    expect(body.techniques[0]).toMatchObject({
+      id: expect.any(String),
+      techniqueKey: 'pruning',
+      techniqueNameJa: '剪定',
+      effectType: expect.any(String),
+      magnitude: expect.any(String),
+    })
   })
 
   it('ゲストユーザーも 200 を返す', async () => {
