@@ -85,6 +85,8 @@ async function main() {
     startConversationRequestSchema,
     sendMessageRequestSchema,
     MAX_MESSAGE_LENGTH,
+    twoFactorEnableRequestSchema,
+    twoFactorDisableRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -98,6 +100,8 @@ async function main() {
     postSchema,
     commentSchema,
     commentsListResponseSchema,
+    userCommentListItemSchema,
+    userCommentsListResponseSchema,
     userProfileSchema,
     searchPostsResponseSchema,
     searchUsersResponseSchema,
@@ -262,6 +266,9 @@ async function main() {
     fertilizerColumnItemSchema,
     fertilizerColumnDetailSchema,
     fertilizerColumnListResponseSchema,
+    twoFactorSetupResponseSchema,
+    twoFactorEnableResponseSchema,
+    twoFactorDisableResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -350,6 +357,39 @@ async function main() {
     verify2FARequestSchema.openapi({
       description: '2FA コード検証のリクエスト。',
     }),
+  )
+
+  const TwoFactorSetupResponse = registry.register(
+    'TwoFactorSetupResponse',
+    twoFactorSetupResponseSchema.openapi({
+      description:
+        'GET /api/v1/auth/2fa/setup 成功レスポンス。otpAuthUrl は otpauth:// URI（Native 側でローカルに QR を描画する用途）。' +
+        'setupId は POST /api/v1/auth/2fa/enable に必須で渡す（TOTP シークレットの再送を避けるための一時参照キー）。',
+    }),
+  )
+
+  const TwoFactorEnableRequest = registry.register(
+    'TwoFactorEnableRequest',
+    twoFactorEnableRequestSchema.openapi({
+      description: '2FA 有効化リクエスト。code は TOTP コード、setupId は GET /api/v1/auth/2fa/setup で発行された参照キー。',
+    }),
+  )
+
+  const TwoFactorEnableResponse = registry.register(
+    'TwoFactorEnableResponse',
+    twoFactorEnableResponseSchema.openapi({ description: '2FA 有効化成功レスポンス。' }),
+  )
+
+  const TwoFactorDisableRequest = registry.register(
+    'TwoFactorDisableRequest',
+    twoFactorDisableRequestSchema.openapi({
+      description: '2FA 無効化リクエスト。password は本人確認用（TOTP コードではない）。',
+    }),
+  )
+
+  const TwoFactorDisableResponse = registry.register(
+    'TwoFactorDisableResponse',
+    twoFactorDisableResponseSchema.openapi({ description: '2FA 無効化成功レスポンス。' }),
   )
 
   const RefreshRequest = registry.register(
@@ -659,6 +699,23 @@ async function main() {
     commentsListResponseSchema.openapi({ description: 'コメント一覧取得レスポンス。' }),
   )
 
+  registry.register(
+    'UserCommentItem',
+    userCommentListItemSchema.openapi({
+      description:
+        'ユーザーのコメント一覧の 1 件（id, content, createdAt, post）。' +
+        'post は { id, content } のみ（Post に slug/title は存在しないため）。' +
+        'Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する。',
+    }),
+  )
+
+  const UserCommentsListResponse = registry.register(
+    'UserCommentsListResponse',
+    userCommentsListResponseSchema.openapi({
+      description: 'GET /api/v1/users/{id}/comments 成功レスポンス。createdAt DESC 順。',
+    }),
+  )
+
   const UserProfileResponse = registry.register(
     'UserProfileResponse',
     userProfileSchema.openapi({ description: 'ユーザープロフィール取得レスポンス。' }),
@@ -848,6 +905,110 @@ async function main() {
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
       429: rateLimitedResponse,
       503: errorResponse('サーバー設定エラー (SERVER_MISCONFIGURED)'),
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/auth/2fa/setup',
+    tags: ['auth'],
+    summary: '2FA セットアップを開始',
+    description: [
+      'TOTP シークレット・otpauth URI・バックアップコードを生成し、Redis に一時保存する（TTL あり）。',
+      '',
+      '重要仕様:',
+      '- 平文シークレットは DB に保存されない。setupId で Redis の一時データを参照する',
+      '- setupId は POST /api/v1/auth/2fa/enable に必須で渡す',
+      '- 既に 2FA が有効な場合は 409 CONFLICT',
+      '- レート制限: two_factor_setup（15 分に 10 回）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: '2FA セットアップ情報の生成成功',
+        content: { 'application/json': { schema: TwoFactorSetupResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      409: errorResponse('2FA が既に有効 (CONFLICT)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/auth/2fa/enable',
+    tags: ['auth'],
+    summary: '2FA を有効化',
+    description: [
+      'GET /api/v1/auth/2fa/setup で発行された setupId と TOTP コードを検証し、2FA を有効化する。',
+      '',
+      '重要仕様:',
+      '- 検証成功後、Redis の一時セットアップデータは削除される（リプレイ防止）',
+      '- setupId が期限切れ/不正な場合は 401 AUTH_2FA_TICKET_EXPIRED',
+      '- レート制限: two_factor_setup（15 分に 10 回）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: TwoFactorEnableRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '2FA 有効化成功',
+        content: { 'application/json': { schema: TwoFactorEnableResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse(
+        'Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、' +
+          'セットアップ期限切れ (AUTH_2FA_TICKET_EXPIRED)、またはコード不正 (AUTH_2FA_INVALID_CODE)',
+      ),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      409: errorResponse('2FA が既に有効 (CONFLICT)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/auth/2fa/disable',
+    tags: ['auth'],
+    summary: '2FA を無効化',
+    description: [
+      'パスワードを検証した上で 2FA を無効化する（TOTP コードではなくパスワードで本人確認する）。',
+      '',
+      '重要仕様:',
+      '- OAuth 専用アカウント（パスワード未設定）は 409 CONFLICT',
+      '- レート制限: two_factor_setup（15 分に 10 回）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: TwoFactorDisableRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: '2FA 無効化成功',
+        content: { 'application/json': { schema: TwoFactorDisableResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse(
+        'Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、またはパスワード不正 (AUTH_INVALID_CREDENTIALS)',
+      ),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      409: errorResponse('2FA が無効、またはパスワード未設定 (CONFLICT)'),
+      429: rateLimitedResponse,
     },
   })
 
@@ -1289,6 +1450,43 @@ async function main() {
       200: {
         description: 'ユーザー投稿一覧',
         content: { 'application/json': { schema: UserPostsResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/{id}/comments',
+    tags: ['users'],
+    summary: 'ユーザーのコメント一覧を取得（カーソルページネーション）',
+    description: [
+      '指定ユーザーのコメントをカーソルページネーションで返す（createdAt DESC 順）。',
+      '',
+      '重要仕様:',
+      '- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す',
+      '- ゲストアクセス可: 公開アカウントのコメントを閲覧できる',
+      '- 非表示 (isHidden) / 削除済み (deletedAt) コメントは除外',
+      '- コメント先の投稿が閲覧不可（非表示/非公開著者等）な場合はそのコメントも除外',
+      '- post は { id, content } のみ（Post に slug/title は存在しないため）。Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する',
+      '- レート制限: timeline（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ユーザー ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ユーザーコメント一覧',
+        content: { 'application/json': { schema: UserCommentsListResponse } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -3416,7 +3614,7 @@ async function main() {
     }),
   )
 
-  registry.register(
+  const DiseasePestDetail = registry.register(
     'DiseasePestDetail',
     diseasePestDetailSchema.openapi({
       description: '病害虫詳細（effects: 有効農薬一覧を含む）。',
@@ -3465,10 +3663,10 @@ async function main() {
     }),
   )
 
-  registry.register(
+  const PesticideDetail = registry.register(
     'PesticideDetail',
     pesticideDetailSchema.openapi({
-      description: '農薬製品詳細（formulationType, activeIngredients, effects, incompatibilities を含む）。',
+      description: '農薬製品詳細（formulationType, activeIngredients, effects, incompatibilities, spreaderTypes を含む）。',
     }),
   )
 
@@ -3517,7 +3715,7 @@ async function main() {
     }),
   )
 
-  registry.register(
+  const SpreaderTypeDetail = registry.register(
     'SpreaderTypeDetail',
     spreaderTypeDetailSchema.openapi({
       description: '展着剤タイプ詳細（effect / usageNote を追加）。',
@@ -3559,7 +3757,7 @@ async function main() {
     }),
   )
 
-  registry.register(
+  const PesticideColumnDetail = registry.register(
     'PesticideColumnDetail',
     pesticideColumnDetailSchema.openapi({
       description: '農薬コラム詳細（content / createdAt / updatedAt を追加）。',
@@ -3671,7 +3869,7 @@ async function main() {
     responses: {
       200: {
         description: '病害虫詳細取得成功',
-        content: { 'application/json': { schema: diseasePestDetailSchema } },
+        content: { 'application/json': { schema: DiseasePestDetail } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -3742,7 +3940,7 @@ async function main() {
     responses: {
       200: {
         description: '農薬製品詳細取得成功',
-        content: { 'application/json': { schema: pesticideDetailSchema } },
+        content: { 'application/json': { schema: PesticideDetail } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -3864,7 +4062,7 @@ async function main() {
     responses: {
       200: {
         description: '展着剤タイプ詳細取得成功',
-        content: { 'application/json': { schema: spreaderTypeDetailSchema } },
+        content: { 'application/json': { schema: SpreaderTypeDetail } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -3957,7 +4155,7 @@ async function main() {
     responses: {
       200: {
         description: '農薬コラム詳細取得成功',
-        content: { 'application/json': { schema: pesticideColumnDetailSchema } },
+        content: { 'application/json': { schema: PesticideColumnDetail } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR) — slug 形式不正'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -6666,7 +6864,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.28.0',
+      version: '1.29.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

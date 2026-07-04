@@ -29,6 +29,33 @@ export const requires2FASchema = z.object({
 })
 export type Requires2FAResponse = z.infer<typeof requires2FASchema>
 
+/**
+ * GET /api/v1/auth/2fa/setup 200
+ *
+ * otpAuthUrl は otpauth:// URI（Native 側でローカルに QR を描画する用途）。
+ * setupId は POST /api/v1/auth/2fa/enable に必須で渡す必要がある
+ * （TOTP シークレットの再送を避けるための一時参照キー）。
+ */
+export const twoFactorSetupResponseSchema = z.object({
+  secret: z.string(),
+  otpAuthUrl: z.string(),
+  setupId: z.string(),
+  backupCodes: z.array(z.string()),
+})
+export type TwoFactorSetupResponse = z.infer<typeof twoFactorSetupResponseSchema>
+
+/** POST /api/v1/auth/2fa/enable 200 */
+export const twoFactorEnableResponseSchema = z.object({
+  enabled: z.literal(true),
+})
+export type TwoFactorEnableResponse = z.infer<typeof twoFactorEnableResponseSchema>
+
+/** DELETE /api/v1/auth/2fa/disable 200 */
+export const twoFactorDisableResponseSchema = z.object({
+  disabled: z.literal(true),
+})
+export type TwoFactorDisableResponse = z.infer<typeof twoFactorDisableResponseSchema>
+
 /** 単純な成功フラグ（logout / password-reset/request / password-reset/confirm） */
 export const successSchema = z.object({
   success: z.literal(true),
@@ -228,6 +255,28 @@ export const commentsListResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 })
 export type CommentsListResponse = z.infer<typeof commentsListResponseSchema>
+
+/**
+ * GET /api/v1/users/[id]/comments の 1 件。
+ * Post に slug/title が存在しないため、遷移先として `post.id` を GET /api/v1/posts/{id} に渡す設計。
+ */
+export const userCommentListItemSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  post: z.object({
+    id: z.string(),
+    content: z.string().nullable(),
+  }),
+})
+export type UserCommentListItem = z.infer<typeof userCommentListItemSchema>
+
+/** GET /api/v1/users/[id]/comments 200 */
+export const userCommentsListResponseSchema = z.object({
+  items: z.array(userCommentListItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type UserCommentsListResponse = z.infer<typeof userCommentsListResponseSchema>
 
 /** GET /api/v1/users/[id] 200 */
 export const userProfileSchema = z.object({
@@ -589,12 +638,18 @@ export const fertilizationMonthSchema = z.object({
   potassiumLevel: z.string().nullable(),
   recommendedType: z.string().nullable(),
   description: z.string().nullable(),
+  cautionNote: z.string().nullable(),
 })
 export type FertilizationMonth = z.infer<typeof fertilizationMonthSchema>
 
 /** GET /api/v1/fertilizers/tree-species/{slug}/schedule 200 */
 export const fertilizationScheduleResponseSchema = z.object({
   treeSpeciesName: z.string(),
+  nameEn: z.string().nullable(),
+  category: z.string(),
+  description: z.string().nullable(),
+  examples: z.string().nullable(),
+  fertilizingPolicy: z.string().nullable(),
   slug: z.string(),
   months: z.array(fertilizationMonthSchema),
 })
@@ -962,12 +1017,21 @@ export const pesticideIncompatibilityItemSchema = z.object({
 })
 export type PesticideIncompatibilityItem = z.infer<typeof pesticideIncompatibilityItemSchema>
 
+/** 農薬製品詳細の展着剤タイプ 1 件（GET /api/v1/pesticides/spreader-products の spreaderTypes 配列要素と共用） */
+export const spreaderTypeInProductSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+})
+export type SpreaderTypeInProduct = z.infer<typeof spreaderTypeInProductSchema>
+
 /** GET /api/v1/pesticides/products/{slug} の詳細 */
 export const pesticideDetailSchema = pesticideItemSchema.extend({
   formulationType: pesticideFormulationTypeSchema.nullable(),
   activeIngredients: z.array(pesticideActiveIngredientItemSchema),
   effects: z.array(pesticideEffectItemSchema),
   incompatibilities: z.array(pesticideIncompatibilityItemSchema),
+  spreaderTypes: z.array(spreaderTypeInProductSchema),
 })
 export type PesticideDetail = z.infer<typeof pesticideDetailSchema>
 
@@ -1054,14 +1118,6 @@ export const spreaderTypeListResponseSchema = z.object({
   items: z.array(spreaderTypeItemSchema),
 })
 export type SpreaderTypeListResponse = z.infer<typeof spreaderTypeListResponseSchema>
-
-/** GET /api/v1/pesticides/spreader-products の spreaderTypes 配列要素 */
-export const spreaderTypeInProductSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-})
-export type SpreaderTypeInProduct = z.infer<typeof spreaderTypeInProductSchema>
 
 /** GET /api/v1/pesticides/spreader-products の 1 件 */
 export const spreaderProductItemSchema = z.object({

@@ -37,6 +37,11 @@ export async function GET(
 
   return NextResponse.json({
     treeSpeciesName: species.name,
+    nameEn: species.nameEn,
+    category: species.category,
+    description: species.description,
+    examples: species.examples,
+    fertilizingPolicy: species.fertilizingPolicy,
     slug: species.slug,
     months: species.plans,
   })

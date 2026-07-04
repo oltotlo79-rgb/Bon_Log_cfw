@@ -2,6 +2,11 @@
  * 2段階認証（2FA）Server Actions
  *
  * @module lib/actions/two-factor
+ *
+ * setup2FA / enable2FA / disable2FA / regenerateBackupCodes / get2FAStatus のコア処理
+ * （Prisma 操作・Redis セットアップ管理）は lib/services/two-factor-service.ts に委譲する。
+ * このファイルは 認証 → Zod → レート制限 → service 呼び出し → revalidatePath の薄いラッパ。
+ * verify2FAToken（ログイン用）はセッション未確立の経路のためコア処理を含めて維持する。
  */
 
 'use server'
@@ -10,18 +15,17 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireAuth, requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit, type ActionResult } from '@/lib/actions/utils'
-import bcrypt from 'bcryptjs'
-import { getRedisClient } from '@/lib/redis'
-import { TWO_FACTOR_CODE_LENGTH, TWO_FACTOR_SETUP_TTL_SECONDS } from '@/lib/constants/limits'
 import {
-  generateSecret,
-  generateTOTPUri,
-  generateQRCode,
+  setup2FAForUser,
+  enable2FAForUser,
+  disable2FAForUser,
+  regenerateBackupCodesForUser,
+  get2FAStatusForUser,
+} from '@/lib/services/two-factor-service'
+import { TWO_FACTOR_CODE_LENGTH } from '@/lib/constants/limits'
+import {
   verifyTOTP,
-  generateBackupCodes,
-  hashBackupCode,
   verifyBackupCode,
-  encryptSecret,
   decryptSecret,
   detectCodeType,
   formatTOTPCode,
@@ -31,36 +35,8 @@ import { getClientIp } from '@/lib/actions/utils'
 import { issueTwoFactorLoginTicket } from '@/lib/two-factor-login-ticket'
 import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 
-import { ERR_USER_NOT_FOUND, ERR_2FA_ALREADY_ENABLED, ERR_2FA_INVALID_CODE, ERR_2FA_NOT_ENABLED, ERR_2FA_SETUP_EXPIRED, ERR_NO_PASSWORD_SET, ERR_INCORRECT_PASSWORD, ERR_INVALID_INPUT } from '@/lib/constants/errors'
+import { ERR_2FA_INVALID_CODE, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_SETTINGS_SECURITY } from '@/lib/constants/routes'
-
-/** Redis キーのプレフィックス */
-const TWO_FACTOR_SETUP_KEY_PREFIX = '2fa_setup'
-
-/**
- * セットアップ用の一時データ構造。
- * シークレットは暗号化済み、バックアップコードはハッシュ化済み。
- *
- * Redis から戻った JSON を `as PendingSetup` キャストで信用してしまうと、
- * 改竄や Redis 側のバージョン差で壊れたペイロードが実行時に処理されるため、
- * Zod スキーマで境界検証してから使用する。
- */
-const pendingSetupSchema = z.object({
-  encryptedSecret: z.string().min(1),
-  hashedBackupCodes: z.array(z.string().min(1)),
-})
-type PendingSetup = z.infer<typeof pendingSetupSchema>
-
-function buildSetupKey(userId: string, setupId: string): string {
-  return `${TWO_FACTOR_SETUP_KEY_PREFIX}:${userId}:${setupId}`
-}
-
-/**
- * セットアップID（UUID）を生成。Web Crypto API 経由で Node/Edge/jsdom 全環境で動作。
- */
-function generateSetupId(): string {
-  return globalThis.crypto.randomUUID()
-}
 
 const enable2FASchema = z.object({
   token: z.string().min(1),
@@ -93,36 +69,16 @@ export async function setup2FA(): Promise<ActionResult<{ qrCode: string; secret:
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, twoFactorEnabled: true },
-  })
-
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-  if (user.twoFactorEnabled) {
-    return actionError(ERR_2FA_ALREADY_ENABLED)
-  }
-
-  const secret = generateSecret()
-  const qrCode = await generateQRCode(generateTOTPUri(secret, user.email))
-  const backupCodes = generateBackupCodes()
-
-  // 平文 secret は決して DB に保存せず、Redis に暗号化/ハッシュ化して一時退避する。
-  // 有効化リクエストは setupId だけで完結し、クライアントから secret を再送させない設計。
-  const setupId = generateSetupId()
-  const pending: PendingSetup = {
-    encryptedSecret: encryptSecret(secret),
-    hashedBackupCodes: backupCodes.map((code) => hashBackupCode(code)),
-  }
-  const redis = getRedisClient()
-  await redis.set(buildSetupKey(userId, setupId), JSON.stringify(pending), {
-    ex: TWO_FACTOR_SETUP_TTL_SECONDS,
-  })
+  const result = await setup2FAForUser(userId)
+  if (!result.ok) return actionError(result.error)
 
   // secret / backupCodes は「画面に 1 回だけ表示する用途」で返却。
-  return actionSuccess({ qrCode, secret, setupId, backupCodes })
+  return actionSuccess({
+    qrCode: result.qrCode,
+    secret: result.secret,
+    setupId: result.setupId,
+    backupCodes: result.backupCodes,
+  })
 }
 
 /**
@@ -152,57 +108,8 @@ export async function enable2FA(
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { twoFactorEnabled: true },
-  })
-
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  if (user.twoFactorEnabled) {
-    return actionError(ERR_2FA_ALREADY_ENABLED)
-  }
-
-  // Redisからセットアップ情報を復元
-  const redis = getRedisClient()
-  const setupKey = buildSetupKey(userId, setupId)
-  const raw = await redis.get(setupKey)
-  if (!raw) {
-    return actionError(ERR_2FA_SETUP_EXPIRED)
-  }
-
-  let pending: PendingSetup
-  try {
-    const parsed = pendingSetupSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) {
-      return actionError(ERR_2FA_SETUP_EXPIRED)
-    }
-    pending = parsed.data
-  } catch {
-    return actionError(ERR_2FA_SETUP_EXPIRED)
-  }
-
-  // 復号してTOTPコードを検証
-  const secret = decryptSecret(pending.encryptedSecret)
-  const isValid = await verifyTOTP(token, secret)
-  if (!isValid) {
-    return actionError(ERR_2FA_INVALID_CODE)
-  }
-
-  // DBを更新して2FAを有効化
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      twoFactorEnabled: true,
-      twoFactorSecret: pending.encryptedSecret,
-      twoFactorBackupCodes: pending.hashedBackupCodes,
-    },
-  })
-
-  // 一時データを削除（リプレイ防止）
-  await redis.del(setupKey)
+  const result = await enable2FAForUser(userId, parsed.data.token, parsed.data.setupId)
+  if (!result.ok) return actionError(result.error)
 
   revalidatePath(ROUTE_SETTINGS_SECURITY)
 
@@ -228,39 +135,8 @@ export async function disable2FA(password: string): Promise<ActionResult> {
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { password: true, twoFactorEnabled: true },
-  })
-
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  if (!user.twoFactorEnabled) {
-    return actionError(ERR_2FA_NOT_ENABLED)
-  }
-
-  // パスワードが設定されていない場合（OAuth専用アカウント）
-  if (!user.password) {
-    return actionError(ERR_NO_PASSWORD_SET)
-  }
-
-  // パスワードを検証
-  const isPasswordValid = await bcrypt.compare(password, user.password)
-  if (!isPasswordValid) {
-    return actionError(ERR_INCORRECT_PASSWORD)
-  }
-
-  // 2FAを無効化
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      twoFactorBackupCodes: [],
-    },
-  })
+  const result = await disable2FAForUser(userId, parsed.data.password)
+  if (!result.ok) return actionError(result.error)
 
   revalidatePath(ROUTE_SETTINGS_SECURITY)
 
@@ -389,42 +265,12 @@ export async function regenerateBackupCodes(
   const rl = await enforceUserRateLimit(userId, 'two_factor_setup')
   if (rl) return actionError(rl.error)
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { password: true, twoFactorEnabled: true },
-  })
-
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  if (!user.twoFactorEnabled) {
-    return actionError(ERR_2FA_NOT_ENABLED)
-  }
-
-  if (!user.password) {
-    return actionError(ERR_NO_PASSWORD_SET)
-  }
-
-  // パスワードを検証
-  const isPasswordValid = await bcrypt.compare(password, user.password)
-  if (!isPasswordValid) {
-    return actionError(ERR_INCORRECT_PASSWORD)
-  }
-
-  // 新しいバックアップコードを生成
-  const newBackupCodes = generateBackupCodes()
-  const hashedBackupCodes = newBackupCodes.map((code) => hashBackupCode(code))
-
-  // DBを更新
-  await prisma.user.update({
-    where: { id: userId },
-    data: { twoFactorBackupCodes: hashedBackupCodes },
-  })
+  const result = await regenerateBackupCodesForUser(userId, parsed.data.password)
+  if (!result.ok) return actionError(result.error)
 
   revalidatePath(ROUTE_SETTINGS_SECURITY)
 
-  return actionSuccess({ backupCodes: newBackupCodes })
+  return actionSuccess({ backupCodes: result.backupCodes })
 }
 
 /**
@@ -437,22 +283,12 @@ export async function get2FAStatus(): Promise<ActionResult<{ enabled: boolean; b
   if ('error' in auth) return actionError(auth.error)
   const userId = auth.userId
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { twoFactorEnabled: true, twoFactorBackupCodes: true },
-  })
+  const result = await get2FAStatusForUser(userId)
+  if (!result.ok) return actionError(result.error)
 
-  if (!user) {
-    return actionError(ERR_USER_NOT_FOUND)
-  }
-
-  if (user.twoFactorEnabled) {
-    return actionSuccess({
-      enabled: true,
-      backupCodesRemaining: user.twoFactorBackupCodes.length,
-    })
+  if (result.enabled) {
+    return actionSuccess({ enabled: true, backupCodesRemaining: result.backupCodesRemaining })
   }
 
   return actionSuccess({ enabled: false })
 }
-

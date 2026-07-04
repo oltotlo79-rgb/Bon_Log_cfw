@@ -163,6 +163,11 @@ const mockPesticideDetail = {
       },
     },
   ],
+  spreaderTypes: [
+    {
+      spreaderType: { id: 'st1', slug: 'nonionic', name: '非イオン系' },
+    },
+  ],
 }
 
 const mockIngredients = [
@@ -678,6 +683,29 @@ describe('getPesticideBySlug', () => {
     const result = await getPesticideBySlug('sumithion')
 
     expect(result?.formulationType).toBeNull()
+  })
+
+  it('spreaderTypes 配列が含まれ { id, slug, name } を持つ', async () => {
+    const { getPesticideBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getPesticideBySlug('sumithion')
+
+    expect(Array.isArray(result?.spreaderTypes)).toBe(true)
+    expect(result?.spreaderTypes).toHaveLength(1)
+    expect(result?.spreaderTypes[0]).toMatchObject({
+      id: 'st1',
+      slug: 'nonionic',
+      name: '非イオン系',
+    })
+  })
+
+  it('展着剤が 0 件のケースで spreaderTypes が空配列になる', async () => {
+    const detailNoSpreader = { ...mockPesticideDetail, spreaderTypes: [] }
+    mockPesticideFindUnique.mockResolvedValueOnce(detailNoSpreader)
+
+    const { getPesticideBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getPesticideBySlug('sumithion')
+
+    expect(result?.spreaderTypes).toEqual([])
   })
 
   it('incompatibleWith の formulationType null → formulationTypeName null', async () => {

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.28.0",
+    "version": "1.29.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -366,6 +366,94 @@
           "code"
         ],
         "description": "2FA コード検証のリクエスト。"
+      },
+      "TwoFactorSetupResponse": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string"
+          },
+          "otpAuthUrl": {
+            "type": "string"
+          },
+          "setupId": {
+            "type": "string"
+          },
+          "backupCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "secret",
+          "otpAuthUrl",
+          "setupId",
+          "backupCodes"
+        ],
+        "description": "GET /api/v1/auth/2fa/setup 成功レスポンス。otpAuthUrl は otpauth:// URI（Native 側でローカルに QR を描画する用途）。setupId は POST /api/v1/auth/2fa/enable に必須で渡す（TOTP シークレットの再送を避けるための一時参照キー）。"
+      },
+      "TwoFactorEnableRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 6
+          },
+          "setupId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code",
+          "setupId"
+        ],
+        "description": "2FA 有効化リクエスト。code は TOTP コード、setupId は GET /api/v1/auth/2fa/setup で発行された参照キー。"
+      },
+      "TwoFactorEnableResponse": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "description": "2FA 有効化成功レスポンス。"
+      },
+      "TwoFactorDisableRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "description": "2FA 無効化リクエスト。password は本人確認用（TOTP コードではない）。"
+      },
+      "TwoFactorDisableResponse": {
+        "type": "object",
+        "properties": {
+          "disabled": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "disabled"
+        ],
+        "description": "2FA 無効化成功レスポンス。"
       },
       "RefreshRequest": {
         "type": "object",
@@ -2926,6 +3014,104 @@
         ],
         "description": "コメント一覧取得レスポンス。"
       },
+      "UserCommentItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "post": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "content": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "content"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "createdAt",
+          "post"
+        ],
+        "description": "ユーザーのコメント一覧の 1 件（id, content, createdAt, post）。post は { id, content } のみ（Post に slug/title は存在しないため）。Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する。"
+      },
+      "UserCommentsListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "post": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "createdAt",
+                "post"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "GET /api/v1/users/{id}/comments 成功レスポンス。createdAt DESC 順。"
+      },
       "UserProfileResponse": {
         "type": "object",
         "properties": {
@@ -4973,6 +5159,12 @@
               "string",
               "null"
             ]
+          },
+          "cautionNote": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -4982,7 +5174,8 @@
           "phosphorusLevel",
           "potassiumLevel",
           "recommendedType",
-          "description"
+          "description",
+          "cautionNote"
         ],
         "description": "月別施肥データ 1 件（month 1〜12、action、各栄養素レベル、推奨肥料タイプ、備考）。"
       },
@@ -4991,6 +5184,33 @@
         "properties": {
           "treeSpeciesName": {
             "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "examples": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fertilizingPolicy": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "slug": {
             "type": "string"
@@ -5035,6 +5255,12 @@
                     "string",
                     "null"
                   ]
+                },
+                "cautionNote": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
               },
               "required": [
@@ -5044,13 +5270,19 @@
                 "phosphorusLevel",
                 "potassiumLevel",
                 "recommendedType",
-                "description"
+                "description",
+                "cautionNote"
               ]
             }
           }
         },
         "required": [
           "treeSpeciesName",
+          "nameEn",
+          "category",
+          "description",
+          "examples",
+          "fertilizingPolicy",
           "slug",
           "months"
         ],
@@ -7231,6 +7463,28 @@
                 "formulationTypeName"
               ]
             }
+          },
+          "spreaderTypes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "name"
+              ]
+            }
           }
         },
         "required": [
@@ -7243,9 +7497,10 @@
           "formulationType",
           "activeIngredients",
           "effects",
-          "incompatibilities"
+          "incompatibilities",
+          "spreaderTypes"
         ],
-        "description": "農薬製品詳細（formulationType, activeIngredients, effects, incompatibilities を含む）。"
+        "description": "農薬製品詳細（formulationType, activeIngredients, effects, incompatibilities, spreaderTypes を含む）。"
       },
       "PesticideListResponse": {
         "type": "object",
@@ -13173,6 +13428,298 @@
         }
       }
     },
+    "/api/v1/auth/2fa/setup": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "2FA セットアップを開始",
+        "description": "TOTP シークレット・otpauth URI・バックアップコードを生成し、Redis に一時保存する（TTL あり）。\n\n重要仕様:\n- 平文シークレットは DB に保存されない。setupId で Redis の一時データを参照する\n- setupId は POST /api/v1/auth/2fa/enable に必須で渡す\n- 既に 2FA が有効な場合は 409 CONFLICT\n- レート制限: two_factor_setup（15 分に 10 回）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "2FA セットアップ情報の生成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorSetupResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "2FA が既に有効 (CONFLICT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/2fa/enable": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "2FA を有効化",
+        "description": "GET /api/v1/auth/2fa/setup で発行された setupId と TOTP コードを検証し、2FA を有効化する。\n\n重要仕様:\n- 検証成功後、Redis の一時セットアップデータは削除される（リプレイ防止）\n- setupId が期限切れ/不正な場合は 401 AUTH_2FA_TICKET_EXPIRED\n- レート制限: two_factor_setup（15 分に 10 回）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorEnableRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA 有効化成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorEnableResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、セットアップ期限切れ (AUTH_2FA_TICKET_EXPIRED)、またはコード不正 (AUTH_2FA_INVALID_CODE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "2FA が既に有効 (CONFLICT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/2fa/disable": {
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "2FA を無効化",
+        "description": "パスワードを検証した上で 2FA を無効化する（TOTP コードではなくパスワードで本人確認する）。\n\n重要仕様:\n- OAuth 専用アカウント（パスワード未設定）は 409 CONFLICT\n- レート制限: two_factor_setup（15 分に 10 回）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorDisableRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA 無効化成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorDisableResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、またはパスワード不正 (AUTH_INVALID_CREDENTIALS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "2FA が無効、またはパスワード未設定 (CONFLICT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -14584,6 +15131,122 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserPostsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ユーザーが存在しない (NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/comments": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "ユーザーのコメント一覧を取得（カーソルページネーション）",
+        "description": "指定ユーザーのコメントをカーソルページネーションで返す（createdAt DESC 順）。\n\n重要仕様:\n- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す\n- ゲストアクセス可: 公開アカウントのコメントを閲覧できる\n- 非表示 (isHidden) / 削除済み (deletedAt) コメントは除外\n- コメント先の投稿が閲覧不可（非表示/非公開著者等）な場合はそのコメントも除外\n- post は { id, content } のみ（Post に slug/title は存在しないため）。Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する\n- レート制限: timeline（60/分）",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "ユーザー ID"
+            },
+            "required": true,
+            "description": "ユーザー ID",
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "カーソル"
+            },
+            "required": false,
+            "description": "カーソル",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "description": "取得上限件数"
+            },
+            "required": false,
+            "description": "取得上限件数",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ユーザーコメント一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCommentsListResponse"
                 }
               }
             }
@@ -19473,246 +20136,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "nameKana": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "category": {
-                      "type": "string",
-                      "enum": [
-                        "disease",
-                        "pest",
-                        "beneficial_insect"
-                      ]
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "imageUrl": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "bodySizeMinMm": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "bodySizeMaxMm": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "effects": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "pesticide": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              },
-                              "slug": {
-                                "type": "string"
-                              },
-                              "pesticideType": {
-                                "type": "string",
-                                "enum": [
-                                  "fungicide",
-                                  "insecticide",
-                                  "acaricide",
-                                  "compound",
-                                  "other"
-                                ]
-                              },
-                              "formulationType": {
-                                "type": [
-                                  "object",
-                                  "null"
-                                ],
-                                "properties": {
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "code": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "name",
-                                  "code"
-                                ]
-                              },
-                              "activeIngredients": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "fracCode": {
-                                      "type": [
-                                        "string",
-                                        "null"
-                                      ]
-                                    },
-                                    "iracCode": {
-                                      "type": [
-                                        "string",
-                                        "null"
-                                      ]
-                                    },
-                                    "resistanceRisk": {
-                                      "type": [
-                                        "string",
-                                        "null"
-                                      ],
-                                      "enum": [
-                                        "low",
-                                        "medium",
-                                        "high",
-                                        null
-                                      ]
-                                    },
-                                    "slug": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": [
-                                    "id",
-                                    "name",
-                                    "fracCode",
-                                    "iracCode",
-                                    "resistanceRisk",
-                                    "slug"
-                                  ]
-                                }
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name",
-                              "slug",
-                              "pesticideType",
-                              "formulationType",
-                              "activeIngredients"
-                            ]
-                          },
-                          "rating": {
-                            "type": "object",
-                            "properties": {
-                              "preventionLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              },
-                              "treatmentLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              },
-                              "efficacyLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              },
-                              "persistenceLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              }
-                            },
-                            "required": [
-                              "preventionLevel",
-                              "treatmentLevel",
-                              "efficacyLevel",
-                              "persistenceLevel"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "pesticide",
-                          "rating"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "nameKana",
-                    "category",
-                    "description",
-                    "imageUrl",
-                    "slug",
-                    "bodySizeMinMm",
-                    "bodySizeMaxMm",
-                    "effects"
-                  ]
+                  "$ref": "#/components/schemas/DiseasePestDetail"
                 }
               }
             }
@@ -19946,246 +20370,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "registrationNumber": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "pesticideType": {
-                      "type": "string",
-                      "enum": [
-                        "fungicide",
-                        "insecticide",
-                        "acaricide",
-                        "compound",
-                        "other"
-                      ]
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "formulationType": {
-                      "type": [
-                        "object",
-                        "null"
-                      ],
-                      "properties": {
-                        "name": {
-                          "type": "string"
-                        },
-                        "code": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "code"
-                      ]
-                    },
-                    "activeIngredients": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "fracCode": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "iracCode": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "resistanceRisk": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "enum": [
-                              "low",
-                              "medium",
-                              "high",
-                              null
-                            ]
-                          },
-                          "slug": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "fracCode",
-                          "iracCode",
-                          "resistanceRisk",
-                          "slug"
-                        ]
-                      }
-                    },
-                    "effects": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "diseasePest": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              },
-                              "slug": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name",
-                              "slug"
-                            ]
-                          },
-                          "rating": {
-                            "type": "object",
-                            "properties": {
-                              "preventionLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              },
-                              "treatmentLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              },
-                              "efficacyLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              },
-                              "persistenceLevel": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "enum": [
-                                  "excellent",
-                                  "good",
-                                  "fair",
-                                  "poor",
-                                  "none",
-                                  null
-                                ]
-                              }
-                            },
-                            "required": [
-                              "preventionLevel",
-                              "treatmentLevel",
-                              "efficacyLevel",
-                              "persistenceLevel"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "diseasePest",
-                          "rating"
-                        ]
-                      }
-                    },
-                    "incompatibilities": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "slug": {
-                            "type": "string"
-                          },
-                          "formulationTypeName": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "slug",
-                          "formulationTypeName"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "registrationNumber",
-                    "pesticideType",
-                    "description",
-                    "slug",
-                    "formulationType",
-                    "activeIngredients",
-                    "effects",
-                    "incompatibilities"
-                  ]
+                  "$ref": "#/components/schemas/PesticideDetail"
                 }
               }
             }
@@ -20549,97 +20734,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "sortOrder": {
-                      "type": "integer"
-                    },
-                    "products": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "slug": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "description": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "formulationType": {
-                            "type": [
-                              "object",
-                              "null"
-                            ],
-                            "properties": {
-                              "name": {
-                                "type": "string"
-                              },
-                              "code": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "name",
-                              "code"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "slug",
-                          "name",
-                          "description",
-                          "formulationType"
-                        ]
-                      }
-                    },
-                    "effect": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "usageNote": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "slug",
-                    "name",
-                    "description",
-                    "sortOrder",
-                    "products",
-                    "effect",
-                    "usageNote"
-                  ]
+                  "$ref": "#/components/schemas/SpreaderTypeDetail"
                 }
               }
             }
@@ -20931,50 +21026,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "category": {
-                      "type": "string"
-                    },
-                    "publishedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "sortOrder": {
-                      "type": "integer"
-                    },
-                    "content": {
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "slug",
-                    "title",
-                    "category",
-                    "publishedAt",
-                    "sortOrder",
-                    "content",
-                    "createdAt",
-                    "updatedAt"
-                  ]
+                  "$ref": "#/components/schemas/PesticideColumnDetail"
                 }
               }
             }

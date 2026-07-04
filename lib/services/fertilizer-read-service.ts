@@ -180,6 +180,11 @@ export async function getFertilizationScheduleBySlug(slug: string) {
       select: {
         id: true,
         name: true,
+        nameEn: true,
+        category: true,
+        description: true,
+        examples: true,
+        fertilizingPolicy: true,
         slug: true,
         plans: {
           select: {
@@ -190,6 +195,7 @@ export async function getFertilizationScheduleBySlug(slug: string) {
             potassiumLevel: true,
             recommendedType: true,
             description: true,
+            cautionNote: true,
           },
           orderBy: { month: 'asc' },
         },

@@ -172,11 +172,18 @@ export type PesticideIncompatibilityItem = {
   formulationTypeName: string | null
 }
 
+export type SpreaderTypeInProduct = {
+  id: string
+  slug: string
+  name: string
+}
+
 export type PesticideDetail = PesticideListItem & {
   formulationType: PesticideFormulationType | null
   activeIngredients: PesticideActiveIngredientItem[]
   effects: PesticideEffectItem[]
   incompatibilities: PesticideIncompatibilityItem[]
+  spreaderTypes: SpreaderTypeInProduct[]
 }
 
 export type IngredientDetail = IngredientListItem & {
@@ -487,6 +494,13 @@ export async function getPesticideBySlug(slug: string): Promise<PesticideDetail 
           },
           orderBy: { incompatibleWith: { name: 'asc' } },
         },
+        spreaderTypes: {
+          select: {
+            spreaderType: {
+              select: { id: true, slug: true, name: true },
+            },
+          },
+        },
       },
     })
     if (!p) return null
@@ -527,6 +541,11 @@ export async function getPesticideBySlug(slug: string): Promise<PesticideDetail 
         name: inc.incompatibleWith.name,
         slug: inc.incompatibleWith.slug,
         formulationTypeName: inc.incompatibleWith.formulationType?.name ?? null,
+      })),
+      spreaderTypes: p.spreaderTypes.map((st) => ({
+        id: st.spreaderType.id,
+        slug: st.spreaderType.slug,
+        name: st.spreaderType.name,
       })),
     }
   } catch (error) {

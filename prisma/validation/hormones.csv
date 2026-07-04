@@ -1,12 +1,12 @@
 slug,name,nameEn,category,chemicalFormula,source
 auxin,オーキシン,Auxin (IAA),major,C₁₀H₉NO₂,PubChem CID 802 / Taiz & Zeiger Plant Physiology Ch.19
-gibberellin,ジベレリン,Gibberellin (GA),major,C₁₉H₂₂O₆,PubChem CID 439551 (GA3) / Taiz & Zeiger Ch.20
+gibberellin,ジベレリン,Gibberellin (GA),major,C₁₉H₂₂O₆,PubChem CID 6466 (GA3) / Taiz & Zeiger Ch.20
 cytokinin,サイトカイニン,Cytokinin,major,C₁₀H₁₃N₅O,PubChem CID 449093 (Zeatin) / Taiz & Zeiger Ch.21
 abscisic-acid,アブシシン酸,Abscisic acid (ABA),major,C₁₅H₂₀O₄,PubChem CID 5280896 / Taiz & Zeiger Ch.23
 ethylene,エチレン,Ethylene,major,C₂H₄,PubChem CID 6325 / Taiz & Zeiger Ch.22
 jasmonic-acid,ジャスモン酸,Jasmonic acid (JA),secondary,C₁₂H₁₈O₃,PubChem CID 5281166 / Wasternack 2007
 salicylic-acid,サリチル酸,Salicylic acid (SA),secondary,C₇H₆O₃,PubChem CID 338 / Vlot et al. 2009
-brassinosteroid,ブラシノステロイド,Brassinosteroid (BR),secondary,C₂₈H₄₈O₆,PubChem CID 115196 (Brassinolide) / Clouse 2011
+brassinosteroid,ブラシノステロイド,Brassinosteroid (BR),secondary,C₂₈H₄₈O₆,PubChem CID 443055 (Brassinolide) / Clouse 2011
 strigolactone,ストリゴラクトン,Strigolactone (SL),secondary,C₁₉H₂₂O₆,Gomez-Roldan et al. 2008 / Umehara et al. 2008
 florigen,フロリゲン,Florigen (FT protein),secondary,,Corbesier et al. 2007 / Tamaki et al. 2007
 polyamine,ポリアミン,Polyamine,secondary,,Alcázar et al. 2010

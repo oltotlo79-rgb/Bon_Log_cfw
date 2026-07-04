@@ -6175,15 +6175,11 @@ export async function main() {
       { pesticideId: R(pMap, "rizolex-wp"), diseasePestId: R(dpMap, "kabukusare-byo"), preventionLevel: "excellent", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "rizolex-wp"), diseasePestId: R(dpMap, "shirakinu-byo"), preventionLevel: "excellent", treatmentLevel: "fair", efficacyLevel: "excellent", persistenceLevel: "excellent", note: "トルクロホスメチルは白絹病の土壌処理に高い効果" },
       { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "negusare-byo"), preventionLevel: "excellent", treatmentLevel: "good", efficacyLevel: "excellent", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "shiromonpa-byo"), preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "shimonpa-byo"), preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "kuromonpa-byo"), preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "nekuchi-byo"), preventionLevel: "excellent", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "nekobu-byo"), preventionLevel: "good", treatmentLevel: "poor", efficacyLevel: "fair", persistenceLevel: "good" },
       // 削除: ヒメキサゾールは細菌(Agrobacterium)に無効
       // { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "kontou-ganshu-byo"), preventionLevel: "good", treatmentLevel: "poor", efficacyLevel: "fair", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "shinkusare-byo"), preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
-      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "kabukusare-byo"), preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
+      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "nae-tachigare-byo"), preventionLevel: "excellent", treatmentLevel: "good", efficacyLevel: "excellent", persistenceLevel: "good" }, // MAFF #10331 適用表で主用途（登録数最多）
+      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "tachigare-byo"), preventionLevel: "good", treatmentLevel: "good", efficacyLevel: "good", persistenceLevel: "good" },
+      { pesticideId: R(pMap, "tachigaren"), diseasePestId: R(dpMap, "shirakinu-byo"), preventionLevel: "good", treatmentLevel: "fair", efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "fronside-sc"), diseasePestId: R(dpMap, "negusare-byo"), preventionLevel: "good", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },
       { pesticideId: R(pMap, "fronside-sc"), diseasePestId: R(dpMap, "shiromonpa-byo"), preventionLevel: "good", treatmentLevel: "none", efficacyLevel: "fair", persistenceLevel: "good" },
       { pesticideId: R(pMap, "fronside-sc"), diseasePestId: R(dpMap, "nekuchi-byo"), preventionLevel: "good", treatmentLevel: "none", efficacyLevel: "good", persistenceLevel: "good" },

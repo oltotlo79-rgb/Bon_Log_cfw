@@ -77,10 +77,15 @@ const mockTreeSpecies = [
 const mockTreeSpeciesDetail = {
   id: 'ts1',
   name: '黒松',
+  nameEn: 'Japanese black pine',
+  category: 'conifer',
+  description: '松柏類の代表的な樹種',
+  examples: '黒松盆栽の代表作',
+  fertilizingPolicy: '年2回、春秋に施肥',
   slug: 'kuromatsu',
   plans: [
-    { month: 3, action: 'moderate', nitrogenLevel: 'balanced', phosphorusLevel: 'balanced', potassiumLevel: 'balanced', recommendedType: 'organic', description: '春施肥' },
-    { month: 9, action: 'light', nitrogenLevel: 'low', phosphorusLevel: 'balanced', potassiumLevel: 'high', recommendedType: 'organic', description: '秋施肥' },
+    { month: 3, action: 'moderate', nitrogenLevel: 'balanced', phosphorusLevel: 'balanced', potassiumLevel: 'balanced', recommendedType: 'organic', description: '春施肥', cautionNote: '梅雨時期の多肥に注意' },
+    { month: 9, action: 'light', nitrogenLevel: 'low', phosphorusLevel: 'balanced', potassiumLevel: 'high', recommendedType: 'organic', description: '秋施肥', cautionNote: null },
   ],
 }
 
@@ -331,6 +336,45 @@ describe('getFertilizationScheduleBySlug', () => {
       month: expect.any(Number),
       action: expect.any(String),
     })
+  })
+
+  it('樹種メタ情報 { nameEn, category, description, examples, fertilizingPolicy } を含む', async () => {
+    const { getFertilizationScheduleBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizationScheduleBySlug('kuromatsu')
+
+    expect(result).toMatchObject({
+      nameEn: 'Japanese black pine',
+      category: 'conifer',
+      description: '松柏類の代表的な樹種',
+      examples: '黒松盆栽の代表作',
+      fertilizingPolicy: '年2回、春秋に施肥',
+    })
+  })
+
+  it('nameEn / description / examples / fertilizingPolicy が null のケースでも null を維持する', async () => {
+    mockTreeSpeciesFindUnique.mockResolvedValueOnce({
+      ...mockTreeSpeciesDetail,
+      nameEn: null,
+      description: null,
+      examples: null,
+      fertilizingPolicy: null,
+    })
+
+    const { getFertilizationScheduleBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizationScheduleBySlug('kuromatsu')
+
+    expect(result?.nameEn).toBeNull()
+    expect(result?.description).toBeNull()
+    expect(result?.examples).toBeNull()
+    expect(result?.fertilizingPolicy).toBeNull()
+  })
+
+  it('plans の各要素に cautionNote が含まれる（値あり・null 両方）', async () => {
+    const { getFertilizationScheduleBySlug } = await import('@/lib/services/fertilizer-read-service')
+    const result = await getFertilizationScheduleBySlug('kuromatsu')
+
+    expect(result?.plans[0]).toHaveProperty('cautionNote', '梅雨時期の多肥に注意')
+    expect(result?.plans[1]).toHaveProperty('cautionNote', null)
   })
 
   it('不存在 slug → null を返す', async () => {

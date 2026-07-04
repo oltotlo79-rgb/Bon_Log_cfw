@@ -34,6 +34,28 @@ export const verify2FARequestSchema = z.object({
 })
 export type Verify2FARequest = z.infer<typeof verify2FARequestSchema>
 
+/**
+ * POST /api/v1/auth/2fa/enable
+ *
+ * setupId は GET /api/v1/auth/2fa/setup で発行された Redis 上の一時セットアップ情報を
+ * 参照するために必須（TOTP シークレットを再送させない設計上、必ず両方を送る）。
+ */
+export const twoFactorEnableRequestSchema = z.object({
+  code: z.string().min(TWO_FACTOR_CODE_LENGTH),
+  setupId: z.string().min(1),
+})
+export type TwoFactorEnableRequest = z.infer<typeof twoFactorEnableRequestSchema>
+
+/**
+ * DELETE /api/v1/auth/2fa/disable
+ *
+ * Web の disable2FA と同じくパスワード確認を要求する（TOTP コードではない）。
+ */
+export const twoFactorDisableRequestSchema = z.object({
+  password: z.string().min(1),
+})
+export type TwoFactorDisableRequest = z.infer<typeof twoFactorDisableRequestSchema>
+
 /** POST /api/v1/auth/refresh */
 export const refreshRequestSchema = z.object({
   refreshToken: z.string().min(1),
