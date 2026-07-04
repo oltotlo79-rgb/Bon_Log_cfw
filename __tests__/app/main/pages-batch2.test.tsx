@@ -36,6 +36,7 @@ vi.mock('@/components/user/ProfileEditForm', () => ({ ProfileEditForm: () => <di
 vi.mock('@/components/user/PrivacyToggle', () => ({ PrivacyToggle: () => <div data-testid="privacy-toggle" /> }))
 vi.mock('@/components/user/DeleteAccountButton', () => ({ DeleteAccountButton: () => <div data-testid="delete-account" /> }))
 vi.mock('@/components/settings/TwoFactorSettings', () => ({ TwoFactorSettings: () => <div data-testid="2fa-settings" /> }))
+vi.mock('@/components/settings/PasswordChangeForm', () => ({ PasswordChangeForm: () => <div data-testid="password-change-form" /> }))
 // SecurityActivity は Suspense 内の async Server Component。テスト環境でこの async 関数が
 // suspend すると "A component suspended inside an act scope" 警告が出るため、モック化する。
 vi.mock('@/components/settings/SecurityActivity', () => ({ SecurityActivity: () => <div data-testid="security-activity" /> }))

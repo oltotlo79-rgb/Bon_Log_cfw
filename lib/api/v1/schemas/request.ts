@@ -56,6 +56,18 @@ export const twoFactorDisableRequestSchema = z.object({
 })
 export type TwoFactorDisableRequest = z.infer<typeof twoFactorDisableRequestSchema>
 
+/**
+ * POST /api/v1/auth/password/change
+ *
+ * ログイン中ユーザーのパスワード変更。現パスワード確認必須（Web の changePassword と同一仕様）。
+ * newPassword の強度検証は登録時と同一の passwordSchema を流用する。
+ */
+export const changePasswordRequestSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: passwordSchema,
+})
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>
+
 /** POST /api/v1/auth/refresh */
 export const refreshRequestSchema = z.object({
   refreshToken: z.string().min(1),

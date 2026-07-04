@@ -233,6 +233,9 @@ export const RATE_LIMITS = {
   // モバイル API v1 確認メール再送: password-reset と同等の security-sensitive 操作。
   // IP ベース 1 時間 3 回、fail-closed（Redis 障害時は拒否してメール乱用を防ぐ）。
   verify_email_resend: { windowMs: ONE_HOUR_MS, maxRequests: 3, failOpen: false },
+  // ログイン中ユーザーのパスワード変更: login と同等の security-sensitive 操作。
+  // ユーザー ID ベース 15 分に 5 回、fail-closed（Redis 障害時はブルートフォース総当りを遮断）。
+  password_change: { windowMs: FIFTEEN_MINUTES_MS, maxRequests: 5, failOpen: false },
 } as const
 
 /**

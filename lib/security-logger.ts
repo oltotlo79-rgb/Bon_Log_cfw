@@ -18,6 +18,7 @@ export type SecurityEventType =
   | 'REGISTER_FAILURE'
   | 'PASSWORD_RESET_REQUEST'
   | 'PASSWORD_RESET_SUCCESS'
+  | 'PASSWORD_CHANGE_SUCCESS'
   | 'ADMIN_ACTION'
   | 'SUSPICIOUS_ACTIVITY'
   | 'RATE_LIMIT_EXCEEDED'
@@ -250,6 +251,17 @@ export function logPasswordResetSuccess(userId: string, ip?: string): void {
   writeLog({
     timestamp: new Date().toISOString(),
     type: 'PASSWORD_RESET_SUCCESS',
+    userId,
+    ip,
+    severity: 'medium',
+  })
+}
+
+/** ログイン中ユーザーによる現パスワード確認済みのパスワード変更（medium）。 */
+export function logPasswordChangeSuccess(userId: string, ip?: string): void {
+  writeLog({
+    timestamp: new Date().toISOString(),
+    type: 'PASSWORD_CHANGE_SUCCESS',
     userId,
     ip,
     severity: 'medium',

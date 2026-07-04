@@ -87,6 +87,7 @@ async function main() {
     MAX_MESSAGE_LENGTH,
     twoFactorEnableRequestSchema,
     twoFactorDisableRequestSchema,
+    changePasswordRequestSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -390,6 +391,13 @@ async function main() {
   const TwoFactorDisableResponse = registry.register(
     'TwoFactorDisableResponse',
     twoFactorDisableResponseSchema.openapi({ description: '2FA 無効化成功レスポンス。' }),
+  )
+
+  const ChangePasswordRequest = registry.register(
+    'ChangePasswordRequest',
+    changePasswordRequestSchema.openapi({
+      description: 'ログイン中ユーザーのパスワード変更リクエスト。currentPassword は本人確認用。',
+    }),
   )
 
   const RefreshRequest = registry.register(
@@ -1008,6 +1016,45 @@ async function main() {
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
       404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
       409: errorResponse('2FA が無効、またはパスワード未設定 (CONFLICT)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/auth/password/change',
+    tags: ['auth'],
+    summary: 'ログイン中ユーザーのパスワードを変更',
+    description: [
+      '現パスワードを確認した上で新パスワードに変更する（Phase 1: TOTP コードの追加要求は行わない）。',
+      '',
+      '重要仕様:',
+      '- OAuth 専用アカウント（パスワード未設定）は 409 CONFLICT',
+      '- 現パスワード不一致は 401 AUTH_INVALID_CREDENTIALS',
+      '- newPassword の強度検証は POST /api/v1/auth/register と同一',
+      '- レート制限: password_change（15 分に 5 回、fail-closed）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: ChangePasswordRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'パスワード変更成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse(
+        'Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、または現パスワード不一致 (AUTH_INVALID_CREDENTIALS)',
+      ),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      409: errorResponse('パスワード未設定の OAuth 専用アカウント (CONFLICT)'),
       429: rateLimitedResponse,
     },
   })
@@ -6864,7 +6911,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.30.0',
+      version: '1.31.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

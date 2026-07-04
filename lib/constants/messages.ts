@@ -142,6 +142,8 @@ export const MSG_LOGIN_FAILED_RETRY = 'ログインに失敗しました。も�
 export const MSG_LOGIN_RATE_LIMITED = 'ログイン試行回数の上限に達しました。しばらく待ってから再試行してください。'
 export const MSG_LOGIN_DEVICE_NOT_ALLOWED = 'このデバイスからのログインは許可されていません'
 export const MSG_PASSWORD_MISMATCH = 'パスワードが一致しません'
+export const MSG_PASSWORD_FIELDS_REQUIRED = '必須項目をすべて入力してください'
+export const MSG_PASSWORD_CHANGE_SUCCESS = 'パスワードを変更しました'
 export const MSG_VERIFICATION_EMAIL_RESENT = '確認メールを再送しました。メールをご確認ください。'
 
 // 画像アップロード
