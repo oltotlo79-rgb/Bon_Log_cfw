@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.31.0",
+    "version": "1.32.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -482,6 +482,38 @@
           "newPassword"
         ],
         "description": "ログイン中ユーザーのパスワード変更リクエスト。currentPassword は本人確認用。"
+      },
+      "EmailChangeRequest": {
+        "type": "object",
+        "properties": {
+          "newEmail": {
+            "type": "string",
+            "maxLength": 100,
+            "format": "email"
+          },
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "newEmail",
+          "currentPassword"
+        ],
+        "description": "ログイン中ユーザーのメールアドレス変更リクエスト。currentPassword は本人確認用。newEmail の重複有無に関わらず常に 200 を返す（列挙攻撃対策）。"
+      },
+      "EmailChangeConfirm": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 10
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "description": "メールアドレス変更確認（第二段階）。token は確認メール内リンクから取得したもの。token 所持自体が新アドレス所有性の証明になるため Bearer 認証は不要。"
       },
       "RefreshRequest": {
         "type": "object",
@@ -13877,6 +13909,179 @@
           },
           "409": {
             "description": "パスワード未設定の OAuth 専用アカウント (CONFLICT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/email/change/request": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "ログイン中ユーザーのメールアドレス変更をリクエスト",
+        "description": "確認メール経由の二段階方式の第一段階。現パスワードを確認した上で、\n新アドレス宛に確認リンクメールを送信する（有効期間: 1 時間）。\n旧アドレス宛にも変更リクエスト通知メール（アカウント乗っ取り検知用）を送信する。\n\n重要仕様:\n- 列挙攻撃対策: newEmail が既に他ユーザーに使われている場合も常に 200 を返す（メールは送信しない）\n- OAuth 専用アカウント（パスワード未設定）は 409 CONFLICT\n- 現パスワード不一致は 401 AUTH_INVALID_CREDENTIALS\n- レート制限: email_change_request（15 分に 5 回、fail-closed）\n- 確定は POST /api/v1/auth/email/change/confirm で行う",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "リクエスト受付（newEmail の使用状況に関わらず常に 200）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、または現パスワード不一致 (AUTH_INVALID_CREDENTIALS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "パスワード未設定の OAuth 専用アカウント (CONFLICT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "レート制限超過。Retry-After ヘッダー（秒）が返却される。自動リトライ禁止。",
+            "headers": {
+              "Retry-After": {
+                "description": "次のリクエストまでの待機秒数",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/email/change/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "メールアドレス変更を確定",
+        "description": "確認メール経由の二段階方式の第二段階。token は確認メール内リンクから取得したもの。\ntoken 所持自体が新アドレス所有性の証明になるため Bearer 認証は不要（未ログインでも呼べる）。\n\n重要仕様:\n- token 無効・期限切れは一律 401 AUTH_INVALID_CREDENTIALS（列挙攻撃防止）\n- request 〜 confirm の間に newEmail が別ユーザーに使われた場合は 409 CONFLICT\n- レート制限: email_change_confirm（IP ベース、1 時間に 10 回、fail-closed）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "メールアドレス変更確定成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "トークン無効または期限切れ (AUTH_INVALID_CREDENTIALS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "newEmail が別ユーザーに使用済み (CONFLICT)",
             "content": {
               "application/json": {
                 "schema": {

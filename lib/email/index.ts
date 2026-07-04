@@ -20,6 +20,8 @@ import { buildPasswordResetEmail } from './templates/password-reset'
 import { buildVerificationEmail } from './templates/verification'
 import { buildSubscriptionExpiringEmail } from './templates/subscription-expiring'
 import { buildSubscriptionExpiredEmail } from './templates/subscription-expired'
+import { buildEmailChangeConfirmationEmail } from './templates/email-change-confirmation'
+import { buildEmailChangeNotificationEmail } from './templates/email-change-notification'
 
 export interface EmailOptions {
   to: string
@@ -189,6 +191,37 @@ export async function sendSubscriptionExpiredEmail(
   return sendEmail({
     to: email,
     subject: '【BON-LOG】プレミアム会員の有効期限が切れました',
+    html,
+    text,
+  })
+}
+
+/**
+ * メールアドレス変更確認リンク送信（新アドレス宛）。
+ * confirmUrl は呼び出し側で生成・検証済みである前提。
+ */
+export async function sendEmailChangeConfirmation(
+  newEmail: string,
+  confirmUrl: string,
+): Promise<EmailResult> {
+  const { html, text } = buildEmailChangeConfirmationEmail(confirmUrl)
+  return sendEmail({
+    to: newEmail,
+    subject: '【BON-LOG】メールアドレス変更の確認',
+    html,
+    text,
+  })
+}
+
+/**
+ * メールアドレス変更リクエスト通知（旧アドレス宛）。
+ * アカウント乗っ取り検知のためのセキュリティ通知で、失敗しても変更フロー自体は継続してよい。
+ */
+export async function sendEmailChangeNotification(oldEmail: string): Promise<EmailResult> {
+  const { html, text } = buildEmailChangeNotificationEmail()
+  return sendEmail({
+    to: oldEmail,
+    subject: '【BON-LOG】メールアドレス変更のリクエストについて',
     html,
     text,
   })

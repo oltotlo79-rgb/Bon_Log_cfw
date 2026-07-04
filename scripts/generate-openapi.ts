@@ -88,6 +88,8 @@ async function main() {
     twoFactorEnableRequestSchema,
     twoFactorDisableRequestSchema,
     changePasswordRequestSchema,
+    emailChangeRequestSchema,
+    emailChangeConfirmSchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -397,6 +399,24 @@ async function main() {
     'ChangePasswordRequest',
     changePasswordRequestSchema.openapi({
       description: 'ログイン中ユーザーのパスワード変更リクエスト。currentPassword は本人確認用。',
+    }),
+  )
+
+  const EmailChangeRequest = registry.register(
+    'EmailChangeRequest',
+    emailChangeRequestSchema.openapi({
+      description:
+        'ログイン中ユーザーのメールアドレス変更リクエスト。currentPassword は本人確認用。' +
+        'newEmail の重複有無に関わらず常に 200 を返す（列挙攻撃対策）。',
+    }),
+  )
+
+  const EmailChangeConfirm = registry.register(
+    'EmailChangeConfirm',
+    emailChangeConfirmSchema.openapi({
+      description:
+        'メールアドレス変更確認（第二段階）。token は確認メール内リンクから取得したもの。' +
+        'token 所持自体が新アドレス所有性の証明になるため Bearer 認証は不要。',
     }),
   )
 
@@ -1055,6 +1075,81 @@ async function main() {
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
       404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
       409: errorResponse('パスワード未設定の OAuth 専用アカウント (CONFLICT)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/auth/email/change/request',
+    tags: ['auth'],
+    summary: 'ログイン中ユーザーのメールアドレス変更をリクエスト',
+    description: [
+      '確認メール経由の二段階方式の第一段階。現パスワードを確認した上で、',
+      '新アドレス宛に確認リンクメールを送信する（有効期間: 1 時間）。',
+      '旧アドレス宛にも変更リクエスト通知メール（アカウント乗っ取り検知用）を送信する。',
+      '',
+      '重要仕様:',
+      '- 列挙攻撃対策: newEmail が既に他ユーザーに使われている場合も常に 200 を返す（メールは送信しない）',
+      '- OAuth 専用アカウント（パスワード未設定）は 409 CONFLICT',
+      '- 現パスワード不一致は 401 AUTH_INVALID_CREDENTIALS',
+      '- レート制限: email_change_request（15 分に 5 回、fail-closed）',
+      '- 確定は POST /api/v1/auth/email/change/confirm で行う',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: EmailChangeRequest },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'リクエスト受付（newEmail の使用状況に関わらず常に 200）',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse(
+        'Bearer トークンなし (AUTH_REQUIRED)、期限切れ (AUTH_TOKEN_EXPIRED)、または現パスワード不一致 (AUTH_INVALID_CREDENTIALS)',
+      ),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト (GUEST_NOT_ALLOWED)'),
+      409: errorResponse('パスワード未設定の OAuth 専用アカウント (CONFLICT)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/auth/email/change/confirm',
+    tags: ['auth'],
+    summary: 'メールアドレス変更を確定',
+    description: [
+      '確認メール経由の二段階方式の第二段階。token は確認メール内リンクから取得したもの。',
+      'token 所持自体が新アドレス所有性の証明になるため Bearer 認証は不要（未ログインでも呼べる）。',
+      '',
+      '重要仕様:',
+      '- token 無効・期限切れは一律 401 AUTH_INVALID_CREDENTIALS（列挙攻撃防止）',
+      '- request 〜 confirm の間に newEmail が別ユーザーに使われた場合は 409 CONFLICT',
+      '- レート制限: email_change_confirm（IP ベース、1 時間に 10 回、fail-closed）',
+    ].join('\n'),
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': { schema: EmailChangeConfirm },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'メールアドレス変更確定成功',
+        content: { 'application/json': { schema: SuccessResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('トークン無効または期限切れ (AUTH_INVALID_CREDENTIALS)'),
+      409: errorResponse('newEmail が別ユーザーに使用済み (CONFLICT)'),
       429: rateLimitedResponse,
     },
   })
@@ -6911,7 +7006,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.31.0',
+      version: '1.32.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

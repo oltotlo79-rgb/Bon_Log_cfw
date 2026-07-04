@@ -187,6 +187,24 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+// ログイン中ユーザーのメールアドレス変更確認トークン。
+// 新アドレス所有性の確認に使う（本人性は request 側で現パスワード確認済み）。
+model EmailChangeToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  newEmail  String    @map("new_email") @db.VarChar(100)
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 同一ユーザーの既存未使用トークンの一括無効化（request 再実行時）で使用
+  @@index([userId])
+  @@map("email_change_tokens")
+}
+
 // ユーザー関連
 model User {
   id               String    @id @default(cuid())
@@ -303,6 +321,9 @@ model User {
 
   // モバイル API v1 デバイストークン（Push 通知用）
   mobileDevices MobileDevice[]
+
+  // メールアドレス変更確認トークン
+  emailChangeTokens EmailChangeToken[]
 
   @@index([emailVerified])
   @@index([isSuspended])

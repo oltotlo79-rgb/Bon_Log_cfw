@@ -79,6 +79,11 @@ export const MSG_AUTH_NOT_FOUND = '認証情報が見つかりません。もう
 export const MSG_AUTH_ERROR = '認証中にエラーが発生しました。再度お試しください。'
 export const MSG_TERMS_AGREEMENT_REQUIRED = '利用規約とプライバシーポリシーに同意してください'
 
+// メールアドレス変更
+// 列挙攻撃対策: newEmail の使用状況をUIに一切漏らさないため、成功時は常にこの汎用文言のみ表示する
+export const MSG_EMAIL_CHANGE_REQUEST_SENT =
+  '確認メールを送信しました。新しいメールアドレス宛のリンクから変更を完了してください。'
+
 // プッシュ通知
 export const MSG_PUSH_ENABLED = 'プッシュ通知をONにしました'
 export const MSG_PUSH_DISABLED = 'プッシュ通知をOFFにしました'

@@ -1659,6 +1659,19 @@ export const createMockPrismaClient = () => {
     deleteMany: vi.fn(),
   },
 
+  /**
+   * emailChangeTokenテーブルのモック
+   * メールアドレス変更確認トークン（確認メール経由の二段階変更）
+   */
+  emailChangeToken: {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+
   // ============================================================
   // 分析関連テーブル
   // ============================================================

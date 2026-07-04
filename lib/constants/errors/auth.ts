@@ -61,3 +61,7 @@ export const ERR_2FA_NOT_ENABLED = '2段階認証が有効ではありません'
 export const ERR_2FA_SETUP_EXPIRED = '2段階認証のセットアップ情報が見つからないか期限切れです。最初からやり直してください'
 export const ERR_NO_PASSWORD_SET = 'パスワードが設定されていません'
 export const ERR_INCORRECT_PASSWORD = 'パスワードが正しくありません'
+
+/** メールアドレス変更（確認メール経由の二段階） */
+export const ERR_EMAIL_CHANGE_TOO_MANY = 'メールアドレス変更の要求が多すぎます。しばらく経ってからお試しください。'
+export const ERR_EMAIL_CHANGE_LINK_INVALID = 'メールアドレス変更の確認リンクが無効または期限切れです。もう一度お試しください。'

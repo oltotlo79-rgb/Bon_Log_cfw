@@ -12,6 +12,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { PrivacyToggle } from '@/components/user/PrivacyToggle'
 import { DeleteAccountButton } from '@/components/user/DeleteAccountButton'
+import { EmailChangeForm } from '@/components/settings/EmailChangeForm'
 
 export const metadata = {
   title: 'アカウント設定',
@@ -53,6 +54,11 @@ export default async function AccountSettingsPage() {
           <div className="p-4">
             <h2 className="font-medium mb-2">プライバシー設定</h2>
             <PrivacyToggle initialIsPublic={user.isPublic} />
+          </div>
+
+          <div className="p-4">
+            <h2 className="font-medium mb-2">メールアドレス変更</h2>
+            <EmailChangeForm currentEmail={email ?? ''} />
           </div>
 
           <div className="p-4">

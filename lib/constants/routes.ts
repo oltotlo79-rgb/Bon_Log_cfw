@@ -22,6 +22,11 @@ export const ROUTE_REGISTER = '/register'
 export const ROUTE_PASSWORD_RESET = '/password-reset'
 export const ROUTE_VERIFY_EMAIL = '/verify-email'
 export const ROUTE_VERIFY_EMAIL_SENT = '/register/verify-email-sent'
+/**
+ * メールアドレス変更確認ページ。password-reset と同様に意図的に /settings 配下に置かない
+ * （PROTECTED_PATHS 対象外にし、未ログイン状態でもメールリンクから確認できるようにするため）。
+ */
+export const ROUTE_EMAIL_CHANGE_CONFIRM = '/email-change/confirm'
 export const ROUTE_FEED = '/feed'
 export const ROUTE_ONBOARDING = '/onboarding'
 export const ROUTE_SEARCH = '/search'

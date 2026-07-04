@@ -236,6 +236,12 @@ export const RATE_LIMITS = {
   // ログイン中ユーザーのパスワード変更: login と同等の security-sensitive 操作。
   // ユーザー ID ベース 15 分に 5 回、fail-closed（Redis 障害時はブルートフォース総当りを遮断）。
   password_change: { windowMs: FIFTEEN_MINUTES_MS, maxRequests: 5, failOpen: false },
+  // ログイン中ユーザーのメールアドレス変更リクエスト: password_change と同等の security-sensitive 操作。
+  // ユーザー ID ベース 15 分に 5 回、fail-closed（新アドレス宛メール送信の乱用を防ぐ）。
+  email_change_request: { windowMs: FIFTEEN_MINUTES_MS, maxRequests: 5, failOpen: false },
+  // メールアドレス変更確認（token ベース、未ログインでも実行可能）: IP ベース 1 時間に 10 回、
+  // fail-closed（Redis 障害時はトークン総当りを遮断）。
+  email_change_confirm: { windowMs: ONE_HOUR_MS, maxRequests: 10, failOpen: false },
 } as const
 
 /**

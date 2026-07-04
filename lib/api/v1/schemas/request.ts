@@ -68,6 +68,30 @@ export const changePasswordRequestSchema = z.object({
 })
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>
 
+/**
+ * POST /api/v1/auth/email/change/request
+ *
+ * ログイン中ユーザーのメールアドレス変更リクエスト（確認メール経由の二段階の第一段階）。
+ * currentPassword は本人確認用。newEmail の重複有無に関わらず常に 200 を返す
+ * （列挙攻撃対策）ため、route handler 側の仕様として別途明記する。
+ */
+export const emailChangeRequestSchema = z.object({
+  newEmail: normalizedEmailSchema,
+  currentPassword: z.string().min(1),
+})
+export type EmailChangeRequest = z.infer<typeof emailChangeRequestSchema>
+
+/**
+ * POST /api/v1/auth/email/change/confirm
+ *
+ * メール内トークンによる変更確定（第二段階）。token 所持自体が新アドレス所有性の
+ * 証明になるため Bearer 認証を要求しない。
+ */
+export const emailChangeConfirmSchema = z.object({
+  token: z.string().min(MIN_TOKEN_LENGTH),
+})
+export type EmailChangeConfirm = z.infer<typeof emailChangeConfirmSchema>
+
 /** POST /api/v1/auth/refresh */
 export const refreshRequestSchema = z.object({
   refreshToken: z.string().min(1),

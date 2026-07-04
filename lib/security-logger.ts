@@ -19,6 +19,8 @@ export type SecurityEventType =
   | 'PASSWORD_RESET_REQUEST'
   | 'PASSWORD_RESET_SUCCESS'
   | 'PASSWORD_CHANGE_SUCCESS'
+  | 'EMAIL_CHANGE_REQUEST'
+  | 'EMAIL_CHANGE_SUCCESS'
   | 'ADMIN_ACTION'
   | 'SUSPICIOUS_ACTIVITY'
   | 'RATE_LIMIT_EXCEEDED'
@@ -262,6 +264,28 @@ export function logPasswordChangeSuccess(userId: string, ip?: string): void {
   writeLog({
     timestamp: new Date().toISOString(),
     type: 'PASSWORD_CHANGE_SUCCESS',
+    userId,
+    ip,
+    severity: 'medium',
+  })
+}
+
+/** ログイン中ユーザーによる現パスワード確認済みのメールアドレス変更リクエスト（medium）。 */
+export function logEmailChangeRequest(userId: string, ip?: string): void {
+  writeLog({
+    timestamp: new Date().toISOString(),
+    type: 'EMAIL_CHANGE_REQUEST',
+    userId,
+    ip,
+    severity: 'medium',
+  })
+}
+
+/** 新アドレス所有性の確認完了によるメールアドレス変更確定（medium）。乗っ取り検知の追跡対象。 */
+export function logEmailChangeSuccess(userId: string, ip?: string): void {
+  writeLog({
+    timestamp: new Date().toISOString(),
+    type: 'EMAIL_CHANGE_SUCCESS',
     userId,
     ip,
     severity: 'medium',
