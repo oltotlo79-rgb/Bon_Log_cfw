@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       nickname: true,
       avatarUrl: true,
       bio: true,
+      twoFactorEnabled: true,
     },
   })
 
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
     avatarUrl: user.avatarUrl,
     bio: user.bio,
     isPremium,
+    twoFactorEnabled: user.twoFactorEnabled,
   })
 }
 

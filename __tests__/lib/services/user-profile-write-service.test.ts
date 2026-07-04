@@ -53,6 +53,7 @@ const baseDbUser = {
   bonsaiStartYear: 2020,
   bonsaiStartMonth: 4,
   birthDate: null,
+  twoFactorEnabled: false,
 }
 
 describe('isNicknameReserved', () => {
@@ -261,6 +262,22 @@ describe('updateUserProfile', () => {
     const result = await updateUserProfile(USER_ID, {})
 
     expect(result.email).toBe('profile@example.com')
+  })
+
+  it('twoFactorEnabled が true の場合、結果にも true が含まれること', async () => {
+    mockUserUpdate.mockResolvedValue({ ...baseDbUser, twoFactorEnabled: true })
+    const { updateUserProfile } = await import('@/lib/services/user-profile-write-service')
+    const result = await updateUserProfile(USER_ID, {})
+
+    expect(result.twoFactorEnabled).toBe(true)
+  })
+
+  it('twoFactorEnabled が false の場合、結果にも false が含まれること', async () => {
+    mockUserUpdate.mockResolvedValue({ ...baseDbUser, twoFactorEnabled: false })
+    const { updateUserProfile } = await import('@/lib/services/user-profile-write-service')
+    const result = await updateUserProfile(USER_ID, {})
+
+    expect(result.twoFactorEnabled).toBe(false)
   })
 
   it('prisma.user.update がエラーをスローした場合 updateUserProfile もスローすること', async () => {

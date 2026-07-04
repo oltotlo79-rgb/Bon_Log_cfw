@@ -29,6 +29,7 @@ export interface UpdateProfileResult {
   bonsaiStartMonth: number | null
   birthDate: string | null
   isPremium: boolean
+  twoFactorEnabled: boolean
 }
 
 /** nickname が予約済みかどうかを検証して返す（予約済みなら true） */
@@ -95,6 +96,7 @@ export async function updateUserProfile(
       bonsaiStartYear: true,
       bonsaiStartMonth: true,
       birthDate: true,
+      twoFactorEnabled: true,
     },
   })
 
@@ -122,5 +124,6 @@ export async function updateUserProfile(
     bonsaiStartMonth: updated.bonsaiStartMonth,
     birthDate: updated.birthDate ? updated.birthDate.toISOString().split('T')[0] ?? null : null,
     isPremium,
+    twoFactorEnabled: updated.twoFactorEnabled,
   }
 }

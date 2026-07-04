@@ -23,6 +23,7 @@ export type UserCommentItem = {
   content: string
   createdAt: Date
   post: { id: string; content: string | null }
+  media: { id: string; url: string; type: string; sortOrder: number }[]
 }
 
 export type UserCommentsResult =
@@ -81,6 +82,7 @@ export async function fetchUserComments(
       content: true,
       createdAt: true,
       post: { select: { id: true, content: true } },
+      media: { orderBy: { sortOrder: 'asc' } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     ...buildCursorPagination(safeCursor, safeLimit),
@@ -95,6 +97,12 @@ export async function fetchUserComments(
       content: r.content,
       createdAt: r.createdAt,
       post: { id: r.post.id, content: r.post.content },
+      media: r.media.map((m) => ({
+        id: m.id,
+        url: m.url,
+        type: m.type,
+        sortOrder: m.sortOrder,
+      })),
     })),
     nextCursor,
   }

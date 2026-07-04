@@ -703,7 +703,7 @@ async function main() {
     'UserCommentItem',
     userCommentListItemSchema.openapi({
       description:
-        'ユーザーのコメント一覧の 1 件（id, content, createdAt, post）。' +
+        'ユーザーのコメント一覧の 1 件（id, content, createdAt, post, media）。' +
         'post は { id, content } のみ（Post に slug/title は存在しないため）。' +
         'Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する。',
     }),
@@ -6864,7 +6864,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.29.0',
+      version: '1.30.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

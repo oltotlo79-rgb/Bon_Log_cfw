@@ -40,6 +40,7 @@ const mockCommentItem = {
   content: 'テストコメント',
   createdAt: new Date('2025-01-01T00:00:00Z'),
   post: { id: 'post-1', content: 'テスト投稿' },
+  media: [],
 }
 
 async function makeAuthenticatedRequest(
@@ -93,6 +94,40 @@ describe('GET /api/v1/users/[id]/comments', () => {
       createdAt: '2025-01-01T00:00:00.000Z',
       post: { id: 'post-1', content: 'テスト投稿' },
     })
+  })
+
+  it('media が 0 件のとき items[].media は空配列を返す', async () => {
+    const [req, params] = await makeAuthenticatedRequest(VIEWER_ID, 'viewer@example.com')
+    const { GET } = await import('@/app/api/v1/users/[id]/comments/route')
+    const res = await GET(req, params)
+
+    const body = await res.json()
+    expect(body.items[0].media).toEqual([])
+  })
+
+  it('media が複数件あるとき { id, url, type, sortOrder } を sortOrder 昇順のまま返す', async () => {
+    mockFetchUserComments.mockResolvedValueOnce({
+      ok: true,
+      items: [
+        {
+          ...mockCommentItem,
+          media: [
+            { id: 'media-1', url: 'https://example.com/1.jpg', type: 'image', sortOrder: 0 },
+            { id: 'media-2', url: 'https://example.com/2.jpg', type: 'image', sortOrder: 1 },
+          ],
+        },
+      ],
+      nextCursor: undefined,
+    })
+    const [req, params] = await makeAuthenticatedRequest(VIEWER_ID, 'viewer@example.com')
+    const { GET } = await import('@/app/api/v1/users/[id]/comments/route')
+    const res = await GET(req, params)
+
+    const body = await res.json()
+    expect(body.items[0].media).toEqual([
+      { id: 'media-1', url: 'https://example.com/1.jpg', type: 'image', sortOrder: 0 },
+      { id: 'media-2', url: 'https://example.com/2.jpg', type: 'image', sortOrder: 1 },
+    ])
   })
 
   it('nextCursor が null のとき null を返す', async () => {

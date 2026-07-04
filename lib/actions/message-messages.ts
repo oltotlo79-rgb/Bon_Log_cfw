@@ -118,6 +118,7 @@ export async function sendMessage(conversationId: string, content: string) {
         userId: otherParticipant.userId,
         actorId: userId,
         type: 'message',
+        conversationId: convId,
       }).then((result) => {
         if (!result.success) {
           logger.error('Message notification creation failed', {

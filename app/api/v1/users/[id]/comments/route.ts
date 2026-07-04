@@ -55,6 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       content: item.content,
       createdAt: item.createdAt.toISOString(),
       post: item.post,
+      media: item.media,
     })),
     nextCursor: result.nextCursor ?? null,
   })

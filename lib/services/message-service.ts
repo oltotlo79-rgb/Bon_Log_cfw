@@ -350,6 +350,7 @@ export async function sendDirectMessage(
         userId: otherParticipant.userId,
         actorId: userId,
         type: 'message',
+        conversationId,
       }).catch((err) => {
         logger.error('Message notification dispatch error', {
           error: err instanceof Error ? err.message : String(err),

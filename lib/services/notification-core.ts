@@ -40,6 +40,8 @@ const notificationParamsSchema = z.object({
   type: z.enum(VALID_NOTIFICATION_TYPES),
   postId: z.string().min(1).optional(),
   commentId: z.string().min(1).optional(),
+  // Expo Push の data ペイロードにのみ使う pass-through 値。Notification レコードには永続化しない。
+  conversationId: z.string().min(1).optional(),
 })
 
 const PUSH_BODY_MAP: Record<string, (actor: string) => string> = {
@@ -61,6 +63,31 @@ const PUSH_BODY_MAP: Record<string, (actor: string) => string> = {
 function buildPushBody(type: string, actorName: string): string {
   const builder = PUSH_BODY_MAP[type]
   return builder ? builder(actorName) : `${actorName}さんから通知があります`
+}
+
+/**
+ * Expo Push の data ペイロードを組み立てる。
+ * `Record<string, string>` 制約のため、値が存在するフィールドのみを含める。
+ */
+function buildExpoPushData(params: {
+  url: string
+  type: NotificationType
+  actorId: string
+  postId?: string
+  commentId?: string
+  conversationId?: string
+}): Record<string, string> {
+  const data: Record<string, string> = {
+    url: params.url,
+    type: params.type,
+    actorId: params.actorId,
+  }
+  if (params.postId) data['postId'] = params.postId
+  if (params.commentId) data['commentId'] = params.commentId
+  if (params.type === 'message' && params.conversationId) {
+    data['conversationId'] = params.conversationId
+  }
+  return data
 }
 
 /** JSON 値を `Record<string, boolean>` として安全にパースする。boolean 以外の値は除外する。 */
@@ -109,13 +136,15 @@ export async function createNotification(params: {
   type: NotificationType
   postId?: string
   commentId?: string
+  /** Expo Push の data ペイロードにのみ使う pass-through 値。DB には保存しない。 */
+  conversationId?: string
 }): Promise<ActionResult<void>> {
   const parsed = notificationParamsSchema.safeParse(params)
   if (!parsed.success) {
     logger.error('createNotification: invalid params', { errors: parsed.error.issues })
     return actionError(ERR_INVALID_INPUT)
   }
-  const { userId, actorId, type, postId, commentId } = parsed.data
+  const { userId, actorId, type, postId, commentId, conversationId } = parsed.data
 
   if (!isSystemNotification(type)) {
     if (userId === actorId) return actionSuccess()
@@ -177,7 +206,7 @@ export async function createNotification(params: {
     void sendExpoPushToUser(userId, {
       title: 'BON-LOG',
       body: pushBody,
-      data: { url, type },
+      data: buildExpoPushData({ url, type, actorId, postId, commentId, conversationId }),
     }).catch((err) => {
       logger.error('Expo Push notification send failed', {
         userId,

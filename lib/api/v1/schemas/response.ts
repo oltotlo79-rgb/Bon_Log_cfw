@@ -70,6 +70,7 @@ export const usersMeSchema = z.object({
   avatarUrl: z.string().nullable(),
   bio: z.string().nullable(),
   isPremium: z.boolean(),
+  twoFactorEnabled: z.boolean(),
 })
 export type UsersMeResponse = z.infer<typeof usersMeSchema>
 
@@ -268,6 +269,7 @@ export const userCommentListItemSchema = z.object({
     id: z.string(),
     content: z.string().nullable(),
   }),
+  media: z.array(mediaItemSchema),
 })
 export type UserCommentListItem = z.infer<typeof userCommentListItemSchema>
 
@@ -455,6 +457,7 @@ export const usersMeFullSchema = z.object({
   bonsaiStartMonth: z.number().int().nullable(),
   birthDate: z.string().nullable(),
   isPremium: z.boolean(),
+  twoFactorEnabled: z.boolean(),
 })
 export type UsersMeFullResponse = z.infer<typeof usersMeFullSchema>
 

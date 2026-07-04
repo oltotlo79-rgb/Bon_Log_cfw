@@ -121,6 +121,7 @@ const mockProfileResult = {
   bonsaiStartMonth: 4,
   birthDate: null,
   isPremium: false,
+  twoFactorEnabled: false,
 }
 
 // ──────────────────────────────────────────────────
@@ -162,6 +163,17 @@ describe('PATCH /api/v1/users/me', () => {
     expect(body.id).toBe(OWNER_ID)
     expect(body.email).toBe('owner@example.com')
     expect(body.nickname).toBe('更新済みニック')
+  })
+
+  it('正常系: レスポンスに twoFactorEnabled (service の戻り値) が含まれること', async () => {
+    mockUpdateUserProfile.mockResolvedValue({ ...mockProfileResult, twoFactorEnabled: true })
+    const req = await makeAuthenticatedPatchRequest(OWNER_ID, { nickname: '新しいニック' })
+    const { PATCH } = await import('@/app/api/v1/users/me/route')
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.twoFactorEnabled).toBe(true)
   })
 
   it('正常系: bio・location を同時に更新して 200 を返す', async () => {

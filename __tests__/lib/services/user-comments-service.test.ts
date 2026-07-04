@@ -52,12 +52,14 @@ const mockCommentRows = [
     content: '2件目のコメント',
     createdAt: new Date('2025-02-01T00:00:00Z'),
     post: { id: 'post-2', content: '投稿2' },
+    media: [],
   },
   {
     id: 'comment-1',
     content: '1件目のコメント',
     createdAt: new Date('2025-01-01T00:00:00Z'),
     post: { id: 'post-1', content: '投稿1' },
+    media: [],
   },
 ]
 
@@ -240,5 +242,50 @@ describe('fetchUserComments', () => {
     if (!result.ok) throw new Error('unreachable')
     expect(result.items).toEqual([])
     expect(result.nextCursor).toBeUndefined()
+  })
+
+  it('media が 0 件のコメントは media: [] を返す', async () => {
+    const { fetchUserComments } = await import('@/lib/services/user-comments-service')
+    const result = await fetchUserComments(TARGET_USER_ID, VIEWER_ID)
+
+    if (!result.ok) throw new Error('unreachable')
+    expect(result.items[0]?.media).toEqual([])
+  })
+
+  it('media が複数件あるコメントは { id, url, type, sortOrder } の形状で sortOrder 昇順に返す', async () => {
+    mockCommentFindMany.mockResolvedValueOnce([
+      {
+        id: 'comment-with-media',
+        content: 'メディア付きコメント',
+        createdAt: new Date('2025-03-01T00:00:00Z'),
+        post: { id: 'post-3', content: '投稿3' },
+        media: [
+          { id: 'media-1', url: 'https://example.com/1.jpg', type: 'image', sortOrder: 0 },
+          { id: 'media-2', url: 'https://example.com/2.jpg', type: 'image', sortOrder: 1 },
+        ],
+      },
+    ])
+
+    const { fetchUserComments } = await import('@/lib/services/user-comments-service')
+    const result = await fetchUserComments(TARGET_USER_ID, VIEWER_ID)
+
+    if (!result.ok) throw new Error('unreachable')
+    expect(result.items[0]?.media).toEqual([
+      { id: 'media-1', url: 'https://example.com/1.jpg', type: 'image', sortOrder: 0 },
+      { id: 'media-2', url: 'https://example.com/2.jpg', type: 'image', sortOrder: 1 },
+    ])
+  })
+
+  it('media を含む select が sortOrder 昇順で prisma に渡される', async () => {
+    const { fetchUserComments } = await import('@/lib/services/user-comments-service')
+    await fetchUserComments(TARGET_USER_ID, VIEWER_ID)
+
+    expect(mockCommentFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          media: { orderBy: { sortOrder: 'asc' } },
+        }),
+      }),
+    )
   })
 })

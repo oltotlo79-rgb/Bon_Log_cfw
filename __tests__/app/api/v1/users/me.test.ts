@@ -52,6 +52,7 @@ describe('GET /api/v1/users/me', () => {
         nickname: '盆栽太郎',
         avatarUrl: '/avatar.jpg',
         bio: '盆栽が好き',
+        twoFactorEnabled: true,
       })
     mockIsPremiumUser.mockResolvedValueOnce(true)
 
@@ -67,6 +68,30 @@ describe('GET /api/v1/users/me', () => {
     expect(body.avatarUrl).toBe('/avatar.jpg')
     expect(body.bio).toBe('盆栽が好き')
     expect(body.isPremium).toBe(true)
+    expect(body.twoFactorEnabled).toBe(true)
+  })
+
+  it('twoFactorEnabled が false のユーザーで false を返す', async () => {
+    const userId = 'user-me-2fa-off'
+    mockUserFindUnique
+      .mockResolvedValueOnce({ id: userId, isSuspended: false, email: '2fa-off@example.com' })
+      .mockResolvedValueOnce({
+        id: userId,
+        email: '2fa-off@example.com',
+        nickname: '2FA無効太郎',
+        avatarUrl: null,
+        bio: null,
+        twoFactorEnabled: false,
+      })
+    mockIsPremiumUser.mockResolvedValueOnce(false)
+
+    const req = await makeAuthenticatedRequest(userId)
+    const { GET } = await import('@/app/api/v1/users/me/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.twoFactorEnabled).toBe(false)
   })
 
   it('非プレミアムユーザーで isPremium:false を返す', async () => {

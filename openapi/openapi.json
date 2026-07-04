@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.29.0",
+    "version": "1.30.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -102,6 +102,9 @@
           },
           "isPremium": {
             "type": "boolean"
+          },
+          "twoFactorEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -110,7 +113,8 @@
           "nickname",
           "avatarUrl",
           "bio",
-          "isPremium"
+          "isPremium",
+          "twoFactorEnabled"
         ],
         "description": "認証ユーザーの基本情報。"
       },
@@ -174,6 +178,9 @@
           },
           "isPremium": {
             "type": "boolean"
+          },
+          "twoFactorEnabled": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -188,7 +195,8 @@
           "bonsaiStartYear",
           "bonsaiStartMonth",
           "birthDate",
-          "isPremium"
+          "isPremium",
+          "twoFactorEnabled"
         ],
         "description": "PATCH /api/v1/users/me 成功時の更新後プロフィール全フィールド。"
       },
@@ -3044,15 +3052,42 @@
               "id",
               "content"
             ]
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "sortOrder": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "url",
+                "type",
+                "sortOrder"
+              ]
+            }
           }
         },
         "required": [
           "id",
           "content",
           "createdAt",
-          "post"
+          "post",
+          "media"
         ],
-        "description": "ユーザーのコメント一覧の 1 件（id, content, createdAt, post）。post は { id, content } のみ（Post に slug/title は存在しないため）。Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する。"
+        "description": "ユーザーのコメント一覧の 1 件（id, content, createdAt, post, media）。post は { id, content } のみ（Post に slug/title は存在しないため）。Native は post.id で GET /api/v1/posts/{id} を叩いて遷移する。"
       },
       "UserCommentsListResponse": {
         "type": "object",
@@ -3089,13 +3124,40 @@
                     "id",
                     "content"
                   ]
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "url",
+                      "type",
+                      "sortOrder"
+                    ]
+                  }
                 }
               },
               "required": [
                 "id",
                 "content",
                 "createdAt",
-                "post"
+                "post",
+                "media"
               ]
             }
           },
