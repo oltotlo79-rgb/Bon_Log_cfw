@@ -89,6 +89,14 @@ npx prisma migrate dev     # 開発: マイグレーションファイル作成
 npx prisma migrate deploy  # 本番: マイグレーション適用
 ```
 
+## 本番マスタデータのピンポイント修正
+
+本番の master / コンテンツデータ（農薬・肥料・ホルモン・辞書等）を一部だけ修正したい場合、
+`npm run db:seed`（`prisma/seed/*`）は全件 `deleteMany` → 再構築する破壊的方式のため
+本番では使わない。`prisma/scripts/README.md` の手順（dry-run 既定 / `--apply` / 単一
+`$transaction` / 冪等 / fail-closed / 限定削除）に従い、対象レコードのみを
+`update` / `upsert` するワンショットスクリプトを作成する（`prisma/scripts/_template-oneshot-apply.ts` を雛形として使う）。
+
 ## Supabase Data API 非使用方針
 
 DB アクセスは **Prisma の postgres ロール経由のみ**。Supabase Data API (PostgREST `/rest/v1/*`、GraphQL `/graphql/v1`、`supabase-js` クライアント) は一切使用しない。

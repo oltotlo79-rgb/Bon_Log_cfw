@@ -39,91 +39,20 @@
  *
  *   `.env.local` は本スクリプトでは読み込まない（ローカル DB への誤接続混入を防ぐため）。
  *   ローカル検証用 DB に対して実行したい場合は、上記のシェル環境変数を明示的に設定すること。
+ *
+ *   接続解決・`--apply` 判定は `prisma/scripts/lib/prod-apply-client.ts` を使用。
+ *   新規スクリプトを書く場合は `prisma/scripts/_template-oneshot-apply.ts` をコピーすること
+ *   （詳細は `prisma/scripts/README.md` 参照）。
  */
 
-import { existsSync } from 'node:fs'
 import { EffectRating, PrismaClient, type Pesticide } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
+import {
+  createProdApplyClient,
+  isApplyMode,
+  printConnectionFailureHint,
+} from './lib/prod-apply-client'
 
-const ENV_PRODUCTION_PATH = '.env.production'
-
-// シェル由来の DATABASE_URL / DIRECT_URL は dotenv ロードより前に退避する。
-// dotenv 側は override:false のため理論上はシェル値を上書きしないが、
-// 本番誤接続を防ぐ最優先ルールを dotenv の内部挙動に依存させないための明示的な保険。
-// また、後段でどちらのソース（シェル / .env.production）を使ったかを表示するためにも使う。
-const shellDatabaseUrl = process.env.DATABASE_URL
-const shellDirectUrl = process.env.DIRECT_URL
-
-const envProductionExists = existsSync(ENV_PRODUCTION_PATH)
-
-if (envProductionExists) {
-  /* eslint-disable @typescript-eslint/no-require-imports */
-  const dotenv = require('dotenv')
-  dotenv.config({ path: ENV_PRODUCTION_PATH, override: false })
-  /* eslint-enable @typescript-eslint/no-require-imports */
-}
-
-interface ConnectionResolution {
-  connectionString: string
-  variableName: 'DIRECT_URL' | 'DATABASE_URL'
-  source: 'shell' | typeof ENV_PRODUCTION_PATH
-}
-
-function resolveConnectionString(): ConnectionResolution {
-  const directUrl = process.env.DIRECT_URL
-  const databaseUrl = process.env.DATABASE_URL
-
-  if (!directUrl && !databaseUrl) {
-    if (!envProductionExists) {
-      throw new Error(
-        `本番接続情報が見つかりません。${ENV_PRODUCTION_PATH} が存在しません。作成して DATABASE_URL / DIRECT_URL を設定してください。`,
-      )
-    }
-    throw new Error(
-      `本番接続情報が見つかりません。${ENV_PRODUCTION_PATH} に DATABASE_URL / DIRECT_URL を設定してください。`,
-    )
-  }
-
-  // 単発スクリプトは prepared statement の都合で非プーリングの direct 接続を優先する
-  if (directUrl) {
-    return {
-      connectionString: directUrl,
-      variableName: 'DIRECT_URL',
-      source: shellDirectUrl ? 'shell' : ENV_PRODUCTION_PATH,
-    }
-  }
-
-  if (databaseUrl) {
-    return {
-      connectionString: databaseUrl,
-      variableName: 'DATABASE_URL',
-      source: shellDatabaseUrl ? 'shell' : ENV_PRODUCTION_PATH,
-    }
-  }
-
-  // 上の guard で !directUrl && !databaseUrl は throw 済みのため到達しないが、
-  // 型ガードによる絞り込みのみで解決し `as` キャストを避けるために明示しておく
-  throw new Error(
-    `本番接続情報が見つかりません。${ENV_PRODUCTION_PATH} に DATABASE_URL / DIRECT_URL を設定してください。`,
-  )
-}
-
-function maskConnectionString(connectionString: string): string {
-  return connectionString.replace(/:\/\/.*@/, '://***:***@')
-}
-
-function createApplyFixesPrismaClient(): PrismaClient {
-  const resolved = resolveConnectionString()
-  console.log(
-    `接続先 (masked): ${maskConnectionString(resolved.connectionString)}  [${resolved.variableName}, from ${resolved.source === 'shell' ? 'シェル環境変数' : resolved.source}]`,
-  )
-  const pool = new Pool({ connectionString: resolved.connectionString })
-  const adapter = new PrismaPg(pool)
-  return new PrismaClient({ adapter })
-}
-
-const isApply = process.argv.includes('--apply')
+const isApply = isApplyMode()
 
 // ============================================================
 // 1. FertilizerColumn 本文修正（green-king / magamp-k）
@@ -492,15 +421,8 @@ async function verifyAfterApply(prisma: PrismaClient): Promise<void> {
   console.log(`  ${TACHIGAREN_PESTICIDE_SLUG} effects (${slugs.length}件): ${slugs.join(', ')}`)
 }
 
-function printConnectionFailureHint(): void {
-  console.error(
-    'ヒント: Direct 接続（db.<ref>.supabase.co）は IPv4 環境から届かないことがある。' +
-      'その場合は Supabase の Session pooler の接続文字列を DATABASE_URL/DIRECT_URL に使うとよい。',
-  )
-}
-
 async function main(): Promise<void> {
-  const prisma = createApplyFixesPrismaClient()
+  const prisma = createProdApplyClient()
 
   console.log(`モード: ${isApply ? '--apply（書き込みあり）' : 'dry-run（読み取りのみ）'}`)
 
