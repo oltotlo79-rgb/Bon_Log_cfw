@@ -63,6 +63,7 @@ const mockDiseasePests = [
     slug: 'aphid',
     bodySizeMinMm: null,
     bodySizeMaxMm: null,
+    _count: { effects: 3 },
   },
   {
     id: 'dp2',
@@ -74,6 +75,7 @@ const mockDiseasePests = [
     slug: 'powdery-mildew',
     bodySizeMinMm: null,
     bodySizeMaxMm: null,
+    _count: { effects: 0 },
   },
 ]
 
@@ -240,6 +242,25 @@ describe('listDiseasePests', () => {
       category: expect.any(String),
       slug: expect.any(String),
     })
+  })
+
+  it('各 item の effectsCount が _count.effects と一致する', async () => {
+    const { listDiseasePests } = await import('@/lib/services/pesticide-read-service')
+    const result = await listDiseasePests({})
+
+    expect(result.items[0]?.effectsCount).toBe(3)
+    expect(result.items[1]?.effectsCount).toBe(0)
+  })
+
+  it('effects が 0 件の病害虫でも effectsCount: 0 を返す（例外にならない）', async () => {
+    mockDiseasePestFindMany.mockResolvedValueOnce([
+      { ...mockDiseasePests[0], _count: { effects: 0 } },
+    ])
+
+    const { listDiseasePests } = await import('@/lib/services/pesticide-read-service')
+    const result = await listDiseasePests({})
+
+    expect(result.items[0]?.effectsCount).toBe(0)
   })
 
   it('items に bodySizeMinMm と bodySizeMaxMm（number|null）が含まれる', async () => {
@@ -409,6 +430,24 @@ describe('getDiseasePestBySlug', () => {
         preventionLevel: expect.any(String),
       }),
     })
+  })
+
+  it('effectsCount が effects.length と一致する', async () => {
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result?.effectsCount).toBe(result?.effects.length)
+    expect(result?.effectsCount).toBe(1)
+  })
+
+  it('effects が 0 件のとき effectsCount: 0 を返す', async () => {
+    mockDiseasePestFindUnique.mockResolvedValueOnce({ ...mockDiseasePestDetail, effects: [] })
+
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result?.effectsCount).toBe(0)
+    expect(result?.effects).toHaveLength(0)
   })
 
   it('rating の各フィールドが null または string', async () => {

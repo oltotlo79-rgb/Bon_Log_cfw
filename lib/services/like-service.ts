@@ -1,8 +1,9 @@
 /**
  * @module lib/services/like-service
- * 投稿いいねのプリミティブ操作。
+ * 投稿・コメントいいねのプリミティブ操作。
  *
- * lib/actions/like.ts の togglePostLike と app/api/v1/posts/[id]/like の
+ * lib/actions/like.ts の togglePostLike/toggleCommentLike と
+ * app/api/v1/posts/[id]/like, app/api/v1/comments/[id]/like の
  * 双方から呼ばれる。認証・レート制限は呼び出し元が担う前提。
  */
 
@@ -11,7 +12,7 @@ import 'server-only'
 import { prisma } from '@/lib/db'
 import { createNotification, deleteNotification } from '@/lib/services/notification-core'
 import { recordLikeReceivedService } from '@/lib/services/analytics-recording'
-import { canViewPostByAuthor } from '@/lib/services/post-visibility'
+import { canViewPostByAuthor, assertCanViewPost } from '@/lib/services/post-visibility'
 import logger from '@/lib/logger'
 
 export type LikePostResult =
@@ -183,4 +184,112 @@ export async function togglePostLikePrimitive(
   }
 
   return { found: true, liked, likeCount }
+}
+
+export type LikeCommentResult =
+  | { found: false }
+  | { found: true; liked: boolean; likeCount: number }
+
+/**
+ * コメントにいいねを付与する（冪等）。
+ * 対象リソース認可は client 申告ではなく実 postId（DB 上のコメント所属投稿）で行う。
+ */
+export async function addCommentLike(
+  commentId: string,
+  userId: string,
+): Promise<LikeCommentResult> {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { postId: true, userId: true, isHidden: true, deletedAt: true },
+  })
+
+  if (
+    !comment ||
+    comment.isHidden ||
+    comment.deletedAt ||
+    !(await assertCanViewPost(userId, comment.postId))
+  ) {
+    return { found: false }
+  }
+
+  const isNew = await prisma.$transaction(async (tx) => {
+    const existingLike = await tx.like.findFirst({
+      where: { commentId, userId },
+    })
+    if (!existingLike) {
+      await tx.like.create({ data: { commentId, userId } })
+      return true
+    }
+    return false
+  })
+
+  const likeCount = await prisma.like.count({ where: { commentId } })
+
+  if (isNew && comment.userId !== userId) {
+    void createNotification({
+      userId: comment.userId,
+      actorId: userId,
+      type: 'comment_like',
+      postId: comment.postId,
+      commentId,
+    }).catch((err) => {
+      logger.error('createNotification (comment_like) failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+  }
+
+  return { found: true, liked: true, likeCount }
+}
+
+/**
+ * コメントのいいねを解除する（冪等）。
+ * 対象リソース認可は client 申告ではなく実 postId（DB 上のコメント所属投稿）で行う。
+ */
+export async function removeCommentLike(
+  commentId: string,
+  userId: string,
+): Promise<LikeCommentResult> {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { postId: true, userId: true, isHidden: true, deletedAt: true },
+  })
+
+  if (
+    !comment ||
+    comment.isHidden ||
+    comment.deletedAt ||
+    !(await assertCanViewPost(userId, comment.postId))
+  ) {
+    return { found: false }
+  }
+
+  const wasDeleted = await prisma.$transaction(async (tx) => {
+    const existingLike = await tx.like.findFirst({
+      where: { commentId, userId },
+    })
+    if (existingLike) {
+      await tx.like.delete({ where: { id: existingLike.id } })
+      return true
+    }
+    return false
+  })
+
+  const likeCount = await prisma.like.count({ where: { commentId } })
+
+  if (wasDeleted && comment.userId !== userId) {
+    void deleteNotification({
+      userId: comment.userId,
+      actorId: userId,
+      type: 'comment_like',
+      postId: comment.postId,
+      commentId,
+    }).catch((err) => {
+      logger.error('deleteNotification (comment_like) failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+  }
+
+  return { found: true, liked: false, likeCount }
 }

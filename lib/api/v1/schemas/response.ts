@@ -244,6 +244,8 @@ export const commentSchema = z.object({
   likeCount: z.number().int(),
   replyCount: z.number().int(),
   isLiked: z.boolean(),
+  /** 編集済みなら編集日時、未編集なら null（Web の「編集済み」バッジ表示に使用） */
+  editedAt: z.string().datetime().nullable(),
   user: postAuthorWithStateSchema,
   media: z.array(mediaItemSchema),
   mentionedUsers: z.array(mentionedUserSchema),
@@ -367,6 +369,23 @@ export const searchUsersResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 })
 export type SearchUsersResponse = z.infer<typeof searchUsersResponseSchema>
+
+/**
+ * GET /api/v1/users/[id]/followers, GET /api/v1/users/[id]/following の 1 件。
+ * searchUserItemSchema に isFollowedBy（相手→閲覧者の逆方向フォロー状態）を追加した形。
+ */
+export const userConnectionItemSchema = searchUserItemSchema.extend({
+  /** 一覧内のユーザーが閲覧者をフォローしているか（逆方向。ゲストは常に false） */
+  isFollowedBy: z.boolean(),
+})
+export type UserConnectionItem = z.infer<typeof userConnectionItemSchema>
+
+/** GET /api/v1/users/[id]/followers, GET /api/v1/users/[id]/following 200 */
+export const userConnectionsListResponseSchema = z.object({
+  items: z.array(userConnectionItemSchema),
+  nextCursor: z.string().nullable(),
+})
+export type UserConnectionsListResponse = z.infer<typeof userConnectionsListResponseSchema>
 
 /** 通知アクター（最小情報）のスキーマ */
 export const notificationActorSchema = z.object({
@@ -929,6 +948,8 @@ export const diseasePestItemSchema = z.object({
   slug: z.string(),
   bodySizeMinMm: z.number().nullable(),
   bodySizeMaxMm: z.number().nullable(),
+  /** 登録済みの効果（防除対象農薬）件数 */
+  effectsCount: z.number().int(),
 })
 export type DiseasePestItem = z.infer<typeof diseasePestItemSchema>
 
@@ -1704,6 +1725,16 @@ export const userPostsResponseSchema = z.object({
 })
 export type UserPostsResponse = z.infer<typeof userPostsResponseSchema>
 
+/**
+ * GET /api/v1/users/{id}/likes 200
+ * 形状は userPostsResponseSchema と同一だが、意味的に別物（いいねした投稿一覧）のため別名で定義する。
+ */
+export const userLikesResponseSchema = z.object({
+  items: z.array(postSchema),
+  nextCursor: z.string().nullable(),
+})
+export type UserLikesResponse = z.infer<typeof userLikesResponseSchema>
+
 // ──────────────────────────────────────────────────
 // §B-1 リポスト
 // ──────────────────────────────────────────────────
@@ -2005,6 +2036,18 @@ export const messageListResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 })
 export type MessageListResponse = z.infer<typeof messageListResponseSchema>
+
+// ──────────────────────────────────────────────────
+// #4 住所ジオコーディング
+// ──────────────────────────────────────────────────
+
+/** GET /api/v1/geocode 200 */
+export const geocodeResponseSchema = z.object({
+  latitude: z.number(),
+  longitude: z.number(),
+  formattedAddress: z.string(),
+})
+export type GeocodeResponse = z.infer<typeof geocodeResponseSchema>
 
 // ──────────────────────────────────────────────────
 // エラーレスポンス（全エンドポイント共通）

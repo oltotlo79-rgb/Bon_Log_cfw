@@ -95,6 +95,28 @@ export async function resolveIsPublicMap(
   return new Map(users.map((u) => [u.id, u.isPublic]))
 }
 
+/**
+ * 複数ターゲットについて「ターゲット→viewer」方向のフォロー状態を一括解決する。
+ *
+ * resolveFollowStates は viewer→target 方向（プロフィールの「フォローする」ボタン用）のみを
+ * 解決するため、フォロワー/フォロー中一覧の「相手が閲覧者をフォローしているか」表示には使えない。
+ * Follow.findMany の1クエリで解決する（N+1 なし）。
+ */
+export async function resolveIsFollowedByStates(
+  viewerId: string,
+  targetIds: string[],
+): Promise<Map<string, boolean>> {
+  if (targetIds.length === 0) return new Map()
+
+  const follows = await prisma.follow.findMany({
+    where: { followerId: { in: targetIds }, followingId: viewerId },
+    select: { followerId: true },
+  })
+
+  const followerSet = new Set(follows.map((f) => f.followerId))
+  return new Map(targetIds.map((id) => [id, followerSet.has(id)]))
+}
+
 export type BlockMuteState = {
   isBlocked: boolean
   isMuted: boolean

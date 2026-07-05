@@ -45,6 +45,56 @@ vi.mock('@/lib/constants/status', () => ({
 const VIEWER = 'viewer-id'
 const TARGET = 'target-id'
 
+describe('resolveIsFollowedByStates', () => {
+  const TARGET_A = 'target-a'
+  const TARGET_B = 'target-b'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFollowFindMany.mockResolvedValue([])
+  })
+
+  it('空配列を渡すと即座に空 Map を返す（DB クエリなし）', async () => {
+    const { resolveIsFollowedByStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsFollowedByStates(VIEWER, [])
+    expect(result.size).toBe(0)
+    expect(mockFollowFindMany).not.toHaveBeenCalled()
+  })
+
+  it('相手が閲覧者をフォローしている場合 true を返す（ターゲット→viewer 方向）', async () => {
+    mockFollowFindMany.mockResolvedValueOnce([{ followerId: TARGET_A }])
+    const { resolveIsFollowedByStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsFollowedByStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(result.get(TARGET_A)).toBe(true)
+    expect(result.get(TARGET_B)).toBe(false)
+  })
+
+  it('相互フォロー関係でも isFollowedBy は viewer→target 方向を混同しない', async () => {
+    // Follow.findMany は followerId: targetIds, followingId: viewer の1方向のみを問い合わせる。
+    // viewer が target をフォローしているかどうかは resolveFollowStates（別関数）の責務。
+    mockFollowFindMany.mockResolvedValueOnce([{ followerId: TARGET_A }])
+    const { resolveIsFollowedByStates } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveIsFollowedByStates(VIEWER, [TARGET_A])
+    expect(mockFollowFindMany).toHaveBeenCalledWith({
+      where: { followerId: { in: [TARGET_A] }, followingId: VIEWER },
+      select: { followerId: true },
+    })
+  })
+
+  it('findMany は 1 回だけ呼ばれる（N+1 なし）', async () => {
+    const { resolveIsFollowedByStates } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveIsFollowedByStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(mockFollowFindMany).toHaveBeenCalledTimes(1)
+  })
+
+  it('どちらもフォローしていない場合は全 false を返す', async () => {
+    const { resolveIsFollowedByStates } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsFollowedByStates(VIEWER, [TARGET_A, TARGET_B])
+    expect(result.get(TARGET_A)).toBe(false)
+    expect(result.get(TARGET_B)).toBe(false)
+  })
+})
+
 describe('resolveBlockMuteStateForOne', () => {
   beforeEach(() => {
     vi.clearAllMocks()

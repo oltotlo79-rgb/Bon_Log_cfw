@@ -834,3 +834,15 @@ export type SendMessageRequest = z.infer<typeof sendMessageRequestSchema>
 
 // MAX_MESSAGE_LENGTH は OpenAPI description で参照
 export { MAX_MESSAGE_LENGTH }
+
+// ──────────────────────────────────────────────────
+// #4 住所ジオコーディング
+// ──────────────────────────────────────────────────
+
+import { MAX_ADDRESS_LENGTH } from '@/lib/constants/limits'
+
+/** GET /api/v1/geocode のクエリパラメータ */
+export const geocodeQuerySchema = z.object({
+  address: z.string().min(1).max(MAX_ADDRESS_LENGTH),
+})
+export type GeocodeQuery = z.infer<typeof geocodeQuerySchema>

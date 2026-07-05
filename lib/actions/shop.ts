@@ -26,7 +26,7 @@ import {
   ERR_SHOP_NAME_REQUIRED,
   ERR_SHOP_ADDRESS_REQUIRED,
 } from '@/lib/constants/errors'
-import { MAX_SHOP_GENRES, MAX_ADDRESS_SUGGESTIONS, MIN_SEARCH_QUERY_LENGTH, MAX_ADDRESS_LENGTH, ADDRESS_SEARCH_TIMEOUT_MS, MAX_SHOPS_LIMIT, MAX_REVIEWS_PER_SHOP, GSI_ADDRESS_SEARCH_URL, MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/limits'
+import { MAX_SHOP_GENRES, MIN_SEARCH_QUERY_LENGTH, MAX_ADDRESS_LENGTH, MAX_SHOPS_LIMIT, MAX_REVIEWS_PER_SHOP, MAX_NOTIFICATION_ID_LENGTH } from '@/lib/constants/limits'
 
 const shopIdSchema = z.string().min(1).max(MAX_NOTIFICATION_ID_LENGTH)
 import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
@@ -36,22 +36,10 @@ import { getCachedShopRatings } from '@/lib/cache'
 import { ROUTE_SHOPS } from '@/lib/constants/routes'
 import { buildShopPath } from '@/lib/constants/path-builders'
 import { containsInsensitive } from '@/lib/actions/prisma-filters'
-
-/**
- * 国土地理院 (GSI) 住所検索 API のレスポンス schema。
- * 各エントリは `geometry.coordinates: [経度, 緯度]` を持つ GeoJSON 風の形状。
- * 任意 cast を避けるため Zod で narrow し、未知 shape を runtime で弾く。
- */
-const gsiSearchResultsSchema = z.array(
-  z.object({
-    geometry: z.object({
-      coordinates: z.tuple([z.number(), z.number()]),
-    }),
-    properties: z.object({
-      title: z.string(),
-    }),
-  }),
-)
+import {
+  geocodeAddress as geocodeAddressGsi,
+  searchAddressSuggestions as searchAddressSuggestionsGsi,
+} from '@/lib/services/geocode-service'
 
 /**
  * `getShops` 用の include 形状。型推論の安定化のため定数化する。
@@ -511,7 +499,7 @@ export async function deleteShop(shopId: string) {
   return actionSuccess()
 }
 
-/** 住所から緯度経度を取得する（国土地理院API）。 */
+/** 住所から緯度経度を取得する（国土地理院API）。GSI 呼び出し本体は geocode-service に委譲。 */
 export async function geocodeAddress(address: string) {
   const authResult = await requireAuth()
   if ('error' in authResult) return actionError(authResult.error)
@@ -520,51 +508,28 @@ export async function geocodeAddress(address: string) {
     return actionError(ERR_INVALID_INPUT)
   }
 
-  try {
-    const encodedAddress = encodeURIComponent(address)
-
-    const response = await fetch(
-      `${GSI_ADDRESS_SEARCH_URL}?q=${encodedAddress}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(ADDRESS_SEARCH_TIMEOUT_MS),
-      }
-    )
-
-    if (!response.ok) {
-      return actionError(ERR_ADDRESS_SEARCH_FAILED)
+  const result = await geocodeAddressGsi(address)
+  if (!result.ok) {
+    switch (result.reason) {
+      case 'http_error':
+        return actionError(ERR_ADDRESS_SEARCH_FAILED)
+      case 'parse_error':
+        return actionError(ERR_ADDRESS_PARSE_FAILED)
+      case 'not_found':
+        return actionError(ERR_ADDRESS_NOT_FOUND)
+      case 'network_error':
+        return actionError(ERR_ADDRESS_SEARCH_ERROR)
     }
+  }
 
-    let data: unknown
-    try {
-      data = await response.json()
-    } catch {
-      return actionError(ERR_ADDRESS_PARSE_FAILED)
-    }
-
-    const parsed = gsiSearchResultsSchema.safeParse(data)
-    if (!parsed.success || parsed.data.length === 0) {
-      return actionError(ERR_ADDRESS_NOT_FOUND)
-    }
-
-    // 国土地理院APIは [経度, 緯度] の順序で返す
-    const first = parsed.data[0]
-    if (!first) return actionError(ERR_ADDRESS_NOT_FOUND)
-    const [longitude, latitude] = first.geometry.coordinates
-
-    return {
-      latitude,
-      longitude,
-      displayName: first.properties.title,
-    }
-  } catch {
-    return actionError(ERR_ADDRESS_SEARCH_ERROR)
+  return {
+    latitude: result.latitude,
+    longitude: result.longitude,
+    displayName: result.displayName,
   }
 }
 
-/** 住所候補を検索する（オートコンプリート用）。 */
+/** 住所候補を検索する（オートコンプリート用）。GSI 呼び出し本体は geocode-service に委譲。 */
 export async function searchAddressSuggestions(query: string) {
   const authResult = await requireAuth()
   if ('error' in authResult) return { suggestions: [] }
@@ -577,54 +542,12 @@ export async function searchAddressSuggestions(query: string) {
     return { suggestions: [] }
   }
 
-  try {
-    const encodedQuery = encodeURIComponent(query)
-
-    const response = await fetch(
-      `${GSI_ADDRESS_SEARCH_URL}?q=${encodedQuery}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(ADDRESS_SEARCH_TIMEOUT_MS),
-      }
-    )
-
-    if (!response.ok) {
-      return { suggestions: [], originalQuery: query }
-    }
-
-    let data: unknown
-    try {
-      data = await response.json()
-    } catch {
-      return { suggestions: [], originalQuery: query }
-    }
-
-    if (!Array.isArray(data) || data.length === 0) {
-      return { suggestions: [], originalQuery: query }
-    }
-
-    const parsedList = gsiSearchResultsSchema.safeParse(data)
-    if (!parsedList.success || parsedList.data.length === 0) {
-      return { suggestions: [], originalQuery: query }
-    }
-
-    // 国土地理院APIは [経度, 緯度] の順序で返す
-    const suggestions = parsedList.data.slice(0, MAX_ADDRESS_SUGGESTIONS).map((item) => {
-      const [longitude, latitude] = item.geometry.coordinates
-      return {
-        latitude,
-        longitude,
-        displayName: item.properties.title,
-        formattedAddress: item.properties.title,
-      }
-    })
-
-    return { suggestions, originalQuery: query }
-  } catch {
+  const result = await searchAddressSuggestionsGsi(query)
+  if (!result.ok) {
     return { suggestions: [], originalQuery: query }
   }
+
+  return { suggestions: result.suggestions, originalQuery: query }
 }
 
 /** 盆栽園のジャンル一覧を取得する。 */

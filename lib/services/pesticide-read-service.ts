@@ -95,6 +95,7 @@ export type DiseasePestListItem = {
   slug: string
   bodySizeMinMm: number | null
   bodySizeMaxMm: number | null
+  effectsCount: number
 }
 
 export type DiseasePestEffectItem = {
@@ -250,6 +251,8 @@ export async function listDiseasePests(params: {
         slug: true,
         bodySizeMinMm: true,
         bodySizeMaxMm: true,
+        // 1 クエリで集計されるため N+1 にならない
+        _count: { select: { effects: true } },
       },
       take: safeLimit + 1,
       ...(params.cursor !== undefined
@@ -258,11 +261,26 @@ export async function listDiseasePests(params: {
     })
 
     const hasNext = rows.length > safeLimit
-    const items = hasNext ? rows.slice(0, safeLimit) : rows
-    const nextCursor = hasNext ? (items[items.length - 1]?.slug ?? null) : null
+    const pageRows = hasNext ? rows.slice(0, safeLimit) : rows
+    const nextCursor = hasNext ? (pageRows[pageRows.length - 1]?.slug ?? null) : null
+
+    const items = pageRows.map((row) =>
+      applyImageFallback({
+        id: row.id,
+        name: row.name,
+        nameKana: row.nameKana,
+        category: row.category,
+        description: row.description,
+        imageUrl: row.imageUrl,
+        slug: row.slug,
+        bodySizeMinMm: row.bodySizeMinMm,
+        bodySizeMaxMm: row.bodySizeMaxMm,
+        effectsCount: row._count.effects,
+      }),
+    )
 
     return {
-      items: items.map(applyImageFallback),
+      items,
       nextCursor,
     }
   } catch (error) {
@@ -340,6 +358,7 @@ export async function getDiseasePestBySlug(slug: string): Promise<DiseasePestDet
       slug: withFallback.slug,
       bodySizeMinMm: withFallback.bodySizeMinMm,
       bodySizeMaxMm: withFallback.bodySizeMaxMm,
+      effectsCount: dp.effects.length,
       effects: dp.effects.map((e) => ({
         pesticide: {
           id: e.pesticide.id,

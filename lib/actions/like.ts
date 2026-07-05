@@ -21,9 +21,8 @@ import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { ERR_LIKE_FAILED, ERR_INVALID_INPUT, ERR_POST_NOT_FOUND, ERR_COMMENT_NOT_FOUND } from '@/lib/constants/errors'
 import { ROUTE_FEED } from '@/lib/constants/routes'
 import { buildPostPath } from '@/lib/constants/path-builders'
-import { canViewPostByAuthor, assertCanViewPost, visiblePostWhere } from '@/lib/services/post-visibility'
-import { POST_LIST_INCLUDE, formatPostForClient } from './post-include'
-import { normalizeCursorPagination } from '@/lib/actions/pagination'
+import { canViewPostByAuthor, assertCanViewPost } from '@/lib/services/post-visibility'
+import { fetchLikedPostsCore } from '@/lib/services/user-likes-service'
 
 const postIdSchema = z.string().min(1)
 const commentIdSchema = z.string().min(1)
@@ -239,71 +238,12 @@ export async function getPostLikeStatus(postId: string) {
 export async function getLikedPosts(userId: string, cursor?: string, limit = DEFAULT_PAGE_LIMIT) {
   const session = await auth()
   const currentUserId = session?.user?.id
-  // limit / cursor を MAX_PAGE_LIMIT で clamp し不正文字を除去する
-  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
 
   try {
-    const likes = await prisma.like.findMany({
-      where: {
-        userId,
-        postId: { not: null },
-        commentId: null,
-        // いいね先は他ユーザー作のため、閲覧者から見える投稿のみに絞る（非表示/非公開/停止を除外）。
-        post: visiblePostWhere(currentUserId),
-      },
-      include: {
-        post: {
-          include: POST_LIST_INCLUDE,
-        },
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: safeLimit,
-      ...(safeCursor && {
-        cursor: { id: safeCursor },
-        skip: 1,
-      }),
-    })
-
-    type LikeType = typeof likes[number]
-    type ValidLikeType = LikeType & { post: NonNullable<LikeType['post']> }
-
-    const validLikes = likes.filter((like: LikeType): like is ValidLikeType => Boolean(like.post))
-    const postIds = validLikes.map((like: ValidLikeType) => like.post.id)
-
-    // isLiked / isBookmarked は「閲覧者(currentUserId)」基準で判定する。
-    // likedSet を対象ユーザーの like から作ると他人の一覧で常に true になるため、
-    // bookmark と同様に閲覧者の like を引き直す。
-    let likedSet = new Set<string>()
-    let bookmarkedSet = new Set<string>()
-    if (currentUserId && postIds.length > 0) {
-      const [userLikes, userBookmarks] = await Promise.all([
-        prisma.like.findMany({
-          where: { userId: currentUserId, postId: { in: postIds }, commentId: null },
-          select: { postId: true },
-        }),
-        prisma.bookmark.findMany({
-          where: { userId: currentUserId, postId: { in: postIds } },
-          select: { postId: true },
-        }),
-      ])
-      likedSet = new Set(
-        userLikes
-          .map((l: { postId: string | null }) => l.postId)
-          .filter((id: string | null): id is string => id !== null),
-      )
-      bookmarkedSet = new Set(userBookmarks.map((b: { postId: string }) => b.postId))
-    }
-
-    const posts = validLikes.map((like: ValidLikeType) =>
-      formatPostForClient(like.post, likedSet, bookmarkedSet),
-    )
-
-    const hasMore = likes.length === safeLimit
-
-    return {
-      posts,
-      nextCursor: hasMore ? likes[likes.length - 1]?.id : undefined,
-    }
+    // クエリ・整形ロジックは mobile API (GET /api/v1/users/{id}/likes) と共有する
+    // fetchLikedPostsCore に委譲する。対象ユーザー自身の可視性チェックは行わない
+    // （既存 Web 経路の挙動を維持するため。mobile 専用の fetchLikedPosts が追加で行う）。
+    return await fetchLikedPostsCore(userId, currentUserId, cursor, limit)
   } catch (error) {
     logger.error('Get liked posts error', {
       error: error instanceof Error ? error.message : String(error),

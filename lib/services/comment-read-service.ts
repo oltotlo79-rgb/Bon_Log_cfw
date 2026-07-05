@@ -29,6 +29,7 @@ export type CommentItem = {
   likeCount: number
   replyCount: number
   isLiked: boolean
+  editedAt: Date | null
   user: { id: string; nickname: string; avatarUrl: string | null }
   media: { id: string; url: string; type: string; sortOrder: number }[]
 }
@@ -36,6 +37,51 @@ export type CommentItem = {
 export type CommentsResult = {
   comments: CommentItem[]
   nextCursor: string | undefined
+}
+
+/** fetchComments / fetchReplies の findMany 行から CommentItem を組み立てる共通マッパー。 */
+type CommentRow = {
+  id: string
+  postId: string
+  userId: string
+  parentId: string | null
+  content: string
+  createdAt: Date
+  updatedAt: Date
+  deletedAt: Date | null
+  isHidden: boolean
+  editedAt: Date | null
+  user: { id: string; nickname: string; avatarUrl: string | null }
+  media: { id: string; url: string; type: string; sortOrder: number }[] | null
+  likes?: { id: string }[]
+  _count: { likes: number; replies: number }
+}
+
+function formatCommentRow(row: CommentRow, blockedUserIds: string[], likedIds: Set<string>): CommentItem {
+  return {
+    id: row.id,
+    postId: row.postId,
+    userId: row.userId,
+    parentId: row.parentId,
+    content: row.content,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    deletedAt: row.deletedAt,
+    isHidden: row.isHidden,
+    isDeleted: row.deletedAt !== null,
+    isBlockedUser: blockedUserIds.includes(row.userId),
+    likeCount: row._count.likes,
+    replyCount: row._count.replies,
+    isLiked: likedIds.has(row.id),
+    editedAt: row.editedAt,
+    user: row.user,
+    media: (row.media ?? []).map((m) => ({
+      id: m.id,
+      url: m.url,
+      type: m.type,
+      sortOrder: m.sortOrder,
+    })),
+  }
 }
 
 /**
@@ -91,29 +137,72 @@ export async function fetchComments(
   return {
     comments: comments
       .filter((c) => c.deletedAt === null || c._count.replies > 0)
-      .map((comment) => ({
-        id: comment.id,
-        postId: comment.postId,
-        userId: comment.userId,
-        parentId: comment.parentId,
-        content: comment.content,
-        createdAt: comment.createdAt,
-        updatedAt: comment.updatedAt,
-        deletedAt: comment.deletedAt,
-        isHidden: comment.isHidden,
-        isDeleted: comment.deletedAt !== null,
-        isBlockedUser: blockedUserIds.includes(comment.userId),
-        likeCount: comment._count.likes,
-        replyCount: comment._count.replies,
-        isLiked: likedCommentIds.has(comment.id),
-        user: comment.user,
-        media: (comment.media ?? []).map((m) => ({
-          id: m.id,
-          url: m.url,
-          type: m.type,
-          sortOrder: m.sortOrder,
-        })),
-      })),
+      .map((comment) => formatCommentRow(comment, blockedUserIds, likedCommentIds)),
     nextCursor: hasMore ? comments[comments.length - 1]?.id : undefined,
+  }
+}
+
+/**
+ * 親コメントへの返信一覧を作成日時昇順で返す（fetchComments と対称の降順ではない）。
+ * 親コメントが非表示/削除済み/閲覧不可（client 申告ではなく実 postId で判定）の場合は空を返す。
+ */
+export async function fetchReplies(
+  parentCommentId: string,
+  viewerId: string | undefined,
+  cursor?: string,
+  limit?: number,
+): Promise<CommentsResult> {
+  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
+
+  const parent = await prisma.comment.findUnique({
+    where: { id: parentCommentId },
+    select: { postId: true, isHidden: true, deletedAt: true },
+  })
+  if (
+    !parent ||
+    parent.isHidden ||
+    parent.deletedAt ||
+    !(await assertCanViewPost(viewerId, parent.postId))
+  ) {
+    return { comments: [], nextCursor: undefined }
+  }
+
+  const blockedUserIds: string[] = viewerId ? await getBlockedUserIds(viewerId) : []
+
+  const replies = await prisma.comment.findMany({
+    where: {
+      parentId: parentCommentId,
+      isHidden: false,
+    },
+    include: {
+      user: { select: USER_MINIMAL_SELECT },
+      media: { orderBy: { sortOrder: 'asc' } },
+      _count: {
+        select: { likes: true, replies: { where: { deletedAt: null } } },
+      },
+      ...(viewerId
+        ? {
+            likes: {
+              where: { userId: viewerId },
+              select: { id: true },
+            },
+          }
+        : {}),
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    ...buildCursorPagination(safeCursor, safeLimit),
+  })
+
+  const likedReplyIds = new Set(
+    viewerId ? replies.filter((r) => r.likes && r.likes.length > 0).map((r) => r.id) : [],
+  )
+
+  const hasMore = replies.length === safeLimit
+
+  return {
+    comments: replies
+      .filter((r) => r.deletedAt === null || r._count.replies > 0)
+      .map((reply) => formatCommentRow(reply, blockedUserIds, likedReplyIds)),
+    nextCursor: hasMore ? replies[replies.length - 1]?.id : undefined,
   }
 }

@@ -9,12 +9,10 @@
 
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { sanitizePostContent } from '@/lib/sanitize'
 import logger from '@/lib/logger'
-import { getBlockedUserIds } from './filter-helper'
 import { requireActiveNonGuestUser, requireAuth, actionSuccess, actionError, validateMediaCounts, enforceUserRateLimit } from '@/lib/actions/utils'
 import { checkUserRateLimit, checkDailyLimit } from '@/lib/rate-limit'
 import {
@@ -55,11 +53,10 @@ import {
 } from '@/lib/constants/storage'
 import { getStartOfToday } from '@/lib/utils'
 import { validateImageFile, generateSafeFileName } from '@/lib/file-validation'
-import { buildCursorPagination, normalizeCursorPagination } from '@/lib/actions/pagination'
 import { notifyCommentParticipants } from '@/lib/services/comment-notifications'
 import { mediaUrlListSchema, mediaTypeListSchema } from '@/lib/actions/schemas/common'
 import { assertCanViewPost } from '@/lib/services/post-visibility'
-import { fetchComments } from '@/lib/services/comment-read-service'
+import { fetchComments, fetchReplies } from '@/lib/services/comment-read-service'
 
 const commentIdSchema = z.string().min(1)
 
@@ -334,71 +331,10 @@ export async function getComments(postId: string, cursor?: string, limit = DEFAU
 export async function getReplies(commentId: string, cursor?: string, limit = REPLIES_PAGE_LIMIT) {
   const session = await auth()
   const currentUserId = session?.user?.id
-  const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
 
   try {
-    // 親コメントの所属投稿が閲覧可能な場合のみ返信を返す（client 申告ではなく実 postId で判定）
-    const parent = await prisma.comment.findUnique({
-      where: { id: commentId },
-      select: { postId: true, isHidden: true, deletedAt: true },
-    })
-    if (!parent || parent.isHidden || parent.deletedAt || !(await assertCanViewPost(currentUserId, parent.postId))) {
-      return { replies: [], nextCursor: undefined }
-    }
-
-    const blockedUserIds: string[] = currentUserId
-      ? await getBlockedUserIds(currentUserId)
-      : []
-
-    const replies = await prisma.comment.findMany({
-      where: {
-        parentId: commentId,
-        isHidden: false,
-      },
-      include: {
-        user: {
-          select: USER_MINIMAL_SELECT,
-        },
-        media: {
-          orderBy: { sortOrder: 'asc' },
-        },
-        _count: {
-          select: { likes: true, replies: { where: { deletedAt: null } } },
-        },
-        ...(currentUserId ? {
-          likes: {
-            where: { userId: currentUserId },
-            select: { id: true },
-          },
-        } : {}),
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      ...buildCursorPagination(safeCursor, safeLimit),
-    })
-
-    const likedReplyIds = new Set(
-      currentUserId
-        ? replies.filter((r) => r.likes && r.likes.length > 0).map((r) => r.id)
-        : []
-    )
-
-    const hasMore = replies.length === safeLimit
-
-    return {
-      replies: replies
-        .filter((reply: typeof replies[number]) =>
-          reply.deletedAt === null || reply._count.replies > 0
-        )
-        .map((reply: typeof replies[number]) => ({
-          ...reply,
-          likeCount: reply._count.likes,
-          replyCount: reply._count.replies,
-          isLiked: likedReplyIds.has(reply.id),
-          isBlockedUser: blockedUserIds.includes(reply.userId),
-          isDeleted: reply.deletedAt !== null,
-        })),
-      nextCursor: hasMore ? replies[replies.length - 1]?.id : undefined,
-    }
+    const result = await fetchReplies(commentId, currentUserId, cursor, limit)
+    return { replies: result.comments, nextCursor: result.nextCursor }
   } catch (error) {
     logger.error('Get replies error', {
       error: error instanceof Error ? error.message : String(error),

@@ -242,6 +242,9 @@ export const RATE_LIMITS = {
   // メールアドレス変更確認（token ベース、未ログインでも実行可能）: IP ベース 1 時間に 10 回、
   // fail-closed（Redis 障害時はトークン総当りを遮断）。
   email_change_confirm: { windowMs: ONE_HOUR_MS, maxRequests: 10, failOpen: false },
+  // モバイル API v1 住所ジオコーディング（国土地理院 GSI 呼び出し）: 外部 API 負荷に配慮し
+  // search（20/分）より絞った専用バケットとする。
+  geocode: { windowMs: ONE_MINUTE_MS, maxRequests: 15 },
 } as const
 
 /**

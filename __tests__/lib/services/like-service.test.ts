@@ -8,9 +8,11 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 const mockPost = { userId: 'author-id', isHidden: false }
+const mockComment = { postId: 'post-1', userId: 'author-id', isHidden: false, deletedAt: null }
 
 const mockPrisma = {
   post: { findUnique: vi.fn() },
+  comment: { findUnique: vi.fn() },
   like: {
     findFirst: vi.fn(),
     create: vi.fn(),
@@ -23,8 +25,10 @@ const mockPrisma = {
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockCanViewPostByAuthor = vi.fn()
+const mockAssertCanViewPost = vi.fn()
 vi.mock('@/lib/services/post-visibility', () => ({
   canViewPostByAuthor: (...args: unknown[]) => mockCanViewPostByAuthor(...args),
+  assertCanViewPost: (...args: unknown[]) => mockAssertCanViewPost(...args),
 }))
 
 const mockCreateNotification = vi.fn()
@@ -459,6 +463,206 @@ describe('通知エラーハンドラー', () => {
 
     const { togglePostLikePrimitive } = await import('@/lib/services/like-service')
     const result = await togglePostLikePrimitive('post-1', 'user-liker')
+
+    expect(result).toMatchObject({ found: true, liked: false })
+    await new Promise((r) => setTimeout(r, 20))
+  })
+})
+
+describe('addCommentLike', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPrisma.comment.findUnique.mockResolvedValue(mockComment)
+    mockAssertCanViewPost.mockResolvedValue(true)
+    mockPrisma.$transaction.mockImplementation(
+      async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
+    )
+    mockPrisma.like.findFirst.mockResolvedValue(null)
+    mockPrisma.like.create.mockResolvedValue({})
+    mockPrisma.like.count.mockResolvedValue(3)
+    mockCreateNotification.mockResolvedValue(undefined)
+  })
+
+  it('いいね付与 → { found: true, liked: true, likeCount }', async () => {
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-1', 'user-1')
+
+    expect(result).toEqual({ found: true, liked: true, likeCount: 3 })
+  })
+
+  it('不存在コメントは { found: false }', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce(null)
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-ghost', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('isHidden コメントは { found: false }', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce({ ...mockComment, isHidden: true })
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-hidden', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('削除済みコメントは { found: false }', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce({ ...mockComment, deletedAt: new Date() })
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-deleted', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('所属投稿が閲覧不可（assertCanViewPost false）は { found: false }', async () => {
+    mockAssertCanViewPost.mockResolvedValueOnce(false)
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-1', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('既にいいね済みでも like.create を呼ばず { found: true, liked: true } を返す（冪等）', async () => {
+    mockPrisma.like.findFirst.mockResolvedValueOnce({ id: 'like-existing' })
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-1', 'user-1')
+
+    expect(result).toMatchObject({ found: true, liked: true })
+    expect(mockPrisma.like.create).not.toHaveBeenCalled()
+  })
+
+  it('自分のコメントへのいいねでは通知を送らない', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce({ ...mockComment, userId: 'user-1' })
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    await addCommentLike('comment-1', 'user-1')
+
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockCreateNotification).not.toHaveBeenCalled()
+  })
+
+  it('他人のコメントにいいね → createNotification が comment_like タイプで呼ばれる', async () => {
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    await addCommentLike('comment-1', 'user-liker')
+
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'comment_like', postId: 'post-1', commentId: 'comment-1' }),
+    )
+  })
+
+  it('既にいいね済みの場合 createNotification が呼ばれない（冪等副作用ゼロ）', async () => {
+    mockPrisma.like.findFirst.mockResolvedValueOnce({ id: 'like-existing' })
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    await addCommentLike('comment-1', 'user-liker')
+
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockCreateNotification).toHaveBeenCalledTimes(0)
+  })
+
+  it('createNotification が例外をスローしても { found: true } を返す（エラー握りつぶし）', async () => {
+    mockCreateNotification.mockRejectedValue(new Error('通知失敗'))
+    const { addCommentLike } = await import('@/lib/services/like-service')
+    const result = await addCommentLike('comment-1', 'user-liker')
+
+    expect(result).toMatchObject({ found: true, liked: true })
+    await new Promise((r) => setTimeout(r, 20))
+  })
+})
+
+describe('removeCommentLike', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPrisma.comment.findUnique.mockResolvedValue(mockComment)
+    mockAssertCanViewPost.mockResolvedValue(true)
+    mockPrisma.$transaction.mockImplementation(
+      async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
+    )
+    mockPrisma.like.findFirst.mockResolvedValue({ id: 'like-1' })
+    mockPrisma.like.delete.mockResolvedValue({})
+    mockPrisma.like.count.mockResolvedValue(2)
+    mockDeleteNotification.mockResolvedValue(undefined)
+  })
+
+  it('いいね解除 → { found: true, liked: false, likeCount }', async () => {
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-1', 'user-1')
+
+    expect(result).toEqual({ found: true, liked: false, likeCount: 2 })
+  })
+
+  it('不存在コメントは { found: false }', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce(null)
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-ghost', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('isHidden コメントは { found: false }', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce({ ...mockComment, isHidden: true })
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-hidden', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('削除済みコメントは { found: false }', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce({ ...mockComment, deletedAt: new Date() })
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-deleted', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('所属投稿が閲覧不可（assertCanViewPost false）は { found: false }', async () => {
+    mockAssertCanViewPost.mockResolvedValueOnce(false)
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-1', 'user-1')
+
+    expect(result).toEqual({ found: false })
+  })
+
+  it('いいねしていない場合は like.delete を呼ばず { found: true, liked: false } を返す（冪等）', async () => {
+    mockPrisma.like.findFirst.mockResolvedValueOnce(null)
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-1', 'user-1')
+
+    expect(result).toMatchObject({ found: true, liked: false })
+    expect(mockPrisma.like.delete).not.toHaveBeenCalled()
+  })
+
+  it('他人のコメントいいね解除 → deleteNotification が comment_like タイプで呼ばれる', async () => {
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    await removeCommentLike('comment-1', 'user-liker')
+
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockDeleteNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'comment_like', postId: 'post-1', commentId: 'comment-1' }),
+    )
+  })
+
+  it('自分のコメントのいいね解除では deleteNotification を呼ばない', async () => {
+    mockPrisma.comment.findUnique.mockResolvedValueOnce({ ...mockComment, userId: 'user-1' })
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    await removeCommentLike('comment-1', 'user-1')
+
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockDeleteNotification).not.toHaveBeenCalled()
+  })
+
+  it('いいねなし状態への再送では deleteNotification が呼ばれない（冪等副作用ゼロ）', async () => {
+    mockPrisma.like.findFirst.mockResolvedValueOnce(null)
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    await removeCommentLike('comment-1', 'user-liker')
+
+    await new Promise((r) => setTimeout(r, 10))
+    expect(mockDeleteNotification).toHaveBeenCalledTimes(0)
+  })
+
+  it('deleteNotification が例外をスローしても { found: true } を返す', async () => {
+    mockDeleteNotification.mockRejectedValue(new Error('通知削除失敗'))
+    const { removeCommentLike } = await import('@/lib/services/like-service')
+    const result = await removeCommentLike('comment-1', 'user-liker')
 
     expect(result).toMatchObject({ found: true, liked: false })
     await new Promise((r) => setTimeout(r, 20))

@@ -90,6 +90,7 @@ async function main() {
     changePasswordRequestSchema,
     emailChangeRequestSchema,
     emailChangeConfirmSchema,
+    geocodeQuerySchema,
   } = await import('../lib/api/v1/schemas/request')
 
   const {
@@ -108,6 +109,8 @@ async function main() {
     userProfileSchema,
     searchPostsResponseSchema,
     searchUsersResponseSchema,
+    userConnectionItemSchema,
+    userConnectionsListResponseSchema,
     notificationsListResponseSchema,
     unreadCountResponseSchema,
     mentionedUserSchema,
@@ -232,6 +235,7 @@ async function main() {
     notificationPreferencesResponseSchema,
     notificationSettingsResponseSchema,
     userPostsResponseSchema,
+    userLikesResponseSchema,
     repostResponseSchema,
     postPollOptionSchema,
     postPollVoteRecordSchema,
@@ -272,6 +276,7 @@ async function main() {
     twoFactorSetupResponseSchema,
     twoFactorEnableResponseSchema,
     twoFactorDisableResponseSchema,
+    geocodeResponseSchema,
   } = await import('../lib/api/v1/schemas/response')
 
   const registry = new OpenAPIRegistry()
@@ -608,6 +613,13 @@ async function main() {
     }),
   )
 
+  const UserLikesResponse = registry.register(
+    'UserLikesResponse',
+    userLikesResponseSchema.openapi({
+      description: 'ユーザーがいいねした投稿一覧レスポンス。カーソルページネーション形式（形状は UserPostsResponse と同一）。',
+    }),
+  )
+
   const RepostResponse = registry.register(
     'RepostResponse',
     repostResponseSchema.openapi({
@@ -682,7 +694,10 @@ async function main() {
 
   const CommentResponse = registry.register(
     'CommentResponse',
-    commentSchema.openapi({ description: '単一コメントのレスポンス（作成時に返却）。' }),
+    commentSchema.openapi({
+      description:
+        '単一コメントのレスポンス（作成時に返却）。editedAt は編集済みなら編集日時、未編集なら null。',
+    }),
   )
 
   const NotificationReadResponse = registry.register(
@@ -757,6 +772,21 @@ async function main() {
   const SearchUsersResponse = registry.register(
     'SearchUsersResponse',
     searchUsersResponseSchema.openapi({ description: 'ユーザー検索結果レスポンス。' }),
+  )
+
+  registry.register(
+    'UserConnectionItem',
+    userConnectionItemSchema.openapi({
+      description:
+        'フォロワー/フォロー中一覧の 1 件。SearchUserItem に isFollowedBy（一覧内ユーザー→閲覧者の逆方向フォロー状態）を追加した形。',
+    }),
+  )
+
+  const UserConnectionsListResponse = registry.register(
+    'UserConnectionsListResponse',
+    userConnectionsListResponseSchema.openapi({
+      description: 'フォロワー/フォロー中一覧レスポンス。複合キーカーソルページネーション。',
+    }),
   )
 
   const NotificationsListResponse = registry.register(
@@ -1539,6 +1569,40 @@ async function main() {
 
   registry.registerPath({
     method: 'get',
+    path: '/api/v1/comments/{id}/replies',
+    tags: ['posts'],
+    summary: 'コメント返信一覧取得',
+    description: [
+      '指定コメントへの返信一覧を作成日時昇順のカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- 可視性判定は client 申告ではなく親コメントの実 postId で行う',
+      '- 親コメントが非表示/削除済み/閲覧不可（非公開・停止著者等）の場合は空リストを返す（404 にはしない）',
+      '- ブロック済みユーザーの返信は isBlockedUser: true として含まれる（非表示はクライアント側で判断）',
+      '- レート制限: api（60/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: '親コメント ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: '返信一覧',
+        content: { 'application/json': { schema: CommentsListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
     path: '/api/v1/users/{id}',
     tags: ['users'],
     summary: 'ユーザープロフィール取得',
@@ -1560,6 +1624,42 @@ async function main() {
       },
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/{id}/likes',
+    tags: ['users'],
+    summary: 'ユーザーがいいねした投稿一覧を取得（カーソルページネーション）',
+    description: [
+      '指定ユーザーがいいねした投稿をカーソルページネーションで返す。',
+      '',
+      '重要仕様:',
+      '- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す',
+      '- ゲストアクセス可: 公開アカウントのいいね一覧を閲覧できる',
+      '- いいね先の投稿自体も閲覧者から見える範囲（非表示/非公開著者/停止著者を除外）に絞る',
+      '- isLiked / isBookmarked / isReposted は閲覧者基準（対象ユーザー基準ではない）で解決される',
+      '- レート制限: timeline（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ユーザー ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ユーザーがいいねした投稿一覧',
+        content: { 'application/json': { schema: UserLikesResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)'),
       404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
       429: rateLimitedResponse,
     },
@@ -1629,6 +1729,80 @@ async function main() {
       200: {
         description: 'ユーザーコメント一覧',
         content: { 'application/json': { schema: UserCommentsListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/{id}/followers',
+    tags: ['users'],
+    summary: 'ユーザーのフォロワー一覧を取得（カーソルページネーション）',
+    description: [
+      '指定ユーザーのフォロワー一覧を createdAt DESC 順で返す。',
+      '',
+      '重要仕様:',
+      '- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す',
+      '- ゲストアクセス可: 公開アカウントのフォロワー一覧を閲覧できる',
+      '- カーソルは複合キー（Follow.followerId + followingId）のうち followerId 側を使う',
+      '  （followingId は対象ユーザーで固定のため、可変側の followerId をカーソル値にする）',
+      '- isFollowedBy: 一覧内のユーザーが閲覧者をフォローしているか（逆方向）',
+      '- レート制限: timeline（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ユーザー ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前ページ最終行の followerId）' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'フォロワー一覧',
+        content: { 'application/json': { schema: UserConnectionsListResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) または非公開アカウントへのアクセス (NOT_FOUND)'),
+      404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/users/{id}/following',
+    tags: ['users'],
+    summary: 'ユーザーのフォロー中一覧を取得（カーソルページネーション）',
+    description: [
+      '指定ユーザーがフォローしているユーザー一覧を createdAt DESC 順で返す。',
+      '',
+      '重要仕様:',
+      '- 非公開アカウントはフォロワー以外には 403 FORBIDDEN を返す',
+      '- ゲストアクセス可: 公開アカウントのフォロー中一覧を閲覧できる',
+      '- カーソルは複合キー（Follow.followerId + followingId）のうち followingId 側を使う',
+      '  （followers 一覧と対称: followerId が対象ユーザーで固定のため、可変側の followingId をカーソル値にする）',
+      '- isFollowedBy: 一覧内のユーザーが閲覧者をフォローしているか（逆方向）',
+      '- レート制限: timeline（30/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'ユーザー ID' }) }),
+      query: z.object({
+        cursor: z.string().optional().openapi({ description: 'カーソル（前ページ最終行の followingId）' }),
+        limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'フォロー中一覧',
+        content: { 'application/json': { schema: UserConnectionsListResponse } },
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
@@ -1837,6 +2011,67 @@ async function main() {
       401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
       404: errorResponse('投稿が存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/v1/comments/{id}/like',
+    tags: ['posts'],
+    summary: 'コメントにいいねを付ける（冪等）',
+    description: [
+      '対象コメントにいいねを付与する。既にいいね済みでも 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 不存在・非表示・削除済みコメント、または所属投稿が閲覧不可（client 申告ではなく実 postId で判定）な場合は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- likeCount は操作後の最新値（楽観更新の確定値として使用できる）',
+      '- 通知（comment_like）は同一ユーザーへの重複通知を防ぐ重複排除が働く',
+      '- レート制限: toggle_like（30/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'コメント ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'いいね付与成功（既にいいね済みでも 200）',
+        content: { 'application/json': { schema: LikeResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('コメントが存在しないか閲覧権限なし (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/v1/comments/{id}/like',
+    tags: ['posts'],
+    summary: 'コメントのいいねを解除する（冪等）',
+    description: [
+      '対象コメントのいいねを解除する。いいねしていなくても 200 を返す（冪等設計）。',
+      '',
+      '重要仕様:',
+      '- 不存在・非表示・削除済みコメント、または所属投稿が閲覧不可（client 申告ではなく実 postId で判定）な場合は 404 NOT_FOUND',
+      '- ゲストアカウントは 403 GUEST_NOT_ALLOWED',
+      '- likeCount は操作後の最新値',
+      '- レート制限: toggle_like（30/分）、超過時は 429 + Retry-After ヘッダー',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({ id: z.string().openapi({ description: 'コメント ID' }) }),
+    },
+    responses: {
+      200: {
+        description: 'いいね解除成功（いいねしていなくても 200）',
+        content: { 'application/json': { schema: LikeResponse } },
+      },
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED) またはゲスト不可 (GUEST_NOT_ALLOWED)'),
+      404: errorResponse('コメントが存在しないか閲覧権限なし (NOT_FOUND)'),
       429: rateLimitedResponse,
     },
   })
@@ -3745,7 +3980,7 @@ async function main() {
   registry.register(
     'DiseasePestItem',
     diseasePestItemSchema.openapi({
-      description: '病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug, bodySizeMinMm, bodySizeMaxMm）。bodySizeMinMm/bodySizeMaxMm は害虫・益虫の体長範囲（mm）。未設定は null。',
+      description: '病害虫一覧の 1 件（id, name, nameKana, category, description, imageUrl, slug, bodySizeMinMm, bodySizeMaxMm, effectsCount）。bodySizeMinMm/bodySizeMaxMm は害虫・益虫の体長範囲（mm）。未設定は null。effectsCount は登録済みの効果（防除対象農薬）件数。',
     }),
   )
 
@@ -6996,6 +7231,54 @@ async function main() {
     },
   })
 
+  registry.register(
+    'GeocodeQuery',
+    geocodeQuerySchema.openapi({
+      description: '住所ジオコーディングのクエリパラメータ（address のみ）。',
+    }),
+  )
+
+  const GeocodeResponse = registry.register(
+    'GeocodeResponse',
+    geocodeResponseSchema.openapi({
+      description: '住所ジオコーディング結果（国土地理院 GSI 住所検索 API の単一の最良候補）。',
+    }),
+  )
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/v1/geocode',
+    tags: ['geocode'],
+    summary: '住所ジオコーディング',
+    description: [
+      '国土地理院 (GSI) 住所検索 API を用いて住所文字列を緯度経度に変換する。',
+      '複数候補がある場合も先頭（最も一致度が高い）の1件のみを返す。',
+      '',
+      '重要仕様:',
+      '- ゲスト可（Bearer 認証は必須だがゲストトークンで呼び出し可）',
+      '- 日本国内住所限定（GSI の仕様上、国外住所は解決不可）',
+      '- 住所が解決できない場合は 404 NOT_FOUND',
+      '- レート制限: geocode（15/分）',
+    ].join('\n'),
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: z.object({
+        address: z.string().min(1).openapi({ description: '検索する住所文字列' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'ジオコーディング成功',
+        content: { 'application/json': { schema: GeocodeResponse } },
+      },
+      400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
+      401: errorResponse('Bearer トークンなし (AUTH_REQUIRED) または期限切れ (AUTH_TOKEN_EXPIRED)'),
+      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      404: errorResponse('住所が解決できない (NOT_FOUND)'),
+      429: rateLimitedResponse,
+    },
+  })
+
   // ──────────────────────────────────────────────────
   // ドキュメント生成 + 出力
   // ──────────────────────────────────────────────────
@@ -7006,7 +7289,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.32.0',
+      version: '1.36.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',
