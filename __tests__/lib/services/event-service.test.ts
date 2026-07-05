@@ -267,16 +267,68 @@ describe('listEventsV1', () => {
     expect(callArgs?.where?.isHidden).toBe(false)
   })
 
-  it('cursor 指定: where に id: { lt: cursor } が含まれる', async () => {
+  it('cursor 指定: where に id フィルタを含めず、native cursor（cursor:{id}, skip:1）を使う', async () => {
     mockEventFindMany.mockResolvedValue([])
 
     const { listEventsV1 } = await import('@/lib/services/event-service')
     await listEventsV1({ cursor: 'cursor-event-id' })
 
     const callArgs = mockEventFindMany.mock.calls[0]?.[0] as {
-      where: { id?: { lt: string } }
+      where: { id?: unknown }
+      cursor?: { id: string }
+      skip?: number
     }
-    expect(callArgs?.where?.id).toEqual({ lt: 'cursor-event-id' })
+    expect(callArgs?.where?.id).toBeUndefined()
+    expect(callArgs?.cursor).toEqual({ id: 'cursor-event-id' })
+    expect(callArgs?.skip).toBe(1)
+  })
+
+  it('cursor 未指定: findMany に cursor/skip が渡らない', async () => {
+    mockEventFindMany.mockResolvedValue([])
+
+    const { listEventsV1 } = await import('@/lib/services/event-service')
+    await listEventsV1({})
+
+    const callArgs = mockEventFindMany.mock.calls[0]?.[0] as {
+      cursor?: unknown
+      skip?: number
+    }
+    expect(callArgs?.cursor).toBeUndefined()
+    expect(callArgs?.skip).toBeUndefined()
+  })
+
+  it('2ページ目継続: 1ページ目の nextCursor を渡すと native cursor で欠落・重複なく継続取得できる', async () => {
+    const page1Records = Array.from({ length: 21 }, (_, i) =>
+      makeEventRecord({ id: `event-${String(i).padStart(2, '0')}`, title: `イベント${i}` }),
+    )
+    const page2Records = Array.from({ length: 10 }, (_, i) =>
+      makeEventRecord({ id: `event-${String(i + 20).padStart(2, '0')}`, title: `イベント${i + 20}` }),
+    )
+
+    mockEventFindMany.mockResolvedValueOnce(page1Records)
+    const { listEventsV1 } = await import('@/lib/services/event-service')
+    const page1 = await listEventsV1({ limit: 20 })
+    expect(page1).toMatchObject({ ok: true })
+    if (!page1.ok) throw new Error('ok=false')
+    expect(page1.items).toHaveLength(20)
+    expect(page1.nextCursor).toBe('event-19')
+
+    mockEventFindMany.mockResolvedValueOnce(page2Records)
+    const page2 = await listEventsV1({ limit: 20, cursor: page1.nextCursor ?? undefined })
+    expect(page2).toMatchObject({ ok: true })
+    if (!page2.ok) throw new Error('ok=false')
+
+    const page2CallArgs = mockEventFindMany.mock.calls[1]?.[0] as {
+      cursor?: { id: string }
+      skip?: number
+    }
+    expect(page2CallArgs?.cursor).toEqual({ id: 'event-19' })
+    expect(page2CallArgs?.skip).toBe(1)
+
+    // 全アイテムIDが重複・欠落なく連結されることを検証（native cursor + skip:1 が正しく渡っている前提）
+    const allIds = [...page1.items.map((e) => e.id), ...page2.items.map((e) => e.id)]
+    expect(new Set(allIds).size).toBe(allIds.length)
+    expect(page2.nextCursor).toBeNull()
   })
 
   it('orderBy は startDate 昇順', async () => {

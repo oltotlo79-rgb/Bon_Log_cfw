@@ -402,6 +402,20 @@ describe('Fulltext Search Module', async () => {
 
       expect(result).toEqual(['user-2'])
     })
+
+    it('trgmモードでは cursor が指定されても SQL に反映されない（similarity 順は keyset pagination 非対応のため）', async () => {
+      process.env.SEARCH_MODE = 'trgm'
+      mockQueryRaw.mockResolvedValueOnce([{ id: 'user-1' }])
+
+      const { fulltextSearchUsers } = await import('@/lib/search/fulltext')
+      const result = await fulltextSearchUsers('テスト', { cursor: 'cursor-user-id' })
+
+      expect(result).toEqual(['user-1'])
+      const callArgs = mockQueryRaw.mock.calls[0] as unknown[]
+      // 先頭はテンプレート文字列配列、以降が補間値。cursor 文字列自体が補間値に含まれないことを確認する。
+      const substitutions = callArgs.slice(1)
+      expect(substitutions).not.toContain('cursor-user-id')
+    })
   })
 
   describe('getSearchStatus', async () => {

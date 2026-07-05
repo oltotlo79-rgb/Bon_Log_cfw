@@ -275,9 +275,8 @@ function buildShopWhereClause(options: {
   genreId?: string
   prefecture?: string
   region?: string
-  cursor?: string
 }): Prisma.BonsaiShopWhereInput {
-  const { search, genreId, prefecture, region, cursor } = options
+  const { search, genreId, prefecture, region } = options
   const andConditions: Prisma.BonsaiShopWhereInput[] = []
 
   if (search) {
@@ -304,7 +303,6 @@ function buildShopWhereClause(options: {
     isHidden: false,
     ...(genreId && { genres: { some: { genreId } } }),
     ...(andConditions.length > 0 && { AND: andConditions }),
-    ...(cursor && { id: { lt: cursor } }),
   }
 }
 
@@ -317,7 +315,12 @@ function buildShopWhereClause(options: {
  *
  * Web の getShops は全件取得（MAX_SHOPS_LIMIT=300）+ インメモリ rating ソートの戦略を採る。
  * v1 も同じ戦略で実装し、Web と同等の地図描画品質を確保する。
- * cursor はカーソルキー（BonsaiShop.id の lt フィルタ）として機能する。
+ *
+ * sortBy === 'rating' は averageRating が getCachedShopRatings() のメモリ集計値であり
+ * DB カラムではないため、Prisma のネイティブカーソル機構（DB 側で次頁を判定する仕組み）が
+ * 原理的に使えない。そのため candidate 全件を取得してメモリ上で rating 順ソートした後、
+ * cursor（前頁最終行の id）の位置を findIndex で特定し、その次から limit 件をスライスする。
+ * それ以外の sortBy（DB カラムソート）はネイティブカーソル（cursor:{id}, skip:1）を使う。
  */
 export async function listShopsV1(
   query: ListShopsV1Query,
@@ -330,6 +333,7 @@ export async function listShopsV1(
   try {
     const limit = query.limit ?? DEFAULT_PAGE_LIMIT
     const sortBy: ShopSortBy = query.sortBy ?? 'location'
+    const isRatingSort = sortBy === 'rating'
 
     const [shops, ratingAggs] = await Promise.all([
       prisma.bonsaiShop.findMany({
@@ -338,11 +342,11 @@ export async function listShopsV1(
           genreId: query.genreId,
           prefecture: query.prefecture,
           region: query.region,
-          cursor: query.cursor,
         }),
         include: SHOP_LIST_INCLUDE,
         orderBy: buildShopOrderBy(sortBy),
         take: MAX_SHOPS_LIMIT,
+        ...(!isRatingSort && query.cursor && { cursor: { id: query.cursor }, skip: 1 }),
       }),
       getCachedShopRatings(),
     ])
@@ -359,13 +363,18 @@ export async function listShopsV1(
       return formatShopForApi(shop, averageRating, reviewCount, requestUserId)
     })
 
-    if (sortBy === 'rating') {
+    if (isRatingSort) {
       result = result.sort((a, b) => {
         if (a.averageRating === null && b.averageRating === null) return 0
         if (a.averageRating === null) return 1
         if (b.averageRating === null) return -1
         return b.averageRating - a.averageRating
       })
+
+      if (query.cursor) {
+        const cursorIndex = result.findIndex((item) => item.id === query.cursor)
+        result = cursorIndex >= 0 ? result.slice(cursorIndex + 1) : []
+      }
     }
 
     const hasNext = result.length > limit
@@ -574,13 +583,11 @@ export async function listReviewsV1(
     const safeLimit = Math.min(limit + 1, MAX_REVIEWS_PER_SHOP)
 
     const reviews = await prisma.shopReview.findMany({
-      where: {
-        shopId,
-        ...(query.cursor && { id: { lt: query.cursor } }),
-      },
+      where: { shopId },
       include: REVIEW_LIST_INCLUDE,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: safeLimit,
+      ...(query.cursor && { cursor: { id: query.cursor }, skip: 1 }),
     })
 
     const hasNext = reviews.length > limit

@@ -276,11 +276,11 @@ export async function listEventsV1(query: ListEventsV1Query): Promise<{
         isHidden: false,
         ...(dateFilter && { startDate: dateFilter }),
         ...(prefectureFilter && { prefecture: { in: prefectureFilter } }),
-        ...(query.cursor && { id: { lt: query.cursor } }),
       },
       include: EVENT_INCLUDE,
       orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take: Math.min(limit + 1, MAX_EVENTS_LIMIT),
+      ...(query.cursor && { cursor: { id: query.cursor }, skip: 1 }),
     })
 
     const hasNext = events.length > limit

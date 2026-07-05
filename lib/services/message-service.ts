@@ -108,7 +108,7 @@ export async function listConversations(
         },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: safeLimit,
       ...(safeCursor && { cursor: { id: safeCursor }, skip: 1 }),
     })

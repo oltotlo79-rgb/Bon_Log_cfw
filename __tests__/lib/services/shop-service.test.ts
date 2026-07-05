@@ -426,17 +426,111 @@ describe('listShopsV1', () => {
     expect(callArgs?.where?.genres?.some?.genreId).toBe('genre-1')
   })
 
-  it('cursor フィルタ: where に id.lt が含まれる', async () => {
+  it('cursor 指定（DBカラムソート）: where に id フィルタを含めず native cursor（cursor:{id}, skip:1）を使う', async () => {
     mockBonsaiShopFindMany.mockResolvedValue([])
     mockGetCachedShopRatings.mockResolvedValue([])
 
     const { listShopsV1 } = await import('@/lib/services/shop-service')
-    await listShopsV1({ cursor: 'cursor-shop-id' }, null)
+    await listShopsV1({ cursor: 'cursor-shop-id', sortBy: 'name' }, null)
 
     const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as {
-      where: { id?: { lt: string } }
+      where: { id?: unknown }
+      cursor?: { id: string }
+      skip?: number
     }
-    expect(callArgs?.where?.id).toEqual({ lt: 'cursor-shop-id' })
+    expect(callArgs?.where?.id).toBeUndefined()
+    expect(callArgs?.cursor).toEqual({ id: 'cursor-shop-id' })
+    expect(callArgs?.skip).toBe(1)
+  })
+
+  it('cursor 未指定（DBカラムソート）: findMany に cursor/skip が渡らない', async () => {
+    mockBonsaiShopFindMany.mockResolvedValue([])
+    mockGetCachedShopRatings.mockResolvedValue([])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    await listShopsV1({ sortBy: 'newest' }, null)
+
+    const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as {
+      cursor?: unknown
+      skip?: number
+    }
+    expect(callArgs?.cursor).toBeUndefined()
+    expect(callArgs?.skip).toBeUndefined()
+  })
+
+  it('sortBy=rating かつ cursor 指定: findMany に cursor/skip を渡さず全候補を take:MAX_SHOPS_LIMIT で取得する', async () => {
+    mockBonsaiShopFindMany.mockResolvedValue([])
+    mockGetCachedShopRatings.mockResolvedValue([])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    const { MAX_SHOPS_LIMIT } = await import('@/lib/constants/limits')
+    await listShopsV1({ cursor: 'cursor-shop-id', sortBy: 'rating' }, null)
+
+    const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as {
+      cursor?: unknown
+      skip?: number
+      take: number
+    }
+    expect(callArgs?.cursor).toBeUndefined()
+    expect(callArgs?.skip).toBeUndefined()
+    expect(callArgs?.take).toBe(MAX_SHOPS_LIMIT)
+  })
+
+  it('sortBy=rating: cursor（前頁最終行 id）指定時、rating 順ソート後にその次から limit 件をスライスする（欠落・重複なし）', async () => {
+    const shops = [
+      makeShopRow({ id: 'shop-a', name: 'A園' }),
+      makeShopRow({ id: 'shop-b', name: 'B園' }),
+      makeShopRow({ id: 'shop-c', name: 'C園' }),
+      makeShopRow({ id: 'shop-d', name: 'D園' }),
+    ]
+    mockBonsaiShopFindMany.mockResolvedValue(shops)
+    // rating 降順: shop-d(5.0) > shop-c(4.0) > shop-b(3.0) > shop-a(2.0)
+    mockGetCachedShopRatings.mockResolvedValue([
+      { shopId: 'shop-a', _avg: { rating: 2.0 }, _count: { rating: 1 } },
+      { shopId: 'shop-b', _avg: { rating: 3.0 }, _count: { rating: 1 } },
+      { shopId: 'shop-c', _avg: { rating: 4.0 }, _count: { rating: 1 } },
+      { shopId: 'shop-d', _avg: { rating: 5.0 }, _count: { rating: 1 } },
+    ])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+
+    // 1ページ目: limit=2 → shop-d, shop-c が返り nextCursor=shop-c
+    const page1 = await listShopsV1({ sortBy: 'rating', limit: 2 }, null)
+    expect(page1).toMatchObject({ ok: true })
+    if (!page1.ok) throw new Error('ok=false')
+    expect(page1.items.map((i) => i.id)).toEqual(['shop-d', 'shop-c'])
+    expect(page1.nextCursor).toBe('shop-c')
+
+    // 2ページ目: cursor=shop-c → shop-b, shop-a が続く（重複・欠落なし）
+    const page2 = await listShopsV1({ sortBy: 'rating', limit: 2, cursor: page1.nextCursor ?? undefined }, null)
+    expect(page2).toMatchObject({ ok: true })
+    if (!page2.ok) throw new Error('ok=false')
+    expect(page2.items.map((i) => i.id)).toEqual(['shop-b', 'shop-a'])
+    expect(page2.nextCursor).toBeNull()
+
+    const allIds = [...page1.items.map((i) => i.id), ...page2.items.map((i) => i.id)]
+    expect(new Set(allIds).size).toBe(allIds.length)
+    expect(allIds).toHaveLength(4)
+  })
+
+  it('sortBy=rating: cursor 行が候補から消えている場合は空配列を返す（重複表示を避ける安全側フォールバック）', async () => {
+    const shops = [
+      makeShopRow({ id: 'shop-a', name: 'A園' }),
+      makeShopRow({ id: 'shop-b', name: 'B園' }),
+    ]
+    mockBonsaiShopFindMany.mockResolvedValue(shops)
+    mockGetCachedShopRatings.mockResolvedValue([
+      { shopId: 'shop-a', _avg: { rating: 2.0 }, _count: { rating: 1 } },
+      { shopId: 'shop-b', _avg: { rating: 3.0 }, _count: { rating: 1 } },
+    ])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    const result = await listShopsV1({ sortBy: 'rating', cursor: 'deleted-shop-id' }, null)
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) throw new Error('ok=false')
+    expect(result.items).toHaveLength(0)
+    expect(result.nextCursor).toBeNull()
   })
 
   it('カーソルページネーション: limit+1 件返されたとき nextCursor を設定する', async () => {
@@ -982,16 +1076,67 @@ describe('listReviewsV1', () => {
     expect(result.nextCursor).toBe('review-19')
   })
 
-  it('cursor 指定: where に id.lt が含まれる', async () => {
+  it('cursor 指定: where に id フィルタを含めず native cursor（cursor:{id}, skip:1）を使う', async () => {
     mockShopReviewFindMany.mockResolvedValue([])
 
     const { listReviewsV1 } = await import('@/lib/services/shop-service')
     await listReviewsV1(SHOP_ID, { cursor: 'cursor-review-id' })
 
     const callArgs = mockShopReviewFindMany.mock.calls[0]?.[0] as {
-      where: { id?: { lt: string } }
+      where: { id?: unknown }
+      cursor?: { id: string }
+      skip?: number
     }
-    expect(callArgs?.where?.id).toEqual({ lt: 'cursor-review-id' })
+    expect(callArgs?.where?.id).toBeUndefined()
+    expect(callArgs?.cursor).toEqual({ id: 'cursor-review-id' })
+    expect(callArgs?.skip).toBe(1)
+  })
+
+  it('cursor 未指定: findMany に cursor/skip が渡らない', async () => {
+    mockShopReviewFindMany.mockResolvedValue([])
+
+    const { listReviewsV1 } = await import('@/lib/services/shop-service')
+    await listReviewsV1(SHOP_ID, {})
+
+    const callArgs = mockShopReviewFindMany.mock.calls[0]?.[0] as {
+      cursor?: unknown
+      skip?: number
+    }
+    expect(callArgs?.cursor).toBeUndefined()
+    expect(callArgs?.skip).toBeUndefined()
+  })
+
+  it('2ページ目継続: 1ページ目の nextCursor を渡すと native cursor で欠落・重複なく継続取得できる', async () => {
+    const page1Records = Array.from({ length: 21 }, (_, i) =>
+      makeReviewRow({ id: `review-${String(i).padStart(2, '0')}` }),
+    )
+    const page2Records = Array.from({ length: 5 }, (_, i) =>
+      makeReviewRow({ id: `review-${String(i + 20).padStart(2, '0')}` }),
+    )
+
+    mockShopReviewFindMany.mockResolvedValueOnce(page1Records)
+    const { listReviewsV1 } = await import('@/lib/services/shop-service')
+    const page1 = await listReviewsV1(SHOP_ID, { limit: 20 })
+    expect(page1).toMatchObject({ ok: true })
+    if (!page1.ok) throw new Error('ok=false')
+    expect(page1.items).toHaveLength(20)
+    expect(page1.nextCursor).toBe('review-19')
+
+    mockShopReviewFindMany.mockResolvedValueOnce(page2Records)
+    const page2 = await listReviewsV1(SHOP_ID, { limit: 20, cursor: page1.nextCursor ?? undefined })
+    expect(page2).toMatchObject({ ok: true })
+    if (!page2.ok) throw new Error('ok=false')
+
+    const page2CallArgs = mockShopReviewFindMany.mock.calls[1]?.[0] as {
+      cursor?: { id: string }
+      skip?: number
+    }
+    expect(page2CallArgs?.cursor).toEqual({ id: 'review-19' })
+    expect(page2CallArgs?.skip).toBe(1)
+
+    const allIds = [...page1.items.map((r) => r.id), ...page2.items.map((r) => r.id)]
+    expect(new Set(allIds).size).toBe(allIds.length)
+    expect(page2.nextCursor).toBeNull()
   })
 
   it('formatReviewForApi: createdAt が ISO 文字列で返る', async () => {

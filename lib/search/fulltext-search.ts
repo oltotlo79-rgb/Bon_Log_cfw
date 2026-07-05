@@ -267,7 +267,6 @@ export async function fulltextSearchUsers(
         ${userVisibility}
         ${excludedUserIds.length > 0 ? Prisma.sql`AND u.id NOT IN (${Prisma.join(excludedUserIds)})` : Prisma.empty}
         ${currentUserId ? Prisma.sql`AND u.id != ${currentUserId}` : Prisma.empty}
-        ${cursor ? Prisma.sql`AND u.id < ${cursor}` : Prisma.empty}
         ORDER BY GREATEST(
           similarity(u.nickname, ${sanitizedQuery}),
           COALESCE(similarity(u.bio, ${sanitizedQuery}), 0)
