@@ -68,6 +68,10 @@ export function HormoneTechniqueCard({ techniqueName, techniqueNameEn, descripti
             const effectColors = TECHNIQUE_EFFECT_TYPE_COLORS[effect.effectType]
             const effectLabel = TECHNIQUE_EFFECT_TYPE_LABELS[effect.effectType] ?? effect.effectType
             const magnitudeLabel = TECHNIQUE_MAGNITUDE_LABELS[effect.magnitude] ?? effect.magnitude
+            // 色未定義（未知の effectType）でもバッジ自体は出す。表示可否は色ではなく effectType の有無で判断する
+            const badgeClassName = effectColors
+              ? `${effectColors.bg} ${effectColors.text} ${effectColors.darkBg}`
+              : 'bg-muted-foreground/20 text-muted-foreground'
 
             return (
               <div key={`${effect.hormoneSlug}-${effect.effectType}`} className="rounded-md bg-muted/50 p-3 space-y-1">
@@ -78,8 +82,8 @@ export function HormoneTechniqueCard({ techniqueName, techniqueNameEn, descripti
                   >
                     {effect.hormoneName}
                   </Link>
-                  {effectColors && (
-                    <span className={`${effectColors.bg} ${effectColors.text} ${effectColors.darkBg} px-2 py-0.5 text-xs rounded-full font-medium`}>
+                  {effect.effectType && (
+                    <span className={`${badgeClassName} px-2 py-0.5 text-xs rounded-full font-medium`}>
                       {effectLabel}
                     </span>
                   )}
