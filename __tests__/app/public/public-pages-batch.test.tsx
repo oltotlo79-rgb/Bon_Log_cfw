@@ -235,6 +235,24 @@ describe('LoginPage', async () => {
     await expect(Page()).rejects.toThrow('REDIRECT')
   })
 
+  it('renders the LoginFormFallback inside <Suspense> while LoginForm is pending', async () => {
+    // LoginForm suspends (never-resolving promise thrown from render) so React
+    // falls back to LoginFormFallback — the documented Suspense protocol.
+    vi.resetModules()
+    vi.doMock('@/components/auth/LoginForm', () => ({
+      LoginForm: () => {
+        throw new Promise(() => {
+          /* never resolves — keeps Suspense in the fallback state */
+        })
+      },
+    }))
+    const { default: Page } = await import('@/app/(auth)/login/page')
+    const result = await Page()
+    const { container } = render(result)
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(container.querySelectorAll('.bg-muted.rounded').length).toBe(3)
+    vi.doUnmock('@/components/auth/LoginForm')
+  })
 })
 
 // ============================================================

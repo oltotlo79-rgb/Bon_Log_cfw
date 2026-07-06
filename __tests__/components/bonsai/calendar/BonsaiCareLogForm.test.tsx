@@ -207,4 +207,154 @@ describe('BonsaiCareLogForm', () => {
       expect(mockAddBonsaiCareLog.mock.calls[0]![0]!.note).toBeUndefined()
     })
   })
+
+  it('実施日時を変更すると入力値が反映される', () => {
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={null}
+        onSaved={() => {}}
+      />,
+    )
+    const input = screen.getByLabelText('実施日時') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '2026-05-01T09:30' } })
+    expect(input.value).toBe('2026-05-01T09:30')
+  })
+
+  it('コメント欄に入力すると文字数カウンタが更新される', () => {
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={null}
+        onSaved={() => {}}
+      />,
+    )
+    const textarea = screen.getByLabelText('コメント（任意）') as HTMLTextAreaElement
+    fireEvent.change(textarea, { target: { value: '追肥した' } })
+    expect(textarea.value).toBe('追肥した')
+    expect(screen.getByText(`4 / ${MAX_BONSAI_CARE_NOTE_LENGTH}`)).toBeInTheDocument()
+  })
+
+  it('編集モードで note が null の場合、コメント欄は空文字で初期化される', () => {
+    const editing: CareLogListItem = {
+      id: 'log-null-note',
+      type: BonsaiCareType.pesticide,
+      performedAt: new Date(2026, 3, 15, 10, 30),
+      note: null,
+    }
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={editing}
+        onSaved={() => {}}
+      />,
+    )
+    expect(screen.getByLabelText('コメント（任意）')).toHaveValue('')
+  })
+
+  it('実施日時が不正な場合は Server Action を呼ばずに入力エラーを表示する', async () => {
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={null}
+        onSaved={() => {}}
+      />,
+    )
+    const input = screen.getByLabelText('実施日時') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '' } })
+    // native の required 制約 (checkValidity) はクリックによる送信のみ働くため、
+    // 送信イベントを直接発火して new Date('') → Invalid Date の防御分岐を検証する
+    const form = screen.getByRole('button', { name: '保存' }).closest('form')!
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: '入力エラー',
+          description: '実施日時が正しくありません',
+          variant: 'destructive',
+        }),
+      )
+    })
+    expect(mockAddBonsaiCareLog).not.toHaveBeenCalled()
+  })
+
+  it('送信中に再度送信しても Server Action は1回しか呼ばれない（submitting ガード）', async () => {
+    let resolveAdd: (value: { success: true; data: { id: string } }) => void
+    mockAddBonsaiCareLog.mockImplementation(
+      () => new Promise((resolve) => { resolveAdd = resolve }),
+    )
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={null}
+        onSaved={() => {}}
+      />,
+    )
+    const form = screen.getByRole('button', { name: '保存' }).closest('form')!
+    // disabled 化前の同期区間で連続 submit し、submitting ガードで2回目が弾かれることを検証
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(mockAddBonsaiCareLog).toHaveBeenCalledTimes(1)
+    })
+
+    resolveAdd!({ success: true, data: { id: 'log-new' } })
+  })
+
+  it('編集時にコメントを空にすると note は null として送信される', async () => {
+    mockUpdateBonsaiCareLog.mockResolvedValue({ success: true })
+    const editing: CareLogListItem = {
+      id: 'log-1',
+      type: BonsaiCareType.pesticide,
+      performedAt: new Date(2026, 3, 15, 10, 30),
+      note: '既存メモ',
+    }
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={editing}
+        onSaved={() => {}}
+      />,
+    )
+    const textarea = screen.getByLabelText('コメント（任意）') as HTMLTextAreaElement
+    fireEvent.change(textarea, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: '更新' }))
+
+    await waitFor(() => {
+      expect(mockUpdateBonsaiCareLog).toHaveBeenCalledWith(
+        'log-1',
+        expect.objectContaining({ note: null }),
+      )
+    })
+  })
+
+  it('追加時に非空コメントはそのまま note として送信される', async () => {
+    mockAddBonsaiCareLog.mockResolvedValue({ success: true, data: { id: 'log-new' } })
+    render(
+      <BonsaiCareLogForm
+        open
+        onOpenChange={() => {}}
+        editing={null}
+        onSaved={() => {}}
+      />,
+    )
+    const textarea = screen.getByLabelText('コメント（任意）') as HTMLTextAreaElement
+    fireEvent.change(textarea, { target: { value: '灌水を確認' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(mockAddBonsaiCareLog).toHaveBeenCalledWith(
+        expect.objectContaining({ note: '灌水を確認' }),
+      )
+    })
+  })
 })

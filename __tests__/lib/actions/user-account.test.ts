@@ -33,10 +33,17 @@ vi.mock('next/cache', () => ({
   unstable_cache: vi.fn((fn) => fn),
 }))
 
+// レート制限モック（既定は成功。超過分岐のみ個別テストで上書きする）
+const mockCheckUserRateLimit = vi.fn().mockResolvedValue({ success: true })
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
+}))
+
 describe('User Account Actions', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: mockUser.id, email: mockUser.email } })
+    mockCheckUserRateLimit.mockResolvedValue({ success: true })
   })
 
   // ============================================================
@@ -190,6 +197,16 @@ describe('User Account Actions', async () => {
       expect(txUser.delete).toHaveBeenCalledWith({
         where: { id: mockUser.id },
       })
+    })
+
+    it('レート制限超過の場合、エラーを返しトランザクションは実行しない', async () => {
+      mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
+
+      const { deleteAccount } = await import('@/lib/actions/user-account')
+      const result = await deleteAccount()
+
+      expect(result.success).toBe(false)
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled()
     })
 
     it('未認証の場合、エラーを返す', async () => {

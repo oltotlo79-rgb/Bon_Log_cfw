@@ -265,6 +265,123 @@ describe('createCommentV1', () => {
     const result = await createCommentV1(POST_ID, validCommentInput, COMMENT_OWNER_ID)
     expect(result).toMatchObject({ ok: false, status: 500 })
   })
+
+  it('tx が Error以外の値を throw しても { ok: false, status: 500 } を返す（非Error rejection の防御）', async () => {
+    mockPrismaTransaction.mockRejectedValue('raw rejection string')
+    const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+    const result = await createCommentV1(POST_ID, validCommentInput, COMMENT_OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 500, error: expect.any(String) })
+  })
+
+  it('通知が Error以外の値で reject しても、ログ処理でクラッシュせずコメント作成は成功する', async () => {
+    mockNotifyCommentParticipants.mockRejectedValue('raw notification rejection')
+    const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+    const result = await createCommentV1(POST_ID, validCommentInput, COMMENT_OWNER_ID)
+    await new Promise((r) => setTimeout(r, 10))
+    expect(result).toMatchObject({ ok: true })
+  })
+
+  it('mediaTypes が mediaUrls より短い場合、対応する型は image にフォールバックする', async () => {
+    let capturedMediaCreate: { url: string; type: string; sortOrder: number }[] | undefined
+    mockPrismaTransaction.mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          comment: {
+            count: () => Promise.resolve(0),
+            create: (args: { data: { media?: { create: { url: string; type: string; sortOrder: number }[] } } }) => {
+              capturedMediaCreate = args.data.media?.create
+              return Promise.resolve({ id: COMMENT_ID })
+            },
+          },
+        }),
+    )
+
+    const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+    const result = await createCommentV1(
+      POST_ID,
+      { ...validCommentInput, mediaUrls: ['/uploads/a.webp'], mediaTypes: [] },
+      COMMENT_OWNER_ID,
+    )
+
+    expect(result).toMatchObject({ ok: true })
+    expect(capturedMediaCreate?.[0]?.type).toBe('image')
+  })
+
+  // ────────────────────────────────────────────────
+  // parentId (返信) のバリデーション
+  // ────────────────────────────────────────────────
+  describe('parentId (返信コメント) のバリデーション', () => {
+    it('parentId が有効（同一投稿・非表示でない・未削除）なら作成できる', async () => {
+      mockPrismaCommentFindUnique.mockResolvedValue({
+        postId: POST_ID,
+        isHidden: false,
+        deletedAt: null,
+      })
+      const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+      const result = await createCommentV1(
+        POST_ID,
+        { ...validCommentInput, parentId: 'parent-1' },
+        COMMENT_OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: true })
+    })
+
+    it('parentId が存在しない → 404', async () => {
+      mockPrismaCommentFindUnique.mockResolvedValue(null)
+      const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+      const result = await createCommentV1(
+        POST_ID,
+        { ...validCommentInput, parentId: 'parent-ghost' },
+        COMMENT_OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: false, status: 404, error: expect.any(String) })
+    })
+
+    it('parentId が別の投稿に属する → 404', async () => {
+      mockPrismaCommentFindUnique.mockResolvedValue({
+        postId: 'other-post',
+        isHidden: false,
+        deletedAt: null,
+      })
+      const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+      const result = await createCommentV1(
+        POST_ID,
+        { ...validCommentInput, parentId: 'parent-1' },
+        COMMENT_OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: false, status: 404 })
+    })
+
+    it('parentId が非表示コメント → 404', async () => {
+      mockPrismaCommentFindUnique.mockResolvedValue({
+        postId: POST_ID,
+        isHidden: true,
+        deletedAt: null,
+      })
+      const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+      const result = await createCommentV1(
+        POST_ID,
+        { ...validCommentInput, parentId: 'parent-1' },
+        COMMENT_OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: false, status: 404 })
+    })
+
+    it('parentId が削除済みコメント → 404', async () => {
+      mockPrismaCommentFindUnique.mockResolvedValue({
+        postId: POST_ID,
+        isHidden: false,
+        deletedAt: new Date(),
+      })
+      const { createCommentV1 } = await import('@/lib/services/comment-write-service')
+      const result = await createCommentV1(
+        POST_ID,
+        { ...validCommentInput, parentId: 'parent-1' },
+        COMMENT_OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: false, status: 404 })
+    })
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -322,5 +439,12 @@ describe('deleteCommentV1', () => {
     const { deleteCommentV1 } = await import('@/lib/services/comment-write-service')
     const result = await deleteCommentV1(COMMENT_ID, COMMENT_OWNER_ID)
     expect(result).toMatchObject({ ok: false, status: 500 })
+  })
+
+  it('prisma.comment.update が Error以外の値を throw しても { ok: false, status: 500 } を返す', async () => {
+    mockPrismaCommentUpdate.mockRejectedValue('raw db rejection')
+    const { deleteCommentV1 } = await import('@/lib/services/comment-write-service')
+    const result = await deleteCommentV1(COMMENT_ID, COMMENT_OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 500, error: expect.any(String) })
   })
 })

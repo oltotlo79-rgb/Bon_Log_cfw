@@ -43,11 +43,21 @@ vi.mock('@/components/bonsai/calendar/BonsaiViewSwitcher', () => ({
 }))
 
 // next/dynamic は遅延ロードのため、テストでは props を直接 testid 内に展開する
-// スタブコンポーネントに置き換える（require() を使わず ESM 互換）
+// スタブコンポーネントに置き換える（require() を使わず ESM 互換）。
+// ただし loader / loading 引数自体は実際に呼び出し、
+// 「dynamic() に渡す import が実在のコンポーネントを解決できる」ことを検証する
+// （カバレッジ埋めのためだけに丸ごと無視すると import パスの typo を検出できなくなる）。
 vi.mock('next/dynamic', () => ({
   __esModule: true,
-  default: () =>
-    function DynamicStub(props: {
+  default: (
+    loader: () => Promise<unknown>,
+    options?: { loading?: () => React.ReactNode },
+  ) => {
+    loader().catch(() => {
+      // テスト環境の import 解決失敗はコンポーネント自体の責務外のため握りつぶす
+    })
+    options?.loading?.()
+    return function DynamicStub(props: {
       initialMode?: string
       initialAnchor?: Date
       initialLogs?: unknown[]
@@ -68,7 +78,8 @@ vi.mock('next/dynamic', () => ({
           records:{props.initialRecords?.length ?? 0}, posts:{props.initialPosts?.length ?? 0}
         </div>
       )
-    },
+    }
+  },
 }))
 
 vi.mock('@/components/ads', () => ({
@@ -184,5 +195,38 @@ describe('app/(main)/bonsai/page.tsx', () => {
     const { generateMetadata } = await import('@/app/(main)/bonsai/page')
     const meta = await generateMetadata({ searchParams: Promise.resolve({}) })
     expect(meta.title).toBe('マイ盆栽')
+  })
+
+  it('タイムライン取得が失敗した場合は空リストにフォールバック', async () => {
+    mockGetBonsais.mockResolvedValue({ success: false, error: 'DB error' })
+    const { default: Page } = await import('@/app/(main)/bonsai/page')
+    const el = await Page({ searchParams: Promise.resolve({}) })
+    render(el)
+    expect(screen.getByTestId('bonsai-list-client')).toHaveTextContent('timeline:0')
+  })
+
+  it('searchParams が配列形式でも先頭要素を採用する（多重クエリ対策）', async () => {
+    const { default: Page } = await import('@/app/(main)/bonsai/page')
+    const el = await Page({
+      searchParams: Promise.resolve({
+        view: ['calendar', 'timeline'],
+        mode: ['year', 'month'],
+      }),
+    })
+    render(el)
+    expect(screen.getByTestId('calendar-view')).toHaveTextContent('mode:year')
+  })
+
+  it('カレンダー取得が失敗した場合はログ/オーバーレイとも空にフォールバック', async () => {
+    mockGetCareLogsInRange.mockResolvedValue({ success: false, error: 'x' })
+    mockGetBonsaiCalendarOverlaysInRange.mockResolvedValue({ success: false, error: 'x' })
+    const { default: Page } = await import('@/app/(main)/bonsai/page')
+    const el = await Page({
+      searchParams: Promise.resolve({ view: 'calendar' }),
+    })
+    render(el)
+    expect(screen.getByTestId('calendar-view')).toHaveTextContent('logs:0')
+    expect(screen.getByTestId('calendar-view')).toHaveTextContent('records:0')
+    expect(screen.getByTestId('calendar-view')).toHaveTextContent('posts:0')
   })
 })

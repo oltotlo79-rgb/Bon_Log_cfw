@@ -2,8 +2,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const mockRateLimit = vi.fn().mockResolvedValue({ success: true })
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
   getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
   RATE_LIMITS: { api: { limit: 60, window: 60 } },
 }))
@@ -12,6 +13,7 @@ const mockRequest = new Request('http://localhost/api/push/vapid-key')
 
 beforeEach(() => {
   vi.unstubAllEnvs()
+  mockRateLimit.mockResolvedValue({ success: true })
 })
 
 describe('GET /api/push/vapid-key', () => {
@@ -47,5 +49,18 @@ describe('GET /api/push/vapid-key', () => {
     const response = await GET(mockRequest as never)
 
     expect(response.status).toBe(503)
+  })
+
+  it('returns 429 when IP rate limit is exceeded (VAPID key not checked)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'test-vapid-public-key-123')
+    mockRateLimit.mockResolvedValueOnce({ success: false })
+    vi.resetModules()
+
+    const { GET } = await import('@/app/api/push/vapid-key/route')
+    const response = await GET(mockRequest as never)
+
+    expect(response.status).toBe(429)
+    const body = await response.json()
+    expect(body).toEqual({ error: 'Too many requests' })
   })
 })

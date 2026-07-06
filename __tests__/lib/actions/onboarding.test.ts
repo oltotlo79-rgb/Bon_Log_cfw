@@ -49,4 +49,11 @@ describe('completeOnboarding', async () => {
     const result = await completeOnboarding()
     expect(result.success).not.toBe(true)
   })
+
+  it('Error 以外の値が throw されても ERR_OPERATION_FAILED を返す', async () => {
+    mockPrisma.user.update.mockRejectedValue('connection reset')
+    const { completeOnboarding } = await import('@/lib/actions/onboarding')
+    const result = await completeOnboarding()
+    expect(result).toEqual({ success: false, error: '操作に失敗しました' })
+  })
 })

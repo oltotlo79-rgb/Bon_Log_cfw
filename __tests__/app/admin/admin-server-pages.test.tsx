@@ -3,6 +3,7 @@
  * 各ページの「エラー時リダイレクト」と「正常レンダリング」を検証
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
 
 // redirect / notFound をモック（throwしてページ実行を中断）
 class RedirectError extends Error {
@@ -414,5 +415,85 @@ describe('ContentAnalyticsPage', () => {
     mockGetContentAnalysis.mockResolvedValue({ genreTrends: [], topHashtags: [], dailyEngagement: [] })
     const result = await ContentAnalyticsPage()
     expect(result).toBeDefined()
+  })
+
+  it('データが無い場合は「データがありません」を表示する', async () => {
+    mockGetContentAnalysis.mockResolvedValue({ genreTrends: [], topHashtags: [], dailyEngagement: [] })
+    const result = await ContentAnalyticsPage()
+    render(result)
+
+    expect(screen.getAllByText('データがありません')).toHaveLength(2)
+  })
+
+  it('ジャンル別投稿数を件数の多い順のバーで描画する', async () => {
+    mockGetContentAnalysis.mockResolvedValue({
+      genreTrends: [
+        { name: '松柏類', count: 100 },
+        { name: '雑木類', count: 50 },
+      ],
+      topHashtags: [],
+      dailyEngagement: [],
+    })
+    const result = await ContentAnalyticsPage()
+    const { container } = render(result)
+
+    expect(screen.getByText('松柏類')).toBeInTheDocument()
+    expect(screen.getByText('雑木類')).toBeInTheDocument()
+    expect(screen.getByText('100')).toBeInTheDocument()
+    expect(screen.getByText('50')).toBeInTheDocument()
+    // 最多ジャンルの棒は 100% 幅、2番目は count/maxCount 比率の幅になる
+    const bars = container.querySelectorAll('[style*="width"]')
+    expect(bars[0]).toHaveStyle({ width: '100%' })
+    expect(bars[1]).toHaveStyle({ width: '50%' })
+  })
+
+  it('人気ハッシュタグをタグ数に応じたフォントサイズで描画する', async () => {
+    mockGetContentAnalysis.mockResolvedValue({
+      genreTrends: [],
+      topHashtags: [
+        { tag: 'bonsai', count: 30 },
+        { tag: 'matsu', count: 10 },
+      ],
+      dailyEngagement: [],
+    })
+    const result = await ContentAnalyticsPage()
+    render(result)
+
+    expect(screen.getByText('#bonsai')).toBeInTheDocument()
+    expect(screen.getByText('#matsu')).toBeInTheDocument()
+    expect(screen.getByText('(30)')).toBeInTheDocument()
+    expect(screen.getByText('(10)')).toBeInTheDocument()
+  })
+
+  it('人気ハッシュタグの件数が全て同数の場合でもレンジ0で描画できる（境界値）', async () => {
+    mockGetContentAnalysis.mockResolvedValue({
+      genreTrends: [],
+      topHashtags: [
+        { tag: 'a', count: 20 },
+        { tag: 'b', count: 20 },
+      ],
+      dailyEngagement: [],
+    })
+    const result = await ContentAnalyticsPage()
+    render(result)
+
+    expect(screen.getByText('#a')).toBeInTheDocument()
+    expect(screen.getByText('#b')).toBeInTheDocument()
+  })
+
+  it('topHashtags の count が欠落していても安全にフォールバックする（防御的分岐・境界値）', async () => {
+    mockGetContentAnalysis.mockResolvedValue({
+      genreTrends: [],
+      topHashtags: [
+        { tag: 'a', count: undefined },
+        { tag: 'b', count: undefined },
+      ],
+      dailyEngagement: [],
+    })
+    const result = await ContentAnalyticsPage()
+    render(result)
+
+    expect(screen.getByText('#a')).toBeInTheDocument()
+    expect(screen.getByText('#b')).toBeInTheDocument()
   })
 })

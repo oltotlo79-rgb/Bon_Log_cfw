@@ -254,6 +254,19 @@ describe('listSpreaderTypes', () => {
     expect(result.items).toHaveLength(0)
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockSpreaderTypeFindMany.mockRejectedValue('string rejection')
+
+    const { listSpreaderTypes } = await import('@/lib/services/pesticide-read-service')
+    const result = await listSpreaderTypes()
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listSpreaderTypes failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
+  })
 })
 
 // ── getSpreaderTypeBySlug ─────────────────────────────────────
@@ -332,6 +345,19 @@ describe('getSpreaderTypeBySlug', () => {
 
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockSpreaderTypeFindUnique.mockRejectedValue('string rejection')
+
+    const { getSpreaderTypeBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getSpreaderTypeBySlug('nonionic')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getSpreaderTypeBySlug failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })
 
@@ -426,6 +452,19 @@ describe('listSpreaderProducts', () => {
     expect(result.items).toHaveLength(0)
     expect(result.nextCursor).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockPesticideFindMany.mockRejectedValue('string rejection')
+
+    const { listSpreaderProducts } = await import('@/lib/services/pesticide-read-service')
+    const result = await listSpreaderProducts({})
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listSpreaderProducts failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })
 
@@ -537,6 +576,19 @@ describe('listPesticideColumns', () => {
     expect(result.nextCursor).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockPesticideColumnFindMany.mockRejectedValue('string rejection')
+
+    const { listPesticideColumns } = await import('@/lib/services/pesticide-read-service')
+    const result = await listPesticideColumns({})
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listPesticideColumns failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
+  })
 })
 
 // ── getPesticideColumnBySlug ──────────────────────────────────
@@ -614,6 +666,19 @@ describe('getPesticideColumnBySlug', () => {
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockPesticideColumnFindUnique.mockRejectedValue('string rejection')
+
+    const { getPesticideColumnBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getPesticideColumnBySlug('column-1')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getPesticideColumnBySlug failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
+  })
 })
 
 // ── listFormulationTypes ──────────────────────────────────────
@@ -679,6 +744,19 @@ describe('listFormulationTypes', () => {
 
     expect(result.items).toHaveLength(0)
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockFormulationTypeFindMany.mockRejectedValue('string rejection')
+
+    const { listFormulationTypes } = await import('@/lib/services/pesticide-read-service')
+    const result = await listFormulationTypes()
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listFormulationTypes failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })
 
@@ -753,5 +831,18 @@ describe('getMixingData', () => {
     expect(result.pesticides).toHaveLength(0)
     expect(result.incompatibilities).toHaveLength(0)
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockPesticideFindMany.mockRejectedValue('string rejection')
+
+    const { getMixingData } = await import('@/lib/services/pesticide-read-service')
+    const result = await getMixingData()
+
+    expect(result.pesticides).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getMixingData failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })

@@ -46,4 +46,23 @@ describe('BookmarksPage', async () => {
     expect(result).toBeTruthy()
     expect(mockGetBookmarkedPosts).toHaveBeenCalled()
   })
+
+  it('posts が未定義の場合は空配列にフォールバックする（|| [] 分岐）', async () => {
+    mockAuth.mockResolvedValueOnce({ user: { id: mockUser.id } })
+    // posts フィールド自体が存在しないレスポンス（取得失敗などの想定）
+    mockGetBookmarkedPosts.mockResolvedValueOnce({ nextCursor: undefined })
+
+    const { default: BookmarksPage } = await import('@/app/(main)/bookmarks/page')
+
+    // このテストファイルは node 環境のため render() は使わず、
+    // JSX ツリーから BookmarkPostList への props を直接検証する
+    const result = await BookmarksPage()
+    const resultObj = result as unknown as {
+      props: { children: { props: { children: Array<{ type: unknown; props: { initialPosts: unknown[] } }> } } }
+    }
+    const bookmarkListEl = resultObj.props.children.props.children.find(
+      (child) => typeof child === 'object' && child !== null && 'props' in child && 'initialPosts' in (child.props ?? {}),
+    )
+    expect(bookmarkListEl?.props.initialPosts).toEqual([])
+  })
 })

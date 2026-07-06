@@ -178,4 +178,25 @@ describe('BonsaiCalendarToolbar', () => {
     fireEvent.click(screen.getByLabelText('タグ付け投稿'))
     expect(onToggleOverlay).toHaveBeenCalledWith('post')
   })
+
+  it('selectedOverlays に含まれる種別はチェック済みスタイル(border-primary)で描画', () => {
+    setup({
+      mode: CALENDAR_MODE_MONTH,
+      selectedOverlays: new Set(['record']),
+    })
+    const checkbox = screen.getByLabelText('成長記録') as HTMLInputElement
+    expect(checkbox.checked).toBe(true)
+    // ラベル要素自体に border-primary が付与される（凡例のアクティブ表示）
+    expect(checkbox.closest('label')?.className).toContain('border-primary')
+  })
+
+  it('useSearchParams が null を返す場合でも例外にならず URL を構築できる', () => {
+    mockUseSearchParams.mockReturnValue(null)
+    setup({ mode: CALENDAR_MODE_MONTH })
+    fireEvent.click(screen.getByRole('button', { name: '前の月' }))
+    expect(mockReplace).toHaveBeenCalledWith(
+      expect.stringContaining('anchor=2026-03'),
+      { scroll: false },
+    )
+  })
 })

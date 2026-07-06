@@ -229,6 +229,84 @@ describe('BonsaiCareLogSheet', () => {
     })
   })
 
+  it('成長記録リンクをクリックすると onOpenChange(false) が呼ばれる（Dialog を閉じてから遷移）', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <BonsaiCareLogSheet
+        open
+        onOpenChange={onOpenChange}
+        date={new Date(2026, 3, 15)}
+        logs={[]}
+        records={[
+          { id: 'r1', bonsaiId: 'b1', bonsaiName: '黒松', content: null, recordAt: new Date(2026, 3, 15, 9, 0), imageCount: 0 },
+        ]}
+        posts={[]}
+        onEdit={() => {}}
+        onAdd={() => {}}
+        onChanged={() => {}}
+      />,
+    )
+    fireEvent.click(screen.getByRole('link', { name: /黒松/ }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('タグ付け投稿リンクをクリックすると onOpenChange(false) が呼ばれる', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <BonsaiCareLogSheet
+        open
+        onOpenChange={onOpenChange}
+        date={new Date(2026, 3, 15)}
+        logs={[]}
+        records={[]}
+        posts={[
+          { id: 'p1', bonsaiId: 'b1', bonsaiName: '黒松', content: null, createdAt: new Date(2026, 3, 15, 14, 0), mediaCount: 0 },
+        ]}
+        onEdit={() => {}}
+        onAdd={() => {}}
+        onChanged={() => {}}
+      />,
+    )
+    fireEvent.click(screen.getByRole('link', { name: /黒松/ }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('date が null の場合、タイトルは空文字になる', () => {
+    render(
+      <BonsaiCareLogSheet
+        open
+        onOpenChange={() => {}}
+        date={null}
+        logs={[]}
+        records={[]}
+        posts={[]}
+        onEdit={() => {}}
+        onAdd={() => {}}
+        onChanged={() => {}}
+      />,
+    )
+    // DialogTitle 要素自体は存在するが中身が空文字
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('この日の記録（0件）')
+  })
+
+  it('ログにコメント (note) がある場合、本文が表示される', () => {
+    render(
+      <BonsaiCareLogSheet
+        open
+        onOpenChange={() => {}}
+        date={new Date(2026, 3, 15)}
+        logs={[{ id: 'log-note', type: BonsaiCareType.pesticide, performedAt: new Date(2026, 3, 15, 9, 0), note: 'ベンレート散布' }]}
+        records={[]}
+        posts={[]}
+        onEdit={() => {}}
+        onAdd={() => {}}
+        onChanged={() => {}}
+      />,
+    )
+    expect(screen.getByText('ベンレート散布')).toBeInTheDocument()
+  })
+
   it('削除失敗時は toast を表示', async () => {
     mockDeleteBonsaiCareLog.mockResolvedValue({ success: false, error: 'failed' })
     render(

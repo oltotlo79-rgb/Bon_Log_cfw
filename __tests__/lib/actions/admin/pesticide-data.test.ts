@@ -18,7 +18,11 @@ vi.mock('next/cache', () => ({
 }))
 
 vi.mock('@/lib/rate-limit', () => ({ checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }), RATE_LIMITS: {} }))
-vi.mock('@/lib/logger', () => ({ __esModule: true, default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }))
+vi.mock('@/lib/logger', () => ({
+  __esModule: true,
+  default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
+}))
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Map([['x-forwarded-for', '127.0.0.1']])) }))
 vi.mock('@/lib/premium', () => ({ isPremiumUser: vi.fn().mockResolvedValue(false), getMembershipLimits: vi.fn().mockReturnValue({ maxPostLength: 500, maxImages: 4, maxDailyPosts: 20 }) }))
 
@@ -155,6 +159,48 @@ describe('農薬データ管理アクション', () => {
       if ('error' in result) throw new Error('Expected pesticides, got error')
       expect(result.pesticides).toHaveLength(1)
       expect(result.total).toBe(1)
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findMany.mockRejectedValue(new Error('DB down'))
+      getPesticide().count.mockResolvedValue(0)
+
+      const { getAdminPesticides } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticides()
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findMany.mockRejectedValue('string rejection')
+      getPesticide().count.mockResolvedValue(0)
+
+      const { getAdminPesticides } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticides()
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('options が不正（limit が上限超過）なら ERR_INVALID_INPUT を返す', async () => {
+      const { getAdminPesticides } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticides({ limit: 100000 })
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().findMany).not.toHaveBeenCalled()
+    })
+
+    it('取得件数が limit と一致する場合は nextCursor が設定される', async () => {
+      const mockList = Array.from({ length: 2 }, (_, i) => ({
+        ...mockPesticide,
+        id: `p${i}`,
+        formulationType: { name: '乳剤' },
+        _count: { effects: 0, ingredients: 0 },
+      }))
+      getPesticide().findMany.mockResolvedValue(mockList)
+      getPesticide().count.mockResolvedValue(10)
+
+      const { getAdminPesticides } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticides({ limit: 2 })
+
+      if ('error' in result) throw new Error('Expected pesticides, got error')
+      expect(result.nextCursor).toBe('p1')
     })
 
     it('searchフィルタが名前と登録番号の部分一致で適用される', async () => {
@@ -299,6 +345,29 @@ describe('農薬データ管理アクション', () => {
       expect(result.history).toHaveLength(1)
     })
 
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findUnique.mockRejectedValue(new Error('DB down'))
+
+      const { getAdminPesticideDetail } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticideDetail('pesticide-1')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findUnique.mockRejectedValue('string rejection')
+
+      const { getAdminPesticideDetail } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticideDetail('pesticide-1')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('id が空文字（バリデーション不正）なら ERR_INVALID_INPUT を返す', async () => {
+      const { getAdminPesticideDetail } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getAdminPesticideDetail('')
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().findUnique).not.toHaveBeenCalled()
+    })
+
     it('更新履歴が最大20件取得される', async () => {
       getPesticide().findUnique.mockResolvedValue(mockPesticideWithRelations)
       getHistory().findMany.mockResolvedValue([])
@@ -374,6 +443,49 @@ describe('農薬データ管理アクション', () => {
       const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
       const result = await createPesticide({ ...validData, name: '   ' })
       expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('name 以外のバリデーション不正（slug 形式違反）は ERR_INVALID_INPUT を返す', async () => {
+      const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await createPesticide({ ...validData, slug: 'Invalid Slug!!' })
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().create).not.toHaveBeenCalled()
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().create.mockRejectedValue(new Error('DB down'))
+
+      const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await createPesticide(validData)
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().create.mockRejectedValue('string rejection')
+
+      const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await createPesticide(validData)
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('registrationNumber / formulationTypeId / description を省略すると null で保存される', async () => {
+      const minimalData = { name: '最小構成農薬', pesticideType: 'fungicide' as never, slug: 'minimal-pesticide' }
+      getPesticide().create.mockResolvedValue({ ...mockPesticide, id: 'minimal-id' })
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+      mockPrisma.adminLog.create.mockResolvedValue({ id: 'l1' })
+
+      const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
+      await createPesticide(minimalData)
+
+      expect(getPesticide().create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            registrationNumber: null,
+            formulationTypeId: null,
+            description: null,
+          }),
+        })
+      )
     })
 
     it('正常に農薬を作成できる', async () => {
@@ -489,6 +601,60 @@ describe('農薬データ管理アクション', () => {
       const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
       const result = await updatePesticide('nonexistent-id', updateData)
       expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('パスパラメータ id がバリデーション不正なら ERR_INVALID_INPUT を返す', async () => {
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await updatePesticide('', updateData)
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().findUnique).not.toHaveBeenCalled()
+    })
+
+    it('name 以外のバリデーション不正（不正な pesticideType）は ERR_INVALID_INPUT を返す', async () => {
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await updatePesticide('pesticide-1', { pesticideType: 'not-a-real-type' as never })
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().update).not.toHaveBeenCalled()
+    })
+
+    it('name が空白のみの場合は ERR_PESTICIDE_NAME_REQUIRED を返す', async () => {
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await updatePesticide('pesticide-1', { name: '   ' })
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().update).not.toHaveBeenCalled()
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getPesticide().update.mockRejectedValue(new Error('DB down'))
+
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await updatePesticide('pesticide-1', updateData)
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getPesticide().update.mockRejectedValue('string rejection')
+
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await updatePesticide('pesticide-1', updateData)
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('pesticideType / formulationTypeId を省略すると更新データに含まれない', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getPesticide().update.mockResolvedValue({ ...mockPesticide, name: '部分更新' })
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+      mockPrisma.adminLog.create.mockResolvedValue({ id: 'l1' })
+
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      await updatePesticide('pesticide-1', { name: '部分更新' })
+
+      const updateCall = getPesticide().update.mock.calls[0]![0]
+      expect(updateCall.data).not.toHaveProperty('pesticideType')
+      expect(updateCall.data).not.toHaveProperty('formulationTypeId')
+      expect(updateCall.data).toEqual({ name: '部分更新' })
     })
 
     it('正常に農薬を更新できる', async () => {
@@ -614,6 +780,33 @@ describe('農薬データ管理アクション', () => {
       expect(mockTransaction).toHaveBeenCalled()
     })
 
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+      mockTransaction.mockRejectedValueOnce(new Error('DB down'))
+
+      const { deletePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await deletePesticide('pesticide-1')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+      mockTransaction.mockRejectedValueOnce('string rejection')
+
+      const { deletePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await deletePesticide('pesticide-1')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('id が空文字（バリデーション不正）なら ERR_INVALID_INPUT を返す', async () => {
+      const { deletePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await deletePesticide('')
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getPesticide().findUnique).not.toHaveBeenCalled()
+    })
+
     it('削除前に履歴が記録される', async () => {
       getPesticide().findUnique.mockResolvedValue(mockPesticide)
       getHistory().create.mockResolvedValue({ id: 'h1' })
@@ -683,6 +876,46 @@ describe('農薬データ管理アクション', () => {
       if ('error' in result) throw new Error('Expected history, got error')
       expect(result.history).toEqual([])
       expect(result.total).toBe(0)
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      getHistory().findMany.mockRejectedValue(new Error('DB down'))
+      getHistory().count.mockResolvedValue(0)
+
+      const { getPesticideHistory } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getPesticideHistory()
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      getHistory().findMany.mockRejectedValue('string rejection')
+      getHistory().count.mockResolvedValue(0)
+
+      const { getPesticideHistory } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getPesticideHistory()
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('options が不正（limit が上限超過）なら ERR_INVALID_INPUT を返す', async () => {
+      const { getPesticideHistory } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getPesticideHistory({ limit: 100000 })
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(getHistory().findMany).not.toHaveBeenCalled()
+    })
+
+    it('取得件数が limit と一致する場合は nextCursor が設定される', async () => {
+      const mockHistoryList = [
+        { id: 'h1', pesticideId: 'p1', action: 'create', createdAt: new Date() },
+        { id: 'h2', pesticideId: 'p1', action: 'update', createdAt: new Date() },
+      ]
+      getHistory().findMany.mockResolvedValue(mockHistoryList)
+      getHistory().count.mockResolvedValue(10)
+
+      const { getPesticideHistory } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await getPesticideHistory({ limit: 2 })
+
+      if ('error' in result) throw new Error('Expected history, got error')
+      expect(result.nextCursor).toBe('h2')
     })
 
     it('履歴一覧と総件数を正常に返す', async () => {

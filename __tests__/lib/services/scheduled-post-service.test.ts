@@ -202,6 +202,31 @@ describe('listScheduledPostsV1', () => {
     expect(typeof item?.createdAt).toBe('string')
     expect(typeof item?.id).toBe('string')
   })
+
+  it('media / genres を持つ予約投稿は各要素が正しく整形される', async () => {
+    mockScheduledPostFindMany.mockResolvedValue([
+      {
+        ...MOCK_SP_RAW,
+        media: [{ url: '/uploads/a.jpg', type: 'image', sortOrder: 0 }],
+        genres: [{ genre: { id: 'genre-1', name: '松柏類' } }],
+      },
+    ])
+    const { listScheduledPostsV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await listScheduledPostsV1(OWNER_ID, undefined, 20)
+    if (!result.ok) throw new Error('unexpected error')
+    expect(result.items[0]?.media).toEqual([{ url: '/uploads/a.jpg', type: 'image', sortOrder: 0 }])
+    expect(result.items[0]?.genres).toEqual([{ id: 'genre-1', name: '松柏類' }])
+  })
+
+  it('未知の status 値は防御的に pending にフォールバックする', async () => {
+    mockScheduledPostFindMany.mockResolvedValue([
+      { ...MOCK_SP_RAW, status: 'unexpected_status' },
+    ])
+    const { listScheduledPostsV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await listScheduledPostsV1(OWNER_ID, undefined, 20)
+    if (!result.ok) throw new Error('unexpected error')
+    expect(result.items[0]?.status).toBe('pending')
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -378,6 +403,53 @@ describe('createScheduledPostV1', () => {
     const callArg = mockScheduledPostCreate.mock.calls[0]?.[0]
     expect(callArg?.data?.userId).toBe(OWNER_ID)
   })
+
+  it('mediaUrls / genreIds を渡すと create データの media / genres に反映される', async () => {
+    const { createScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    await createScheduledPostV1(OWNER_ID, {
+      ...validCreateInput,
+      mediaUrls: ['/uploads/a.jpg', '/uploads/b.mp4'],
+      mediaTypes: ['image', 'video'],
+      genreIds: ['genre-1', 'genre-2'],
+    })
+    const callArg = mockScheduledPostCreate.mock.calls[0]?.[0] as {
+      data: {
+        media?: { create: { url: string; type: string; sortOrder: number }[] }
+        genres?: { create: { genreId: string }[] }
+      }
+    }
+    expect(callArg.data.media?.create).toEqual([
+      { url: '/uploads/a.jpg', type: 'image', sortOrder: 0 },
+      { url: '/uploads/b.mp4', type: 'video', sortOrder: 1 },
+    ])
+    expect(callArg.data.genres?.create).toEqual([{ genreId: 'genre-1' }, { genreId: 'genre-2' }])
+  })
+
+  it('mediaTypes が mediaUrls より短い場合、対応する型は image にフォールバックする', async () => {
+    const { createScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    await createScheduledPostV1(OWNER_ID, {
+      ...validCreateInput,
+      mediaUrls: ['/uploads/a.jpg'],
+      mediaTypes: [],
+    })
+    const callArg = mockScheduledPostCreate.mock.calls[0]?.[0] as {
+      data: { media?: { create: { type: string }[] } }
+    }
+    expect(callArg.data.media?.create?.[0]?.type).toBe('image')
+  })
+
+  it('content が空文字でも mediaUrls があれば作成でき、content は null として保存される', async () => {
+    const { createScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await createScheduledPostV1(OWNER_ID, {
+      ...validCreateInput,
+      content: '',
+      mediaUrls: ['/uploads/a.jpg'],
+      mediaTypes: ['image'],
+    })
+    expect(result).toMatchObject({ ok: true })
+    const callArg = mockScheduledPostCreate.mock.calls[0]?.[0] as { data: { content: string | null } }
+    expect(callArg.data.content).toBeNull()
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -479,6 +551,93 @@ describe('updateScheduledPostV1', () => {
     await updateScheduledPostV1(OWNER_ID, SP_ID, validCreateInput)
     expect(mockScheduledPostMediaDeleteMany).toHaveBeenCalled()
     expect(mockScheduledPostGenreDeleteMany).toHaveBeenCalled()
+  })
+
+  it('不正な日付文字列で { ok: false, status: 400 }', async () => {
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      scheduledAt: 'not-a-date',
+    })
+    expect(result).toMatchObject({ ok: false, status: 400 })
+    expect(mockTransaction).not.toHaveBeenCalled()
+  })
+
+  it('content と mediaUrls が両方空で { ok: false, status: 400 }', async () => {
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      content: '',
+      mediaUrls: [],
+    })
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('ジャンル 4 件超過で { ok: false, status: 400 }', async () => {
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      genreIds: ['g1', 'g2', 'g3', 'g4'],
+    })
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('validateMediaCounts が error を返すと { ok: false, status: 400 }', async () => {
+    mockValidateMediaCounts.mockResolvedValue({ success: false, error: '画像は6枚までです' })
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      mediaUrls: ['/uploads/a.jpg'],
+      mediaTypes: ['image' as const],
+    })
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('mediaUrls / genreIds を渡すと update データの media / genres に反映される', async () => {
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      mediaUrls: ['/uploads/a.jpg', '/uploads/b.mp4'],
+      mediaTypes: ['image', 'video'],
+      genreIds: ['genre-1'],
+    })
+    const callArg = mockScheduledPostUpdate.mock.calls[0]?.[0] as {
+      data: {
+        media?: { create: { url: string; type: string; sortOrder: number }[] }
+        genres?: { create: { genreId: string }[] }
+      }
+    }
+    expect(callArg.data.media?.create).toEqual([
+      { url: '/uploads/a.jpg', type: 'image', sortOrder: 0 },
+      { url: '/uploads/b.mp4', type: 'video', sortOrder: 1 },
+    ])
+    expect(callArg.data.genres?.create).toEqual([{ genreId: 'genre-1' }])
+  })
+
+  it('mediaTypes が mediaUrls より短い場合、対応する型は image にフォールバックする', async () => {
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      mediaUrls: ['/uploads/a.jpg'],
+      mediaTypes: [],
+    })
+    const callArg = mockScheduledPostUpdate.mock.calls[0]?.[0] as {
+      data: { media?: { create: { type: string }[] } }
+    }
+    expect(callArg.data.media?.create?.[0]?.type).toBe('image')
+  })
+
+  it('content が空文字でも mediaUrls があれば更新でき、content は null として保存される', async () => {
+    const { updateScheduledPostV1 } = await import('@/lib/services/scheduled-post-service')
+    const result = await updateScheduledPostV1(OWNER_ID, SP_ID, {
+      ...validCreateInput,
+      content: '',
+      mediaUrls: ['/uploads/a.jpg'],
+      mediaTypes: ['image'],
+    })
+    expect(result).toMatchObject({ ok: true })
+    const callArg = mockScheduledPostUpdate.mock.calls[0]?.[0] as { data: { content: string | null } }
+    expect(callArg.data.content).toBeNull()
   })
 })
 

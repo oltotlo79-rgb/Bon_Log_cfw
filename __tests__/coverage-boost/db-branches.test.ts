@@ -39,15 +39,18 @@ vi.mock('pg', () => {
       constructor(config?: any) {
         this.config = config
         MockPool.lastConfig = config
+        MockPool.lastInstance = this
         MockPool.callCount++
       }
       connect = vi.fn()
       on = vi.fn()
 
       static lastConfig: any = null
+      static lastInstance: MockPool | null = null
       static callCount = 0
       static reset() {
         this.lastConfig = null
+        this.lastInstance = null
         this.callCount = 0
       }
     },
@@ -195,5 +198,66 @@ describe('db.ts ブランチカバレッジ', () => {
     const { prisma } = await import('@/lib/db')
 
     expect(prisma).toBe(existingPrisma)
+  })
+
+  it('DATABASE_URL 未設定時は isLocalDatabase の early return (!url) を通り、ダミーPoolを作成する', async () => {
+    delete process.env.DATABASE_URL
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'test'
+
+    const { prisma } = await import('@/lib/db')
+    const { Pool } = await import('pg') as unknown as { Pool: { lastConfig: { connectionString: string } } }
+
+    expect(prisma).toBeDefined()
+    expect(Pool.lastConfig.connectionString).toBe('postgresql://dummy:dummy@localhost:5432/dummy')
+  })
+
+  it('DATABASE_URL が URL として不正な場合、isLocalDatabase は catch で false を返す', async () => {
+    process.env.DATABASE_URL = 'not-a-valid-url'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'production'
+    delete process.env.SUPABASE_CA_CERT
+
+    await import('@/lib/db')
+    const { Pool } = await import('pg') as unknown as {
+      Pool: { lastConfig: { ssl: { rejectUnauthorized: boolean; ca: string | undefined } } }
+    }
+
+    // isLocalDatabase が false (catch) のため、本番環境の SSL 完全検証が有効になる
+    expect(Pool.lastConfig.ssl).toEqual({ rejectUnauthorized: true, ca: undefined })
+  })
+
+  it('NEXT_RUNTIME 設定時は server-only の条件付き require が実行される', async () => {
+    process.env.NEXT_RUNTIME = 'nodejs'
+    process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'test'
+
+    // server-only は Client Component から import されると意図的に throw する実装のため、
+    // Vitest（Client 相当）環境からの import はここでは reject を期待する。
+    // 重要なのは `require('server-only')` の行自体が実行される（=分岐がカバーされる）こと。
+    await expect(import('@/lib/db')).rejects.toThrow(
+      'This module cannot be imported from a Client Component module',
+    )
+    delete process.env.NEXT_RUNTIME
+  })
+
+  it('pool の error イベントハンドラは切断エラーをログに記録する', async () => {
+    process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy'
+    ;(process.env as { NODE_ENV: string }).NODE_ENV = 'test'
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await import('@/lib/db')
+    const { Pool } = await import('pg') as unknown as {
+      Pool: { lastInstance: { on: ReturnType<typeof vi.fn> } }
+    }
+    const poolInstance = Pool.lastInstance
+    const errorHandler = poolInstance.on.mock.calls.find((call) => call[0] === 'error')?.[1]
+
+    expect(errorHandler).toBeInstanceOf(Function)
+    errorHandler(new Error('connection terminated unexpectedly'))
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[db] Unexpected pool error:',
+      'connection terminated unexpectedly',
+    )
+    consoleErrorSpy.mockRestore()
   })
 })

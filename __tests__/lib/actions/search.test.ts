@@ -251,6 +251,22 @@ describe('searchUsers', () => {
       ]),
     })
   })
+
+  it('DBエラーが Error 以外の値でも actionError を返す（lib/actions/search-users 直接呼び出し）', async () => {
+    mockPrisma.user.findMany.mockRejectedValueOnce('connection reset')
+    const { searchUsers } = await import('@/lib/actions/search-users')
+    const result = await searchUsers('テスト')
+    expect(result).toMatchObject({ success: false, error: '操作に失敗しました' })
+  })
+
+  it('limit を省略すると search-users.ts 自身の既定値 (DEFAULT_PAGE_LIMIT) が使われる', async () => {
+    mockPrisma.user.findMany.mockResolvedValueOnce([])
+    // search.ts のバレル経由だと wrapper 側の default が先に解決されてしまうため、
+    // search-users.ts の default-arg 分岐を検証するには直接 import する必要がある。
+    const { searchUsers } = await import('@/lib/actions/search-users')
+    const result = await searchUsers('テスト', undefined)
+    expect(result.success).toBe(true)
+  })
 })
 
 // ============================================================

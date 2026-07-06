@@ -157,4 +157,16 @@ describe('MediaUploadSection', () => {
     const fileInput = container.querySelector('input[type="file"]')
     expect(fileInput).toHaveAttribute('multiple')
   })
+
+  it('メディア追加ボタンをクリックするとファイル入力のclickが呼ばれる', () => {
+    const ref = createRef<HTMLInputElement | null>()
+    render(<MediaUploadSection {...defaultProps} fileInputRef={ref} />)
+    const clickSpy = vi.spyOn(ref.current!, 'click')
+
+    const buttons = screen.getAllByRole('button')
+    const mediaButton = buttons.find(btn => !btn.closest('.relative'))!
+    fireEvent.click(mediaButton)
+
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+  })
 })

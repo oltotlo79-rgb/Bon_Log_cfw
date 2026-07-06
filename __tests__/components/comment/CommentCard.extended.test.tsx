@@ -927,15 +927,24 @@ describe('CommentCard 拡張テスト', () => {
       const deleteButtons = screen.getAllByRole('button').filter(btn =>
         btn.querySelector('svg.lucide-trash-2')
       )
-      if (deleteButtons.length > 0) {
-        await user.click(deleteButtons[0]!)
-        await waitFor(() => {
-          const confirmButton = screen.queryByRole('button', { name: '削除' })
-          if (confirmButton) {
-            user.click(confirmButton)
-          }
-        })
-      }
+      expect(deleteButtons.length).toBeGreaterThan(0)
+
+      await user.click(deleteButtons[0]!)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '削除' })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: '削除' }))
+
+      await waitFor(() => {
+        expect(mockDeleteComment).toHaveBeenCalledWith('deletable-reply')
+      })
+
+      // replyCountなし（末端）のため返信一覧から取り除かれる
+      await waitFor(() => {
+        expect(screen.queryByText('削除可能な返信')).not.toBeInTheDocument()
+      })
     })
 
     it('返信削除時にreplyCount>0の場合isDeleted=trueにマークされる', async () => {
@@ -975,15 +984,25 @@ describe('CommentCard 拡張テスト', () => {
       const deleteButtons = screen.getAllByRole('button').filter(btn =>
         btn.querySelector('svg.lucide-trash-2')
       )
-      if (deleteButtons.length > 0) {
-        await user.click(deleteButtons[0]!)
-        await waitFor(() => {
-          const confirmButton = screen.queryByRole('button', { name: '削除' })
-          if (confirmButton) {
-            user.click(confirmButton)
-          }
-        })
-      }
+      expect(deleteButtons.length).toBeGreaterThan(0)
+
+      await user.click(deleteButtons[0]!)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '削除' })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: '削除' }))
+
+      await waitFor(() => {
+        expect(mockDeleteComment).toHaveBeenCalledWith('reply-with-subreplies')
+      })
+
+      // replyCount>0 のため一覧からは消さずisDeleted=trueにマークされる
+      await waitFor(() => {
+        expect(screen.queryByText('子返信がある返信')).not.toBeInTheDocument()
+        expect(screen.getByText('削除されたコメントです')).toBeInTheDocument()
+      })
     })
 
     it('ネストされた返信を削除するとonDeletedコールバックが発火する', async () => {
@@ -1027,6 +1046,23 @@ describe('CommentCard 拡張テスト', () => {
         btn.querySelector('svg.lucide-trash-2')
       )
       expect(deleteButtons.length).toBeGreaterThan(0)
+
+      await user.click(deleteButtons[0]!)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '削除' })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: '削除' }))
+
+      await waitFor(() => {
+        expect(mockDeleteComment).toHaveBeenCalledWith('nested-deletable')
+      })
+
+      // 末端の返信が削除されて空になったため、親コメント自体もonDeletedで通知される
+      await waitFor(() => {
+        expect(onDeletedMock).toHaveBeenCalledWith('comment-1')
+      })
     })
   })
 })

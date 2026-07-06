@@ -489,4 +489,19 @@ describe('FollowRequestsPage', async () => {
     expect(screen.getByText('フォローリクエスト')).toBeInTheDocument()
     expect(screen.getByTestId('follow-requests-client')).toBeInTheDocument()
   })
+
+  it('ゲストユーザーには利用制限メッセージを表示し、フォームは描画しない', async () => {
+    const { GUEST_EMAIL } = await import('@/lib/constants/guest')
+    const { ERR_GUEST_CANNOT_CREATE } = await import('@/lib/constants/errors')
+    mockAuth.mockResolvedValue({ user: { id: 'guest-1', email: GUEST_EMAIL } })
+
+    const { default: Page } = await import('@/app/(main)/settings/follow-requests/page')
+    const result = await Page()
+    render(result)
+
+    expect(screen.getByText('フォローリクエスト')).toBeInTheDocument()
+    expect(screen.getByText(ERR_GUEST_CANNOT_CREATE)).toBeInTheDocument()
+    expect(screen.queryByTestId('follow-requests-client')).not.toBeInTheDocument()
+    expect(mockGetReceivedFollowRequests).not.toHaveBeenCalled()
+  })
 })

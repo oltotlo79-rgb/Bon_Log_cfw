@@ -71,6 +71,24 @@ describe('HiddenContentPage', async () => {
     expect(screen.getByTestId('hidden-content-list')).toHaveTextContent('3 items')
   })
 
+  it('通知取得がエラーの場合は未読バナーを表示せず通常表示する（getHiddenContent は成功）', async () => {
+
+    vi.mocked(getHiddenContent).mockResolvedValue({
+      items: [{ type: 'post', id: '1' }],
+    } as any)
+
+    vi.mocked(getAdminNotifications).mockResolvedValue({ error: '通知取得エラー' } as any)
+
+    const { default: Page } = await import('@/app/admin/hidden/page')
+    const result = await Page()
+    render(result)
+
+    // notificationResult に notifications/unreadCount が無いためフォールバックし、
+    // バナーは表示されずコンテンツ一覧は通常通り表示される
+    expect(screen.queryByTestId('admin-notification-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('hidden-content-list')).toHaveTextContent('1 items')
+  })
+
   it('統計カードに正しい数を表示', async () => {
     const items = [
       { type: 'post', id: '1' },

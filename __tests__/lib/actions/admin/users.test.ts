@@ -246,6 +246,36 @@ describe('管理者向けユーザー管理アクション', () => {
         expect.objectContaining({ take: 5, cursor: { id: 'user-cursor' }, skip: 1 })
       )
     })
+
+    it('取得件数が limit と一致する場合は nextCursor が設定される', async () => {
+      const list = [mockRegularUser, { ...mockRegularUser, id: 'user-2' }]
+      mockPrisma.user.findMany.mockResolvedValue(list)
+      mockPrisma.user.count.mockResolvedValue(10)
+
+      const { getAdminUsers } = await import('@/lib/actions/admin/users')
+      const result = await getAdminUsers({ limit: 2 })
+
+      if ('error' in result) throw new Error('Expected users, got error')
+      expect(result.nextCursor).toBe('user-2')
+    })
+
+    it('DB エラー時は空配列とエラーログを返す（フェイルセーフ、ActionResult 例外）', async () => {
+      mockPrisma.user.findMany.mockRejectedValue(new Error('DB down'))
+
+      const { getAdminUsers } = await import('@/lib/actions/admin/users')
+      const result = await getAdminUsers()
+
+      expect(result).toMatchObject({ users: [], total: 0, nextCursor: undefined })
+    })
+
+    it('Error インスタンスでない例外が投げられても空配列を返す', async () => {
+      mockPrisma.user.findMany.mockRejectedValue('string rejection')
+
+      const { getAdminUsers } = await import('@/lib/actions/admin/users')
+      const result = await getAdminUsers()
+
+      expect(result).toMatchObject({ users: [], total: 0, nextCursor: undefined })
+    })
   })
 
   // ============================================================
@@ -308,6 +338,41 @@ describe('管理者向けユーザー管理アクション', () => {
 
       if ('error' in result) throw new Error('Expected user detail, got error')
       expect(result.reportCount).toBe(0)
+    })
+
+    it('userId が空文字（バリデーション不正）なら ERR_INVALID_INPUT を返す', async () => {
+      const { getAdminUserDetail } = await import('@/lib/actions/admin/users')
+      const result = await getAdminUserDetail('')
+      expect(result).toMatchObject({ error: expect.any(String) })
+      // requireAdmin 内の admin 自身の停止チェック (where.id===mockUser.id) は許容し、
+      // 空文字を対象ユーザーIDとした呼び出しのみが行われていないことを検証する
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: '' } })
+      )
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      // admin (mockUser.id) 自身の停止チェックは active を返し、
+      // 対象ユーザー (regular-user-id) 取得時のみ DB エラーを発生させる
+      mockPrisma.user.findUnique.mockImplementation((args: { where?: { id?: string } } | undefined) => {
+        if (args?.where?.id === mockUser.id) return Promise.resolve({ isSuspended: false })
+        return Promise.reject(new Error('DB down'))
+      })
+
+      const { getAdminUserDetail } = await import('@/lib/actions/admin/users')
+      const result = await getAdminUserDetail('regular-user-id')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockImplementation((args: { where?: { id?: string } } | undefined) => {
+        if (args?.where?.id === mockUser.id) return Promise.resolve({ isSuspended: false })
+        return Promise.reject('string rejection')
+      })
+
+      const { getAdminUserDetail } = await import('@/lib/actions/admin/users')
+      const result = await getAdminUserDetail('regular-user-id')
+      expect(result).toMatchObject({ error: expect.any(String) })
     })
   })
 
@@ -382,6 +447,40 @@ describe('管理者向けユーザー管理アクション', () => {
       await suspendUser('regular-user-id', '規約違反')
 
       expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/users')
+    })
+
+    it('userId が空文字（バリデーション不正）なら ERR_INVALID_INPUT を返す', async () => {
+      const { suspendUser } = await import('@/lib/actions/admin/users')
+      const result = await suspendUser('', '規約違反')
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: '' } })
+      )
+    })
+
+    it('reason が上限文字数を超える場合は ERR_INVALID_INPUT を返す', async () => {
+      const { suspendUser } = await import('@/lib/actions/admin/users')
+      const result = await suspendUser('regular-user-id', 'a'.repeat(1001))
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(mockPrisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockRegularUser)
+      mockTransaction.mockRejectedValueOnce(new Error('DB down'))
+
+      const { suspendUser } = await import('@/lib/actions/admin/users')
+      const result = await suspendUser('regular-user-id', '規約違反')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockRegularUser)
+      mockTransaction.mockRejectedValueOnce('string rejection')
+
+      const { suspendUser } = await import('@/lib/actions/admin/users')
+      const result = await suspendUser('regular-user-id', '規約違反')
+      expect(result).toMatchObject({ error: expect.any(String) })
     })
   })
 
@@ -461,6 +560,36 @@ describe('管理者向けユーザー管理アクション', () => {
       await activateUser('suspended-user-id')
 
       expect(mockTransaction).toHaveBeenCalled()
+    })
+
+    it('userId が空文字（バリデーション不正）なら ERR_INVALID_INPUT を返す', async () => {
+      const { activateUser } = await import('@/lib/actions/admin/users')
+      const result = await activateUser('')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockImplementation((args: { where?: { id?: string } } | undefined) => {
+        if (args?.where?.id === mockUser.id) return Promise.resolve({ isSuspended: false })
+        return Promise.resolve(mockSuspendedUser)
+      })
+      mockTransaction.mockRejectedValueOnce(new Error('DB down'))
+
+      const { activateUser } = await import('@/lib/actions/admin/users')
+      const result = await activateUser('suspended-user-id')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockImplementation((args: { where?: { id?: string } } | undefined) => {
+        if (args?.where?.id === mockUser.id) return Promise.resolve({ isSuspended: false })
+        return Promise.resolve(mockSuspendedUser)
+      })
+      mockTransaction.mockRejectedValueOnce('string rejection')
+
+      const { activateUser } = await import('@/lib/actions/admin/users')
+      const result = await activateUser('suspended-user-id')
+      expect(result).toMatchObject({ error: expect.any(String) })
     })
   })
 
@@ -557,6 +686,46 @@ describe('管理者向けユーザー管理アクション', () => {
       await deleteUserByAdmin('regular-user-id', '不正アクセス')
 
       expect(mockTransaction).toHaveBeenCalled()
+    })
+
+    it('userId が空文字（バリデーション不正）なら ERR_INVALID_INPUT を返す', async () => {
+      const { deleteUserByAdmin } = await import('@/lib/actions/admin/users')
+      const result = await deleteUserByAdmin('', '理由')
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: '' } })
+      )
+    })
+
+    it('reason が上限文字数を超える場合は ERR_INVALID_INPUT を返す', async () => {
+      const { deleteUserByAdmin } = await import('@/lib/actions/admin/users')
+      const result = await deleteUserByAdmin('regular-user-id', 'a'.repeat(1001))
+      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(mockPrisma.user.delete).not.toHaveBeenCalled()
+    })
+
+    it('DB エラー時は ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockRegularUser)
+      mockPrisma.adminUser.findUnique
+        .mockResolvedValueOnce(mockAdminUserRecord)
+        .mockResolvedValueOnce(null)
+      mockTransaction.mockRejectedValueOnce(new Error('DB down'))
+
+      const { deleteUserByAdmin } = await import('@/lib/actions/admin/users')
+      const result = await deleteUserByAdmin('regular-user-id', '理由')
+      expect(result).toMatchObject({ error: expect.any(String) })
+    })
+
+    it('Error インスタンスでない例外が投げられても ERR_OPERATION_FAILED を返す', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockRegularUser)
+      mockPrisma.adminUser.findUnique
+        .mockResolvedValueOnce(mockAdminUserRecord)
+        .mockResolvedValueOnce(null)
+      mockTransaction.mockRejectedValueOnce('string rejection')
+
+      const { deleteUserByAdmin } = await import('@/lib/actions/admin/users')
+      const result = await deleteUserByAdmin('regular-user-id', '理由')
+      expect(result).toMatchObject({ error: expect.any(String) })
     })
   })
 })

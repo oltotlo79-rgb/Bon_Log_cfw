@@ -202,6 +202,14 @@ describe('ShopsPage', () => {
     )
   })
 
+  it('不正なソート値: isShopSortOption が false を返し undefined にフォールバックする', async () => {
+    await renderPage({ sort: 'invalid-sort-value' })
+
+    expect(mockGetShops).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: undefined })
+    )
+  })
+
   it('検索フォームに初期値が渡される', async () => {
     await renderPage({
       search: 'テスト',
@@ -289,6 +297,55 @@ describe('ShopsPage', () => {
     expect(mockGetShops).toHaveBeenCalledWith(
       expect.objectContaining({ region: '関東' })
     )
+  })
+})
+
+/**
+ * JSX ツリーを再帰的に探索し、`<Suspense fallback={<Target />}>` の
+ * fallback 要素を返す。ShopContentSkeleton は Suspense fallback 経由でのみ
+ * 使われるローカル関数のため、実際に React が suspend するのを待たずに
+ * fallback の型（関数）を直接見つけて描画検証する。
+ */
+function findFallbackByChildName(node: unknown, targetName: string): React.ReactElement | null {
+  if (!node || typeof node !== 'object') return null
+  const el = node as { props?: { fallback?: unknown; children?: unknown } }
+  const fallback = el.props?.fallback
+  if (fallback && typeof fallback === 'object') {
+    const fb = fallback as { type?: unknown }
+    if (typeof fb.type === 'function' && (fb.type as { name?: string }).name === targetName) {
+      return fallback as React.ReactElement
+    }
+  }
+  const children = el.props?.children
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const found = findFallbackByChildName(child, targetName)
+      if (found) return found
+    }
+  } else if (children && typeof children === 'object') {
+    return findFallbackByChildName(children, targetName)
+  }
+  return null
+}
+
+describe('ShopsPage ShopContentSkeleton (Suspense fallback)', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    mockAuth.mockResolvedValue(null)
+    mockGetShops.mockResolvedValue({ shops: mockShops })
+    mockGetShopGenres.mockResolvedValue({ genres: mockGenres })
+  })
+
+  it('ShopContentSection の Suspense fallback として描画される', async () => {
+    const mod = await import('@/app/(main)/shops/page')
+    const Page = mod.default
+    const result = await Page({ searchParams: Promise.resolve({}) })
+
+    const fallbackEl = findFallbackByChildName(result, 'ShopContentSkeleton')
+    expect(fallbackEl).not.toBeNull()
+
+    const { container } = render(fallbackEl as React.ReactElement)
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
   })
 })
 

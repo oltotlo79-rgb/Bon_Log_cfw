@@ -95,6 +95,20 @@ describe('FollowersPage', async () => {
     const result = await generateMetadata({ params: Promise.resolve({ id: 'x' }) })
     expect(result.title).toBe('ユーザーが見つかりません')
   })
+
+  it('generateMetadata sets noindex for a private/suspended author', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: false, isSuspended: false })
+    const { generateMetadata } = await import('@/app/(main)/users/[id]/followers/page')
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
+    if (!('robots' in result)) throw new Error('robots is missing from metadata result')
+    expect(result.robots).toEqual({ index: false, follow: false })
+  })
+
+  it('calls notFound when viewer cannot view a private author (canViewAuthorContent=false)', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: false, isSuspended: false })
+    const { default: Page } = await import('@/app/(main)/users/[id]/followers/page')
+    await expect(Page({ params: Promise.resolve({ id: 'u1' }) })).rejects.toThrow('NOT_FOUND')
+  })
 })
 
 // ============================================================
@@ -142,6 +156,20 @@ describe('FollowingPage', async () => {
     const { generateMetadata } = await import('@/app/(main)/users/[id]/following/page')
     const result = await generateMetadata({ params: Promise.resolve({ id: 'x' }) })
     expect(result.title).toBe('ユーザーが見つかりません')
+  })
+
+  it('generateMetadata sets noindex for a private/suspended author', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: false, isSuspended: false })
+    const { generateMetadata } = await import('@/app/(main)/users/[id]/following/page')
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
+    if (!('robots' in result)) throw new Error('robots is missing from metadata result')
+    expect(result.robots).toEqual({ index: false, follow: false })
+  })
+
+  it('calls notFound when viewer cannot view a private author (canViewAuthorContent=false)', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: false, isSuspended: false })
+    const { default: Page } = await import('@/app/(main)/users/[id]/following/page')
+    await expect(Page({ params: Promise.resolve({ id: 'u1' }) })).rejects.toThrow('NOT_FOUND')
   })
 })
 
@@ -192,6 +220,27 @@ describe('UserLikesPage', async () => {
     const { generateMetadata } = await import('@/app/(main)/users/[id]/likes/page')
     const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
     expect(result.title).toBe('TestUserのいいね')
+  })
+
+  it('generateMetadata returns fallback for missing user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null)
+    const { generateMetadata } = await import('@/app/(main)/users/[id]/likes/page')
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'x' }) })
+    expect(result.title).toBe('ユーザーが見つかりません')
+  })
+
+  it('generateMetadata sets noindex for a private/suspended author', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: false, isSuspended: false })
+    const { generateMetadata } = await import('@/app/(main)/users/[id]/likes/page')
+    const result = await generateMetadata({ params: Promise.resolve({ id: 'u1' }) })
+    if (!('robots' in result)) throw new Error('robots is missing from metadata result')
+    expect(result.robots).toEqual({ index: false, follow: false })
+  })
+
+  it('calls notFound when viewer cannot view a private author (canViewAuthorContent=false)', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', nickname: 'TestUser', isPublic: false, isSuspended: false })
+    const { default: Page } = await import('@/app/(main)/users/[id]/likes/page')
+    await expect(Page({ params: Promise.resolve({ id: 'u1' }) })).rejects.toThrow('NOT_FOUND')
   })
 })
 

@@ -122,6 +122,34 @@ const mockEvents = [
   { id: 'ev-3', title: '盆栽即売会', startDate: futureDate, endDate: new Date(Date.now() + 86400000 * 60).toISOString(), region: '関東', prefecture: '埼玉県' },
 ]
 
+/**
+ * JSX ツリーを再帰的に探索し、`<Suspense fallback={<Target />}>` の
+ * fallback 要素を返す。EventContentSkeleton は Suspense fallback 経由でのみ
+ * 使われるローカル関数のため、実際に React が suspend するのを待たずに
+ * fallback の型（関数）を直接見つけて描画検証する。
+ */
+function findFallbackByChildName(node: unknown, targetName: string): React.ReactElement | null {
+  if (!node || typeof node !== 'object') return null
+  const el = node as { props?: { fallback?: unknown; children?: unknown } }
+  const fallback = el.props?.fallback
+  if (fallback && typeof fallback === 'object') {
+    const fb = fallback as { type?: unknown }
+    if (typeof fb.type === 'function' && (fb.type as { name?: string }).name === targetName) {
+      return fallback as React.ReactElement
+    }
+  }
+  const children = el.props?.children
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const found = findFallbackByChildName(child, targetName)
+      if (found) return found
+    }
+  } else if (children && typeof children === 'object') {
+    return findFallbackByChildName(children, targetName)
+  }
+  return null
+}
+
 async function renderPage(searchParams: Record<string, string> = {}) {
   const mod = await import('@/app/(main)/events/page')
   const Page = mod.default
@@ -330,6 +358,26 @@ describe('EventsPage', () => {
 
     const listLink = screen.getByText('リスト').closest('a')
     expect(listLink?.className).toContain('bg-primary')
+  })
+})
+
+describe('EventsPage EventContentSkeleton (Suspense fallback)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuth.mockResolvedValue(null)
+    mockGetEvents.mockResolvedValue({ events: mockEvents })
+  })
+
+  it('EventContentSection の Suspense fallback として描画される', async () => {
+    const mod = await import('@/app/(main)/events/page')
+    const Page = mod.default
+    const result = await Page({ searchParams: Promise.resolve({}) })
+    const fallbackEl = findFallbackByChildName(result, 'EventContentSkeleton')
+    expect(fallbackEl).not.toBeNull()
+
+    const { container } = render(fallbackEl as React.ReactElement)
+    // 大枠1つ + イベント3件分のプレースホルダ = 4つの animate-pulse ブロック
+    expect(container.querySelectorAll('.animate-pulse').length).toBe(4)
   })
 })
 

@@ -168,6 +168,15 @@ describe('GET /api/v1/bonsai/{id}', () => {
     const body = await res.json()
     expect(body.error.code).toBe('INTERNAL_ERROR')
   })
+
+  it('パスパラメータ id が空文字 → 400 バリデーションエラー（service 未呼び出し）', async () => {
+    const req = await makeRequest(OWNER_ID, 'GET')
+    const { GET } = await import('@/app/api/v1/bonsai/[id]/route')
+    const res = await GET(req, { params: Promise.resolve({ id: '' }) })
+
+    expect(res.status).toBe(400)
+    expect(mockGetBonsaiV1).not.toHaveBeenCalled()
+  })
 })
 
 describe('PATCH /api/v1/bonsai/{id}', () => {
@@ -282,6 +291,37 @@ describe('PATCH /api/v1/bonsai/{id}', () => {
 
     expect(res.status).toBe(429)
   })
+
+  it('パスパラメータ id が空文字 → 400 バリデーションエラー（service 未呼び出し）', async () => {
+    const req = await makeRequest(OWNER_ID, 'PATCH', { name: '更新後' })
+    const { PATCH } = await import('@/app/api/v1/bonsai/[id]/route')
+    const res = await PATCH(req, { params: Promise.resolve({ id: '' }) })
+
+    expect(res.status).toBe(400)
+    expect(mockUpdateBonsaiV1).not.toHaveBeenCalled()
+  })
+
+  it('service が 400 を返す → 400 VALIDATION_ERROR（サービス層のドメイン検証失敗）', async () => {
+    mockUpdateBonsaiV1.mockResolvedValue({ ok: false, status: 400, error: 'ドメイン検証エラー' })
+    const req = await makeRequest(OWNER_ID, 'PATCH', { name: '更新後' })
+    const { PATCH } = await import('@/app/api/v1/bonsai/[id]/route')
+    const res = await PATCH(req, { params: Promise.resolve({ id: BONSAI_ID }) })
+
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('service が 500 を返す → 500 INTERNAL_ERROR', async () => {
+    mockUpdateBonsaiV1.mockResolvedValue({ ok: false, status: 500, error: '内部エラー' })
+    const req = await makeRequest(OWNER_ID, 'PATCH', { name: '更新後' })
+    const { PATCH } = await import('@/app/api/v1/bonsai/[id]/route')
+    const res = await PATCH(req, { params: Promise.resolve({ id: BONSAI_ID }) })
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error.code).toBe('INTERNAL_ERROR')
+  })
 })
 
 describe('DELETE /api/v1/bonsai/{id}', () => {
@@ -359,5 +399,25 @@ describe('DELETE /api/v1/bonsai/{id}', () => {
     await DELETE(req, { params: Promise.resolve({ id: BONSAI_ID }) })
 
     expect(mockDeleteBonsaiV1).toHaveBeenCalledWith(OWNER_ID, BONSAI_ID)
+  })
+
+  it('パスパラメータ id が空文字 → 400 バリデーションエラー（service 未呼び出し）', async () => {
+    const req = await makeRequest(OWNER_ID, 'DELETE')
+    const { DELETE } = await import('@/app/api/v1/bonsai/[id]/route')
+    const res = await DELETE(req, { params: Promise.resolve({ id: '' }) })
+
+    expect(res.status).toBe(400)
+    expect(mockDeleteBonsaiV1).not.toHaveBeenCalled()
+  })
+
+  it('service が 500 を返す → 500 INTERNAL_ERROR', async () => {
+    mockDeleteBonsaiV1.mockResolvedValue({ ok: false, status: 500, error: '内部エラー' })
+    const req = await makeRequest(OWNER_ID, 'DELETE')
+    const { DELETE } = await import('@/app/api/v1/bonsai/[id]/route')
+    const res = await DELETE(req, { params: Promise.resolve({ id: BONSAI_ID }) })
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error.code).toBe('INTERNAL_ERROR')
   })
 })

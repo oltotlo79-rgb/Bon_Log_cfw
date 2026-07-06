@@ -2,6 +2,9 @@
 
 import { vi } from 'vitest'
 import { createMockPrismaClient, mockUser, mockPost } from '../../utils/test-utils'
+// hashtag-sync / mention の mock 関数実体（個別テストで reject させるため import で参照する）
+import { attachHashtagsToPost } from '@/lib/services/hashtag-sync'
+import { notifyMentionedUsers } from '@/lib/services/mention'
 
 // Prismaモック
 const mockPrisma = createMockPrismaClient()
@@ -167,6 +170,34 @@ describe('Post Actions', async () => {
       expect(result.success).toBe(true)
       expect(result.success && result.data?.postId).toBe('new-post-id')
       expect(mockPrisma.post.create).toHaveBeenCalled()
+    })
+
+    it('ハッシュタグ紐付けが失敗しても投稿自体は成功する（ログのみで握り潰す）', async () => {
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'new-post-id' })
+      vi.mocked(attachHashtagsToPost).mockRejectedValueOnce(new Error('hashtag sync down'))
+
+      const { createPost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', '#盆栽 テスト投稿')
+
+      const result = await createPost(formData)
+
+      expect(result).toEqual({ success: true, data: { postId: 'new-post-id' } })
+    })
+
+    it('メンション通知が失敗しても投稿自体は成功する（ログのみで握り潰す）', async () => {
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'new-post-id' })
+      vi.mocked(notifyMentionedUsers).mockRejectedValueOnce(new Error('mention notify down'))
+
+      const { createPost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', '@someone こんにちは')
+
+      const result = await createPost(formData)
+
+      expect(result).toEqual({ success: true, data: { postId: 'new-post-id' } })
     })
   })
 
@@ -1466,6 +1497,69 @@ describe('Post Actions', async () => {
 
       expect(result.success).toBe(true)
       expect(mockDeleteMediaFiles).toHaveBeenCalledWith(['https://cdn/old.webp'])
+    })
+
+    it('mediaUrls を指定すると新しいメディアで置き換える', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        repostPostId: null,
+        media: [],
+      })
+      mockPrisma.post.update.mockResolvedValue({ id: 'post-1' })
+
+      const formData = editForm('画像付きに更新')
+      formData.append('mediaUrls', 'https://example.com/new-image.jpg')
+      formData.append('mediaTypes', 'image')
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', formData)
+
+      expect(result.success).toBe(true)
+      const updateArg = mockPrisma.post.update.mock.calls[0][0]
+      expect(updateArg.data.media.create).toEqual([
+        { url: 'https://example.com/new-image.jpg', type: 'image', sortOrder: 0 },
+      ])
+    })
+
+    it('genreIds を指定すると新しいジャンルで置き換える', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        repostPostId: null,
+        media: [],
+      })
+      mockPrisma.post.update.mockResolvedValue({ id: 'post-1' })
+
+      const formData = editForm('ジャンル付きに更新')
+      formData.append('genreIds', 'genre-1')
+      formData.append('genreIds', 'genre-2')
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', formData)
+
+      expect(result.success).toBe(true)
+      const updateArg = mockPrisma.post.update.mock.calls[0][0]
+      expect(updateArg.data.genres.create).toEqual([
+        { genreId: 'genre-1' },
+        { genreId: 'genre-2' },
+      ])
+    })
+
+    it('編集時にハッシュタグ再紐付けが失敗しても更新自体は成功する（ログのみで握り潰す）', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false, isPublic: true })
+      mockPrisma.post.findUnique.mockResolvedValue({
+        userId: mockUser.id,
+        repostPostId: null,
+        media: [],
+      })
+      mockPrisma.post.update.mockResolvedValue({ id: 'post-1' })
+      vi.mocked(attachHashtagsToPost).mockRejectedValueOnce(new Error('hashtag sync down'))
+
+      const { updatePost } = await import('@/lib/actions/post')
+      const result = await updatePost('post-1', editForm('#盆栽 更新後の本文'))
+
+      expect(result).toEqual({ success: true, data: { postId: 'post-1' } })
     })
   })
 })

@@ -530,7 +530,7 @@ describe('NutrientDetailPage generateMetadata', () => {
 import PesticideDataPage from '@/app/admin/pesticide-data/page'
 
 describe('PesticideDataPage branches', () => {
-  it('searchParams でフィルター付きレンダリング', async () => {
+  it('pesticideType が有効な enum 値の場合、フィルタとしてgetAdminPesticidesに渡される', async () => {
     mockIsAdmin.mockResolvedValue(true)
     mockGetAdminPesticides.mockResolvedValue({
       pesticides: [
@@ -543,8 +543,28 @@ describe('PesticideDataPage branches', () => {
       total: 1,
     })
     const result = await PesticideDataPage({
-      searchParams: Promise.resolve({ search: 'テスト', type: 'insecticide', page: '1' }),
+      searchParams: Promise.resolve({ search: 'テスト', pesticideType: 'insecticide' }),
     })
     expect(result).toBeDefined()
+
+    // isPesticideType(pesticideType) が true を返す分岐 → normalizedPesticideType がそのまま渡される
+    expect(mockGetAdminPesticides).toHaveBeenCalledWith(
+      expect.objectContaining({ search: 'テスト', pesticideType: 'insecticide' })
+    )
+  })
+
+  it('pesticideType が不正な値の場合、フィルタをかけずundefinedを渡す', async () => {
+    mockIsAdmin.mockResolvedValue(true)
+    mockGetAdminPesticides.mockResolvedValue({ pesticides: [], total: 0 })
+
+    const result = await PesticideDataPage({
+      searchParams: Promise.resolve({ search: 'テスト', pesticideType: 'not-a-real-type' }),
+    })
+    expect(result).toBeDefined()
+
+    // isPesticideType(pesticideType) が false を返す分岐 → normalizedPesticideType は undefined
+    expect(mockGetAdminPesticides).toHaveBeenCalledWith(
+      expect.objectContaining({ search: 'テスト', pesticideType: undefined })
+    )
   })
 })

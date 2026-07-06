@@ -6,6 +6,7 @@
  * 所有権・上限・プレミアム・メディア URL 検証・R2 クリーンアップを網羅する。
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { DEFAULT_POLL_DURATION_SECONDS } from '@/lib/constants/limits'
 
 // ──────────────────────────────────────────────────
 // Mock: prisma
@@ -96,8 +97,15 @@ vi.mock('@/lib/services/post-read-service', () => ({
 }))
 
 const mockAssertCanViewPost = vi.fn()
+const mockCanViewAuthorContent = vi.fn()
 vi.mock('@/lib/services/post-visibility', () => ({
   assertCanViewPost: (...args: unknown[]) => mockAssertCanViewPost(...args),
+  canViewAuthorContent: (...args: unknown[]) => mockCanViewAuthorContent(...args),
+}))
+
+const mockCreateNotification = vi.fn()
+vi.mock('@/lib/services/notification-core', () => ({
+  createNotification: (...args: unknown[]) => mockCreateNotification(...args),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -279,6 +287,66 @@ describe('createPostV1', () => {
     const { createPostV1 } = await import('@/lib/services/post-write-service')
     const result = await createPostV1(validInput, OWNER_ID)
     expect(result).toMatchObject({ ok: true })
+  })
+
+  describe('アンケート付き投稿', () => {
+    it('有効な選択肢でアンケート付き投稿を作成できる', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const result = await createPostV1(
+        {
+          ...validInput,
+          poll: { options: ['選択肢A', '選択肢B'], durationSeconds: 3600 },
+        },
+        OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: true })
+      const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as {
+        data: { poll?: { create: { duration: number; options: { create: { text: string; sortOrder: number }[] } } } }
+      }
+      expect(callArgs.data.poll?.create.duration).toBe(3600)
+      expect(callArgs.data.poll?.create.options.create).toEqual([
+        { text: '選択肢A', sortOrder: 0 },
+        { text: '選択肢B', sortOrder: 1 },
+      ])
+    })
+
+    it('poll.durationSeconds に DEFAULT_POLL_DURATION_SECONDS を指定した場合その値が duration として保存される', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      await createPostV1(
+        { ...validInput, poll: { options: ['A', 'B'], durationSeconds: DEFAULT_POLL_DURATION_SECONDS } },
+        OWNER_ID,
+      )
+      const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as {
+        data: { poll?: { create: { duration: number } } }
+      }
+      expect(callArgs.data.poll?.create.duration).toBe(DEFAULT_POLL_DURATION_SECONDS)
+    })
+
+    it('空白のみの選択肢は ERR_POLL_OPTION_TOO_LONG / status 400（Zod未検証呼び出しへの防御）', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const result = await createPostV1(
+        { ...validInput, poll: { options: ['   ', '選択肢B'], durationSeconds: 3600 } },
+        OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: false, status: 400 })
+      expect(mockPrismaPostCreate).not.toHaveBeenCalled()
+    })
+
+    it('上限文字数を超える選択肢は status 400（Zod未検証呼び出しへの防御）', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const result = await createPostV1(
+        { ...validInput, poll: { options: ['a'.repeat(51), '選択肢B'], durationSeconds: 3600 } },
+        OWNER_ID,
+      )
+      expect(result).toMatchObject({ ok: false, status: 400 })
+    })
+
+    it('poll を指定しない場合 post.create の data.poll は undefined', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      await createPostV1(validInput, OWNER_ID)
+      const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: { poll?: unknown } }
+      expect(callArgs.data.poll).toBeUndefined()
+    })
   })
 })
 
@@ -490,6 +558,189 @@ describe('updatePostV1', () => {
 })
 
 // ──────────────────────────────────────────────────
+// createQuoteV1
+// ──────────────────────────────────────────────────
+describe('createQuoteV1', () => {
+  const QUOTE_POST_ID = 'post-quoted'
+  const validQuoteInput = {
+    content: '引用コメント',
+    genreIds: [] as string[],
+    mediaUrls: [] as string[],
+    mediaTypes: [] as ('image' | 'video')[],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetMembershipLimits.mockResolvedValue(FREE_LIMITS)
+    mockValidateMediaCounts.mockResolvedValue(null)
+    mockAssertMediaUrls.mockReturnValue(true)
+    mockCheckDailyPostLimit.mockResolvedValue(null)
+    mockCanViewAuthorContent.mockResolvedValue(true)
+    mockPrismaPostFindUnique.mockResolvedValue({
+      userId: OTHER_ID,
+      isHidden: false,
+      user: { isPublic: true, isSuspended: false },
+    })
+    mockPrismaPostCreate.mockResolvedValue({ id: POST_ID })
+    mockAttachHashtags.mockResolvedValue(undefined)
+    mockNotifyMentioned.mockResolvedValue(undefined)
+    mockCreateNotification.mockResolvedValue(undefined)
+  })
+
+  it('正常系: 引用投稿が作成されて { ok: true, postId } を返す', async () => {
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toEqual({ ok: true, postId: POST_ID })
+    expect(mockPrismaPostCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('content が空文字なら ERR_QUOTE_REQUIRED / status 400', async () => {
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, { ...validQuoteInput, content: '' }, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 400 })
+    expect(mockPrismaPostCreate).not.toHaveBeenCalled()
+  })
+
+  it('無料プラン: 501文字の本文で status 400', async () => {
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(
+      QUOTE_POST_ID,
+      { ...validQuoteInput, content: 'a'.repeat(501) },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('ジャンル4件超過で status 400', async () => {
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(
+      QUOTE_POST_ID,
+      { ...validQuoteInput, genreIds: ['g1', 'g2', 'g3', 'g4'] },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('validateMediaCounts がエラーを返すと status 400', async () => {
+    mockValidateMediaCounts.mockResolvedValue({ success: false, error: 'ERR_IMAGE_LIMIT' })
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(
+      QUOTE_POST_ID,
+      { ...validQuoteInput, mediaUrls: ['/uploads/a.webp'], mediaTypes: ['image' as const] },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('外部 mediaUrls で assertMediaUrlsFromOwnStorage が false → status 400', async () => {
+    mockAssertMediaUrls.mockReturnValue(false)
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(
+      QUOTE_POST_ID,
+      { ...validQuoteInput, mediaUrls: ['https://evil.example.com/spy.gif'], mediaTypes: ['image' as const] },
+      OWNER_ID,
+    )
+    expect(result).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('引用元投稿が存在しない → ERR_POST_NOT_FOUND / status 404', async () => {
+    mockPrismaPostFindUnique.mockResolvedValue(null)
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 404 })
+  })
+
+  it('引用元投稿が非表示 → status 404', async () => {
+    mockPrismaPostFindUnique.mockResolvedValue({
+      userId: OTHER_ID,
+      isHidden: true,
+      user: { isPublic: true, isSuspended: false },
+    })
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 404 })
+  })
+
+  it('引用元投稿の著者が非公開/停止で閲覧不可 (canViewAuthorContent=false) → status 404', async () => {
+    mockCanViewAuthorContent.mockResolvedValue(false)
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 404 })
+  })
+
+  it('1日投稿上限超過で status 429', async () => {
+    mockCheckDailyPostLimit.mockResolvedValue({ success: false, error: '1日の投稿上限に達しました' })
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 429 })
+  })
+
+  it('prisma.post.create が例外を throw → { ok: false, status: 500 }', async () => {
+    mockPrismaPostCreate.mockRejectedValue(new Error('DB crash'))
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: false, status: 500 })
+  })
+
+  it('mediaUrls / genreIds が post.create の data に反映される', async () => {
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    await createQuoteV1(
+      QUOTE_POST_ID,
+      {
+        ...validQuoteInput,
+        mediaUrls: ['/uploads/a.webp'],
+        mediaTypes: ['image' as const],
+        genreIds: ['genre-1'],
+      },
+      OWNER_ID,
+    )
+    const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(callArgs.data.media).toBeDefined()
+    expect(callArgs.data.genres).toBeDefined()
+    expect(callArgs.data.quotePostId).toBe(QUOTE_POST_ID)
+  })
+
+  it('引用元投稿の所有者が自分自身のときは通知を送らない', async () => {
+    mockPrismaPostFindUnique.mockResolvedValue({
+      userId: OWNER_ID,
+      isHidden: false,
+      user: { isPublic: true, isSuspended: false },
+    })
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: true })
+    expect(mockCreateNotification).not.toHaveBeenCalled()
+  })
+
+  it('引用元投稿の所有者が他人のときは createNotification が呼ばれる', async () => {
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: OTHER_ID,
+        actorId: OWNER_ID,
+        type: 'quote',
+        postId: POST_ID,
+      }),
+    )
+  })
+
+  it('attachHashtagsToPost が例外をスローしても ok: true を返す（エラー握りつぶし）', async () => {
+    mockAttachHashtags.mockRejectedValue(new Error('hashtag失敗'))
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: true })
+  })
+
+  it('notifyMentionedUsers が例外をスローしても ok: true を返す（エラー握りつぶし）', async () => {
+    mockNotifyMentioned.mockRejectedValue(new Error('mention失敗'))
+    const { createQuoteV1 } = await import('@/lib/services/post-write-service')
+    const result = await createQuoteV1(QUOTE_POST_ID, validQuoteInput, OWNER_ID)
+    expect(result).toMatchObject({ ok: true })
+  })
+})
+
+// ──────────────────────────────────────────────────
 // fetchCreatedPost
 // ──────────────────────────────────────────────────
 describe('fetchCreatedPost', () => {
@@ -558,5 +809,48 @@ describe('deletePostV1', () => {
     const { deletePostV1 } = await import('@/lib/services/post-write-service')
     const result = await deletePostV1(POST_ID, OWNER_ID)
     expect(result).toMatchObject({ ok: false, status: 500 })
+  })
+})
+
+// ──────────────────────────────────────────────────
+// createPostV1Schema (route handler が safeParse する Zod schema)
+// ──────────────────────────────────────────────────
+describe('createPostV1Schema', () => {
+  it('空白のみの選択肢は refine により無効と判定される', async () => {
+    const { createPostV1Schema } = await import('@/lib/services/post-write-service')
+    const result = createPostV1Schema.safeParse({
+      poll: { options: ['   ', '選択肢B'], durationSeconds: 3600 },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('非空の選択肢は refine を通過する', async () => {
+    const { createPostV1Schema } = await import('@/lib/services/post-write-service')
+    const result = createPostV1Schema.safeParse({
+      poll: { options: ['選択肢A', '選択肢B'], durationSeconds: 3600 },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('VALID_POLL_DURATIONS に含まれない durationSeconds は無効', async () => {
+    const { createPostV1Schema } = await import('@/lib/services/post-write-service')
+    const result = createPostV1Schema.safeParse({
+      poll: { options: ['選択肢A', '選択肢B'], durationSeconds: 999 },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('VALID_POLL_DURATIONS に含まれる durationSeconds は有効', async () => {
+    const { createPostV1Schema } = await import('@/lib/services/post-write-service')
+    const result = createPostV1Schema.safeParse({
+      poll: { options: ['選択肢A', '選択肢B'], durationSeconds: 21600 },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('poll を省略すると default 値で成功する', async () => {
+    const { createPostV1Schema } = await import('@/lib/services/post-write-service')
+    const result = createPostV1Schema.safeParse({})
+    expect(result.success).toBe(true)
   })
 })

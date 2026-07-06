@@ -168,6 +168,72 @@ describe('listDictionaryTerms', () => {
       }),
     )
   })
+
+  it('cursor 指定時（row なし）は cursor/skip:1 を付与してカーソルページネーションする', async () => {
+    mockBonsaiTermFindMany.mockResolvedValue([])
+
+    const { listDictionaryTerms } = await import('@/lib/services/dictionary-read-service')
+    await listDictionaryTerms({ limit: 20, cursor: 'term-19' })
+
+    expect(mockBonsaiTermFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: { slug: 'term-19' },
+        skip: 1,
+      }),
+    )
+  })
+
+  it('row 指定時は cursor があってもカーソル方式を使わない（in-memory 全件フィルタのため）', async () => {
+    mockBonsaiTermFindMany.mockResolvedValue([])
+
+    const { listDictionaryTerms } = await import('@/lib/services/dictionary-read-service')
+    await listDictionaryTerms({ limit: 20, cursor: 'term-19', row: 'あ行' })
+
+    const callArgs = mockBonsaiTermFindMany.mock.calls[0]?.[0] as { cursor?: unknown; skip?: unknown }
+    expect(callArgs.cursor).toBeUndefined()
+    expect(callArgs.skip).toBeUndefined()
+  })
+})
+
+describe('dictionaryListQuerySchema', () => {
+  it('row が未指定（undefined）なら成功する', async () => {
+    const { dictionaryListQuerySchema } = await import('@/lib/services/dictionary-read-service')
+    const result = dictionaryListQuerySchema.safeParse({ limit: 20 })
+    expect(result.success).toBe(true)
+  })
+
+  it('row が有効なかな行ラベルなら成功する', async () => {
+    const { dictionaryListQuerySchema } = await import('@/lib/services/dictionary-read-service')
+    const result = dictionaryListQuerySchema.safeParse({ row: 'あ行' })
+    expect(result.success).toBe(true)
+  })
+
+  it('row が無効な値なら失敗する', async () => {
+    const { dictionaryListQuerySchema } = await import('@/lib/services/dictionary-read-service')
+    const result = dictionaryListQuerySchema.safeParse({ row: '無効な行' })
+    expect(result.success).toBe(false)
+  })
+
+  it('limit を省略すると DEFAULT_PAGE_LIMIT が適用される', async () => {
+    const { dictionaryListQuerySchema } = await import('@/lib/services/dictionary-read-service')
+    const result = dictionaryListQuerySchema.safeParse({})
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.limit).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('dictionarySlugSchema', () => {
+  it('有効な slug は成功する', async () => {
+    const { dictionarySlugSchema } = await import('@/lib/services/dictionary-read-service')
+    expect(dictionarySlugSchema.safeParse('chokkan').success).toBe(true)
+  })
+
+  it('空文字は失敗する', async () => {
+    const { dictionarySlugSchema } = await import('@/lib/services/dictionary-read-service')
+    expect(dictionarySlugSchema.safeParse('').success).toBe(false)
+  })
 })
 
 describe('getDictionaryTermBySlug', () => {

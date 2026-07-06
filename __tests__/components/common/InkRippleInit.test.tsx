@@ -44,6 +44,43 @@ describe('InkRippleInit', () => {
     expect(ripple).toBeNull()
   })
 
+  it('animationend で ripple 要素が自動的に除去される', () => {
+    render(
+      <>
+        <InkRippleInit />
+        <button className="btn-washi">テスト</button>
+      </>
+    )
+
+    const btn = document.querySelector('.btn-washi')!
+    fireEvent.click(btn)
+
+    const ripple = btn.querySelector('.ink-ripple') as HTMLElement
+    expect(ripple).toBeInTheDocument()
+
+    fireEvent.animationEnd(ripple)
+
+    expect(btn.querySelector('.ink-ripple')).toBeNull()
+  })
+
+  it('e.target が Element でない場合は何もしない（防御分岐）', () => {
+    render(
+      <>
+        <InkRippleInit />
+        <button className="btn-washi">テスト</button>
+      </>
+    )
+
+    const btn = document.querySelector('.btn-washi')!
+    // target が Element でないケース (例: 削除済みノードや合成イベント) を模した MouseEvent。
+    // Document/Text 等は closest を持たないため、target を null にして安全に検証する。
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'target', { value: null, configurable: true })
+
+    expect(() => btn.dispatchEvent(event)).not.toThrow()
+    expect(btn.querySelector('.ink-ripple')).toBeNull()
+  })
+
   it('ripple要素にクリック位置が設定される', () => {
     render(
       <>

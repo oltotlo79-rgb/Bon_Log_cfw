@@ -460,12 +460,9 @@ describe('CommentCard branch coverage', () => {
 
       // CommentForm should appear with placeholder
       await waitFor(() => {
-        const textarea = screen.queryByPlaceholderText(
-          `@テストユーザー への返信...`
-        )
-        if (textarea) {
-          expect(textarea).toBeInTheDocument()
-        }
+        expect(
+          screen.getByPlaceholderText('@テストユーザー への返信...')
+        ).toBeInTheDocument()
       })
     })
   })
@@ -629,27 +626,26 @@ describe('CommentCard branch coverage', () => {
         const svg = btn.querySelector('svg')
         return svg?.classList.contains('lucide-trash-2')
       })
+      expect(trashButton).toBeInTheDocument()
 
-      if (trashButton) {
-        await user.click(trashButton)
+      await user.click(trashButton!)
 
-        // Now the AlertDialog content should be visible
-        await waitFor(() => {
-          expect(screen.getByText('コメントを削除')).toBeInTheDocument()
-        })
+      // Now the AlertDialog content should be visible
+      await waitFor(() => {
+        expect(screen.getByText('コメントを削除')).toBeInTheDocument()
+      })
 
-        // Click the "削除" action button in the dialog
-        const deleteAction = screen.getByRole('button', { name: '削除' })
-        await user.click(deleteAction)
+      // Click the "削除" action button in the dialog
+      const deleteAction = screen.getByRole('button', { name: '削除' })
+      await user.click(deleteAction)
 
-        await waitFor(() => {
-          expect(mockDeleteComment).toHaveBeenCalledWith('comment-1')
-        })
+      await waitFor(() => {
+        expect(mockDeleteComment).toHaveBeenCalledWith('comment-1')
+      })
 
-        await waitFor(() => {
-          expect(onDeleted).toHaveBeenCalledWith('comment-1')
-        })
-      }
+      await waitFor(() => {
+        expect(onDeleted).toHaveBeenCalledWith('comment-1')
+      })
     })
 
     it('shows toast on error result from deleteComment', async () => {
@@ -671,25 +667,24 @@ describe('CommentCard branch coverage', () => {
         const svg = btn.querySelector('svg')
         return svg?.classList.contains('lucide-trash-2')
       })
+      expect(trashButton).toBeInTheDocument()
 
-      if (trashButton) {
-        await user.click(trashButton)
+      await user.click(trashButton!)
 
-        await waitFor(() => {
-          expect(screen.getByText('コメントを削除')).toBeInTheDocument()
-        })
+      await waitFor(() => {
+        expect(screen.getByText('コメントを削除')).toBeInTheDocument()
+      })
 
-        const deleteAction = screen.getByRole('button', { name: '削除' })
-        await user.click(deleteAction)
+      const deleteAction = screen.getByRole('button', { name: '削除' })
+      await user.click(deleteAction)
 
-        await waitFor(() => {
-          expect(mockDeleteComment).toHaveBeenCalledWith('comment-1')
-        })
+      await waitFor(() => {
+        expect(mockDeleteComment).toHaveBeenCalledWith('comment-1')
+      })
 
-        await waitFor(() => {
-          expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' }))
-        })
-      }
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: '削除に失敗しました', variant: 'destructive' }))
+      })
     })
 
     it('shows supplementary message in delete dialog when replyCount > 0', async () => {
@@ -710,15 +705,14 @@ describe('CommentCard branch coverage', () => {
         const svg = btn.querySelector('svg')
         return svg?.classList.contains('lucide-trash-2')
       })
+      expect(trashButton).toBeInTheDocument()
 
-      if (trashButton) {
-        await user.click(trashButton)
+      await user.click(trashButton!)
 
-        await waitFor(() => {
-          expect(screen.getByText(/このコメントには3件の返信があります/)).toBeInTheDocument()
-          expect(screen.getByText(/返信は削除されません/)).toBeInTheDocument()
-        })
-      }
+      await waitFor(() => {
+        expect(screen.getByText(/このコメントには3件の返信があります/)).toBeInTheDocument()
+        expect(screen.getByText(/返信は削除されません/)).toBeInTheDocument()
+      })
     })
   })
 

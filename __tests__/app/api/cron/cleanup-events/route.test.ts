@@ -302,6 +302,20 @@ describe('Cron Cleanup Events API', () => {
     expect(data.error).toBeDefined()
   })
 
+  it('verifyCronAuth が error を返さない場合は既定のUnauthorizedメッセージにフォールバックする', async () => {
+    const { verifyCronAuth } = await import('@/lib/cron-auth')
+    vi.mocked(verifyCronAuth).mockReturnValue({ valid: false, error: undefined })
+
+    const { GET } = await import('@/app/api/cron/cleanup-events/route')
+    const response = await GET(createMockRequest())
+
+    expect(response.status).toBe(401)
+    const data = await response.json()
+    expect(data.error).toBeDefined()
+    expect(typeof data.error).toBe('string')
+    expect(data.error.length).toBeGreaterThan(0)
+  })
+
   it('CRON_SECRET未設定のテスト環境で認証がスキップされる場合は200を返す', async () => {
     const { verifyCronAuth } = await import('@/lib/cron-auth')
     // In test env without CRON_SECRET, verifyCronAuth may return valid

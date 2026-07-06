@@ -101,6 +101,63 @@ describe('BestTimeCard', () => {
     expect(screen.getByText(/40いいね（全体の40%）/)).toBeInTheDocument()
   })
 
+  it('hourlyData が peakHour 近辺のインデックスを持たない（短い配列）場合、欠損分は0扱いで集計される', () => {
+    // hourlyData は本来24要素だが、上流データ不備で短い配列が渡されるケースを想定
+    const shortHourly = [10] // index 0 のみ存在。peakHour=5 の前後(4,5,6)は範囲外 → undefined ?? 0
+    render(
+      <BestTimeCard
+        peakHour={5}
+        peakWeekday={0}
+        hourlyData={shortHourly}
+        weekdayData={[10, 0, 0, 0, 0, 0, 0]}
+      />
+    )
+    // totalLikes = 10, peakRangeLikes = 0(index4) + 0(index5) + 0(index6) = 0 → 0%
+    expect(screen.getByText(/0%を獲得/)).toBeInTheDocument()
+  })
+
+  it('weekdayData が peakWeekday のインデックスを持たない場合、0いいね扱いになる', () => {
+    render(
+      <BestTimeCard
+        peakHour={12}
+        peakWeekday={5}
+        hourlyData={Array(24).fill(0).map((_, i) => (i === 12 ? 100 : 0))}
+        weekdayData={[10, 20, 30]} // index 5 は範囲外
+      />
+    )
+    expect(screen.getByText(/0いいね（全体の0%）/)).toBeInTheDocument()
+  })
+
+  it('peakWeekday が WEEKDAY_NAMES の範囲外の場合、曜日名は空文字で表示される', () => {
+    render(
+      <BestTimeCard
+        peakHour={12}
+        peakWeekday={9}
+        hourlyData={Array(24).fill(0).map((_, i) => (i === 12 ? 100 : 0))}
+        weekdayData={[10, 20, 30]}
+      />
+    )
+    // WEEKDAY_NAMES[9] は undefined → '' にフォールバックし、曜日名テキストは空になる
+    expect(screen.queryByText('日曜日')).not.toBeInTheDocument()
+    expect(screen.getByText('ベスト曜日')).toBeInTheDocument()
+  })
+
+  it('hourlyData の合計が負値（0以外）になる異常データでは、獲得率は0%にクランプされる', () => {
+    // 通常は非負カウントだが、上流集計の不整合で負値合計になった場合の防御分岐を検証
+    const anomalousHourly = Array(24).fill(0)
+    anomalousHourly[12] = -5
+    render(
+      <BestTimeCard
+        peakHour={12}
+        peakWeekday={0}
+        hourlyData={anomalousHourly}
+        weekdayData={[0, 0, 0, 0, 0, 0, 0]}
+      />
+    )
+    expect(screen.getByText(/0%を獲得/)).toBeInTheDocument()
+    expect(screen.getByText(/0いいね（全体の0%）/)).toBeInTheDocument()
+  })
+
   it('全曜日でいいね数が大きい配列でも、weekdayData[peakWeekday] が 0 なら 0% 表示', () => {
     const hourly = Array(24).fill(0).map((_, i) => (i === 12 ? 200 : 0))
     render(

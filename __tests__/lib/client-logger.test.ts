@@ -160,5 +160,19 @@ describe('client-logger', () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
       // No error thrown
     })
+
+    it('Sentryモジュールのimportが失敗してもエラーを投げない（catchで握りつぶす）', async () => {
+      setNodeEnv('production')
+      vi.resetModules()
+
+      vi.doMock('@sentry/nextjs', () => {
+        throw new Error('failed to load sentry module')
+      })
+
+      const { clientLogger } = await import('@/lib/client-logger')
+      expect(() => clientLogger.error('production error with broken sentry')).not.toThrow()
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
   })
 })

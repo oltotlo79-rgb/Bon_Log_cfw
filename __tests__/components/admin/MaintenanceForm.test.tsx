@@ -3,7 +3,7 @@ import { vi } from 'vitest'
  * MaintenanceForm コンポーネントのテスト
  */
 
-import { render, screen, waitFor } from '../../utils/test-utils'
+import { render, screen, waitFor, fireEvent } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { MaintenanceForm } from '@/app/admin/maintenance/MaintenanceForm'
 
@@ -167,6 +167,34 @@ describe('MaintenanceForm', () => {
 
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalled()
+    })
+  })
+
+  it('開始日時を変更するとinputの表示値が更新される', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<MaintenanceForm settings={defaultSettings} />)
+    const input = screen.getByText('開始日時').parentElement!.querySelector('input')!
+    fireEvent.change(input, { target: { value: '2024-08-01T09:00' } })
+    await user.click(screen.getByText('設定を保存'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ startTime: new Date('2024-08-01T09:00').toISOString() })
+      )
+    })
+  })
+
+  it('終了日時を変更するとinputの表示値が更新される', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<MaintenanceForm settings={defaultSettings} />)
+    const input = screen.getByText('終了予定日時').parentElement!.querySelector('input')!
+    fireEvent.change(input, { target: { value: '2024-08-02T18:30' } })
+    await user.click(screen.getByText('設定を保存'))
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ endTime: new Date('2024-08-02T18:30').toISOString() })
+      )
     })
   })
 

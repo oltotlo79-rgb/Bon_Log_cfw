@@ -10,6 +10,7 @@ import { vi } from 'vitest'
 import { render, screen, waitFor } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { BonsaiActions } from '@/components/bonsai/BonsaiActions'
+import { MSG_BONSAI_DELETE_FAILED } from '@/lib/constants/messages'
 
 const mockPush = vi.fn()
 const mockRefresh = vi.fn()
@@ -65,6 +66,67 @@ describe('BonsaiActions - uncovered branches', () => {
           variant: 'destructive',
         })
       )
+    })
+  })
+
+  // ----------------------------------------------------------------
+  // deleteBonsai が success:false かつ error プロパティ無しの場合、
+  // デフォルトメッセージ (MSG_BONSAI_DELETE_FAILED) にフォールバックする
+  // ----------------------------------------------------------------
+  it('削除失敗時に error プロパティが無ければデフォルトメッセージを表示する', async () => {
+    mockDeleteBonsai.mockResolvedValueOnce({ success: false })
+    const user = userEvent.setup()
+    render(<BonsaiActions {...defaultProps} />)
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: MSG_BONSAI_DELETE_FAILED,
+          variant: 'destructive',
+        })
+      )
+    })
+  })
+
+  // ----------------------------------------------------------------
+  // アンマウント後に削除が成功しても setIsOpen を呼ばない
+  // (mountedRef ガードにより unhandled state update を防ぐ)
+  // ----------------------------------------------------------------
+  it('削除完了前にアンマウントされた場合、setIsOpen を呼ばずに例外も出さない', async () => {
+    let resolveDelete: (value: { success: true }) => void
+    mockDeleteBonsai.mockImplementation(
+      () => new Promise((resolve) => { resolveDelete = resolve })
+    )
+    const user = userEvent.setup()
+    const { unmount } = render(<BonsaiActions {...defaultProps} />)
+
+    await user.click(screen.getByRole('button', { name: 'メニュー' }))
+    await user.click(screen.getByText('削除'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+
+    // 削除 Promise が解決する前にアンマウントする
+    unmount()
+
+    expect(() => {
+      resolveDelete({ success: true })
+    }).not.toThrow()
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/bonsai')
     })
   })
 

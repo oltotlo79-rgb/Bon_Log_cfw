@@ -3,8 +3,9 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mockCookieGet = vi.fn()
+const mockCookies = vi.fn(() => Promise.resolve({ get: mockCookieGet }))
 vi.mock('next/headers', () => ({
-  cookies: () => Promise.resolve({ get: mockCookieGet }),
+  cookies: () => mockCookies(),
   headers: () => Promise.resolve(new Headers()),
 }))
 
@@ -32,8 +33,9 @@ vi.mock('@/lib/constants/limits', () => ({
   MAX_VISITOR_COOKIE_LENGTH: 64,
 }))
 
+const mockRateLimit = vi.fn().mockResolvedValue({ success: true })
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
   getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
   RATE_LIMITS: { api: { windowMs: 60_000, maxRequests: 60 } },
 }))
@@ -53,6 +55,8 @@ describe('POST /api/analytics/track', () => {
     mockAuth.mockResolvedValue(null)
     mockCookieGet.mockReturnValue(undefined)
     mockUpsert.mockResolvedValue({})
+    mockRateLimit.mockResolvedValue({ success: true })
+    mockCookies.mockImplementation(() => Promise.resolve({ get: mockCookieGet }))
   })
 
   it('既存 Cookie が無い場合は新規 UUID を生成して Set-Cookie を返す', async () => {
@@ -132,5 +136,37 @@ describe('POST /api/analytics/track', () => {
     expect(mockUpsert).toHaveBeenCalledTimes(1)
     const args = mockUpsert.mock.calls[0]?.[0]
     expect(args?.create?.userId).toBeNull()
+  })
+
+  it('IP レート制限超過時は DB に触れず 204 を返す', async () => {
+    mockRateLimit.mockResolvedValueOnce({ success: false })
+
+    const { POST } = await import('@/app/api/analytics/track/route')
+    const res = await POST(makeRequest())
+    expect(res.status).toBe(204)
+    expect(mockUpsert).not.toHaveBeenCalled()
+  })
+
+  it('Cookie 値が最大長を超える場合は再利用せず新規 UUID を発行する', async () => {
+    const tooLong = 'a'.repeat(65)
+    mockCookieGet.mockReturnValue({ value: tooLong })
+
+    const { POST } = await import('@/app/api/analytics/track/route')
+    const res = await POST(makeRequest())
+    expect(res.status).toBe(200)
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('bon_log_visitor_id=')
+    const usedVisitorId = mockUpsert.mock.calls[0]?.[0]?.where?.date_visitorId?.visitorId
+    expect(usedVisitorId).not.toBe(tooLong)
+  })
+
+  it('cookies() が例外を投げても 204 で握りつぶす（予期しないエラー経路）', async () => {
+    mockCookies.mockImplementationOnce(() => {
+      throw new Error('cookies boom')
+    })
+
+    const { POST } = await import('@/app/api/analytics/track/route')
+    const res = await POST(makeRequest())
+    expect(res.status).toBe(204)
   })
 })

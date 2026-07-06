@@ -3,7 +3,7 @@ import { vi } from 'vitest'
  * イベント操作ドロップダウンコンポーネントのテスト
  */
 
-import { render, screen } from '../../utils/test-utils'
+import { render, screen, fireEvent } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { EventActionsDropdown } from '@/components/event/EventActionsDropdown'
 
@@ -210,5 +210,53 @@ describe('EventActionsDropdown', () => {
     await user.click(screen.getByRole('menuitem', { name: /通報/i }))
 
     expect(nonOwnerProps.onReport).toHaveBeenCalled()
+  })
+
+  // 18
+  it('編集リンククリックでメニューが閉じる', async () => {
+    const user = userEvent.setup()
+    render(<EventActionsDropdown {...ownerProps} />)
+    await user.click(screen.getByRole('button', { name: /イベント操作メニュー/i }))
+    await user.click(screen.getByRole('menuitem', { name: /編集/i }))
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  // 19
+  it('共有クリックでイベントURLをクリップボードにコピーし、メニューを閉じる', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextMock },
+      configurable: true,
+    })
+
+    render(<EventActionsDropdown {...ownerProps} />)
+    // userEvent.setup() は内部で clipboard API をエミュレートし navigator.clipboard を
+    // 上書きしてしまうため、このケースは userEvent を使わず fireEvent で click する
+    fireEvent.click(screen.getByRole('button', { name: /イベント操作メニュー/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /共有/i }))
+
+    expect(writeTextMock).toHaveBeenCalledWith(`${window.location.origin}/events/event-123`)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  // 20
+  it('onDelete が未指定でも削除クリックで例外にならない', async () => {
+    const user = userEvent.setup()
+    render(<EventActionsDropdown eventId="event-123" isOwner />)
+    await user.click(screen.getByRole('button', { name: /イベント操作メニュー/i }))
+
+    await expect(user.click(screen.getByRole('menuitem', { name: /削除/i }))).resolves.not.toThrow()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  // 21
+  it('onReport が未指定でも通報クリックで例外にならない', async () => {
+    const user = userEvent.setup()
+    render(<EventActionsDropdown eventId="event-123" isOwner={false} />)
+    await user.click(screen.getByRole('button', { name: /イベント操作メニュー/i }))
+
+    await expect(user.click(screen.getByRole('menuitem', { name: /通報/i }))).resolves.not.toThrow()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })

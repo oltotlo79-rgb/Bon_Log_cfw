@@ -125,6 +125,13 @@ describe('addBookmark', () => {
 
     await expect(addBookmark('post-1', 'user-1')).rejects.toThrow('DB error')
   })
+
+  it('upsert が Error以外の値を reject した場合も安全にログして rethrow する', async () => {
+    mockPrisma.bookmark.upsert.mockRejectedValueOnce('raw string rejection')
+    const { addBookmark } = await import('@/lib/services/bookmark-service')
+
+    await expect(addBookmark('post-1', 'user-1')).rejects.toBe('raw string rejection')
+  })
 })
 
 // ===================================================================
@@ -183,6 +190,13 @@ describe('removeBookmark', () => {
     const { removeBookmark } = await import('@/lib/services/bookmark-service')
 
     await expect(removeBookmark('post-1', 'user-1')).rejects.toThrow('DB error')
+  })
+
+  it('deleteMany が Error以外の値を reject した場合も安全にログして rethrow する', async () => {
+    mockPrisma.bookmark.deleteMany.mockRejectedValueOnce({ code: 'P2010' })
+    const { removeBookmark } = await import('@/lib/services/bookmark-service')
+
+    await expect(removeBookmark('post-1', 'user-1')).rejects.toEqual({ code: 'P2010' })
   })
 })
 

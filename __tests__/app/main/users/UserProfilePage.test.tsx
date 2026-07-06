@@ -50,7 +50,7 @@ vi.mock('@/lib/auth', () => ({ auth: vi.fn() }))
 vi.mock('@/lib/db', () => ({
   prisma: {
     user: { findUnique: vi.fn() },
-    post: { findMany: vi.fn() },
+    post: { findMany: vi.fn(), findFirst: vi.fn() },
     follow: { findUnique: vi.fn() },
     block: { findUnique: vi.fn() },
     mute: { findUnique: vi.fn() },
@@ -74,13 +74,13 @@ vi.mock('@/components/post/PostCard', () => ({
   PostCard: (props: Record<string, unknown>) => <div data-testid="post-card" data-post-id={(props.post as { id: string }).id} />,
 }))
 vi.mock('@/components/user/ProfileTabs', () => ({
-  ProfileTabs: (props: { posts: Array<{ id: string }>; comments: unknown[]; currentUserId?: string }) => (
+  ProfileTabs: (props: { posts: Array<{ id: string; isPinned?: boolean }>; comments: unknown[]; currentUserId?: string }) => (
     <div data-testid="profile-tabs">
       {props.posts.length === 0 ? (
         <p>まだ投稿がありません</p>
       ) : (
         props.posts.map((p) => (
-          <div key={p.id} data-testid="post-card" data-post-id={p.id} />
+          <div key={p.id} data-testid="post-card" data-post-id={p.id} data-pinned={String(Boolean(p.isPinned))} />
         ))
       )}
       <span data-testid="tab-label">投稿</span>
@@ -291,6 +291,105 @@ describe('UserProfilePage', async () => {
         }),
       }),
     )
+  })
+
+  it('固定投稿が最近の投稿一覧に含まれる場合、先頭に isPinned=true で並び替える', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'me' }, expires: '' } as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockImplementation((args: { select?: Record<string, unknown> }) => {
+      if (args?.select && 'pinnedPostId' in args.select) return Promise.resolve({ pinnedPostId: 'p2' })
+      return Promise.resolve(makeUser({ id: 'other' }))
+    })
+    ;(prisma.post.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([makePost('p1'), makePost('p2')])
+
+    const result = await Page({ params: Promise.resolve({ id: 'other' }) })
+    render(await resolveAsyncJsx(result))
+
+    const cards = screen.getAllByTestId('post-card')
+    expect(cards[0]).toHaveAttribute('data-post-id', 'p2')
+    expect(cards[0]).toHaveAttribute('data-pinned', 'true')
+    expect(prisma.post.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('固定投稿が最近の投稿一覧に無い場合、追加取得して先頭に表示する', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'me' }, expires: '' } as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockImplementation((args: { select?: Record<string, unknown> }) => {
+      if (args?.select && 'pinnedPostId' in args.select) return Promise.resolve({ pinnedPostId: 'pinned-1' })
+      return Promise.resolve(makeUser({ id: 'other' }))
+    })
+    ;(prisma.post.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([makePost('p1'), makePost('p2')])
+    ;(prisma.post.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(makePost('pinned-1'))
+
+    const result = await Page({ params: Promise.resolve({ id: 'other' }) })
+    render(await resolveAsyncJsx(result))
+
+    expect(prisma.post.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'pinned-1', userId: 'other', isHidden: false }) })
+    )
+    const cards = screen.getAllByTestId('post-card')
+    expect(cards[0]).toHaveAttribute('data-post-id', 'pinned-1')
+    expect(cards[0]).toHaveAttribute('data-pinned', 'true')
+    // 追加取得した固定投稿は最近の投稿一覧にも重複して残らない
+    expect(cards.filter((c) => c.getAttribute('data-post-id') === 'pinned-1')).toHaveLength(1)
+  })
+
+  it('固定投稿IDはあるが実体が取得できない場合、通常投稿のみ表示する', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'me' }, expires: '' } as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockImplementation((args: { select?: Record<string, unknown> }) => {
+      if (args?.select && 'pinnedPostId' in args.select) return Promise.resolve({ pinnedPostId: 'deleted-post' })
+      return Promise.resolve(makeUser({ id: 'other' }))
+    })
+    ;(prisma.post.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([makePost('p1')])
+    ;(prisma.post.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+
+    const result = await Page({ params: Promise.resolve({ id: 'other' }) })
+    render(await resolveAsyncJsx(result))
+
+    const cards = screen.getAllByTestId('post-card')
+    expect(cards).toHaveLength(1)
+    expect(cards[0]).toHaveAttribute('data-pinned', 'false')
+  })
+})
+
+describe('UserProfilePage ProfileTabsSkeleton (Suspense fallback)', () => {
+  /**
+   * JSX ツリーを再帰的に探索し、`<Suspense fallback={<Target />}>` の fallback 要素を返す。
+   * ProfileTabsSkeleton は Suspense fallback 経由でのみ使われるローカル関数のため、
+   * 実際に React が suspend するのを待たずに fallback の型（関数）を直接見つけて描画検証する。
+   */
+  function findFallbackByChildName(node: unknown, targetName: string): React.ReactElement | null {
+    if (!node || typeof node !== 'object') return null
+    const el = node as { props?: { fallback?: unknown; children?: unknown } }
+    const fallback = el.props?.fallback
+    if (fallback && typeof fallback === 'object') {
+      const fb = fallback as { type?: unknown }
+      if (typeof fb.type === 'function' && (fb.type as { name?: string }).name === targetName) {
+        return fallback as React.ReactElement
+      }
+    }
+    const children = el.props?.children
+    if (Array.isArray(children)) {
+      for (const child of children) {
+        const found = findFallbackByChildName(child, targetName)
+        if (found) return found
+      }
+    } else if (children && typeof children === 'object') {
+      return findFallbackByChildName(children, targetName)
+    }
+    return null
+  }
+
+  it('ProfileTabsSection の Suspense fallback として描画される', async () => {
+    mockAuth.mockResolvedValue(null as never)
+    ;(prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(makeUser())
+
+    const { default: Page } = await import('@/app/(main)/users/[id]/page')
+    const result = await Page({ params: Promise.resolve({ id: 'user-1' }) })
+
+    const fallbackEl = findFallbackByChildName(result, 'ProfileTabsSkeleton')
+    expect(fallbackEl).not.toBeNull()
+
+    const { container } = render(fallbackEl as React.ReactElement)
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
   })
 })
 

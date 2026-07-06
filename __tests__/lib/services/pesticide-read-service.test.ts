@@ -395,6 +395,19 @@ describe('listDiseasePests', () => {
     expect(result.nextCursor).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockDiseasePestFindMany.mockRejectedValue('string rejection')
+
+    const { listDiseasePests } = await import('@/lib/services/pesticide-read-service')
+    const result = await listDiseasePests({})
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listDiseasePests failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
+  })
 })
 
 // ── getDiseasePestBySlug ──────────────────────────────────────
@@ -463,6 +476,79 @@ describe('getDiseasePestBySlug', () => {
     }
   })
 
+  it('rating の全フィールドが未測定（null/undefined）でも全て null で返す', async () => {
+    mockDiseasePestFindUnique.mockResolvedValueOnce({
+      ...mockDiseasePestDetail,
+      effects: [
+        {
+          preventionLevel: null,
+          treatmentLevel: undefined,
+          efficacyLevel: null,
+          persistenceLevel: undefined,
+          pesticide: mockDiseasePestDetail.effects[0]!.pesticide,
+        },
+      ],
+    })
+
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result?.effects[0]?.rating).toEqual({
+      preventionLevel: null,
+      treatmentLevel: null,
+      efficacyLevel: null,
+      persistenceLevel: null,
+    })
+  })
+
+  it('pesticide.formulationType が設定されている場合はそのまま返し、ingredients から activeIngredients を導出する', async () => {
+    mockDiseasePestFindUnique.mockResolvedValueOnce({
+      ...mockDiseasePestDetail,
+      effects: [
+        {
+          preventionLevel: 'high',
+          treatmentLevel: 'medium',
+          efficacyLevel: null,
+          persistenceLevel: 'low',
+          pesticide: {
+            id: 'p1',
+            name: 'スミチオン',
+            slug: 'sumithion',
+            pesticideType: 'insecticide',
+            formulationType: { name: '乳剤', code: 'EC' },
+            ingredients: [
+              {
+                activeIngredient: {
+                  id: 'ai1',
+                  name: 'フェニトロチオン',
+                  fracCode: null,
+                  iracCode: '1B',
+                  resistanceRisk: 'medium',
+                  slug: 'fenitrothion',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result?.effects[0]?.pesticide.formulationType).toEqual({ name: '乳剤', code: 'EC' })
+    expect(result?.effects[0]?.pesticide.activeIngredients).toEqual([
+      {
+        id: 'ai1',
+        name: 'フェニトロチオン',
+        fracCode: null,
+        iracCode: '1B',
+        resistanceRisk: 'medium',
+        slug: 'fenitrothion',
+      },
+    ])
+  })
+
   it('結果に bodySizeMinMm と bodySizeMaxMm（number|null）が含まれる', async () => {
     const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
     const result = await getDiseasePestBySlug('aphid')
@@ -524,6 +610,19 @@ describe('getDiseasePestBySlug', () => {
 
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockDiseasePestFindUnique.mockRejectedValue('string rejection')
+
+    const { getDiseasePestBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getDiseasePestBySlug('aphid')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getDiseasePestBySlug failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })
 
@@ -650,6 +749,19 @@ describe('listPesticides', () => {
     expect(result.nextCursor).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockPesticideFindMany.mockRejectedValue('string rejection')
+
+    const { listPesticides } = await import('@/lib/services/pesticide-read-service')
+    const result = await listPesticides({})
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listPesticides failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
+  })
 })
 
 // ── getPesticideBySlug ────────────────────────────────────────
@@ -747,6 +859,32 @@ describe('getPesticideBySlug', () => {
     expect(result?.spreaderTypes).toEqual([])
   })
 
+  it('rating の全フィールドが未測定（null）でも全て null で返す', async () => {
+    const detailWithNullRatings = {
+      ...mockPesticideDetail,
+      effects: [
+        {
+          preventionLevel: null,
+          treatmentLevel: null,
+          efficacyLevel: null,
+          persistenceLevel: null,
+          diseasePest: { id: 'dp1', name: 'アブラムシ', slug: 'aphid' },
+        },
+      ],
+    }
+    mockPesticideFindUnique.mockResolvedValueOnce(detailWithNullRatings)
+
+    const { getPesticideBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getPesticideBySlug('sumithion')
+
+    expect(result?.effects[0]?.rating).toEqual({
+      preventionLevel: null,
+      treatmentLevel: null,
+      efficacyLevel: null,
+      persistenceLevel: null,
+    })
+  })
+
   it('incompatibleWith の formulationType null → formulationTypeName null', async () => {
     const detailWithNullFormulation = {
       ...mockPesticideDetail,
@@ -794,6 +932,19 @@ describe('getPesticideBySlug', () => {
 
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockPesticideFindUnique.mockRejectedValue('string rejection')
+
+    const { getPesticideBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getPesticideBySlug('sumithion')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getPesticideBySlug failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })
 
@@ -881,6 +1032,19 @@ describe('listActiveIngredients', () => {
     expect(result.items).toHaveLength(0)
     expect(result.nextCursor).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockActiveIngredientFindMany.mockRejectedValue('string rejection')
+
+    const { listActiveIngredients } = await import('@/lib/services/pesticide-read-service')
+    const result = await listActiveIngredients({})
+
+    expect(result.items).toHaveLength(0)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'listActiveIngredients failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
   })
 })
 
@@ -979,6 +1143,19 @@ describe('getActiveIngredientBySlug', () => {
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
   })
+
+  it('DB が Error 以外の値を reject した場合も String化してログに記録する', async () => {
+    mockActiveIngredientFindUnique.mockRejectedValue('string rejection')
+
+    const { getActiveIngredientBySlug } = await import('@/lib/services/pesticide-read-service')
+    const result = await getActiveIngredientBySlug('fenitrothion')
+
+    expect(result).toBeNull()
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'getActiveIngredientBySlug failed',
+      expect.objectContaining({ error: 'string rejection' }),
+    )
+  })
 })
 
 // ── parsePesticideTypeParam ───────────────────────────────────
@@ -1032,5 +1209,134 @@ describe('parsePesticideTypeParam', () => {
   it('不正な値 "nematicide" → undefined を返す', async () => {
     const { parsePesticideTypeParam } = await import('@/lib/services/pesticide-read-service')
     expect(parsePesticideTypeParam('nematicide')).toBeUndefined()
+  })
+})
+
+// ── クエリスキーマ（diseasePestListQuerySchema / pesticideListQuerySchema / ingredientListQuerySchema） ──
+
+describe('diseasePestListQuerySchema', () => {
+  it('正常系: cursor/limit/category/search/bodySizeMm を受け付ける', async () => {
+    const { diseasePestListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = diseasePestListQuerySchema.safeParse({
+      cursor: 'aphid',
+      limit: 20,
+      category: 'pest',
+      search: 'アブラムシ',
+      bodySizeMm: 5,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('search が非空文字のとき transform 後もそのまま保持される', async () => {
+    const { diseasePestListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = diseasePestListQuerySchema.safeParse({ search: 'アブラムシ' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.search).toBe('アブラムシ')
+  })
+
+  it('search が空文字のとき transform で undefined になる', async () => {
+    const { diseasePestListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = diseasePestListQuerySchema.safeParse({ search: '' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.search).toBeUndefined()
+  })
+
+  it('全フィールド省略でも成功する（全て optional）', async () => {
+    const { diseasePestListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = diseasePestListQuerySchema.safeParse({})
+
+    expect(result.success).toBe(true)
+  })
+
+  it('category に不正な enum 値を渡すと失敗する', async () => {
+    const { diseasePestListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = diseasePestListQuerySchema.safeParse({ category: 'not-a-category' })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('limit が MAX_PAGE_LIMIT を超えると失敗する', async () => {
+    const { diseasePestListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = diseasePestListQuerySchema.safeParse({ limit: 100000 })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('pesticideListQuerySchema', () => {
+  it('正常系: cursor/limit/search/type/diseasePestId/formulationTypeCode を受け付ける', async () => {
+    const { pesticideListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = pesticideListQuerySchema.safeParse({
+      cursor: 'sumithion',
+      limit: 20,
+      search: 'スミチオン',
+      type: 'insecticide',
+      diseasePestId: 'dp1',
+      formulationTypeCode: 'EC',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('search が非空文字のとき transform 後もそのまま保持される', async () => {
+    const { pesticideListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = pesticideListQuerySchema.safeParse({ search: 'スミチオン' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.search).toBe('スミチオン')
+  })
+
+  it('search が空文字のとき transform で undefined になる', async () => {
+    const { pesticideListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = pesticideListQuerySchema.safeParse({ search: '' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.search).toBeUndefined()
+  })
+
+  it('type に不正な enum 値を渡すと失敗する', async () => {
+    const { pesticideListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = pesticideListQuerySchema.safeParse({ type: 'not-a-type' })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('ingredientListQuerySchema', () => {
+  it('正常系: cursor/limit/search を受け付ける', async () => {
+    const { ingredientListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = ingredientListQuerySchema.safeParse({
+      cursor: 'fenitrothion',
+      limit: 20,
+      search: 'フェニトロチオン',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('search が非空文字のとき transform 後もそのまま保持される', async () => {
+    const { ingredientListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = ingredientListQuerySchema.safeParse({ search: 'フェニトロチオン' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.search).toBe('フェニトロチオン')
+  })
+
+  it('search が空文字のとき transform で undefined になる', async () => {
+    const { ingredientListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = ingredientListQuerySchema.safeParse({ search: '' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.search).toBeUndefined()
+  })
+
+  it('cursor が MAX_SLUG_LENGTH を超えると失敗する', async () => {
+    const { ingredientListQuerySchema } = await import('@/lib/services/pesticide-read-service')
+    const result = ingredientListQuerySchema.safeParse({ cursor: 'a'.repeat(500) })
+
+    expect(result.success).toBe(false)
   })
 })

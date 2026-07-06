@@ -1,7 +1,8 @@
 import { vi } from 'vitest'
-import { render, screen, waitFor } from '../../utils/test-utils'
+import { render, screen, waitFor, fireEvent } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
 vi.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -218,6 +219,74 @@ describe('ConfirmDialog', () => {
       await waitFor(() => {
         expect(screen.queryByText('エラー')).not.toBeInTheDocument()
       })
+    })
+
+    it('onConfirm が Error 以外の値を reject した場合、フォールバックメッセージを表示する', async () => {
+      const user = userEvent.setup()
+       
+      const onConfirm = vi.fn().mockRejectedValue('文字列エラー')
+
+      render(
+        <ConfirmDialog
+          open
+          onOpenChange={vi.fn()}
+          title="確認"
+          description="実行しますか？"
+          showInlineError
+          onConfirm={onConfirm}
+        />
+      )
+
+      await user.click(screen.getByRole('button', { name: '削除する' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(MSG_ERROR_FALLBACK)).toBeInTheDocument()
+      })
+    })
+
+    it('loading 中でない場合、Escape キーでダイアログが閉じる（preventDefault されない）', async () => {
+      const onOpenChange = vi.fn()
+
+      render(
+        <ConfirmDialog
+          open
+          onOpenChange={onOpenChange}
+          title="確認"
+          description="実行しますか？"
+          onConfirm={vi.fn()}
+        />
+      )
+
+      fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape', code: 'Escape' })
+
+      await waitFor(() => {
+        expect(onOpenChange).toHaveBeenCalledWith(false)
+      })
+    })
+
+    it('loading 中は Escape キーでのクローズを抑止する', async () => {
+      const user = userEvent.setup()
+      const onOpenChange = vi.fn()
+      const onConfirm = vi.fn(() => new Promise<void>(() => {})) // 解決しない Promise で loading を維持
+
+      render(
+        <ConfirmDialog
+          open
+          onOpenChange={onOpenChange}
+          title="確認"
+          description="実行しますか？"
+          onConfirm={onConfirm}
+        />
+      )
+
+      await user.click(screen.getByRole('button', { name: '削除する' }))
+      expect(screen.getByRole('button', { name: '処理中' })).toBeDisabled()
+
+      fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape', code: 'Escape' })
+
+      // preventDefault されるため onOpenChange(false) は呼ばれない
+      expect(onOpenChange).not.toHaveBeenCalledWith(false)
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
     })
 
     it('同期 onConfirm（void）はすぐに閉じる', async () => {

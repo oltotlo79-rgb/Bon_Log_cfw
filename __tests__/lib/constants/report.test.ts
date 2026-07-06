@@ -2,10 +2,14 @@
 
 import {
   REPORT_REASONS,
+  REPORT_REASON_VALUES,
+  REPORT_TARGET_TYPES,
   AUTO_HIDE_THRESHOLD,
   TARGET_TYPE_LABELS,
   CONTENT_TYPE_LABELS,
   CONTENT_TYPE_COLORS,
+  isReportReason,
+  isReportTargetType,
   type ReportTargetType,
   type ContentType,
 } from '@/lib/constants/report'
@@ -65,6 +69,34 @@ describe('Report Constants', () => {
       Object.values(TARGET_TYPE_LABELS).forEach((label) => {
         expect(label).toMatch(/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/)
       })
+    })
+  })
+
+  describe('isReportReason', () => {
+    it.each(REPORT_REASON_VALUES)('%s は有効な通報理由と判定される', (value) => {
+      expect(isReportReason(value)).toBe(true)
+    })
+
+    it('未定義の値はfalseと判定される', () => {
+      expect(isReportReason('invalid_reason')).toBe(false)
+    })
+
+    it('空文字はfalseと判定される', () => {
+      expect(isReportReason('')).toBe(false)
+    })
+  })
+
+  describe('isReportTargetType', () => {
+    it.each(REPORT_TARGET_TYPES)('%s は有効な通報対象種別と判定される', (value) => {
+      expect(isReportTargetType(value)).toBe(true)
+    })
+
+    it('未定義の値はfalseと判定される', () => {
+      expect(isReportTargetType('invalid_target')).toBe(false)
+    })
+
+    it('空文字はfalseと判定される', () => {
+      expect(isReportTargetType('')).toBe(false)
     })
   })
 

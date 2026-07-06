@@ -227,6 +227,7 @@ describe('ShopsPage', async () => {
 describe('NewShopPage', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuth.mockResolvedValue({ user: { id: 'u1' } })
     mockGetShopGenres.mockResolvedValue({ genres: [] })
   })
 
@@ -237,5 +238,13 @@ describe('NewShopPage', async () => {
     expect(screen.getByText('盆栽園を登録')).toBeInTheDocument()
     expect(screen.getByTestId('shop-form')).toBeInTheDocument()
     expect(screen.getByText('盆栽園マップに戻る')).toBeInTheDocument()
+  })
+
+  it('redirects to login when not authenticated', async () => {
+    mockAuth.mockResolvedValue(null)
+    const { default: Page } = await import('@/app/(main)/shops/new/page')
+    await expect(Page()).rejects.toThrow('REDIRECT')
+    expect(mockRedirect).toHaveBeenCalledWith('/login')
+    expect(mockGetShopGenres).not.toHaveBeenCalled()
   })
 })
