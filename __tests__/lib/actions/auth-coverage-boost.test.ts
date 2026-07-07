@@ -300,6 +300,18 @@ describe('Auth Actions - Coverage Boost', () => {
       // redirect was called with '/feed'
       expect(redirect).toHaveBeenCalledWith('/feed')
     })
+
+    it('IPレート制限超過の場合はsignInを呼ばずエラーを返す', async () => {
+      process.env.GUEST_PASSWORD = 'GuestPass1!'
+      const { rateLimit } = await import('@/lib/rate-limit')
+      vi.mocked(rateLimit).mockResolvedValueOnce({ success: false } as never)
+
+      const { signInAsGuest } = await import('@/lib/actions/auth')
+      const result = await signInAsGuest()
+
+      expect(result.success).toBe(false)
+      expect(mockSignIn).not.toHaveBeenCalled()
+    })
   })
 
   // ============================================================

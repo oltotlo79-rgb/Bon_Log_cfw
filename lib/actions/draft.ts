@@ -22,8 +22,8 @@ import { revalidatePath } from 'next/cache'
 import logger from '@/lib/logger'
 import { z } from 'zod'
 import {
-  MAX_POST_CONTENT_FREE,
-  MAX_POST_IMAGES_FREE,
+  MAX_POST_CONTENT_PREMIUM,
+  MAX_POST_IMAGES_PREMIUM,
   MAX_GENRES_PER_POST,
 } from '@/lib/constants/limits'
 import { getMembershipLimits } from '@/lib/premium'
@@ -35,13 +35,16 @@ import {
   ERR_DRAFT_DELETE_FAILED,
   ERR_POST_CREATE_FAILED,
   ERR_DRAFT_ID_REQUIRED,
+  ERR_POST_CONTENT_TOO_LONG,
 } from '@/lib/constants/errors'
 import { ROUTE_FEED } from '@/lib/constants/routes'
 
+// Zod の .max() はプレミアム上限まで許容する（会員種別に応じた実際の上限は
+// saveDraft/publishDraft 内で getMembershipLimits を使い実行時に検証する）。
 const saveDraftSchema = z.object({
   id: z.string().min(1).optional(),
-  content: z.string().max(MAX_POST_CONTENT_FREE).optional(),
-  mediaUrls: z.array(z.string().min(1)).max(MAX_POST_IMAGES_FREE).optional(),
+  content: z.string().max(MAX_POST_CONTENT_PREMIUM).optional(),
+  mediaUrls: z.array(z.string().min(1)).max(MAX_POST_IMAGES_PREMIUM).optional(),
   mediaTypes: z.array(z.enum(['image', 'video'])).optional(),
   genreIds: z.array(z.string().min(1)).max(MAX_GENRES_PER_POST).optional(),
 })
@@ -154,9 +157,15 @@ export async function saveDraft(data: {
   const rl = await enforceUserRateLimit(userId, id ? 'update_draft' : 'create_draft')
   if (rl) return actionError(rl.error)
 
-  // 会員種別に応じたメディア数バリデーション
+  // 会員種別に応じた文字数・メディア数バリデーション
+  // (Zod はプレミアム上限まで通すため、無料会員の上限超過はここで弾く)
+  const limits = await getMembershipLimits(userId)
+
+  if (content && content.length > limits.maxPostLength) {
+    return actionError(ERR_POST_CONTENT_TOO_LONG(limits.maxPostLength))
+  }
+
   if (mediaUrls && mediaUrls.length > 0) {
-    const limits = await getMembershipLimits(userId)
     const types = mediaTypes ?? mediaUrls.map(() => 'image' as const)
     const mediaValidation = await validateMediaCounts(mediaUrls, types, {
       maxImages: limits.maxImages,
@@ -284,6 +293,19 @@ export async function publishDraft(draftId: string) {
     if (!draft) {
       return actionError(ERR_DRAFT_NOT_FOUND)
     }
+
+    // 保存時点から会員種別が変わっている可能性があるため、公開時点の上限で再検証する
+    // (例: プレミアム期間中に保存した下書きを、失効後の無料会員として公開しようとするケース)
+    const limits = await getMembershipLimits(userId)
+    if (draft.content && draft.content.length > limits.maxPostLength) {
+      return actionError(ERR_POST_CONTENT_TOO_LONG(limits.maxPostLength))
+    }
+    const mediaValidation = await validateMediaCounts(
+      draft.media.map((m: typeof draft.media[number]) => m.url),
+      draft.media.map((m: typeof draft.media[number]) => m.type),
+      { maxImages: limits.maxImages, maxVideos: limits.maxVideos }
+    )
+    if (mediaValidation) return mediaValidation
 
     const dailyLimitError = await checkDailyPostLimit(userId)
     if (dailyLimitError) return dailyLimitError

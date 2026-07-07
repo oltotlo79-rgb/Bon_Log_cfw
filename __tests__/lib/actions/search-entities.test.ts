@@ -226,6 +226,49 @@ describe('search-entities actions', () => {
         expect.objectContaining({ where: expect.objectContaining({ isHidden: false }) }),
       )
     })
+
+    it('trgmモード: 結果がsafeLimit件でもnextCursorは常にundefined（類似度順でkeysetが成立しないため）', async () => {
+      mockGetSearchMode.mockReturnValue('trgm')
+      const { fulltextSearchShops } = await import('@/lib/search/fulltext')
+      const shopIds = Array.from({ length: 20 }, (_, i) => `shop-${i}`)
+      vi.mocked(fulltextSearchShops).mockResolvedValue(shopIds)
+      const shops = shopIds.map((id) => ({
+        id,
+        name: id,
+        address: 'Addr',
+        createdAt: new Date(),
+        _count: { reviews: 0 },
+        genres: [],
+      }))
+      mockPrisma.bonsaiShop.findMany.mockResolvedValue(shops)
+      mockPrisma.shopReview.groupBy.mockResolvedValue([])
+      const action = await importAction()
+
+      const result = await action('盆栽', undefined, 20)
+      expect(result.shops).toHaveLength(20)
+      expect(result.nextCursor).toBeUndefined()
+    })
+
+    it('bigmモード: 結果がsafeLimit件の場合は従来通りnextCursorを返す（回帰確認）', async () => {
+      mockGetSearchMode.mockReturnValue('bigm')
+      const { fulltextSearchShops } = await import('@/lib/search/fulltext')
+      const shopIds = Array.from({ length: 20 }, (_, i) => `shop-${i}`)
+      vi.mocked(fulltextSearchShops).mockResolvedValue(shopIds)
+      const shops = shopIds.map((id) => ({
+        id,
+        name: id,
+        address: 'Addr',
+        createdAt: new Date(),
+        _count: { reviews: 0 },
+        genres: [],
+      }))
+      mockPrisma.bonsaiShop.findMany.mockResolvedValue(shops)
+      mockPrisma.shopReview.groupBy.mockResolvedValue([])
+      const action = await importAction()
+
+      const result = await action('盆栽', undefined, 20)
+      expect(result.nextCursor).toBe('shop-19')
+    })
   })
 
   // ============================================================
@@ -352,6 +395,49 @@ describe('search-entities actions', () => {
         expect.objectContaining({ where: expect.objectContaining({ isHidden: false }) }),
       )
     })
+
+    it('trgmモード: 結果がsafeLimit件でもnextCursorは常にundefined', async () => {
+      mockGetSearchMode.mockReturnValue('trgm')
+      const { fulltextSearchEvents } = await import('@/lib/search/fulltext')
+      const eventIds = Array.from({ length: 20 }, (_, i) => `event-${i}`)
+      vi.mocked(fulltextSearchEvents).mockResolvedValue(eventIds)
+      const events = eventIds.map((id) => ({
+        id,
+        title: id,
+        description: '',
+        startDate: new Date(),
+        endDate: null,
+        isHidden: false,
+        creator: { id: 'u1', nickname: 'User', avatarUrl: null },
+      }))
+      mockPrisma.event.findMany.mockResolvedValue(events)
+      const action = await importAction()
+
+      const result = await action('盆栽展', undefined, 20)
+      expect(result.events).toHaveLength(20)
+      expect(result.nextCursor).toBeUndefined()
+    })
+
+    it('bigmモード: 結果がsafeLimit件の場合は従来通りnextCursorを返す（回帰確認）', async () => {
+      mockGetSearchMode.mockReturnValue('bigm')
+      const { fulltextSearchEvents } = await import('@/lib/search/fulltext')
+      const eventIds = Array.from({ length: 20 }, (_, i) => `event-${i}`)
+      vi.mocked(fulltextSearchEvents).mockResolvedValue(eventIds)
+      const events = eventIds.map((id) => ({
+        id,
+        title: id,
+        description: '',
+        startDate: new Date(),
+        endDate: null,
+        isHidden: false,
+        creator: { id: 'u1', nickname: 'User', avatarUrl: null },
+      }))
+      mockPrisma.event.findMany.mockResolvedValue(events)
+      const action = await importAction()
+
+      const result = await action('盆栽展', undefined, 20)
+      expect(result.nextCursor).toBe('event-19')
+    })
   })
 
   // ============================================================
@@ -454,6 +540,49 @@ describe('search-entities actions', () => {
       const action = await importAction()
 
       const result = await action('Bonsai')
+      expect(result.nextCursor).toBe('bonsai-19')
+    })
+
+    it('trgmモード: 結果がsafeLimit件でもnextCursorは常にundefined', async () => {
+      mockGetSearchMode.mockReturnValue('trgm')
+      const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
+      const bonsaiIds = Array.from({ length: 20 }, (_, i) => `bonsai-${i}`)
+      vi.mocked(fulltextSearchBonsais).mockResolvedValue(bonsaiIds)
+      const bonsais = bonsaiIds.map((id) => ({
+        id,
+        name: id,
+        species: 'sp',
+        description: '',
+        createdAt: new Date(),
+        _count: { records: 0, posts: 0 },
+        user: { id: 'u1', nickname: 'U', avatarUrl: null },
+      }))
+      mockPrisma.bonsai.findMany.mockResolvedValue(bonsais)
+      const action = await importAction()
+
+      const result = await action('黒松', undefined, 20)
+      expect(result.bonsais).toHaveLength(20)
+      expect(result.nextCursor).toBeUndefined()
+    })
+
+    it('bigmモード: 結果がsafeLimit件の場合は従来通りnextCursorを返す（回帰確認）', async () => {
+      mockGetSearchMode.mockReturnValue('bigm')
+      const { fulltextSearchBonsais } = await import('@/lib/search/fulltext')
+      const bonsaiIds = Array.from({ length: 20 }, (_, i) => `bonsai-${i}`)
+      vi.mocked(fulltextSearchBonsais).mockResolvedValue(bonsaiIds)
+      const bonsais = bonsaiIds.map((id) => ({
+        id,
+        name: id,
+        species: 'sp',
+        description: '',
+        createdAt: new Date(),
+        _count: { records: 0, posts: 0 },
+        user: { id: 'u1', nickname: 'U', avatarUrl: null },
+      }))
+      mockPrisma.bonsai.findMany.mockResolvedValue(bonsais)
+      const action = await importAction()
+
+      const result = await action('黒松', undefined, 20)
       expect(result.nextCursor).toBe('bonsai-19')
     })
   })

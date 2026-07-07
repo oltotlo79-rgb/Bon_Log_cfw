@@ -12,3 +12,15 @@
  * 別物と誤判定するため、和文タイトルでバランスの良い 10 文字とする。
  */
 export const EVENT_TITLE_SIMILARITY_PREFIX_LENGTH = 10
+
+/** スクレイピングイベントの説明文の最大文字数（外部サイト由来の長文入力への保護的上限）。 */
+export const MAX_EVENT_DESCRIPTION_LENGTH = 5000
+
+/** イベントの地域・会場・主催者等、汎用フィールドの最大文字数。 */
+export const MAX_EVENT_FIELD_LENGTH = 200
+
+/** イベント外部リンク（URL）の最大文字数。 */
+export const MAX_EVENT_URL_LENGTH = 2000
+
+/** 1 回のインポート API 呼び出しで受け付けるイベント件数の上限（DoS / OOM 防止）。 */
+export const MAX_IMPORT_EVENTS_COUNT = 200

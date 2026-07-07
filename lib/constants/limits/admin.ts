@@ -139,6 +139,15 @@ export const MAX_PREMIUM_GRANT_DAYS = 365
 export const MAX_ADMIN_REASON_LENGTH = 1000
 
 /**
+ * お問い合わせ対応時に管理者が記録する内部メモの最大文字数。
+ * adminLog.details にも格納されるため、肥大化・濫用入力を防ぐ保護的上限。
+ */
+export const MAX_CONTACT_ADMIN_NOTE_LENGTH = 2000
+
+/** メンテナンスモードのお知らせメッセージの最大文字数。 */
+export const MAX_MAINTENANCE_MESSAGE_LENGTH = 1000
+
+/**
  * 管理者操作で受け取る ID 文字列 (cuid 等) の最大長。
  * Why: 内部生成 ID は通常 25 文字 (cuid) だが、保護的上限として 200 文字で早期拒否する。
  */

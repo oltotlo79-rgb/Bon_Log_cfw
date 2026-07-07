@@ -7,6 +7,7 @@
 
 'use server'
 
+import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import {
@@ -17,9 +18,16 @@ import {
 } from '@/lib/scraping/bonsai-events'
 import logger from '@/lib/logger'
 import { requireAdmin, actionSuccess, actionError, type ActionResult } from '@/lib/actions/utils'
-import { ERR_EVENTS_NOT_FOUND, ERR_SCRAPING_FAILED, ERR_REGION_NOT_FOUND, ERR_NO_EVENTS_SELECTED, ERR_IMPORT_FAILED } from '@/lib/constants/errors'
+import { ERR_EVENTS_NOT_FOUND, ERR_SCRAPING_FAILED, ERR_REGION_NOT_FOUND, ERR_NO_EVENTS_SELECTED, ERR_IMPORT_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_EVENTS, ROUTE_ADMIN_EVENTS } from '@/lib/constants/routes'
-import { EVENT_TITLE_SIMILARITY_PREFIX_LENGTH } from '@/lib/constants/limits'
+import {
+  EVENT_TITLE_SIMILARITY_PREFIX_LENGTH,
+  MAX_EVENT_TITLE_LENGTH,
+  MAX_EVENT_DESCRIPTION_LENGTH,
+  MAX_EVENT_FIELD_LENGTH,
+  MAX_EVENT_URL_LENGTH,
+  MAX_IMPORT_EVENTS_COUNT,
+} from '@/lib/constants/limits'
 
 /**
  * 重複タイプの定義
@@ -306,6 +314,28 @@ export async function scrapeEventsByRegion(
   }
 }
 
+const importableEventSchema = z.object({
+  id: z.string().min(1).max(MAX_EVENT_FIELD_LENGTH),
+  title: z.string().min(1).max(MAX_EVENT_TITLE_LENGTH),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  prefecture: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
+  city: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
+  venue: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
+  organizer: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
+  admissionFee: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
+  hasSales: z.boolean(),
+  description: z.string().max(MAX_EVENT_DESCRIPTION_LENGTH),
+  externalUrl: z.string().max(MAX_EVENT_URL_LENGTH).nullable(),
+  sourceRegion: z.string().max(MAX_EVENT_FIELD_LENGTH),
+  sourceUrl: z.string().max(MAX_EVENT_URL_LENGTH),
+  isDuplicate: z.boolean(),
+  duplicateType: z.enum(['exact', 'similar']).nullable(),
+  similarEventTitle: z.string().max(MAX_EVENT_TITLE_LENGTH).optional(),
+})
+
+const importSelectedEventsSchema = z.array(importableEventSchema).max(MAX_IMPORT_EVENTS_COUNT)
+
 /**
  * 選択されたイベントをインポート
  */
@@ -320,6 +350,12 @@ export async function importSelectedEvents(
   if (!events || events.length === 0) {
     return actionError(ERR_NO_EVENTS_SELECTED)
   }
+
+  const parsed = importSelectedEventsSchema.safeParse(events)
+  if (!parsed.success) {
+    return actionError(ERR_INVALID_INPUT)
+  }
+  events = parsed.data
 
   try {
     // 1) 有効なイベントのみを抽出（startDate 必須）

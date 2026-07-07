@@ -16,6 +16,7 @@ import {
   fetchFollowerGrowth,
   fetchEngagementTrend,
 } from '@/lib/services/analytics-service'
+import { isoDateKey } from '@/lib/utils/date-key'
 import type { AnalyticsPeriod } from '@/lib/constants/limits'
 
 /** モバイル分析サマリの top posts 1 件 */
@@ -89,8 +90,8 @@ export async function fetchAnalyticsSummary(
   return {
     period: {
       days,
-      start: start.toISOString().slice(0, 10),
-      end: now.toISOString().slice(0, 10),
+      start: isoDateKey(start),
+      end: isoDateKey(now),
     },
     posts: {
       total: postData.totalPosts,

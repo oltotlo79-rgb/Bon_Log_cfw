@@ -825,6 +825,31 @@ describe('Auth Actions', async () => {
       expect(result.success).toBe(false)
       expect('error' in result && result.error).toBe('リンクの有効期限が切れています。確認メールの再送をお試しください。')
     })
+
+    it('IPレート制限超過の場合はERR_RATE_LIMIT_OPERATIONを返す（DBへ問い合わせない）', async () => {
+      const { rateLimit } = await import('@/lib/rate-limit')
+      vi.mocked(rateLimit).mockResolvedValueOnce({ success: false } as never)
+
+      const { verifyEmailToken } = await import('@/lib/actions/auth')
+      const result = await verifyEmailToken('some-token-12345')
+
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe('操作が多すぎます。しばらく待ってから再試行してください')
+      expect(mockPrisma.emailVerificationToken.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('不正なトークン（Zodのmin長未満）はレート制限チェックより前に弾かれる', async () => {
+      const { rateLimit } = await import('@/lib/rate-limit')
+      const rateLimitMock = vi.mocked(rateLimit)
+      rateLimitMock.mockClear()
+
+      const { verifyEmailToken } = await import('@/lib/actions/auth')
+      const result = await verifyEmailToken('x')
+
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe('無効なトークンです。')
+      expect(rateLimitMock).not.toHaveBeenCalled()
+    })
   })
 
   // ============================================================

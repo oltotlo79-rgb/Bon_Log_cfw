@@ -140,6 +140,25 @@ describe('GET /api/v1/users/me/notification-settings', () => {
     const body = await res.json()
     expect(body.error.code).toBe('AUTH_REQUIRED')
   })
+
+  it('レート制限超過で 429 RATE_LIMITED + Retry-After（DBへ問い合わせない）', async () => {
+    mockCheckUserRateLimit.mockResolvedValueOnce({
+      success: false,
+      remaining: 0,
+      resetTime: Date.now() + 30_000,
+    })
+    const token = await makeAuthToken('user-me', 'me@example.com')
+    const req = makeGetRequest(token)
+    const { GET } = await import('@/app/api/v1/users/me/notification-settings/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(429)
+    expect(res.headers.get('Retry-After')).not.toBeNull()
+    const body = await res.json()
+    expect(body.error.code).toBe('RATE_LIMITED')
+    // auth-guard の findUnique（1回）以降、preferences 取得用の 2 回目は呼ばれない
+    expect(mockUserFindUnique).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ──────────────────────────────────────────────────

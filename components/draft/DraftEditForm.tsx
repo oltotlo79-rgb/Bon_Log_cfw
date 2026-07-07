@@ -71,7 +71,7 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
     if (draft.media && draft.media.length > 0) {
       setMediaFiles(draft.media.map((m) => ({ url: m.url, type: m.type })))
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 初回マウント時のみ既存メディアで初期化するため空配列固定
   }, [])
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -128,7 +128,7 @@ export function DraftEditForm({ draft, genres }: DraftEditFormProps) {
         clearTimeout(savedDisplayTimerRef.current)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 自動保存は content/selectedGenres/mediaFiles のみに反応させ、タイマー ref は依存に含めない
   }, [content, selectedGenres, mediaFiles])
 
   async function handleSave() {

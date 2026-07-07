@@ -242,6 +242,51 @@ describe('Maintenance Actions', async () => {
       expect(mtMockPrisma.systemSetting.upsert).toHaveBeenCalled()
       expect(mtMockPrisma.adminLog.create).toHaveBeenCalled()
     })
+
+    it('messageがMAX_MAINTENANCE_MESSAGE_LENGTHを超える場合はERR_INVALID_INPUTを返す', async () => {
+      mtMockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
+      mtMockPrisma.adminUser.findUnique.mockResolvedValue({ role: 'admin' })
+      mtMockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+
+      const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
+      const result = await updateMaintenanceSettings({
+        enabled: true,
+        message: 'あ'.repeat(1001),
+      })
+
+      expectError(result)
+      expect(mtMockPrisma.systemSetting.upsert).not.toHaveBeenCalled()
+    })
+
+    it('型不一致の入力（enabledが文字列）はERR_INVALID_INPUTで弾かれる', async () => {
+      mtMockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
+      mtMockPrisma.adminUser.findUnique.mockResolvedValue({ role: 'admin' })
+      mtMockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+
+      const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
+      const result = await updateMaintenanceSettings({
+        enabled: 'yes' as any,
+      })
+
+      expectError(result)
+      expect(mtMockPrisma.systemSetting.upsert).not.toHaveBeenCalled()
+    })
+
+    it('messageがちょうどMAX_MAINTENANCE_MESSAGE_LENGTHなら成功する（境界値）', async () => {
+      mtMockAuth.mockResolvedValue({ user: { id: 'admin-1' } })
+      mtMockPrisma.adminUser.findUnique.mockResolvedValue({ role: 'admin' })
+      mtMockPrisma.systemSetting.findUnique.mockResolvedValue(null)
+      mtMockPrisma.systemSetting.upsert.mockResolvedValue({})
+      mtMockPrisma.adminLog.create.mockResolvedValue({})
+
+      const { updateMaintenanceSettings } = await import('@/lib/actions/maintenance')
+      const result = await updateMaintenanceSettings({
+        enabled: true,
+        message: 'あ'.repeat(1000),
+      })
+
+      expect(result.success).toBe(true)
+    })
   })
 
   // ============================================================

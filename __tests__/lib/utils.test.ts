@@ -287,30 +287,40 @@ describe('cn (className utility)', () => {
 })
 
 describe('getEndOfDay', () => {
-  it('引数なしの場合は今日の23:59:59.999を返す', () => {
+  // JST は UTC+9 固定（サマータイム無し）のため定数化して使う。
+  const JST_OFFSET_MS = 9 * 60 * 60 * 1000
+
+  it('引数なしの場合は「今日」のJST暦日 23:59:59.999 に対応するDate（UTC表現）を返す', () => {
     const result = getEndOfDay()
-    expect(result.getHours()).toBe(23)
-    expect(result.getMinutes()).toBe(59)
-    expect(result.getSeconds()).toBe(59)
-    expect(result.getMilliseconds()).toBe(999)
+    // ローカルTZに依存しないよう、JST に変換した wall-clock で検証する
+    const jstWallClock = new Date(result.getTime() + JST_OFFSET_MS)
+    expect(jstWallClock.getUTCHours()).toBe(23)
+    expect(jstWallClock.getUTCMinutes()).toBe(59)
+    expect(jstWallClock.getUTCSeconds()).toBe(59)
+    expect(jstWallClock.getUTCMilliseconds()).toBe(999)
   })
 
-  it('指定日の23:59:59.999を返す', () => {
-    const input = new Date('2025-06-15T10:30:00')
+  it('指定日のJST暦日 23:59:59.999 に対応するDate（UTC表現）を返す', () => {
+    // UTC 2025-06-15T03:30:00Z = JST 2025-06-15T12:30:00+09:00（同一JST暦日内）
+    const input = new Date(Date.UTC(2025, 5, 15, 3, 30, 0))
     const result = getEndOfDay(input)
-    expect(result.getFullYear()).toBe(2025)
-    expect(result.getMonth()).toBe(5)
-    expect(result.getDate()).toBe(15)
-    expect(result.getHours()).toBe(23)
-    expect(result.getMinutes()).toBe(59)
-    expect(result.getSeconds()).toBe(59)
-    expect(result.getMilliseconds()).toBe(999)
+    // JST 2025-06-15 23:59:59.999 は UTC 2025-06-15T14:59:59.999Z
+    expect(result.toISOString()).toBe('2025-06-15T14:59:59.999Z')
+  })
+
+  it('UTC日付とJST暦日がずれる境界でもJST暦日を基準に終端を算出する', () => {
+    // UTC 2025-06-15T20:00:00Z = JST 2025-06-16T05:00:00+09:00（JST では翌日）
+    const input = new Date(Date.UTC(2025, 5, 15, 20, 0, 0))
+    const result = getEndOfDay(input)
+    // JST 2025-06-16 23:59:59.999 は UTC 2025-06-16T14:59:59.999Z
+    expect(result.toISOString()).toBe('2025-06-16T14:59:59.999Z')
   })
 
   it('元のDateを変更しない', () => {
-    const input = new Date('2025-06-15T10:30:00')
+    const input = new Date(Date.UTC(2025, 5, 15, 10, 30, 0))
+    const originalTime = input.getTime()
     getEndOfDay(input)
-    expect(input.getHours()).toBe(10)
+    expect(input.getTime()).toBe(originalTime)
   })
 })
 

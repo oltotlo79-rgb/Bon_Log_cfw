@@ -252,16 +252,18 @@ type ShopFindManyOrderBy = Prisma.BonsaiShopFindManyArgs['orderBy']
  * rating ソートは DB 集計不可のため listShopsV1 内でメモリソートする。
  */
 function buildShopOrderBy(sortBy: ShopSortBy): ShopFindManyOrderBy {
+  // ネイティブカーソル（cursor:{id}, skip:1）は同値ソートキー境界で id タイブレーカが
+  // 無いと重複/欠落が起きるため、rating（メモリソート）以外は必ず id を末尾に付与する。
   switch (sortBy) {
     case 'name':
-      return { name: 'asc' }
+      return [{ name: 'asc' }, { id: 'desc' }]
     case 'newest':
-      return { createdAt: 'desc' }
+      return [{ createdAt: 'desc' }, { id: 'desc' }]
     case 'location':
-      return [{ latitude: { sort: 'desc', nulls: 'last' } }, { name: 'asc' }]
+      return [{ latitude: { sort: 'desc', nulls: 'last' } }, { name: 'asc' }, { id: 'desc' }]
     case 'rating':
     default:
-      return { createdAt: 'desc' }
+      return [{ createdAt: 'desc' }, { id: 'desc' }]
   }
 }
 

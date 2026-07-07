@@ -407,8 +407,8 @@ describe('Hormone detail page', () => {
           // 未知 slug → BONSAI_TECHNIQUES.find は undefined → techniqueName を表示
           techniqueSlug: 'totally-unknown-technique-xyz',
           techniqueName: '謎の技法',
-          // 未知 effectType → effectColors === undefined → バッジ全体が非表示（&& の falsy 側）
-          //   ※ そのため effectLabel は DOM に出ない
+          // 未知 effectType → effectColors は undefined だが、バッジ自体は
+          // ニュートラル色クラスで描画され、ラベルは raw 値にフォールバックする
           effectType: 'unknown_effect_xyz',
           // 未知 magnitude → ?? の右辺で raw 値が表示される
           magnitude: 'unknown_mag_xyz',
@@ -421,10 +421,63 @@ describe('Hormone detail page', () => {
     const result = await HormoneDetailPage({ params: Promise.resolve({ slug: 'auxin' }) })
     const rendered = JSON.stringify(result)
     expect(rendered).toContain('謎の技法')
-    // effectColors が undefined のためエフェクトバッジは描画されない（&& の falsy 側）
-    expect(rendered).not.toContain('unknown_effect_xyz')
+    // 未知 effectType でもバッジは表示され、ラベルは raw 値にフォールバックする
+    expect(rendered).toContain('unknown_effect_xyz')
+    // ニュートラル色クラス（未知値用）が使われる
+    expect(rendered).toContain('bg-muted-foreground/20')
+    expect(rendered).toContain('text-muted-foreground')
     // magnitude は ?? の右辺で raw 値が出る
     expect(rendered).toContain('unknown_mag_xyz')
+  })
+
+  it('combined effectType でもラベル付きバッジがニュートラル色クラスで描画される', async () => {
+    mockGetHormoneBySlug.mockResolvedValue(fullHormone)
+    mockGetHormoneTechniquesBySlug.mockResolvedValueOnce({
+      techniques: [
+        {
+          id: 'th-3',
+          techniqueSlug: 'pruning',
+          techniqueName: '剪定',
+          // combined は TECHNIQUE_EFFECT_TYPE_LABELS にラベルはあるが
+          // TECHNIQUE_EFFECT_TYPE_COLORS に色定義が無い既知の特殊値
+          effectType: 'combined',
+          magnitude: 'moderate',
+          mechanism: '複数の作用が組み合わさる',
+        },
+      ],
+    })
+    const { default: HormoneDetailPage } = await import('@/app/(main)/hormones/[slug]/page')
+    const result = await HormoneDetailPage({ params: Promise.resolve({ slug: 'auxin' }) })
+    const rendered = JSON.stringify(result)
+    // ラベルは日本語表記に変換される
+    expect(rendered).toContain('複合効果')
+    // 色未定義のためニュートラル色クラスが使われる
+    expect(rendered).toContain('bg-muted-foreground/20')
+    expect(rendered).toContain('text-muted-foreground')
+  })
+
+  it('既知の effectType (increase/decrease/redistribute) は従来色クラスで描画される', async () => {
+    mockGetHormoneBySlug.mockResolvedValue(fullHormone)
+    mockGetHormoneTechniquesBySlug.mockResolvedValueOnce({
+      techniques: [
+        {
+          id: 'th-4',
+          techniqueSlug: 'pinching',
+          techniqueName: '摘芯',
+          effectType: 'increase',
+          magnitude: 'strong',
+          mechanism: '促進する',
+        },
+      ],
+    })
+    const { default: HormoneDetailPage } = await import('@/app/(main)/hormones/[slug]/page')
+    const result = await HormoneDetailPage({ params: Promise.resolve({ slug: 'auxin' }) })
+    const rendered = JSON.stringify(result)
+    expect(rendered).toContain('増加')
+    expect(rendered).toContain('bg-green-100')
+    expect(rendered).toContain('text-green-800')
+    // ニュートラル色クラスは使われない
+    expect(rendered).not.toContain('bg-muted-foreground/20')
   })
 
   it('Breadcrumb の url に BASE_URL + ROUTE_HORMONES が組み込まれる', async () => {

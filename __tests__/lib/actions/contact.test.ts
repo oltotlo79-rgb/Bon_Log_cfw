@@ -645,6 +645,25 @@ describe('contact actions', () => {
       expect(prisma.contactInquiry.update).not.toHaveBeenCalled()
     })
 
+    it('returns ERR_INVALID_INPUT when adminNote exceeds MAX_CONTACT_ADMIN_NOTE_LENGTH', async () => {
+      const overLongNote = 'あ'.repeat(2001)
+      const result = await updateInquiryStatus('inquiry-1', 'in_progress', overLongNote)
+
+      expectError(result)
+      expect(prisma.contactInquiry.update).not.toHaveBeenCalled()
+    })
+
+    it('accepts adminNote at exactly MAX_CONTACT_ADMIN_NOTE_LENGTH (boundary)', async () => {
+      const exactNote = 'あ'.repeat(2000)
+      const result = await updateInquiryStatus('inquiry-1', 'in_progress', exactNote)
+
+      expect(result.success).toBe(true)
+      expect(prisma.contactInquiry.update).toHaveBeenCalledWith({
+        where: { id: 'inquiry-1' },
+        data: { status: 'in_progress', adminNote: exactNote },
+      })
+    })
+
     it('returns error if not found', async () => {
       (prisma.contactInquiry.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 

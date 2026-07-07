@@ -544,6 +544,33 @@ describe('Follow Actions', async () => {
 
       expect(result).toEqual({ following: false })
     })
+
+    it('targetUserIdが空文字列の場合はZodバリデーションでfalseを返す', async () => {
+      const { getFollowStatus } = await import('@/lib/actions/follow')
+      const result = await getFollowStatus('')
+
+      expect(result).toEqual({ following: false })
+      // Zod で弾かれるため DB へは問い合わせない
+      expect(mockPrisma.follow.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('正常なIDの場合は従来通りfindUniqueに解析済みIDが渡される', async () => {
+      mockPrisma.follow.findUnique.mockResolvedValue(null)
+
+      const { getFollowStatus } = await import('@/lib/actions/follow')
+      await getFollowStatus('valid-target-id')
+
+      expect(mockPrisma.follow.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            followerId_followingId: {
+              followerId: mockUser.id,
+              followingId: 'valid-target-id',
+            },
+          },
+        })
+      )
+    })
   })
 })
 

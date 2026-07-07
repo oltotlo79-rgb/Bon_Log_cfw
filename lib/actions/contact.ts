@@ -16,6 +16,7 @@ import {
   CONTACT_RESPONSE_MIN_DAYS,
   CONTACT_RESPONSE_MAX_DAYS,
   CONTACT_STATS_CACHE_REVALIDATE_SECONDS,
+  MAX_CONTACT_ADMIN_NOTE_LENGTH,
 } from '@/lib/constants/limits'
 import { requireAdmin, actionSuccess, actionError, getClientIp } from '@/lib/actions/utils'
 import { actionZodError } from '@/lib/actions/schemas/common'
@@ -36,6 +37,7 @@ import {
   ERR_CONTACT_SUBJECT_TOO_LONG,
   ERR_CONTACT_MESSAGE_TOO_SHORT,
   ERR_CONTACT_MESSAGE_TOO_LONG,
+  ERR_INVALID_INPUT,
 } from '@/lib/constants/errors'
 import { getAppUrl, getAdminEmail } from '@/lib/env'
 import { escapeHtml } from '@/lib/sanitize'
@@ -44,6 +46,8 @@ import { CONTACT_STATUS } from '@/lib/constants/status'
 import { CONTACT_CATEGORY_VALUES, CONTACT_CATEGORY_LABELS } from '@/lib/constants/contact-categories'
 
 const VALID_STATUSES: readonly string[] = Object.values(CONTACT_STATUS)
+
+const adminNoteSchema = z.string().max(MAX_CONTACT_ADMIN_NOTE_LENGTH).optional()
 
 /**
  * 外部入力の文字列を Prisma の ContactStatus enum に安全に絞り込む。
@@ -253,12 +257,17 @@ export async function updateInquiryStatus(
     return actionError(ERR_INVALID_STATUS)
   }
 
+  const parsedNote = adminNoteSchema.safeParse(adminNote)
+  if (!parsedNote.success) {
+    return actionError(ERR_INVALID_INPUT)
+  }
+
   const inquiry = await prisma.contactInquiry.findUnique({ where: { id } })
   if (!inquiry) return actionError(ERR_CONTACT_NOT_FOUND)
 
   const updateData: Record<string, unknown> = { status }
-  if (adminNote !== undefined) {
-    updateData.adminNote = adminNote
+  if (parsedNote.data !== undefined) {
+    updateData.adminNote = parsedNote.data
   }
   if (status === CONTACT_STATUS.RESOLVED || status === CONTACT_STATUS.CLOSED) {
     updateData.respondedAt = new Date()
@@ -272,7 +281,7 @@ export async function updateInquiryStatus(
       action: 'update_contact_status',
       targetType: 'contact_inquiry',
       targetId: id,
-      details: { status, adminNote: adminNote || null },
+      details: { status, adminNote: parsedNote.data || null },
     },
   })
 

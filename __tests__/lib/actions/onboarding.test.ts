@@ -16,11 +16,18 @@ vi.mock('next/cache', () => ({
   cache: vi.fn((fn) => fn),
 }))
 
+const mockCheckUserRateLimit = vi.fn().mockResolvedValue({ success: true })
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: (...args: unknown[]) => mockCheckUserRateLimit(...args),
+  RATE_LIMITS: {},
+}))
+
 describe('completeOnboarding', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
     mockPrisma.user.findUnique.mockResolvedValue({ isSuspended: false })
+    mockCheckUserRateLimit.mockResolvedValue({ success: true })
   })
 
   it('未認証ならエラーを返す', async () => {
@@ -55,5 +62,13 @@ describe('completeOnboarding', async () => {
     const { completeOnboarding } = await import('@/lib/actions/onboarding')
     const result = await completeOnboarding()
     expect(result).toEqual({ success: false, error: '操作に失敗しました' })
+  })
+
+  it('レート制限超過時はエラーを返し、DB更新を行わない', async () => {
+    mockCheckUserRateLimit.mockResolvedValueOnce({ success: false })
+    const { completeOnboarding } = await import('@/lib/actions/onboarding')
+    const result = await completeOnboarding()
+    expect(result.success).toBe(false)
+    expect(mockPrisma.user.update).not.toHaveBeenCalled()
   })
 })

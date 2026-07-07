@@ -25,11 +25,7 @@ import {
   MIN_KEYWORD_LENGTH,
 } from '@/lib/constants/limits'
 import { getStartOfNDaysAgo, getEndOfDay } from '@/lib/utils'
-
-/** Date を YYYY-MM-DD 形式に正規化。toISOString は必ず 'T' を含むので split[0] は string で確定する。 */
-function isoDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
+import { isoDateKey } from '@/lib/utils/date-key'
 
 /**
  * スキャン安全上限への到達を可視化する（サイレント切り捨て防止）。

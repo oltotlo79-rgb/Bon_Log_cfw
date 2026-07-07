@@ -10,8 +10,9 @@ import { revalidatePath } from 'next/cache'
 import logger from '@/lib/logger'
 import { redis } from '@/lib/redis'
 import { requireAdmin, actionSuccess, actionError, type ActionResult } from '@/lib/actions/utils'
-import { ERR_SYSTEM_SETTING_UPDATE_FAILED, ERR_SETTING_UPDATE_FAILED } from '@/lib/constants/errors'
+import { ERR_SYSTEM_SETTING_UPDATE_FAILED, ERR_SETTING_UPDATE_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_ADMIN_MAINTENANCE } from '@/lib/constants/routes'
+import { MAX_MAINTENANCE_MESSAGE_LENGTH } from '@/lib/constants/limits'
 import { z } from 'zod'
 
 const maintenanceSettingsSchema = z.object({
@@ -19,6 +20,14 @@ const maintenanceSettingsSchema = z.object({
   startTime: z.string().nullable(),
   endTime: z.string().nullable(),
   message: z.string(),
+})
+
+/** 管理者からの部分更新入力用スキーマ (すべて optional)。message には保護的上限を課す。 */
+const updateMaintenanceSettingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  startTime: z.string().nullable().optional(),
+  endTime: z.string().nullable().optional(),
+  message: z.string().max(MAX_MAINTENANCE_MESSAGE_LENGTH).optional(),
 })
 
 /**
@@ -114,6 +123,11 @@ export async function updateMaintenanceSettings(
     }
     const userId = admin.userId
 
+    const parsed = updateMaintenanceSettingsSchema.safeParse(settings)
+    if (!parsed.success) {
+      return actionError(ERR_INVALID_INPUT)
+    }
+
     logger.info('Updating maintenance settings for user:', userId)
 
     // 現在の設定を取得
@@ -122,7 +136,7 @@ export async function updateMaintenanceSettings(
     // 新しい設定をマージ
     const newSettings: MaintenanceSettings = {
       ...currentSettings,
-      ...settings,
+      ...parsed.data,
     }
 
     // 設定を保存（Prisma Json型に変換）
@@ -158,7 +172,7 @@ export async function updateMaintenanceSettings(
       await prisma.adminLog.create({
         data: {
           adminId: userId,
-          action: settings.enabled ? 'maintenance_enabled' : 'maintenance_updated',
+          action: parsed.data.enabled ? 'maintenance_enabled' : 'maintenance_updated',
           targetType: 'system_setting',
           targetId: MAINTENANCE_SETTING_KEY,
           details: jsonValue,

@@ -71,7 +71,9 @@ export type DeleteCommentResult =
 
 /**
  * コメントを作成する。
- * 日次制限チェック + 作成をトランザクション内で行うことで TOCTOU を防ぐ。
+ *
+ * 日次制限チェック + 作成を $transaction 内で行うが、READ COMMITTED では
+ * count→create の write skew を完全には防げない（詳細は createCommentV1 本体のコメント参照）。
  */
 export async function createCommentV1(
   postId: string,
@@ -116,7 +118,10 @@ export async function createCommentV1(
       return { ok: false, error: ERR_MEDIA_URL_NOT_OWN_STORAGE, status: 400 }
     }
 
-    // 日次制限チェック + コメント作成をトランザクションで原子的に実行（TOCTOU 対策）
+    // $transaction はロールバック単位をまとめるが、READ COMMITTED では count→create の
+    // write skew を完全には防げない。実害は日次上限のわずかな超過に限定され、レート制限で
+    // 有界。厳密な原子性が要る場合は Redis INCR 方式（lib/actions/utils.ts の
+    // checkDailyPostLimit 参照）を使う。
     const today = getStartOfToday()
     const txResult = await prisma.$transaction(async (tx) => {
       const count = await tx.comment.count({

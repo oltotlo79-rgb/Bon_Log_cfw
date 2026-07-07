@@ -17,7 +17,7 @@ import {
 } from '@/lib/services/login-throttle'
 import { ROUTE_FEED, ROUTE_HOME } from '@/lib/constants/routes'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { FIFTEEN_MINUTES_MS, VERIFY_CREDENTIALS_MAX_ATTEMPTS } from '@/lib/constants/limits'
+import { FIFTEEN_MINUTES_MS, VERIFY_CREDENTIALS_MAX_ATTEMPTS, MAX_GUEST_LOGIN_ATTEMPTS } from '@/lib/constants/limits'
 // 定数はドメイン別ファイルに分割されているため、用途別に直接 import する。
 // （ファイル先頭でまとめて import すると実装に到達するまでスクロールが必要になる）
 import {
@@ -151,6 +151,18 @@ export async function signInAsGuest() {
     process.env.GUEST_PASSWORD ??
     (process.env.NODE_ENV === 'development' ? 'GuestPass1!' : '')
   if (!password) return actionError(ERR_GUEST_LOGIN_UNAVAILABLE)
+
+  // 認証不要でセッションを発行できる経路のため IP ベースでレート制限する
+  const ip = await getClientIp()
+  const rateLimitResult = await rateLimit(`guest-login:${ip}`, {
+    windowMs: FIFTEEN_MINUTES_MS,
+    maxRequests: MAX_GUEST_LOGIN_ATTEMPTS,
+    failOpen: false,
+  })
+  if (!rateLimitResult.success) {
+    return actionError(ERR_RATE_LIMIT_OPERATION)
+  }
+
   try {
     const result = await signIn('credentials', {
       email: GUEST_EMAIL,

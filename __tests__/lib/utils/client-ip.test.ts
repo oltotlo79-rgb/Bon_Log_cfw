@@ -16,6 +16,36 @@ function makeGetter(headers: Record<string, string | undefined>) {
 
 describe('extractClientIp', () => {
   describe('優先順位', () => {
+    it('fly-client-ip が最優先 (他ヘッダーがあっても採用)', () => {
+      const ip = extractClientIp(
+        makeGetter({
+          'fly-client-ip': '0.0.0.1',
+          'cf-connecting-ip': '1.1.1.1',
+          'x-vercel-forwarded-for': '2.2.2.2',
+          'x-forwarded-for': '3.3.3.3, 4.4.4.4, 5.5.5.5',
+          'x-real-ip': '6.6.6.6',
+        }),
+      )
+      expect(ip).toBe('0.0.0.1')
+    })
+
+    it('fly-client-ip が欠落していると既存チェーン (cf-connecting-ip) にフォールバックする', () => {
+      const ip = extractClientIp(
+        makeGetter({
+          'cf-connecting-ip': '1.1.1.1',
+          'x-vercel-forwarded-for': '2.2.2.2',
+        }),
+      )
+      expect(ip).toBe('1.1.1.1')
+    })
+
+    it('fly-client-ip が空文字なら次の優先ヘッダーにフォールバックする', () => {
+      const ip = extractClientIp(
+        makeGetter({ 'fly-client-ip': '', 'cf-connecting-ip': '1.1.1.1' }),
+      )
+      expect(ip).toBe('1.1.1.1')
+    })
+
     it('cf-connecting-ip が最優先 (他ヘッダーがあっても採用)', () => {
       const ip = extractClientIp(
         makeGetter({

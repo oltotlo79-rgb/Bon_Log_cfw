@@ -15,6 +15,13 @@ vi.mock('@/lib/auth', () => ({ auth: () => mockAuth() }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
+// 対象リソース認可（見えない投稿の poll には投票/結果閲覧不可）。
+// デフォルトは可視（true）にし、非可視ケースのみ個別テストで false を返す。
+const mockAssertCanViewPost = vi.fn().mockResolvedValue(true)
+vi.mock('@/lib/services/post-visibility', () => ({
+  assertCanViewPost: (...args: unknown[]) => mockAssertCanViewPost(...args),
+}))
+
 const getModule = () => import('@/lib/actions/poll')
 
 /** ActionResult 成功レスポンスから data 部を取り出す（型安全） */
@@ -38,6 +45,7 @@ interface PollResult {
 describe('Poll Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAssertCanViewPost.mockResolvedValue(true)
   })
 
   // ================================================================
@@ -46,6 +54,7 @@ describe('Poll Actions', () => {
   describe('votePoll', () => {
     const mockPoll = {
       id: 'poll-1',
+      postId: 'post-1',
       expiresAt: new Date(Date.now() + 86400000),
       options: [
         { id: 'opt-1' },
@@ -189,8 +198,42 @@ describe('Poll Actions', () => {
       await votePoll('poll-1', 'opt-2')
       expect(mockPrisma.poll.findUnique).toHaveBeenCalledWith({
         where: { id: 'poll-1' },
-        select: { expiresAt: true, options: { select: { id: true } } },
+        select: { postId: true, expiresAt: true, options: { select: { id: true } } },
       })
+    })
+
+    it('非公開/フォロー限定/ブロック著者などで見えない投稿のpollはERR_POLL_NOT_FOUNDを返す', async () => {
+      mockAuth.mockResolvedValueOnce({ user: { id: mockUser.id } })
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPoll)
+      mockAssertCanViewPost.mockResolvedValueOnce(false)
+
+      const { votePoll } = await getModule()
+      const result = await votePoll('poll-1', 'opt-1')
+      expect(result).toMatchObject({ error: 'アンケートが見つかりません' })
+      // 可視性チェックで弾かれた場合、期限/選択肢チェックまで進まない
+      expect(mockPrisma.pollVote.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('assertCanViewPostにpoll.postIdとuserIdが渡される', async () => {
+      mockAuth.mockResolvedValueOnce({ user: { id: mockUser.id } })
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPoll)
+      mockPrisma.pollVote.findUnique.mockResolvedValueOnce(null)
+      mockPrisma.pollVote.create.mockResolvedValueOnce({})
+
+      const { votePoll } = await getModule()
+      await votePoll('poll-1', 'opt-1')
+      expect(mockAssertCanViewPost).toHaveBeenCalledWith(mockUser.id, 'post-1')
+    })
+
+    it('可視な投稿のpollは従来通り投票できる（回帰確認）', async () => {
+      mockAuth.mockResolvedValueOnce({ user: { id: mockUser.id } })
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPoll)
+      mockPrisma.pollVote.findUnique.mockResolvedValueOnce(null)
+      mockPrisma.pollVote.create.mockResolvedValueOnce({})
+
+      const { votePoll } = await getModule()
+      const result = await votePoll('poll-1', 'opt-1')
+      expect(result).toEqual({ success: true })
     })
 
     it('投票チェックで正しいcomposite keyが使われる', async () => {
@@ -246,6 +289,7 @@ describe('Poll Actions', () => {
   describe('getPollResults', () => {
     const mockPollWithResults = {
       id: 'poll-1',
+      postId: 'post-1',
       expiresAt: new Date(Date.now() + 86400000),
       options: [
         { id: 'opt-1', text: '選択肢1', sortOrder: 0, _count: { votes: 5 } },
@@ -487,6 +531,37 @@ describe('Poll Actions', () => {
         where: { pollId_userId: { pollId: 'poll-1', userId: 'custom-user' } },
         select: { optionId: true },
       })
+    })
+
+    it('非公開/フォロー限定/ブロック著者などで見えない投稿のpollはERR_POLL_NOT_FOUNDを返す', async () => {
+      mockAuth.mockResolvedValueOnce({ user: { id: mockUser.id } })
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPollWithResults)
+      mockAssertCanViewPost.mockResolvedValueOnce(false)
+
+      const { getPollResults } = await getModule()
+      const result = await getPollResults('poll-1')
+      expect(result).toMatchObject({ error: 'アンケートが見つかりません' })
+      // 可視性チェックで弾かれた場合、投票状態の問い合わせまで進まない
+      expect(mockPrisma.pollVote.findUnique).not.toHaveBeenCalled()
+    })
+
+    it('未認証ユーザーでもassertCanViewPostにcurrentUserId=undefinedとpostIdが渡される', async () => {
+      mockAuth.mockResolvedValueOnce(null)
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPollWithResults)
+
+      const { getPollResults } = await getModule()
+      await getPollResults('poll-1')
+      expect(mockAssertCanViewPost).toHaveBeenCalledWith(undefined, 'post-1')
+    })
+
+    it('可視な投稿のpollは従来通り結果を取得できる（回帰確認）', async () => {
+      mockAuth.mockResolvedValueOnce(null)
+      mockPrisma.poll.findUnique.mockResolvedValueOnce(mockPollWithResults)
+
+      const { getPollResults } = await getModule()
+      const result = await getPollResults('poll-1')
+      const data = unwrapOk<PollResult>(result)
+      expect(data.poll.totalVotes).toBe(10)
     })
 
     it('includeでoptionsとcountが正しくリクエストされる', async () => {

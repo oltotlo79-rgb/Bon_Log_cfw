@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
+import { assertCanViewPost } from '@/lib/services/post-visibility'
 import { ERR_INVALID_INPUT, ERR_POLL_NOT_FOUND, ERR_POLL_ENDED, ERR_POLL_INVALID_OPTION, ERR_POLL_ALREADY_VOTED, ERR_POLL_VOTE_FAILED } from '@/lib/constants/errors'
 import { ROUTE_FEED } from '@/lib/constants/routes'
 import logger from '@/lib/logger'
@@ -30,10 +31,16 @@ export async function votePoll(pollId: string, optionId: string) {
   try {
     const poll = await prisma.poll.findUnique({
       where: { id: pollId },
-      select: { expiresAt: true, options: { select: { id: true } } },
+      select: { postId: true, expiresAt: true, options: { select: { id: true } } },
     })
 
     if (!poll) {
+      return actionError(ERR_POLL_NOT_FOUND)
+    }
+
+    // 対象リソース認可: 見えない投稿（非表示/非公開/停止著者）の poll には投票不可。
+    // 存在秘匿のため poll 自体が無いのと同じエラーに丸める。
+    if (!(await assertCanViewPost(userId, poll.postId))) {
       return actionError(ERR_POLL_NOT_FOUND)
     }
 
@@ -100,6 +107,11 @@ export async function getPollResults(pollId: string) {
     })
 
     if (!poll) {
+      return actionError(ERR_POLL_NOT_FOUND)
+    }
+
+    // 投票と同じ対象リソース認可: 見えない投稿の集計結果は閲覧不可（存在秘匿）。
+    if (!(await assertCanViewPost(currentUserId, poll.postId))) {
       return actionError(ERR_POLL_NOT_FOUND)
     }
 

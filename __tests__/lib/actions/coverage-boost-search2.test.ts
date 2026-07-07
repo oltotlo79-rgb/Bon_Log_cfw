@@ -459,7 +459,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
       expect(result.shops[0]!.reviewCount).toBe(3)
     })
 
-    it('trgmモードでnextCursorが設定される', async () => {
+    it('trgmモードではsafeLimit件でもnextCursorは常にundefined（keyset pagination不整合防止）', async () => {
       mockGetSearchMode.mockReturnValue('trgm')
       const ids = Array(20).fill(null).map((_, i) => `shop-${i}`)
       mockFulltextSearchShops.mockResolvedValue(ids)
@@ -472,7 +472,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const { searchShops } = await import('@/lib/actions/search')
       const result = await searchShops('テスト')
 
-      expect(result.nextCursor).toBe('shop-19')
+      expect(result.shops).toHaveLength(20)
+      expect(result.nextCursor).toBeUndefined()
     })
 
     it('trgmモードでprefectureが渡される', async () => {
@@ -566,7 +567,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
       expect(result.events).toEqual([])
     })
 
-    it('trgmモードでnextCursorが設定される', async () => {
+    it('trgmモードではsafeLimit件でもnextCursorは常にundefined（keyset pagination不整合防止）', async () => {
       mockGetSearchMode.mockReturnValue('trgm')
       const ids = Array(20).fill(null).map((_, i) => `event-${i}`)
       mockFulltextSearchEvents.mockResolvedValue(ids)
@@ -579,7 +580,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const { searchEvents } = await import('@/lib/actions/search')
       const result = await searchEvents('テスト')
 
-      expect(result.nextCursor).toBe('event-19')
+      expect(result.events).toHaveLength(20)
+      expect(result.nextCursor).toBeUndefined()
     })
   })
 
@@ -681,7 +683,7 @@ describe('Search Actions - Coverage Boost 2', async () => {
       expect(result.bonsais).toEqual([])
     })
 
-    it('trgmモードでnextCursorが設定される', async () => {
+    it('trgmモードではsafeLimit件でもnextCursorは常にundefined（keyset pagination不整合防止）', async () => {
       mockGetSearchMode.mockReturnValue('trgm')
       const ids = Array(20).fill(null).map((_, i) => `bonsai-${i}`)
       mockFulltextSearchBonsais.mockResolvedValue(ids)
@@ -695,7 +697,8 @@ describe('Search Actions - Coverage Boost 2', async () => {
       const { searchBonsais } = await import('@/lib/actions/search')
       const result = await searchBonsais('テスト')
 
-      expect(result.nextCursor).toBe('bonsai-19')
+      expect(result.bonsais).toHaveLength(20)
+      expect(result.nextCursor).toBeUndefined()
     })
 
     it('trgmモードでは認証ユーザーの userId が渡される（引数 userId は無視）', async () => {

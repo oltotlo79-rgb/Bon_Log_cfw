@@ -347,7 +347,7 @@ describe('listShopsV1', () => {
     expect(result.items[2]?.id).toBe('shop-c')
   })
 
-  it('sortBy=name: orderBy に name が渡される', async () => {
+  it('sortBy=name: orderBy に name: asc + id: desc（タイブレーカ）が渡される', async () => {
     mockBonsaiShopFindMany.mockResolvedValue([])
     mockGetCachedShopRatings.mockResolvedValue([])
 
@@ -355,10 +355,10 @@ describe('listShopsV1', () => {
     await listShopsV1({ sortBy: 'name' }, null)
 
     const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as { orderBy: unknown }
-    expect(callArgs?.orderBy).toEqual({ name: 'asc' })
+    expect(callArgs?.orderBy).toEqual([{ name: 'asc' }, { id: 'desc' }])
   })
 
-  it('sortBy=newest: orderBy に createdAt: desc が渡される', async () => {
+  it('sortBy=newest: orderBy に createdAt: desc + id: desc（タイブレーカ）が渡される', async () => {
     mockBonsaiShopFindMany.mockResolvedValue([])
     mockGetCachedShopRatings.mockResolvedValue([])
 
@@ -366,10 +366,10 @@ describe('listShopsV1', () => {
     await listShopsV1({ sortBy: 'newest' }, null)
 
     const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as { orderBy: unknown }
-    expect(callArgs?.orderBy).toEqual({ createdAt: 'desc' })
+    expect(callArgs?.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }])
   })
 
-  it('sortBy=location: orderBy に latitude: desc + name: asc が渡される', async () => {
+  it('sortBy=location: orderBy に latitude: desc + name: asc + id: desc（タイブレーカ）が渡される', async () => {
     mockBonsaiShopFindMany.mockResolvedValue([])
     mockGetCachedShopRatings.mockResolvedValue([])
 
@@ -380,8 +380,45 @@ describe('listShopsV1', () => {
     expect(callArgs?.orderBy).toEqual([
       { latitude: { sort: 'desc', nulls: 'last' } },
       { name: 'asc' },
+      { id: 'desc' },
     ])
   })
+
+  it('sortBy 未指定（デフォルト=location）: orderBy にも id タイブレーカが含まれる', async () => {
+    mockBonsaiShopFindMany.mockResolvedValue([])
+    mockGetCachedShopRatings.mockResolvedValue([])
+
+    const { listShopsV1 } = await import('@/lib/services/shop-service')
+    await listShopsV1({}, null)
+
+    const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as { orderBy: unknown }
+    expect(callArgs?.orderBy).toEqual([
+      { latitude: { sort: 'desc', nulls: 'last' } },
+      { name: 'asc' },
+      { id: 'desc' },
+    ])
+  })
+
+  // 同一 createdAt/name/latitude を持つ複数店舗がある場合、id タイブレーカが無いと
+  // ネイティブカーソル（cursor:{id}, skip:1）で重複・欠落が起き得る。
+  // ここでは実際の Prisma ソートを模倣せず、「id が orderBy の末尾に必ず含まれる」ことで
+  // 決定的な全順序（total order）が保証されることを確認する。
+  it.each(['newest', 'name', 'location'] as const)(
+    'sortBy=%s: 同値ソートキーの重複/欠落防止のため id が orderBy の最後に含まれる',
+    async (sortBy) => {
+      mockBonsaiShopFindMany.mockResolvedValue([])
+      mockGetCachedShopRatings.mockResolvedValue([])
+
+      const { listShopsV1 } = await import('@/lib/services/shop-service')
+      await listShopsV1({ sortBy }, null)
+
+      const callArgs = mockBonsaiShopFindMany.mock.calls[0]?.[0] as { orderBy: unknown }
+      expect(Array.isArray(callArgs?.orderBy)).toBe(true)
+      const orderByArr = callArgs?.orderBy as Array<Record<string, unknown>>
+      const last = orderByArr[orderByArr.length - 1]
+      expect(last).toEqual({ id: 'desc' })
+    }
+  )
 
   it('isHidden: false が where に含まれる', async () => {
     mockBonsaiShopFindMany.mockResolvedValue([])

@@ -11,6 +11,7 @@ import 'server-only'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import logger from '@/lib/logger'
+import { assertCanViewPost } from '@/lib/services/post-visibility'
 import {
   ERR_POLL_NOT_FOUND,
   ERR_POLL_ENDED,
@@ -64,6 +65,12 @@ export async function castVote(
   })
 
   if (!poll) {
+    return { ok: false, error: ERR_POLL_NOT_FOUND, status: 404 }
+  }
+
+  // 対象リソース認可: 見えない投稿（非表示/非公開/停止著者）の poll には投票不可。
+  // 存在秘匿のため poll 自体が無いのと同じエラーに丸める。
+  if (!(await assertCanViewPost(userId, poll.postId))) {
     return { ok: false, error: ERR_POLL_NOT_FOUND, status: 404 }
   }
 

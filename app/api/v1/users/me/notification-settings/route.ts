@@ -23,7 +23,11 @@ export async function GET(request: NextRequest) {
   const auth = await requireBearerUser(request, { rejectGuest: true })
   if (!auth.ok) return auth.response
 
-  // 2. ビジネスロジック（読み取りのみ。レート制限は read で軽量）
+  // 2. レート制限（読み取り系のため軽量な read 制限）
+  const rl = await checkUserRateLimit(auth.userId, 'read')
+  if (!rl.success) return apiRateLimited(rl)
+
+  // 3. ビジネスロジック
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
     select: { notificationPreferences: true },

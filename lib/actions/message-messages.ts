@@ -71,6 +71,9 @@ export async function sendMessage(conversationId: string, content: string) {
   const sendMessageRl = await enforceUserRateLimit(userId, 'send_message')
   if (sendMessageRl) return actionError(sendMessageRl.error)
 
+  // count と実際の create（下部）が同一トランザクションでないため、同時送信では
+  // 日次上限をわずかに超過しうる（write skew）。実害は許容範囲のため Redis INCR 方式
+  // までは導入していない（許容できる上限超過については checkDailyPostLimit のコメント参照）。
   const today = getStartOfToday()
   const [participant, todayMessageCount, otherParticipant] = await Promise.all([
     prisma.conversationParticipant.findUnique({

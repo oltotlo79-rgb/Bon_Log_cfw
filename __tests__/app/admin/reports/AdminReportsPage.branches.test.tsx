@@ -19,6 +19,14 @@ vi.mock('@/lib/constants/report', () => ({
     { value: 'spam', label: 'スパム' },
     { value: 'harassment', label: '嫌がらせ' },
   ],
+  TARGET_TYPE_LABELS: {
+    post: '投稿',
+    comment: 'コメント',
+    event: 'イベント',
+    shop: '盆栽園',
+    review: 'レビュー',
+    user: 'ユーザー',
+  },
 }))
 vi.mock('next/link', () => ({
   __esModule: true,
@@ -157,5 +165,32 @@ describe('AdminReportsPage - branch coverage', async () => {
       limit: 20,
       cursor: undefined,
     })
+  })
+
+  it('displays auto_hidden status label without literal "undefined" in class name', async () => {
+    mockGetReports.mockResolvedValue({
+      reports: [makeReport({ status: 'auto_hidden' })],
+      total: 1,
+    } as never)
+
+    const result = await Page({ searchParams: Promise.resolve({}) })
+    const { container } = render(result)
+
+    expect(screen.getByText('自動非表示')).toBeInTheDocument()
+    const badge = screen.getByText('自動非表示')
+    expect(badge.className).not.toContain('undefined')
+    expect(container.innerHTML).not.toContain('undefinedundefined')
+  })
+
+  it('displays review targetType label without literal "undefined" in class name', async () => {
+    mockGetReports.mockResolvedValue({
+      reports: [makeReport({ targetType: 'review' })],
+      total: 1,
+    } as never)
+
+    const result = await Page({ searchParams: Promise.resolve({}) })
+    render(result)
+
+    expect(screen.getByText('レビュー')).toBeInTheDocument()
   })
 })

@@ -25,6 +25,14 @@ export const POPULAR_TAGS_DAYS = 7
 /** 盆栽園レビュー評価キャッシュの有効期間（秒）: 5分。レビュー集約は高コストのため。 */
 export const CACHE_TTL_SHOP_RATINGS = 300
 
+/**
+ * 農薬・肥料マスタ一覧キャッシュの有効期間（秒）: 1時間。
+ * 管理者のみが低頻度に更新する公開 SEO マスタデータのため長め TTL とし、
+ * 管理更新時は revalidateTag で即時反映する（`lib/actions/admin/pesticide-data.ts`）。
+ */
+export const CACHE_TTL_PESTICIDE_MASTER = 3600
+export const CACHE_TTL_FERTILIZER_MASTER = 3600
+
 /** トレンドジャンルのデフォルト取得件数 */
 export const TRENDING_GENRES_DEFAULT_LIMIT = 5
 

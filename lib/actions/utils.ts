@@ -20,7 +20,7 @@ import { getStartOfToday, getJstDateString } from '@/lib/utils'
 import { GUEST_EMAIL } from '@/lib/constants/guest'
 import { actionSuccess as actionSuccessHelper, actionError as actionErrorHelper, type ActionResult as ActionResultType } from '@/types/action-result'
 import logger from '@/lib/logger'
-import { REDIS_RELATIONS_TTL_SECONDS, ONE_SECOND_MS, MIDNIGHT_BUFFER_SECONDS, GUEST_USER_CACHE_REVALIDATE_SECONDS, MAX_RELATION_FETCH, RELATION_FETCH_WARN_THRESHOLD } from '@/lib/constants/limits'
+import { REDIS_RELATIONS_TTL_SECONDS, ONE_SECOND_MS, ONE_DAY_MS, MIDNIGHT_BUFFER_SECONDS, GUEST_USER_CACHE_REVALIDATE_SECONDS, MAX_RELATION_FETCH, RELATION_FETCH_WARN_THRESHOLD } from '@/lib/constants/limits'
 import { z } from 'zod'
 import { parseCachedWithSchema } from '@/lib/utils/json'
 
@@ -203,7 +203,7 @@ export async function checkDailyPostLimit(userId: string): Promise<ActionResult<
       // 新規キー: JST 翌日 00:00 + バッファで期限設定。
       // getStartOfToday() は「今日の JST 00:00」を UTC で返すため、
       // +24h で「明日の JST 00:00」= JST 日界のリセット時刻になる。
-      const jstTomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+      const jstTomorrow = new Date(today.getTime() + ONE_DAY_MS)
       const msUntilMidnight = jstTomorrow.getTime() - Date.now()
       const secondsUntilMidnight = Math.ceil(msUntilMidnight / ONE_SECOND_MS) + MIDNIGHT_BUFFER_SECONDS
       await redis.expire(redisKey, secondsUntilMidnight)

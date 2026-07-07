@@ -163,7 +163,7 @@ export function Map({ shops, center = MAP_DEFAULT_CENTER, zoom = MAP_DEFAULT_ZOO
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Leaflet は window 依存のためマウント検出に必要
     setIsMounted(true)
   }, [])
 

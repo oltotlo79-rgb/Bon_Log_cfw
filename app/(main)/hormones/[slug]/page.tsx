@@ -222,12 +222,16 @@ export default async function HormoneDetailPage({ params }: Props) {
               const effectLabel = TECHNIQUE_EFFECT_TYPE_LABELS[t.effectType] ?? t.effectType
               const effectColors = TECHNIQUE_EFFECT_TYPE_COLORS[t.effectType]
               const magnitudeLabel = TECHNIQUE_MAGNITUDE_LABELS[t.magnitude] ?? t.magnitude
+              // 色未定義（未知の effectType）でもバッジ自体は出す。表示可否は色ではなく effectType の有無で判断する
+              const badgeClassName = effectColors
+                ? `${effectColors.bg} ${effectColors.text} ${effectColors.darkBg}`
+                : 'bg-muted-foreground/20 text-muted-foreground'
               return (
                 <div key={t.id} className="rounded-md bg-muted/50 p-3 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{technique?.name ?? t.techniqueName}</span>
-                    {effectColors && (
-                      <span className={`${effectColors.bg} ${effectColors.text} ${effectColors.darkBg} px-2 py-0.5 text-xs rounded-full font-medium`}>
+                    {t.effectType && (
+                      <span className={`${badgeClassName} px-2 py-0.5 text-xs rounded-full font-medium`}>
                         {effectLabel}
                       </span>
                     )}

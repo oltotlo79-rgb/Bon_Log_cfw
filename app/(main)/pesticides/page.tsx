@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   alternates: { canonical: pageCanonical(ROUTE_PESTICIDES) },
 }
 
-export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。SSR で配信しデータは unstable_cache でキャッシュ。
+export const dynamic = 'force-dynamic' // (main) レイアウト/PremiumProvider が auth() を呼ぶため静的生成不可。マスタデータ自体は lib/actions 層でキャッシュされる。
 
 type Props = {
   searchParams: Promise<{

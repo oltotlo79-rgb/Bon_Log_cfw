@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { vi } from 'vitest'
+import { Prisma } from '@prisma/client'
 import { createMockPrismaClient, mockUser, mockShop, mockReview } from '../../utils/test-utils'
 
 // Prismaモック
@@ -427,6 +428,39 @@ describe('Review Actions', async () => {
 
       expect(result).toMatchObject({ error: '評価は1～5の間で選択してください' })
     })
+
+    it('事前チェック通過後に並行二重送信でP2002が発生した場合は「既にレビュー済み」を返す', async () => {
+      mockPrisma.bonsaiShop.findUnique.mockResolvedValue(mockShop)
+      mockPrisma.shopReview.findFirst.mockResolvedValue(null)
+      const uniqueErr = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.x',
+      })
+      mockPrisma.shopReview.create.mockRejectedValueOnce(uniqueErr)
+
+      const { createReview } = await import('@/lib/actions/review')
+      const formData = new FormData()
+      formData.append('shopId', 'test-shop-id')
+      formData.append('rating', '5')
+
+      const result = await createReview(formData)
+
+      expect(result).toMatchObject({ error: 'この盆栽園には既にレビューを投稿しています' })
+    })
+
+    it('P2002以外のエラーはそのままthrowされる', async () => {
+      mockPrisma.bonsaiShop.findUnique.mockResolvedValue(mockShop)
+      mockPrisma.shopReview.findFirst.mockResolvedValue(null)
+      const otherErr = new Error('DB connection lost')
+      mockPrisma.shopReview.create.mockRejectedValueOnce(otherErr)
+
+      const { createReview } = await import('@/lib/actions/review')
+      const formData = new FormData()
+      formData.append('shopId', 'test-shop-id')
+      formData.append('rating', '5')
+
+      await expect(createReview(formData)).rejects.toThrow('DB connection lost')
+    })
   })
 
   // ============================================================
@@ -505,6 +539,60 @@ describe('Review Actions', async () => {
       const result = await updateReview('review-id', formData)
 
       expect(result).toMatchObject({ error: '評価は1～5の間で選択してください' })
+    })
+
+    it('他レビュー/存在しないdeleteImageIdsを混入させても3枚上限をすり抜けられない', async () => {
+      // 既存3枚 + 新規1枚 + 無効なdeleteImageIds(自レビューに存在しないID)1件
+      // → 無効IDはフィルタされるため remainingImageCount は減らず、3+1=4枚 > 上限
+      mockPrisma.shopReview.findUnique.mockResolvedValue({
+        ...mockReview,
+        userId: mockUser.id,
+        shopId: 'test-shop-id',
+        images: [{ id: 'img-1' }, { id: 'img-2' }, { id: 'img-3' }],
+      })
+
+      const { updateReview } = await import('@/lib/actions/review')
+      const formData = new FormData()
+      formData.append('rating', '4')
+      // 他レビュー由来 / 存在しないID（自レビューの images に含まれない）
+      formData.append('deleteImageIds', 'other-review-image-id')
+      formData.append('imageUrls', 'url-new')
+
+      const result = await updateReview('review-id', formData)
+
+      expect(result).toMatchObject({ error: '画像は3枚までです' })
+      // 不正なIDでの削除は実行されない
+      expect(mockPrisma.shopReviewImage.deleteMany).not.toHaveBeenCalled()
+    })
+
+    it('正当なdeleteImageIds（自レビューに実在するID）は従来通り削除に反映される', async () => {
+      mockPrisma.shopReview.findUnique.mockResolvedValue({
+        ...mockReview,
+        userId: mockUser.id,
+        shopId: 'test-shop-id',
+        images: [{ id: 'img-1' }, { id: 'img-2' }, { id: 'img-3' }],
+      })
+
+      const { updateReview } = await import('@/lib/actions/review')
+      const formData = new FormData()
+      formData.append('rating', '4')
+      // 正当な自レビュー画像ID + 無効なID混在
+      formData.append('deleteImageIds', 'img-1')
+      formData.append('deleteImageIds', 'other-review-image-id')
+      formData.append('imageUrls', 'url-new')
+
+      const result = await updateReview('review-id', formData)
+
+      // 3 - 1(有効な削除) + 1(新規) = 3枚 → 上限内
+      expect(result).toEqual({ success: true })
+      expect(mockPrisma.shopReviewImage.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { in: ['img-1'] },
+            reviewId: 'review-id',
+          }),
+        })
+      )
     })
   })
 })

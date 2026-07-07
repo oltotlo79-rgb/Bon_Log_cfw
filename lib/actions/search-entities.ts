@@ -90,9 +90,16 @@ export async function searchShops(
     const shops = preserveOrder(shopIds, fetchedShops)
     const shopsWithRating = await enrichShopsWithRatings(shops)
 
+    // trgm は類似度順で keyset pagination が成立しないため cursor を発行しない
+    // （発行すると次ページ要求で常に同じ1ページ目が返り無限ループする）。
     return {
       shops: shopsWithRating,
-      nextCursor: shops.length === safeLimit ? shops[shops.length - 1]?.id : undefined,
+      nextCursor:
+        searchMode === 'trgm'
+          ? undefined
+          : shops.length === safeLimit
+            ? shops[shops.length - 1]?.id
+            : undefined,
     }
   }
 
@@ -246,9 +253,16 @@ export async function searchEvents(
     // 元の順序を維持
     const events = preserveOrder(eventIds, fetchedEvents)
 
+    // trgm は類似度順で keyset pagination が成立しないため cursor を発行しない
+    // （発行すると次ページ要求で常に同じ1ページ目が返り無限ループする）。
     return {
       events,
-      nextCursor: events.length === safeLimit ? events[events.length - 1]?.id : undefined,
+      nextCursor:
+        searchMode === 'trgm'
+          ? undefined
+          : events.length === safeLimit
+            ? events[events.length - 1]?.id
+            : undefined,
     }
   }
 
@@ -345,13 +359,20 @@ export async function searchBonsais(
     // 元の順序を維持
     const bonsais = preserveOrder(bonsaiIds, fetchedBonsais)
 
+    // trgm は類似度順で keyset pagination が成立しないため cursor を発行しない
+    // （発行すると次ページ要求で常に同じ1ページ目が返り無限ループする）。
     return {
       bonsais: bonsais.map((b: typeof bonsais[number]) => ({
         ...b,
         recordCount: b._count.records,
         postCount: b._count.posts,
       })),
-      nextCursor: bonsais.length === safeLimit ? bonsais[bonsais.length - 1]?.id : undefined,
+      nextCursor:
+        searchMode === 'trgm'
+          ? undefined
+          : bonsais.length === safeLimit
+            ? bonsais[bonsais.length - 1]?.id
+            : undefined,
     }
   }
 

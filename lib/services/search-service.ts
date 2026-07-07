@@ -107,9 +107,16 @@ export async function fetchSearchPosts(
       ? await getPostInteractionSets(viewerId, posts.map((p) => p.id))
       : { likedSet: new Set<string>(), bookmarkedSet: new Set<string>() }
 
+    // trgm は類似度順で keyset pagination が成立しないため cursor を発行しない
+    // （発行すると次ページ要求で常に同じ1ページ目が返り無限ループする）。
     return {
       posts: posts.map((post) => formatPostForClient(post, likedSet, bookmarkedSet)),
-      nextCursor: posts.length === safeLimit ? posts[posts.length - 1]?.id : undefined,
+      nextCursor:
+        searchMode === 'trgm'
+          ? undefined
+          : posts.length === safeLimit
+            ? posts[posts.length - 1]?.id
+            : undefined,
     }
   }
 
@@ -220,6 +227,8 @@ export async function fetchSearchUsers(
 
     const users = preserveOrder(userIds, fetchedUsers)
 
+    // trgm は類似度順で keyset pagination が成立しないため cursor を発行しない
+    // （発行すると次ページ要求で常に同じ1ページ目が返り無限ループする）。
     return {
       users: users.map((user) => ({
         id: user.id,
@@ -229,7 +238,12 @@ export async function fetchSearchUsers(
         followersCount: user._count.followers,
         followingCount: user._count.following,
       })),
-      nextCursor: users.length === safeLimit ? users[users.length - 1]?.id : undefined,
+      nextCursor:
+        searchMode === 'trgm'
+          ? undefined
+          : users.length === safeLimit
+            ? users[users.length - 1]?.id
+            : undefined,
     }
   }
 

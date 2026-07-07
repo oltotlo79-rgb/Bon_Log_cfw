@@ -38,6 +38,8 @@ export const CACHE_TAGS = {
   POPULAR_TAGS: 'popular-tags',
   SHOP_RATINGS: 'shop-ratings',
   ADMIN_STATS: 'admin-stats',
+  PESTICIDE_MASTER: 'pesticide-master',
+  FERTILIZER_MASTER: 'fertilizer-master',
 } as const
 
 /**
@@ -225,4 +227,9 @@ export const getCachedShopRatings = unstable_cache(
 /** 盆栽園レビュー評価キャッシュを即時無効化する。レビュー作成/更新/削除時に呼ぶ。 */
 export function revalidateShopRatingsCache() {
   revalidateTag(CACHE_TAGS.SHOP_RATINGS, { expire: 0 })
+}
+
+/** 農薬マスタキャッシュを即時無効化する。管理者による農薬 作成/更新/削除時に呼ぶ。 */
+export function revalidatePesticideMasterCache() {
+  revalidateTag(CACHE_TAGS.PESTICIDE_MASTER, { expire: 0 })
 }

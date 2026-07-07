@@ -2,7 +2,7 @@
  * メールアドレス確認系 Server Action。
  *
  * - 検証トークンは SHA-256 ハッシュで保存、1 日 TTL
- * - 再送はレート制限 (1時間 3 回 / IP) で fail-closed
+ * - 検証はレート制限 (1時間 10 回 / IP)、再送はレート制限 (1時間 3 回 / IP) で fail-closed
  * - 列挙攻撃対策: ユーザー不在 / 確認済みでも success を返す
  *
  * 互換のため `@/lib/actions/auth` 経由でも参照可能 (re-export)。
@@ -17,6 +17,7 @@ import { prisma } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   MAX_RESEND_VERIFICATION_ATTEMPTS,
+  MAX_VERIFY_EMAIL_TOKEN_ATTEMPTS,
   MIN_TOKEN_LENGTH,
   ONE_HOUR_MS,
 } from '@/lib/constants/limits'
@@ -27,6 +28,7 @@ import {
   ERR_TOKEN_EXPIRED,
   ERR_TOKEN_EXPIRED_OR_INVALID,
 } from '@/lib/constants/errors/auth'
+import { ERR_RATE_LIMIT_OPERATION } from '@/lib/constants/errors'
 import { getClientIp, actionSuccess, actionError } from '@/lib/actions/utils'
 import { normalizedEmailSchema } from '@/lib/actions/schemas/common'
 import { resendVerificationEmailCore } from '@/lib/services/email-verify-core'
@@ -35,15 +37,31 @@ const resendVerificationSchema = z.object({
   email: normalizedEmailSchema,
 })
 
+const verifyEmailTokenSchema = z.string().min(MIN_TOKEN_LENGTH, ERR_INVALID_TOKEN)
+
 /**
  * メール確認トークンを検証し、ユーザーの emailVerified を更新する。
+ *
+ * 認証なしで呼べるエンドポイントのため、トークン総当たりを防ぐ IP レート制限を課す。
  */
 export async function verifyEmailToken(token: string) {
-  if (!token || typeof token !== 'string' || token.length < MIN_TOKEN_LENGTH) {
+  const parsed = verifyEmailTokenSchema.safeParse(token)
+  if (!parsed.success) {
     return actionError(ERR_INVALID_TOKEN)
   }
+  const validToken = parsed.data
 
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+  const ip = await getClientIp()
+  const rateLimitResult = await rateLimit(`verify-token:${ip}`, {
+    windowMs: ONE_HOUR_MS,
+    maxRequests: MAX_VERIFY_EMAIL_TOKEN_ATTEMPTS,
+    failOpen: false,
+  })
+  if (!rateLimitResult.success) {
+    return actionError(ERR_RATE_LIMIT_OPERATION)
+  }
+
+  const hashedToken = crypto.createHash('sha256').update(validToken).digest('hex')
 
   const record = await prisma.emailVerificationToken.findUnique({
     where: { token: hashedToken },

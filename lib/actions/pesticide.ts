@@ -11,11 +11,13 @@
 import 'server-only'
 
 import { z } from 'zod'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import { DiseasePestCategory, type Prisma } from '@prisma/client'
 import { normalizePesticideType } from '@/lib/utils/pesticide'
-import { MAX_SEARCH_QUERY_LENGTH, MAX_PESTICIDE_LIST_LIMIT, MAX_SLUG_LENGTH } from '@/lib/constants/limits'
+import { CACHE_TAGS } from '@/lib/cache'
+import { MAX_SEARCH_QUERY_LENGTH, MAX_PESTICIDE_LIST_LIMIT, MAX_SLUG_LENGTH, CACHE_TTL_PESTICIDE_MASTER } from '@/lib/constants/limits'
 
 // ── 入力スキーマ ──────────────────────────────────────────────────
 const slugSchema = z.string().min(1).max(MAX_SLUG_LENGTH)
@@ -373,38 +375,54 @@ export async function getActiveIngredientBySlug(slug: string) {
 
 // ── 展着剤 ────────────────────────────────────────────────────────
 
-export async function getSpreaderTypes() {
-  if (shouldSkipBuildTimeDbAccess()) return { spreaders: [] }
-  const spreaders = await prisma.spreaderType.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    include: {
-      pesticides: {
-        include: {
-          pesticide: { select: { id: true, slug: true, name: true } },
+const getSpreaderTypesCached = unstable_cache(
+  async () => {
+    if (shouldSkipBuildTimeDbAccess()) return { spreaders: [] }
+    const spreaders = await prisma.spreaderType.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: {
+        pesticides: {
+          include: {
+            pesticide: { select: { id: true, slug: true, name: true } },
+          },
         },
       },
-    },
-    take: MAX_PESTICIDE_LIST_LIMIT,
-  })
+      take: MAX_PESTICIDE_LIST_LIMIT,
+    })
 
-  return { spreaders }
+    return { spreaders }
+  },
+  ['pesticide-spreader-types'],
+  { revalidate: CACHE_TTL_PESTICIDE_MASTER, tags: [CACHE_TAGS.PESTICIDE_MASTER] }
+)
+
+export async function getSpreaderTypes() {
+  return getSpreaderTypesCached()
 }
 
 /** 展着剤商材（spreaderTypes を1つ以上持つ薬剤）の一覧。個別ページは /pesticides/products/[slug] */
-export async function getSpreaderProducts() {
-  if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
-  const pesticides = await prisma.pesticide.findMany({
-    where: { spreaderTypes: { some: {} } },
-    orderBy: { name: 'asc' },
-    include: {
-      formulationType: { select: { name: true } },
-      spreaderTypes: {
-        include: { spreaderType: true },
+const getSpreaderProductsCached = unstable_cache(
+  async () => {
+    if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
+    const pesticides = await prisma.pesticide.findMany({
+      where: { spreaderTypes: { some: {} } },
+      orderBy: { name: 'asc' },
+      include: {
+        formulationType: { select: { name: true } },
+        spreaderTypes: {
+          include: { spreaderType: true },
+        },
       },
-    },
-    take: MAX_PESTICIDE_LIST_LIMIT,
-  })
-  return { pesticides }
+      take: MAX_PESTICIDE_LIST_LIMIT,
+    })
+    return { pesticides }
+  },
+  ['pesticide-spreader-products'],
+  { revalidate: CACHE_TTL_PESTICIDE_MASTER, tags: [CACHE_TAGS.PESTICIDE_MASTER] }
+)
+
+export async function getSpreaderProducts() {
+  return getSpreaderProductsCached()
 }
 
 /**
@@ -438,38 +456,77 @@ export async function getSpreaderTypeBySlug(slug: string) {
 
 // ── 混用チェック ─────────────────────────────────────────────────
 
-export async function getPesticideIncompatibilities() {
-  if (shouldSkipBuildTimeDbAccess()) return { incompatibilities: [] }
-  const incompatibilities = await prisma.pesticideIncompatibility.findMany({
-    select: {
-      pesticideId: true,
-      incompatibleWithId: true,
-    },
-  })
+const getPesticideIncompatibilitiesCached = unstable_cache(
+  async () => {
+    if (shouldSkipBuildTimeDbAccess()) return { incompatibilities: [] }
+    const incompatibilities = await prisma.pesticideIncompatibility.findMany({
+      select: {
+        pesticideId: true,
+        incompatibleWithId: true,
+      },
+    })
 
-  return { incompatibilities }
+    return { incompatibilities }
+  },
+  ['pesticide-incompatibilities'],
+  { revalidate: CACHE_TTL_PESTICIDE_MASTER, tags: [CACHE_TAGS.PESTICIDE_MASTER] }
+)
+
+export async function getPesticideIncompatibilities() {
+  return getPesticideIncompatibilitiesCached()
 }
 
-export async function getPesticideOptions() {
-  if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
-  const pesticides = await prisma.pesticide.findMany({
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      pesticideType: true,
-    },
-    orderBy: { name: 'asc' },
-    take: MAX_PESTICIDE_LIST_LIMIT,
-  })
+const getPesticideOptionsCached = unstable_cache(
+  async () => {
+    if (shouldSkipBuildTimeDbAccess()) return { pesticides: [] }
+    const pesticides = await prisma.pesticide.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        pesticideType: true,
+      },
+      orderBy: { name: 'asc' },
+      take: MAX_PESTICIDE_LIST_LIMIT,
+    })
 
-  return { pesticides }
+    return { pesticides }
+  },
+  ['pesticide-options'],
+  { revalidate: CACHE_TTL_PESTICIDE_MASTER, tags: [CACHE_TAGS.PESTICIDE_MASTER] }
+)
+
+export async function getPesticideOptions() {
+  return getPesticideOptionsCached()
 }
 
 // ── コラム ────────────────────────────────────────────────────────
 
+function getColumnsCachedImpl(category: string | undefined) {
+  return unstable_cache(
+    async () => {
+      if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
+      const where: Prisma.PesticideColumnWhereInput = {
+        publishedAt: { not: null },
+      }
+      if (category) {
+        where.category = category
+      }
+
+      const columns = await prisma.pesticideColumn.findMany({
+        where,
+        orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
+        take: MAX_PESTICIDE_LIST_LIMIT,
+      })
+
+      return { columns }
+    },
+    ['pesticide-columns', category ?? 'all'],
+    { revalidate: CACHE_TTL_PESTICIDE_MASTER, tags: [CACHE_TAGS.PESTICIDE_MASTER] }
+  )
+}
+
 export async function getColumns(params?: { category?: string }) {
-  if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
   let category: string | undefined
   if (params?.category !== undefined) {
     const parsed = codeSchema.safeParse(params.category)
@@ -477,20 +534,7 @@ export async function getColumns(params?: { category?: string }) {
     category = parsed.data
   }
 
-  const where: Prisma.PesticideColumnWhereInput = {
-    publishedAt: { not: null },
-  }
-  if (category) {
-    where.category = category
-  }
-
-  const columns = await prisma.pesticideColumn.findMany({
-    where,
-    orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
-    take: MAX_PESTICIDE_LIST_LIMIT,
-  })
-
-  return { columns }
+  return getColumnsCachedImpl(category)()
 }
 
 export async function getColumnBySlug(slug: string) {
@@ -503,17 +547,25 @@ export async function getColumnBySlug(slug: string) {
 
 // ── 剤型 ──────────────────────────────────────────────────────────
 
-export async function getFormulationTypes() {
-  if (shouldSkipBuildTimeDbAccess()) return { formulations: [] }
-  const formulations = await prisma.formulationType.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    include: {
-      _count: { select: { pesticides: true } },
-    },
-    take: MAX_PESTICIDE_LIST_LIMIT,
-  })
+const getFormulationTypesCached = unstable_cache(
+  async () => {
+    if (shouldSkipBuildTimeDbAccess()) return { formulations: [] }
+    const formulations = await prisma.formulationType.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: {
+        _count: { select: { pesticides: true } },
+      },
+      take: MAX_PESTICIDE_LIST_LIMIT,
+    })
 
-  return { formulations }
+    return { formulations }
+  },
+  ['pesticide-formulation-types'],
+  { revalidate: CACHE_TTL_PESTICIDE_MASTER, tags: [CACHE_TAGS.PESTICIDE_MASTER] }
+)
+
+export async function getFormulationTypes() {
+  return getFormulationTypesCached()
 }
 
 export async function getFormulationTypeByCode(code: string) {

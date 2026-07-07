@@ -64,7 +64,7 @@ export function PostEditForm({ genres, limits, editData }: PostEditFormProps) {
     if (editData.media.length > 0) {
       setMediaFiles(editData.media)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 初回マウント時のみ既存メディアで初期化
   }, [])
 
   const maxChars = limits.maxPostLength

@@ -7,6 +7,14 @@ vi.mock('@/lib/constants/report', () => ({
     { value: 'spam', label: 'スパム' },
     { value: 'harassment', label: '嫌がらせ' },
   ],
+  TARGET_TYPE_LABELS: {
+    post: '投稿',
+    comment: 'コメント',
+    event: 'イベント',
+    shop: '盆栽園',
+    review: 'レビュー',
+    user: 'ユーザー',
+  },
 }))
 vi.mock('next/link', () => ({ __esModule: true, default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a> }))
 vi.mock('next/image', () => ({ __esModule: true, default: function MockImage(_props: Record<string, unknown>) { return <div data-testid="next-image" /> } }))

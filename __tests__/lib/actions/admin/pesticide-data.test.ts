@@ -553,6 +553,20 @@ describe('農薬データ管理アクション', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/pesticide-data')
     })
 
+    it('作成後にrevalidatePesticideMasterCache経由でrevalidateTagが呼ばれる（農薬マスタキャッシュ無効化）', async () => {
+      getPesticide().create.mockResolvedValue(mockPesticide)
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+      mockPrisma.adminLog.create.mockResolvedValue({ id: 'l1' })
+
+      const { revalidateTag } = await import('next/cache')
+      const { CACHE_TAGS } = await import('@/lib/cache')
+      const { createPesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await createPesticide(validData)
+
+      expect(result.success).toBe(true)
+      expect(revalidateTag).toHaveBeenCalledWith(CACHE_TAGS.PESTICIDE_MASTER, { expire: 0 })
+    })
+
     it('名前の前後空白がトリムされる', async () => {
       getPesticide().create.mockResolvedValue(mockPesticide)
       getHistory().create.mockResolvedValue({ id: 'h1' })
@@ -723,6 +737,21 @@ describe('農薬データ管理アクション', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/pesticide-data')
     })
 
+    it('更新後にrevalidatePesticideMasterCache経由でrevalidateTagが呼ばれる（農薬マスタキャッシュ無効化）', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getPesticide().update.mockResolvedValue(mockPesticide)
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+      mockPrisma.adminLog.create.mockResolvedValue({ id: 'l1' })
+
+      const { revalidateTag } = await import('next/cache')
+      const { CACHE_TAGS } = await import('@/lib/cache')
+      const { updatePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await updatePesticide('pesticide-1', updateData)
+
+      expect(result.success).toBe(true)
+      expect(revalidateTag).toHaveBeenCalledWith(CACHE_TAGS.PESTICIDE_MASTER, { expire: 0 })
+    })
+
     it('registrationNumberをnullに設定できる', async () => {
       getPesticide().findUnique.mockResolvedValue(mockPesticide)
       getPesticide().update.mockResolvedValue({ ...mockPesticide, registrationNumber: null })
@@ -844,6 +873,19 @@ describe('農薬データ管理アクション', () => {
       await deletePesticide('pesticide-1')
 
       expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/pesticide-data')
+    })
+
+    it('削除後にrevalidatePesticideMasterCache経由でrevalidateTagが呼ばれる（農薬マスタキャッシュ無効化）', async () => {
+      getPesticide().findUnique.mockResolvedValue(mockPesticide)
+      getHistory().create.mockResolvedValue({ id: 'h1' })
+
+      const { revalidateTag } = await import('next/cache')
+      const { CACHE_TAGS } = await import('@/lib/cache')
+      const { deletePesticide } = await import('@/lib/actions/admin/pesticide-data')
+      const result = await deletePesticide('pesticide-1')
+
+      expect(result.success).toBe(true)
+      expect(revalidateTag).toHaveBeenCalledWith(CACHE_TAGS.PESTICIDE_MASTER, { expire: 0 })
     })
   })
 

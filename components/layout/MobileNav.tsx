@@ -329,8 +329,7 @@ export function MobileNav({ userId, isPremium, isAdmin: _isAdmin }: MobileNavPro
   }, [showMoreMenu])
 
   useEffect(() => {
-    // ナビゲーション遷移時にメニューを閉じる（pathname 変化検知）
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- pathname 変化時にメニューを閉じるための状態同期
     setShowMoreMenu((prev) => (prev ? false : prev))
     setExpandedSection((prev) => (prev !== null ? null : prev))
   }, [pathname])

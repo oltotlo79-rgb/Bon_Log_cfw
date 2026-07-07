@@ -82,7 +82,7 @@ export function SearchBar({ defaultValue = '', onSearch, placeholder = '検索..
 
   // 履歴は localStorage 由来のためマウント後にのみ読み込む（SSR 時 hydration mismatch 回避）
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 由来の履歴を hydration mismatch 回避のためマウント後に読込
     setRecentSearches(getRecentSearches())
   }, [])
 
@@ -90,7 +90,7 @@ export function SearchBar({ defaultValue = '', onSearch, placeholder = '検索..
   useEffect(() => {
     const q = searchParams.get('q')
     if (q) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 戻る/進むで URL の q が変化した際に入力値へ追従
       setQuery(q)
     }
   }, [searchParams])

@@ -62,7 +62,7 @@ export function ScheduledPostForm({ genres, limits, editData }: ScheduledPostFor
     if (editData?.media && editData.media.length > 0) {
       setMediaFiles(editData.media)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 初回マウント時のみ editData の既存メディアで初期化
   }, [])
 
   const maxChars = limits.maxPostLength

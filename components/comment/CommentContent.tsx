@@ -86,6 +86,7 @@ export function CommentContent({ content, media, mentionUsers = new Map() }: Com
                   src={m.url}
                   alt="コメント画像"
                   fill
+                  sizes={media.length === 1 ? '(max-width: 768px) 100vw, 600px' : '(max-width: 768px) 50vw, 300px'}
                   className="object-cover"
                 />
               )}

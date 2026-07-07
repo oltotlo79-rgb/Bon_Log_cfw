@@ -9,7 +9,7 @@
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import logger from '@/lib/logger'
-import { requireActiveNonGuestUser, actionSuccess, actionError } from '@/lib/actions/utils'
+import { requireActiveNonGuestUser, actionSuccess, actionError, enforceUserRateLimit } from '@/lib/actions/utils'
 import { ERR_OPERATION_FAILED } from '@/lib/constants/errors'
 import { ROUTE_FEED } from '@/lib/constants/routes'
 
@@ -22,6 +22,10 @@ export async function completeOnboarding() {
   const authResult = await requireActiveNonGuestUser()
   if ('error' in authResult) return actionError(authResult.error)
   const userId = authResult.userId
+
+  // 2. レート制限（入力を持たない Action のため Zod は不要。書き込み系の乱用抑止として軽量制限のみ）
+  const rl = await enforceUserRateLimit(userId, 'engagement')
+  if (rl) return actionError(rl.error)
 
   try {
     await prisma.user.update({

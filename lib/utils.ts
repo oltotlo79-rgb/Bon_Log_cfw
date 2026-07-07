@@ -52,15 +52,24 @@ export function getJstDateString(): string {
 }
 
 /**
- * 指定日の23時59分59秒999ミリ秒のDateを返す。
+ * 指定日の JST 暦日 23:59:59.999 に対応する Date（UTC 表現）を返す。
  * 日付範囲検索の終端等で使用。
+ *
+ * Why JST 固定: getStartOfToday() と同じ理由でサーバー TZ（コンテナは UTC）に
+ * 依存しない実装とする。setHours 等のローカル TZ 依存 API は使わず、
+ * Date.UTC ベースで JST 暦日の終端を算出する。
  *
  * @param date - 基準日（省略時は今日）
  */
 export function getEndOfDay(date?: Date): Date {
-  const d = date ? new Date(date) : new Date()
-  d.setHours(23, 59, 59, 999)
-  return d
+  const base = date ?? new Date()
+  const jstMs = base.getTime() + JST_OFFSET_MS
+  const jstDate = new Date(jstMs)
+  const jstYear = jstDate.getUTCFullYear()
+  const jstMonth = jstDate.getUTCMonth()
+  const jstDay = jstDate.getUTCDate()
+  // JST 23:59:59.999 を UTC に変換して返す
+  return new Date(Date.UTC(jstYear, jstMonth, jstDay, 23, 59, 59, 999) - JST_OFFSET_MS)
 }
 
 /**

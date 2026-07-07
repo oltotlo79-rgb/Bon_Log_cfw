@@ -60,7 +60,7 @@ export function CommentList({
 
   // router.refresh() で initialComments / initialNextCursor が変化したとき内部状態を同期
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- router.refresh() による props 変化を内部状態へ同期
     setComments(initialComments)
     setNextCursor(initialNextCursor)
   }, [initialComments, initialNextCursor])

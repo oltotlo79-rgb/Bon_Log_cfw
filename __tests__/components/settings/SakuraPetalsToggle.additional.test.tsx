@@ -36,6 +36,7 @@ vi.mock('@/components/ui/select', () => {
         <div
           data-testid={`select-item-${value}`}
           role="option"
+          aria-selected={false}
           onClick={() => onValueChange(value)}
         >
           {children}

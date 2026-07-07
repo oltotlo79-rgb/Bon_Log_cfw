@@ -30,8 +30,16 @@ vi.mock('@/lib/logger', () => ({
   default: { error: (...args: unknown[]) => mockLoggerError(...args) },
 }))
 
+// 対象リソース認可（見えない投稿の poll には投票不可）。
+// デフォルトは可視（true）にし、非可視ケースのみ個別テストで false を返す。
+const mockAssertCanViewPost = vi.fn().mockResolvedValue(true)
+vi.mock('@/lib/services/post-visibility', () => ({
+  assertCanViewPost: (...args: unknown[]) => mockAssertCanViewPost(...args),
+}))
+
 const USER_ID = 'user-001'
 const POLL_ID = 'poll-001'
+const POST_ID = 'post-001'
 const OPTION_A = 'option-a'
 const OPTION_B = 'option-b'
 
@@ -40,6 +48,7 @@ const PAST_DATE = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
 const makePoll = (overrides: Record<string, unknown> = {}) => ({
   id: POLL_ID,
+  postId: POST_ID,
   expiresAt: FUTURE_DATE,
   options: [
     { id: OPTION_A, text: '選択肢A', _count: { votes: 0 } },
@@ -52,6 +61,34 @@ const makePoll = (overrides: Record<string, unknown> = {}) => ({
 describe('castVote', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAssertCanViewPost.mockResolvedValue(true)
+  })
+
+  it('非公開/フォロー限定/ブロック著者などで見えない投稿のpollは404 POLL_NOT_FOUNDを返す', async () => {
+    mockPollFindUnique.mockResolvedValueOnce(makePoll())
+    mockAssertCanViewPost.mockResolvedValueOnce(false)
+
+    const { castVote } = await import('@/lib/services/poll-vote-service')
+    const result = await castVote(POLL_ID, OPTION_A, USER_ID)
+
+    expect(result).toMatchObject({ ok: false, status: 404 })
+    if (result.ok) throw new Error('ok=true')
+    const { ERR_POLL_NOT_FOUND } = await import('@/lib/constants/errors')
+    expect(result.error).toBe(ERR_POLL_NOT_FOUND)
+    // 可視性チェックで弾かれた場合、期限/選択肢チェックまで進まない
+    expect(mockPollVoteFindUnique).not.toHaveBeenCalled()
+  })
+
+  it('assertCanViewPostにuserIdとpoll.postIdが渡される', async () => {
+    mockPollFindUnique.mockResolvedValueOnce(makePoll())
+    mockPollVoteFindUnique.mockResolvedValueOnce(null)
+    mockPollVoteCreate.mockResolvedValueOnce({ pollId: POLL_ID, optionId: OPTION_A, userId: USER_ID })
+    mockPollFindUnique.mockResolvedValueOnce(makePoll())
+
+    const { castVote } = await import('@/lib/services/poll-vote-service')
+    await castVote(POLL_ID, OPTION_A, USER_ID)
+
+    expect(mockAssertCanViewPost).toHaveBeenCalledWith(USER_ID, POST_ID)
   })
 
   it('アンケートが存在しない場合は 404 POLL_NOT_FOUND を返す', async () => {

@@ -162,6 +162,9 @@ export async function getFollowStatus(targetUserId: string) {
   if ('error' in authResult) return { following: false }
   const userId = authResult.userId
 
+  const parsed = userIdSchema.safeParse(targetUserId)
+  if (!parsed.success) return { following: false }
+
   const rl = await enforceUserRateLimit(userId, 'read')
   if (rl) {
     return { following: false }
@@ -171,7 +174,7 @@ export async function getFollowStatus(targetUserId: string) {
     where: {
       followerId_followingId: {
         followerId: userId,
-        followingId: targetUserId,
+        followingId: parsed.data,
       },
     },
   })

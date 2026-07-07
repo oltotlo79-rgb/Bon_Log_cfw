@@ -10,15 +10,18 @@
 import 'server-only'
 
 import { z } from 'zod'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { shouldSkipBuildTimeDbAccess } from '@/lib/build/db-availability'
 import { NutrientCategory, TreeCategory, type Prisma } from '@prisma/client'
+import { CACHE_TAGS } from '@/lib/cache'
 import {
   MAX_NUTRIENT_LIST_LIMIT,
   MAX_FERTILIZER_LIST_LIMIT,
   MAX_TREE_SPECIES_LIMIT,
   MAX_FERTILIZER_COLUMN_LIMIT,
   MAX_SLUG_LENGTH,
+  CACHE_TTL_FERTILIZER_MASTER,
 } from '@/lib/constants/limits'
 
 // ── 入力スキーマ ──────────────────────────────────────────────────
@@ -29,8 +32,24 @@ const treeCategorySchema = z.nativeEnum(TreeCategory)
 
 // ── 栄養素 ────────────────────────────────────────────────────────
 
+function getNutrientsCachedImpl(category: NutrientCategory | undefined) {
+  return unstable_cache(
+    async () => {
+      if (shouldSkipBuildTimeDbAccess()) return { nutrients: [] }
+      const nutrients = await prisma.fertilizerNutrient.findMany({
+        where: category ? { category } : undefined,
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        take: MAX_NUTRIENT_LIST_LIMIT,
+      })
+
+      return { nutrients }
+    },
+    ['fertilizer-nutrients', category ?? 'all'],
+    { revalidate: CACHE_TTL_FERTILIZER_MASTER, tags: [CACHE_TAGS.FERTILIZER_MASTER] }
+  )
+}
+
 export async function getNutrients(params?: { category?: NutrientCategory }) {
-  if (shouldSkipBuildTimeDbAccess()) return { nutrients: [] }
   // 境界検証: category が渡されていれば Prisma enum と一致することを確認
   let category: NutrientCategory | undefined
   if (params?.category !== undefined) {
@@ -39,13 +58,7 @@ export async function getNutrients(params?: { category?: NutrientCategory }) {
     category = parsed.data
   }
 
-  const nutrients = await prisma.fertilizerNutrient.findMany({
-    where: category ? { category } : undefined,
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    take: MAX_NUTRIENT_LIST_LIMIT,
-  })
-
-  return { nutrients }
+  return getNutrientsCachedImpl(category)()
 }
 
 export async function getNutrientBySlug(slug: string) {
@@ -58,20 +71,47 @@ export async function getNutrientBySlug(slug: string) {
 
 // ── 肥料カテゴリ ──────────────────────────────────────────────────
 
-export async function getFertilizerCategories() {
-  if (shouldSkipBuildTimeDbAccess()) return { categories: [] }
-  const categories = await prisma.fertilizerCategory.findMany({
-    orderBy: { sortOrder: 'asc' },
-    take: MAX_FERTILIZER_LIST_LIMIT,
-  })
+const getFertilizerCategoriesCached = unstable_cache(
+  async () => {
+    if (shouldSkipBuildTimeDbAccess()) return { categories: [] }
+    const categories = await prisma.fertilizerCategory.findMany({
+      orderBy: { sortOrder: 'asc' },
+      take: MAX_FERTILIZER_LIST_LIMIT,
+    })
 
-  return { categories }
+    return { categories }
+  },
+  ['fertilizer-categories'],
+  { revalidate: CACHE_TTL_FERTILIZER_MASTER, tags: [CACHE_TAGS.FERTILIZER_MASTER] }
+)
+
+export async function getFertilizerCategories() {
+  return getFertilizerCategoriesCached()
 }
 
 // ── 樹種 ──────────────────────────────────────────────────────────
 
+function getTreeSpeciesCachedImpl(category: TreeCategory | undefined) {
+  return unstable_cache(
+    async () => {
+      if (shouldSkipBuildTimeDbAccess()) return { treeSpecies: [] }
+      const treeSpecies = await prisma.treeSpecies.findMany({
+        where: category ? { category } : undefined,
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        include: {
+          _count: { select: { plans: true } },
+        },
+        take: MAX_TREE_SPECIES_LIMIT,
+      })
+
+      return { treeSpecies }
+    },
+    ['tree-species', category ?? 'all'],
+    { revalidate: CACHE_TTL_FERTILIZER_MASTER, tags: [CACHE_TAGS.FERTILIZER_MASTER] }
+  )
+}
+
 export async function getTreeSpecies(params?: { category?: TreeCategory }) {
-  if (shouldSkipBuildTimeDbAccess()) return { treeSpecies: [] }
   let category: TreeCategory | undefined
   if (params?.category !== undefined) {
     const parsed = treeCategorySchema.safeParse(params.category)
@@ -79,16 +119,7 @@ export async function getTreeSpecies(params?: { category?: TreeCategory }) {
     category = parsed.data
   }
 
-  const treeSpecies = await prisma.treeSpecies.findMany({
-    where: category ? { category } : undefined,
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    include: {
-      _count: { select: { plans: true } },
-    },
-    take: MAX_TREE_SPECIES_LIMIT,
-  })
-
-  return { treeSpecies }
+  return getTreeSpeciesCachedImpl(category)()
 }
 
 // ── 施肥スケジュール ──────────────────────────────────────────────
@@ -108,8 +139,31 @@ export async function getFertilizationSchedule(treeSpeciesSlug: string) {
 
 // ── コラム ────────────────────────────────────────────────────────
 
+function getFertilizerColumnsCachedImpl(category: string | undefined) {
+  return unstable_cache(
+    async () => {
+      if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
+      const where: Prisma.FertilizerColumnWhereInput = {
+        publishedAt: { not: null },
+      }
+      if (category) {
+        where.category = category
+      }
+
+      const columns = await prisma.fertilizerColumn.findMany({
+        where,
+        orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+        take: MAX_FERTILIZER_COLUMN_LIMIT,
+      })
+
+      return { columns }
+    },
+    ['fertilizer-columns', category ?? 'all'],
+    { revalidate: CACHE_TTL_FERTILIZER_MASTER, tags: [CACHE_TAGS.FERTILIZER_MASTER] }
+  )
+}
+
 export async function getFertilizerColumns(params?: { category?: string }) {
-  if (shouldSkipBuildTimeDbAccess()) return { columns: [] }
   let category: string | undefined
   if (params?.category !== undefined) {
     const parsed = slugSchema.safeParse(params.category)
@@ -117,20 +171,7 @@ export async function getFertilizerColumns(params?: { category?: string }) {
     category = parsed.data
   }
 
-  const where: Prisma.FertilizerColumnWhereInput = {
-    publishedAt: { not: null },
-  }
-  if (category) {
-    where.category = category
-  }
-
-  const columns = await prisma.fertilizerColumn.findMany({
-    where,
-    orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
-    take: MAX_FERTILIZER_COLUMN_LIMIT,
-  })
-
-  return { columns }
+  return getFertilizerColumnsCachedImpl(category)()
 }
 
 export async function getFertilizerColumnBySlug(slug: string) {

@@ -62,8 +62,7 @@ export function EventFilterPersistence() {
         // localStorage のエラー（プライベートモード等）はサイレントに無視する
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  // router/searchParams を依存配列に含めると無限ループになるため意図的に除外
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- router/searchParams を含めると無限ループするため意図的に空配列
 
   return null
 }

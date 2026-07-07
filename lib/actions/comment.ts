@@ -123,7 +123,10 @@ export async function createComment(formData: FormData) {
     const mediaValidation = await validateMediaCounts(mediaUrls, mediaTypes, { maxImages: MAX_COMMENT_IMAGES, maxVideos })
     if (mediaValidation) return mediaValidation
 
-    // 日次制限チェック + コメント作成をトランザクションで原子的に実行
+    // $transaction はロールバック単位をまとめるが、READ COMMITTED では count→create の
+    // write skew を完全には防げない（TOCTOU 的な超過が僅かに起こりうる）。実害は日次上限の
+    // わずかな超過に限定され、レート制限で有界。厳密な原子性が要る場合は Redis INCR 方式
+    // （checkDailyPostLimit 参照）を使う。
     const today = getStartOfToday()
     const txResult = await prisma.$transaction(async (tx) => {
       const count = await tx.comment.count({

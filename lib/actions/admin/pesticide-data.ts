@@ -16,6 +16,7 @@ import {
 import { ACTION_CREATE_PESTICIDE, ACTION_UPDATE_PESTICIDE, ACTION_DELETE_PESTICIDE } from '@/lib/constants/admin-actions'
 import { requireAdmin, actionSuccess, actionError } from '@/lib/actions/utils'
 import { buildCursorPagination } from '@/lib/actions/pagination'
+import { revalidatePesticideMasterCache } from '@/lib/cache'
 import {
   ERR_PESTICIDE_NOT_FOUND,
   ERR_PESTICIDE_NAME_REQUIRED,
@@ -234,6 +235,7 @@ export async function createPesticide(data: {
     })
 
     revalidatePath(ROUTE_ADMIN_PESTICIDE_DATA)
+    revalidatePesticideMasterCache()
     return actionSuccess(pesticide)
   } catch (error) {
     logger.error('createPesticide failed', { error: error instanceof Error ? error.message : String(error) })
@@ -310,6 +312,7 @@ export async function updatePesticide(id: string, data: {
     })
 
     revalidatePath(ROUTE_ADMIN_PESTICIDE_DATA)
+    revalidatePesticideMasterCache()
     return actionSuccess()
   } catch (error) {
     logger.error('updatePesticide failed', { error: error instanceof Error ? error.message : String(error) })
@@ -360,6 +363,7 @@ export async function deletePesticide(id: string) {
     ])
 
     revalidatePath(ROUTE_ADMIN_PESTICIDE_DATA)
+    revalidatePesticideMasterCache()
     return actionSuccess()
   } catch (error) {
     logger.error('deletePesticide failed', { error: error instanceof Error ? error.message : String(error) })

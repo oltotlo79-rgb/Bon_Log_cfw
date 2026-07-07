@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { getReports } from '@/lib/actions/report'
-import { REPORT_REASONS } from '@/lib/constants/report'
+import { REPORT_REASONS, TARGET_TYPE_LABELS, type ReportStatus } from '@/lib/constants/report'
 import { ReportActionsDropdown } from './ReportActionsDropdown'
 import { DEFAULT_PAGE_LIMIT } from '@/lib/constants/limits'
 import { buildUserPath } from '@/lib/constants/path-builders'
@@ -28,32 +28,23 @@ interface PageProps {
 /**
  * ステータスの日本語ラベル定義
  */
-const statusLabels = {
+const statusLabels: Record<ReportStatus, string> = {
   pending: '未対応',
   reviewed: '確認中',
   resolved: '対応完了',
   dismissed: '却下',
+  auto_hidden: '自動非表示',
 }
 
 /**
  * ステータスに応じた色クラス定義
  */
-const statusColors = {
+const statusColors: Record<ReportStatus, string> = {
   pending: 'bg-muted text-muted-foreground',
   reviewed: 'bg-muted text-muted-foreground',
   resolved: 'bg-muted text-muted-foreground',
   dismissed: 'bg-muted text-muted-foreground',
-}
-
-/**
- * 対象タイプの日本語ラベル定義
- */
-const targetTypeLabels = {
-  post: '投稿',
-  comment: 'コメント',
-  event: 'イベント',
-  shop: '盆栽園',
-  user: 'ユーザー',
+  auto_hidden: 'bg-muted text-muted-foreground',
 }
 
 export default async function AdminReportsPage({ searchParams }: PageProps) {
@@ -158,7 +149,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                   </td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-1 text-xs bg-muted rounded-full">
-                      {targetTypeLabels[report.targetType as keyof typeof targetTypeLabels]}
+                      {TARGET_TYPE_LABELS[report.targetType as keyof typeof TARGET_TYPE_LABELS] ?? report.targetType}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm">
@@ -174,8 +165,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs rounded-full ${statusColors[report.status as keyof typeof statusColors]}`}>
-                      {statusLabels[report.status as keyof typeof statusLabels]}
+                    <span className={`px-2 py-1 text-xs rounded-full ${statusColors[report.status as keyof typeof statusColors] ?? 'bg-muted text-muted-foreground'}`}>
+                      {statusLabels[report.status as keyof typeof statusLabels] ?? report.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">

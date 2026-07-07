@@ -5,6 +5,7 @@ import { requireAdmin, actionError } from '@/lib/actions/utils'
 import { ANALYTICS_DAYS_RANGE, COHORT_MONTHS_DEFAULT, COHORT_ANALYSIS_MAX_RECORDS, CSV_EXPORT_MAX_ROWS, ONE_DAY_MS, ADMIN_TOP_GENRES_LIMIT, ADMIN_TOP_HASHTAGS_LIMIT } from '@/lib/constants/limits'
 import { ERR_UNSUPPORTED_EXPORT_TYPE, ERR_OPERATION_FAILED } from '@/lib/constants/errors'
 import { logger } from '@/lib/logger'
+import { isoDateKey } from '@/lib/utils/date-key'
 
 /**
  * コホート分析（登録週/月ごとのアクティブ率）。
@@ -184,22 +185,22 @@ export async function getContentAnalysis() {
     const commentsMap = new Map<string, number>()
 
     for (const p of postsByDay) {
-      const key = new Date(p.date).toISOString().slice(0, 10)
+      const key = isoDateKey(new Date(p.date))
       postsMap.set(key, Number(p.count))
     }
     for (const l of likesByDay) {
-      const key = new Date(l.date).toISOString().slice(0, 10)
+      const key = isoDateKey(new Date(l.date))
       likesMap.set(key, Number(l.count))
     }
     for (const c of commentsByDay) {
-      const key = new Date(c.date).toISOString().slice(0, 10)
+      const key = isoDateKey(new Date(c.date))
       commentsMap.set(key, Number(c.count))
     }
 
     const dailyEngagement: { date: string; posts: number; likes: number; comments: number }[] = []
     for (let i = ANALYTICS_DAYS_RANGE; i >= 0; i--) {
       const d = new Date(Date.now() - i * ONE_DAY_MS)
-      const key = d.toISOString().slice(0, 10)
+      const key = isoDateKey(d)
       dailyEngagement.push({
         date: key,
         posts: postsMap.get(key) ?? 0,

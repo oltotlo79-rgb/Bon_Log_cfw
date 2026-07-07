@@ -8,6 +8,7 @@ import { requireAdmin, actionError, actionSuccess, type ActionResult } from '@/l
 import { ERR_ANALYTICS_FETCH_FAILED } from '@/lib/constants/errors'
 import { logger } from '@/lib/logger'
 import { getStartOfToday, getStartOfNDaysAgo } from '@/lib/utils'
+import { isoDateKey } from '@/lib/utils/date-key'
 import { REPORT_STATUS } from '@/lib/constants/status'
 
 // bigint を安全に number へ変換 (Number.MAX_SAFE_INTEGER を超える場合はクランプ)。
@@ -160,16 +161,14 @@ export async function getStatsHistory(
       `,
     ])
 
-    const toDateKey = (d: Date) => d.toISOString().slice(0, 10)
-
     const postsMap = new Map<string | undefined, number>(
-      dailyPosts.map((r: { date: Date; count: bigint }) => [toDateKey(new Date(r.date)), safeBigIntToNumber(r.count)]),
+      dailyPosts.map((r: { date: Date; count: bigint }) => [isoDateKey(new Date(r.date)), safeBigIntToNumber(r.count)]),
     )
     const commentsMap = new Map<string | undefined, number>(
-      dailyComments.map((r: { date: Date; count: bigint }) => [toDateKey(new Date(r.date)), safeBigIntToNumber(r.count)]),
+      dailyComments.map((r: { date: Date; count: bigint }) => [isoDateKey(new Date(r.date)), safeBigIntToNumber(r.count)]),
     )
     const newUsersMap = new Map<string | undefined, number>(
-      dailyNewUsers.map((r: { date: Date; count: bigint }) => [toDateKey(new Date(r.date)), safeBigIntToNumber(r.count)]),
+      dailyNewUsers.map((r: { date: Date; count: bigint }) => [isoDateKey(new Date(r.date)), safeBigIntToNumber(r.count)]),
     )
 
     const results: StatsHistoryEntry[] = []
@@ -180,7 +179,7 @@ export async function getStatsHistory(
       date.setDate(date.getDate() - i)
       date.setHours(0, 0, 0, 0)
 
-      const dateKey = toDateKey(date)
+      const dateKey = isoDateKey(date)
       cumulativeUsers += newUsersMap.get(dateKey) ?? 0
 
       results.push({
@@ -227,16 +226,15 @@ export async function getDailyVisitorsHistory(
       ORDER BY date
     `
 
-    const toDateKey = (d: Date) => d.toISOString().slice(0, 10)
     const visitorsMap = new Map<string | undefined, number>(
-      rows.map((r) => [toDateKey(new Date(r.date)), safeBigIntToNumber(r.visitors)]),
+      rows.map((r) => [isoDateKey(new Date(r.date)), safeBigIntToNumber(r.visitors)]),
     )
 
     // 活動 0 の日も埋めて連続した配列にする (チャート描画でギャップを作らないため)。
     const results: DailyVisitorsEntry[] = []
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i, 0, 0, 0, 0))
-      const dateKey = toDateKey(date)
+      const dateKey = isoDateKey(date)
       results.push({ date: dateKey ?? '', visitors: visitorsMap.get(dateKey) ?? 0 })
     }
 

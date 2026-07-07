@@ -17,6 +17,13 @@ vi.mock('@/lib/auth', () => ({
 // revalidatePathモック
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn), cache: vi.fn((fn) => fn) }))
 
+// レート制限モック（実 Redis 不在時のインメモリフォールバックが同一プロセス内で
+// テスト間累積し、後続テストを誤って rate-limit させるのを防ぐ）
+vi.mock('@/lib/rate-limit', () => ({
+  checkUserRateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: { create_draft: { windowMs: 60000, maxRequests: 5 }, update_draft: { windowMs: 60000, maxRequests: 10 }, publish_draft: { windowMs: 60000, maxRequests: 10 }, delete_draft: { windowMs: 60000, maxRequests: 10 } },
+}))
+
 // メディア回収はストレージ層に依存するため mock し、削除アクションからの配線（URL 受け渡し）を検証する
 const mockDeleteMediaFiles = vi.fn()
 vi.mock('@/lib/services/media-cleanup', () => ({
@@ -40,10 +47,19 @@ vi.mock('@/lib/logger', () => ({
   },
 }))
 
+// 会員種別に応じた文字数・メディア数上限（saveDraft/publishDraft の再検証で参照）
+const FREE_LIMITS = { maxPostLength: 500, maxImages: 4, maxVideos: 0, maxDailyPosts: 20, canSchedulePost: false, canViewAnalytics: false }
+const PREMIUM_LIMITS = { maxPostLength: 2000, maxImages: 6, maxVideos: 1, maxDailyPosts: 999, canSchedulePost: true, canViewAnalytics: true }
+const mockGetMembershipLimits = vi.fn().mockResolvedValue(FREE_LIMITS)
+vi.mock('@/lib/premium', () => ({
+  getMembershipLimits: (...args: unknown[]) => mockGetMembershipLimits(...args),
+}))
+
 describe('Draft Actions', async () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: mockUser.id } })
+    mockGetMembershipLimits.mockResolvedValue(FREE_LIMITS)
   })
 
   // ============================================================
@@ -168,6 +184,81 @@ describe('Draft Actions', async () => {
   })
 
   // ============================================================
+  // saveDraft - 会員種別に応じた文字数・メディア数バリデーション
+  // ============================================================
+
+  describe('saveDraft - 会員種別バリデーション', async () => {
+    it('プレミアム会員は501〜2000字の下書きを保存できる', async () => {
+      mockGetMembershipLimits.mockResolvedValueOnce(PREMIUM_LIMITS)
+      const longContent = 'あ'.repeat(1500)
+      mockPrisma.draftPost.create.mockResolvedValueOnce({
+        ...mockDraft,
+        content: longContent,
+        media: [],
+        genres: [],
+      })
+
+      const { saveDraft } = await import('@/lib/actions/draft')
+      const result = await saveDraft({ content: longContent, mediaUrls: [], genreIds: [] })
+
+      expect(result).toMatchObject({ success: true })
+    })
+
+    it('プレミアム会員は5〜6枚の画像を保存できる', async () => {
+      mockGetMembershipLimits.mockResolvedValueOnce(PREMIUM_LIMITS)
+      const mediaUrls = Array.from({ length: 6 }, (_, i) => `/image-${i}.jpg`)
+      mockPrisma.draftPost.create.mockResolvedValueOnce({
+        ...mockDraft,
+        media: mediaUrls.map((url, i) => ({ url, type: 'image', sortOrder: i })),
+        genres: [],
+      })
+
+      const { saveDraft } = await import('@/lib/actions/draft')
+      const result = await saveDraft({ content: '内容', mediaUrls, genreIds: [] })
+
+      expect(result).toMatchObject({ success: true })
+    })
+
+    it('無料会員は501字以上の下書きをERR_POST_CONTENT_TOO_LONGで拒否される', async () => {
+      mockGetMembershipLimits.mockResolvedValueOnce(FREE_LIMITS)
+      const overContent = 'あ'.repeat(501)
+
+      const { saveDraft } = await import('@/lib/actions/draft')
+      const result = await saveDraft({ content: overContent })
+
+      expect('error' in result && result.error).toContain('500')
+      expect(mockPrisma.draftPost.create).not.toHaveBeenCalled()
+    })
+
+    it('無料会員は5枚以上の画像をエラーで拒否される（maxImages超過）', async () => {
+      mockGetMembershipLimits.mockResolvedValueOnce(FREE_LIMITS)
+      const mediaUrls = Array.from({ length: 5 }, (_, i) => `/image-${i}.jpg`)
+
+      const { saveDraft } = await import('@/lib/actions/draft')
+      const result = await saveDraft({ content: '内容', mediaUrls })
+
+      expect('error' in result).toBe(true)
+      expect(mockPrisma.draftPost.create).not.toHaveBeenCalled()
+    })
+
+    it('無料会員はちょうど500字なら保存できる（境界値）', async () => {
+      mockGetMembershipLimits.mockResolvedValueOnce(FREE_LIMITS)
+      const exactContent = 'あ'.repeat(500)
+      mockPrisma.draftPost.create.mockResolvedValueOnce({
+        ...mockDraft,
+        content: exactContent,
+        media: [],
+        genres: [],
+      })
+
+      const { saveDraft } = await import('@/lib/actions/draft')
+      const result = await saveDraft({ content: exactContent })
+
+      expect(result).toMatchObject({ success: true })
+    })
+  })
+
+  // ============================================================
   // saveDraft (更新)
   // ============================================================
 
@@ -285,6 +376,60 @@ describe('Draft Actions', async () => {
       const result = await publishDraft(mockDraft.id)
 
       expect('error' in result && result.error).toBe('投稿の作成に失敗しました')
+    })
+
+    it('降格後の再検証: プレミアム期間中に保存した長文の下書きを、失効後の無料会員として公開しようとすると拒否される', async () => {
+      const longContent = 'あ'.repeat(1500)
+      mockPrisma.draftPost.findFirst.mockResolvedValueOnce({
+        ...mockDraft,
+        content: longContent,
+        media: [],
+        genres: [],
+      })
+      // 公開時点では無料会員に降格済み
+      mockGetMembershipLimits.mockResolvedValueOnce(FREE_LIMITS)
+
+      const { publishDraft } = await import('@/lib/actions/draft')
+      const result = await publishDraft(mockDraft.id)
+
+      expect('error' in result && result.error).toContain('500')
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+      expect(mockPrisma.draftPost.delete).not.toHaveBeenCalled()
+    })
+
+    it('降格後の再検証: プレミアム期間中に保存した5枚の画像付き下書きを、失効後の無料会員として公開しようとすると拒否される', async () => {
+      const media = Array.from({ length: 5 }, (_, i) => ({ url: `/image-${i}.jpg`, type: 'image', sortOrder: i }))
+      mockPrisma.draftPost.findFirst.mockResolvedValueOnce({
+        ...mockDraft,
+        media,
+        genres: [],
+      })
+      mockGetMembershipLimits.mockResolvedValueOnce(FREE_LIMITS)
+
+      const { publishDraft } = await import('@/lib/actions/draft')
+      const result = await publishDraft(mockDraft.id)
+
+      expect('error' in result).toBe(true)
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+    })
+
+    it('プレミアム会員のまま公開する場合は501〜2000字・5〜6枚でも成功する', async () => {
+      const longContent = 'あ'.repeat(1500)
+      const media = Array.from({ length: 6 }, (_, i) => ({ url: `/image-${i}.jpg`, type: 'image', sortOrder: i }))
+      mockPrisma.draftPost.findFirst.mockResolvedValueOnce({
+        ...mockDraft,
+        content: longContent,
+        media,
+        genres: [],
+      })
+      mockGetMembershipLimits.mockResolvedValueOnce(PREMIUM_LIMITS)
+      mockPrisma.post.create.mockResolvedValueOnce({ id: 'new-post-id' })
+      mockPrisma.draftPost.delete.mockResolvedValueOnce(mockDraft)
+
+      const { publishDraft } = await import('@/lib/actions/draft')
+      const result = await publishDraft(mockDraft.id)
+
+      expect(result).toMatchObject({ success: true, data: { postId: 'new-post-id' } })
     })
   })
 

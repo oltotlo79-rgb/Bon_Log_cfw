@@ -159,6 +159,9 @@ export async function createNotification(params: {
   const prefs = parseNotificationPrefs(user?.notificationPreferences)
   if (prefs[type] === false) return actionSuccess()
 
+  // $transaction はロールバック単位をまとめるが、READ COMMITTED では findFirst→create の
+  // write skew を完全には排除できない（同時押しで稀に同一通知が重複作成されうる）。
+  // 実害は UI 上の稀な重複表示に限定され、厳密な排他が必要な操作ではないため許容している。
   let created = false
   await prisma.$transaction(async (tx) => {
     const existingNotification = await tx.notification.findFirst({

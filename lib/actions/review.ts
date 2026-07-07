@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import { USER_MINIMAL_SELECT } from '@/lib/prisma/shared-includes'
@@ -105,19 +106,29 @@ export async function createReview(formData: FormData): Promise<ActionResult<{ r
     return actionError(ERR_REVIEW_ALREADY_EXISTS)
   }
 
-  const review = await prisma.shopReview.create({
-    data: {
-      shopId,
-      userId,
-      rating,
-      content: content?.trim() || null,
-      images: imageUrls.length > 0
-        ? {
-            create: imageUrls.map((url: string) => ({ url })),
-          }
-        : undefined,
-    },
-  })
+  let review: { id: string }
+  try {
+    review = await prisma.shopReview.create({
+      data: {
+        shopId,
+        userId,
+        rating,
+        content: content?.trim() || null,
+        images: imageUrls.length > 0
+          ? {
+              create: imageUrls.map((url: string) => ({ url })),
+            }
+          : undefined,
+      },
+      select: { id: true },
+    })
+  } catch (error) {
+    // 事前の findFirst 通過後でも並行二重送信で @@unique([shopId, userId]) に当たり得る
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return actionError(ERR_REVIEW_ALREADY_EXISTS)
+    }
+    throw error
+  }
 
   revalidatePath(buildShopPath(shopId))
   revalidateShopRatingsCache()
@@ -166,8 +177,13 @@ export async function updateReview(reviewId: string, formData: FormData): Promis
     return actionError(ERR_RATING_RANGE)
   }
 
+  // クライアント申告の deleteImageIds をそのまま枚数計算に使うと、存在しない/他レビューの ID を
+  // 混ぜて remainingImageCount を偽装できてしまう。実在する自レビュー画像 ID のみに絞り込む。
+  const existingImageIds = new Set(review.images.map((i) => i.id))
+  const validDeleteIds = deleteImageIds.filter((id) => existingImageIds.has(id))
+
   const existingImageCount = review.images.length
-  const remainingImageCount = existingImageCount - deleteImageIds.length
+  const remainingImageCount = existingImageCount - validDeleteIds.length
   const totalImageCount = remainingImageCount + newImageUrls.length
 
   if (totalImageCount > MAX_REVIEW_IMAGES) {
@@ -175,10 +191,10 @@ export async function updateReview(reviewId: string, formData: FormData): Promis
   }
 
   await prisma.$transaction(async (tx) => {
-    if (deleteImageIds.length > 0) {
+    if (validDeleteIds.length > 0) {
       await tx.shopReviewImage.deleteMany({
         where: {
-          id: { in: deleteImageIds },
+          id: { in: validDeleteIds },
           reviewId: reviewId,
         },
       })

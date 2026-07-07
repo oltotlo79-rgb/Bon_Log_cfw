@@ -77,6 +77,25 @@ describe('CommentContent', () => {
     expect(container.querySelector('.grid-cols-2')).not.toBeInTheDocument()
   })
 
+  it('画像1枚の場合はsizes属性がフル幅想定になる', () => {
+    const media = [{ id: 'm1', url: '/img1.jpg', type: 'image', sortOrder: 0 }]
+    render(<CommentContent content="テスト" media={media} />)
+    const img = document.querySelector('img[src="/img1.jpg"]')
+    expect(img).toHaveAttribute('sizes', '(max-width: 768px) 100vw, 600px')
+  })
+
+  it('画像複数枚の場合はsizes属性がグリッド想定になる', () => {
+    const media = [
+      { id: 'm1', url: '/img1.jpg', type: 'image', sortOrder: 0 },
+      { id: 'm2', url: '/img2.jpg', type: 'image', sortOrder: 1 },
+    ]
+    render(<CommentContent content="テスト" media={media} />)
+    const img1 = document.querySelector('img[src="/img1.jpg"]')
+    const img2 = document.querySelector('img[src="/img2.jpg"]')
+    expect(img1).toHaveAttribute('sizes', '(max-width: 768px) 50vw, 300px')
+    expect(img2).toHaveAttribute('sizes', '(max-width: 768px) 50vw, 300px')
+  })
+
   it('メディアなしの場合はグリッドを表示しない', () => {
     const { container } = render(<CommentContent content="テスト" />)
     expect(container.querySelector('.grid')).not.toBeInTheDocument()

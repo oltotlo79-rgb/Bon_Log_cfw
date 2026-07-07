@@ -80,6 +80,12 @@ export const VERIFY_CREDENTIALS_MAX_ATTEMPTS = 5
 /** 最大ログイン試行回数（IP単位、全メールアドレス合算） */
 export const MAX_IP_LOGIN_ATTEMPTS = 20
 
+/**
+ * ゲストログインの最大試行回数（IP単位、15分あたり）。
+ * 認証不要でセッションを発行できる経路のため、bot による連打を抑止する。
+ */
+export const MAX_GUEST_LOGIN_ATTEMPTS = 10
+
 /** ログイン追跡ウィンドウ（分） */
 export const LOGIN_WINDOW_MINUTES = 15
 
@@ -97,6 +103,13 @@ export const MIN_TOKEN_LENGTH = 10
 
 /** メール認証再送の最大試行回数（1時間あたり） */
 export const MAX_RESEND_VERIFICATION_ATTEMPTS = 3
+
+/**
+ * メール確認トークン検証の最大試行回数（IP・1時間あたり）。
+ * トークンはランダム 256bit だが、検証エンドポイントに認証がないためブルートフォース
+ * 総当たりを防ぐ目的で IP 単位に上限を課す。
+ */
+export const MAX_VERIFY_EMAIL_TOKEN_ATTEMPTS = 10
 
 /** パスワードリセットリクエストの最大試行回数（1時間あたり） */
 export const MAX_PASSWORD_RESET_ATTEMPTS = 3
