@@ -59,6 +59,7 @@ const mockPostDetail = {
   id: 'post-abc',
   content: 'test post',
   userId: POST_AUTHOR_ID,
+  bonsaiId: null,
   createdAt: new Date().toISOString(),
   likeCount: 0,
   commentCount: 0,
@@ -93,6 +94,20 @@ describe('GET /api/v1/posts/[id]', () => {
     const body = await res.json()
     expect(body.id).toBe('post-abc')
     expect(body.content).toBe('test post')
+  })
+
+  it('レスポンス JSON に bonsaiId が含まれる', async () => {
+    mockFetchPostDetail.mockResolvedValueOnce({
+      found: true,
+      post: { ...mockPostDetail, bonsaiId: 'bonsai-1' },
+    })
+    const [req, params] = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.bonsaiId).toBe('bonsai-1')
   })
 
   it('fetchPostDetail に userId と postId が渡される', async () => {

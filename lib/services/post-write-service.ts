@@ -51,6 +51,7 @@ import {
   ERR_POLL_INVALID_DURATION,
   ERR_POLL_OPTIONS_COUNT,
   ERR_POLL_OPTION_TOO_LONG,
+  ERR_BONSAI_NOT_FOUND,
 } from '@/lib/constants/errors'
 import { createNotification } from '@/lib/services/notification-core'
 import { canViewAuthorContent } from '@/lib/services/post-visibility'
@@ -70,6 +71,8 @@ export const createPostV1Schema = z.object({
   genreIds: z.array(z.string()).default([]),
   mediaUrls: mediaUrlListSchema,
   mediaTypes: mediaTypeListSchema,
+  /** 紐付ける盆栽の ID。投稿者自身が所有する盆栽のみ指定可（他人の盆栽は 404）。省略は紐付けなし。 */
+  bonsaiId: z.string().nullable().optional(),
   /** アンケートを付与する場合のみ指定する。省略するとアンケートなし投稿になる。 */
   poll: z
     .object({
@@ -96,6 +99,11 @@ export const updatePostV1Schema = z.object({
   genreIds: z.array(z.string()).default([]),
   mediaUrls: mediaUrlListSchema,
   mediaTypes: mediaTypeListSchema,
+  /**
+   * 紐付ける盆栽の ID。キー省略時は現状維持、null で紐付け解除、
+   * 文字列指定時は投稿者自身が所有する盆栽のみ許可（他人の盆栽は 404）。
+   */
+  bonsaiId: z.string().nullable().optional(),
 })
 export type UpdatePostV1Input = z.infer<typeof updatePostV1Schema>
 
@@ -123,6 +131,18 @@ export type DeletePostResult =
 // ──────────────────────────────────────────────────
 
 /**
+ * bonsaiId が投稿者本人の所有かを検証する。
+ * 存在しない・他人所有のいずれも false（IDOR 対策として存在有無を区別せず秘匿する）。
+ */
+async function isOwnedBonsai(bonsaiId: string, userId: string): Promise<boolean> {
+  const bonsai = await prisma.bonsai.findUnique({
+    where: { id: bonsaiId },
+    select: { userId: true },
+  })
+  return bonsai?.userId === userId
+}
+
+/**
  * 投稿を作成する。
  * 入力は Zod でパース済みの値を受け取る（schema.safeParse 後の `.data` を渡す）。
  * 日次制限・メディア枚数・本文長はここで確認する。
@@ -132,7 +152,7 @@ export async function createPostV1(
   userId: string,
 ): Promise<CreatePostResult> {
   const content = sanitizePostContent(input.content)
-  const { genreIds, mediaUrls, mediaTypes } = input
+  const { genreIds, mediaUrls, mediaTypes, bonsaiId } = input
 
   const limits = await getMembershipLimits(userId)
 
@@ -155,6 +175,10 @@ export async function createPostV1(
     return { ok: false, error: ERR_MEDIA_URL_NOT_OWN_STORAGE, status: 400 }
   }
 
+  if (bonsaiId && !(await isOwnedBonsai(bonsaiId, userId))) {
+    return { ok: false, error: ERR_BONSAI_NOT_FOUND, status: 404 }
+  }
+
   const dailyLimitError = await checkDailyPostLimit(userId)
   if (dailyLimitError && !dailyLimitError.success) {
     return { ok: false, error: dailyLimitError.error, status: 429 }
@@ -175,6 +199,7 @@ export async function createPostV1(
       data: {
         userId,
         content: content || null,
+        bonsaiId: bonsaiId ?? null,
         media: mediaUrls.length > 0 ? {
           create: mediaUrls.map((url: string, index: number) => ({
             url,
@@ -237,7 +262,7 @@ export async function updatePostV1(
   userId: string,
 ): Promise<UpdatePostResult> {
   const content = sanitizePostContent(input.content)
-  const { genreIds, mediaUrls, mediaTypes } = input
+  const { genreIds, mediaUrls, mediaTypes, bonsaiId } = input
 
   if (!postId) {
     return { ok: false, error: ERR_INVALID_INPUT, status: 400 }
@@ -262,6 +287,12 @@ export async function updatePostV1(
 
   if (!assertMediaUrlsFromOwnStorage(mediaUrls)) {
     return { ok: false, error: ERR_MEDIA_URL_NOT_OWN_STORAGE, status: 400 }
+  }
+
+  // bonsaiId === undefined は「キー省略＝現状維持」を意味するため所有権検証をスキップする。
+  // null は紐付け解除なので検証不要。文字列指定時のみ所有権を確認する。
+  if (bonsaiId && !(await isOwnedBonsai(bonsaiId, userId))) {
+    return { ok: false, error: ERR_BONSAI_NOT_FOUND, status: 404 }
   }
 
   try {
@@ -289,6 +320,8 @@ export async function updatePostV1(
         data: {
           content: content || null,
           editedAt: new Date(),
+          // bonsaiId キー省略時（undefined）は現状維持のためフィールド自体を送らない。
+          ...(bonsaiId !== undefined ? { bonsaiId } : {}),
           media: mediaUrls.length > 0 ? {
             create: mediaUrls.map((url: string, index: number) => ({
               url,

@@ -35,11 +35,12 @@ export async function POST(request: NextRequest) {
   const result = await createPostV1(parsed.data, auth.userId)
 
   if (!result.ok) {
-    const httpStatus = result.status === 429 ? 429 : result.status === 404 ? 404 : 400
     const code = result.status === 429
       ? MOBILE_API_ERROR_CODES.RATE_LIMITED
-      : MOBILE_API_ERROR_CODES.VALIDATION_ERROR
-    return apiError(code, httpStatus, result.error)
+      : result.status === 404
+        ? MOBILE_API_ERROR_CODES.NOT_FOUND
+        : MOBILE_API_ERROR_CODES.VALIDATION_ERROR
+    return apiError(code, result.status, result.error)
   }
 
   // 5. 作成後の投稿詳細を取得して返す（Native が楽観挿入に使える）

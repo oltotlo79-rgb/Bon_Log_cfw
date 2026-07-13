@@ -59,12 +59,12 @@ const USER_ID = 'user-abc'
 const OWNER_EMAIL = 'owner@example.com'
 
 const mockShopGenres = [
-  { id: 'genre-1', name: '松柏類' },
-  { id: 'genre-2', name: '雑木類' },
+  { id: 'genre-1', name: '松柏類', category: '樹種' },
+  { id: 'genre-2', name: '雑木類', category: '樹種' },
 ]
 
 const mockPostGenres = [
-  { id: 'genre-3', name: '施設・イベント' },
+  { id: 'genre-3', name: '施設・イベント', category: 'その他' },
 ]
 
 async function makeAuthenticatedGetRequest(
@@ -95,7 +95,7 @@ describe('GET /api/v1/genres', () => {
     vi.unstubAllEnvs()
   })
 
-  it('正常系（type=shop）: 200 + { items: [{id, name}] }', async () => {
+  it('正常系（type=shop）: 200 + { items: [{id, name, category}] }', async () => {
     const req = await makeAuthenticatedGetRequest(USER_ID, 'type=shop')
     const { GET } = await import('@/app/api/v1/genres/route')
     const res = await GET(req)
@@ -103,7 +103,18 @@ describe('GET /api/v1/genres', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.items).toHaveLength(2)
-    expect(body.items[0]).toMatchObject({ id: 'genre-1', name: '松柏類' })
+    expect(body.items[0]).toMatchObject({ id: 'genre-1', name: '松柏類', category: '樹種' })
+  })
+
+  it('正常系（type=post）: items[].category が文字列で返る', async () => {
+    mockListGenresV1.mockResolvedValue({ ok: true, items: mockPostGenres })
+    const req = await makeAuthenticatedGetRequest(USER_ID, 'type=post')
+    const { GET } = await import('@/app/api/v1/genres/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(typeof body.items[0]?.category).toBe('string')
   })
 
   it('type=post: listGenresV1 に type="post" が渡される', async () => {

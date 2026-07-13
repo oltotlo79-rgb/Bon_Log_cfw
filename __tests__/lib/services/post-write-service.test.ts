@@ -19,6 +19,7 @@ const mockPrismaPostCount = vi.fn()
 const mockPrismaPostMediaDeleteMany = vi.fn()
 const mockPrismaPostGenreDeleteMany = vi.fn()
 const mockPrismaTransaction = vi.fn()
+const mockPrismaBonsaiFindUnique = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -34,6 +35,9 @@ vi.mock('@/lib/db', () => ({
     },
     postGenre: {
       deleteMany: (...args: unknown[]) => mockPrismaPostGenreDeleteMany(...args),
+    },
+    bonsai: {
+      findUnique: (...args: unknown[]) => mockPrismaBonsaiFindUnique(...args),
     },
     $transaction: (...args: unknown[]) => mockPrismaTransaction(...args),
   },
@@ -156,6 +160,7 @@ describe('createPostV1', () => {
     mockPrismaPostCreate.mockResolvedValue({ id: POST_ID })
     mockAttachHashtags.mockResolvedValue(undefined)
     mockNotifyMentioned.mockResolvedValue(undefined)
+    mockPrismaBonsaiFindUnique.mockResolvedValue(null)
   })
 
   it('正常系: 投稿が作成されて { ok: true, postId } を返す', async () => {
@@ -348,6 +353,62 @@ describe('createPostV1', () => {
       expect(callArgs.data.poll).toBeUndefined()
     })
   })
+
+  describe('bonsaiId 紐付け', () => {
+    it('自分の盆栽 ID を指定: post.create の data.bonsaiId に反映される', async () => {
+      mockPrismaBonsaiFindUnique.mockResolvedValue({ userId: OWNER_ID })
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const result = await createPostV1({ ...validInput, bonsaiId: 'bonsai-1' }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: true })
+      const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+      expect(callArgs?.data?.bonsaiId).toBe('bonsai-1')
+      expect(mockPrismaBonsaiFindUnique).toHaveBeenCalledWith({
+        where: { id: 'bonsai-1' },
+        select: { userId: true },
+      })
+    })
+
+    it('他人の盆栽 ID を指定: ERR_BONSAI_NOT_FOUND / status 404（IDOR対策）', async () => {
+      mockPrismaBonsaiFindUnique.mockResolvedValue({ userId: OTHER_ID })
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      const result = await createPostV1({ ...validInput, bonsaiId: 'bonsai-not-mine' }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: false, status: 404, error: ERR_BONSAI_NOT_FOUND })
+      expect(mockPrismaPostCreate).not.toHaveBeenCalled()
+    })
+
+    it('存在しない盆栽 ID を指定: ERR_BONSAI_NOT_FOUND / status 404', async () => {
+      mockPrismaBonsaiFindUnique.mockResolvedValue(null)
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      const result = await createPostV1({ ...validInput, bonsaiId: 'nonexistent-bonsai' }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: false, status: 404, error: ERR_BONSAI_NOT_FOUND })
+      expect(mockPrismaPostCreate).not.toHaveBeenCalled()
+    })
+
+    it('bonsaiId 未指定（後方互換）: post.create の data.bonsaiId は null、所有権チェックは行わない', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const result = await createPostV1(validInput, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: true })
+      const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+      expect(callArgs?.data?.bonsaiId).toBeNull()
+      expect(mockPrismaBonsaiFindUnique).not.toHaveBeenCalled()
+    })
+
+    it('bonsaiId が null 指定: post.create の data.bonsaiId は null', async () => {
+      const { createPostV1 } = await import('@/lib/services/post-write-service')
+      const result = await createPostV1({ ...validInput, bonsaiId: null }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: true })
+      const callArgs = mockPrismaPostCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+      expect(callArgs?.data?.bonsaiId).toBeNull()
+      expect(mockPrismaBonsaiFindUnique).not.toHaveBeenCalled()
+    })
+  })
 })
 
 // ──────────────────────────────────────────────────
@@ -378,6 +439,7 @@ describe('updatePostV1', () => {
     mockDetachHashtags.mockResolvedValue(undefined)
     mockAttachHashtags.mockResolvedValue(undefined)
     mockDeleteMediaFiles.mockResolvedValue(undefined)
+    mockPrismaBonsaiFindUnique.mockResolvedValue(null)
   })
 
   it('正常系: { ok: true, postId } を返す', async () => {
@@ -554,6 +616,100 @@ describe('updatePostV1', () => {
     const { updatePostV1 } = await import('@/lib/services/post-write-service')
     const result = await updatePostV1(POST_ID, validInput, OWNER_ID)
     expect(result).toMatchObject({ ok: true })
+  })
+
+  describe('bonsaiId 紐付け', () => {
+    it('自分の盆栽 ID を指定: transaction の post.update に data.bonsaiId が反映される', async () => {
+      mockPrismaBonsaiFindUnique.mockResolvedValue({ userId: OWNER_ID })
+      let capturedUpdateData: Record<string, unknown> = {}
+      mockPrismaTransaction.mockImplementationOnce(
+        async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            postMedia: { deleteMany: mockPrismaPostMediaDeleteMany },
+            postGenre: { deleteMany: mockPrismaPostGenreDeleteMany },
+            post: {
+              update: (args: { where: unknown; data: Record<string, unknown> }) => {
+                capturedUpdateData = args.data
+                return mockPrismaPostUpdate(args)
+              },
+            },
+          }),
+      )
+
+      const { updatePostV1 } = await import('@/lib/services/post-write-service')
+      const result = await updatePostV1(POST_ID, { ...validInput, bonsaiId: 'bonsai-1' }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: true })
+      expect(capturedUpdateData.bonsaiId).toBe('bonsai-1')
+    })
+
+    it('他人の盆栽 ID を指定: ERR_BONSAI_NOT_FOUND / status 404（IDOR対策）', async () => {
+      mockPrismaBonsaiFindUnique.mockResolvedValue({ userId: OTHER_ID })
+      const { updatePostV1 } = await import('@/lib/services/post-write-service')
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      const result = await updatePostV1(POST_ID, { ...validInput, bonsaiId: 'bonsai-not-mine' }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: false, status: 404, error: ERR_BONSAI_NOT_FOUND })
+      expect(mockPrismaTransaction).not.toHaveBeenCalled()
+    })
+
+    it('存在しない盆栽 ID を指定: ERR_BONSAI_NOT_FOUND / status 404', async () => {
+      mockPrismaBonsaiFindUnique.mockResolvedValue(null)
+      const { updatePostV1 } = await import('@/lib/services/post-write-service')
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      const result = await updatePostV1(POST_ID, { ...validInput, bonsaiId: 'nonexistent-bonsai' }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: false, status: 404, error: ERR_BONSAI_NOT_FOUND })
+      expect(mockPrismaTransaction).not.toHaveBeenCalled()
+    })
+
+    it('bonsaiId 未指定（キー省略）: 現状維持のため所有権チェックせず data に bonsaiId キーを含めない', async () => {
+      let capturedUpdateData: Record<string, unknown> = {}
+      mockPrismaTransaction.mockImplementationOnce(
+        async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            postMedia: { deleteMany: mockPrismaPostMediaDeleteMany },
+            postGenre: { deleteMany: mockPrismaPostGenreDeleteMany },
+            post: {
+              update: (args: { where: unknown; data: Record<string, unknown> }) => {
+                capturedUpdateData = args.data
+                return mockPrismaPostUpdate(args)
+              },
+            },
+          }),
+      )
+
+      const { updatePostV1 } = await import('@/lib/services/post-write-service')
+      const result = await updatePostV1(POST_ID, validInput, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: true })
+      expect('bonsaiId' in capturedUpdateData).toBe(false)
+      expect(mockPrismaBonsaiFindUnique).not.toHaveBeenCalled()
+    })
+
+    it('bonsaiId: null を指定: 紐付け解除のため data.bonsaiId が null で更新される', async () => {
+      let capturedUpdateData: Record<string, unknown> = {}
+      mockPrismaTransaction.mockImplementationOnce(
+        async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            postMedia: { deleteMany: mockPrismaPostMediaDeleteMany },
+            postGenre: { deleteMany: mockPrismaPostGenreDeleteMany },
+            post: {
+              update: (args: { where: unknown; data: Record<string, unknown> }) => {
+                capturedUpdateData = args.data
+                return mockPrismaPostUpdate(args)
+              },
+            },
+          }),
+      )
+
+      const { updatePostV1 } = await import('@/lib/services/post-write-service')
+      const result = await updatePostV1(POST_ID, { ...validInput, bonsaiId: null }, OWNER_ID)
+
+      expect(result).toMatchObject({ ok: true })
+      expect(capturedUpdateData.bonsaiId).toBeNull()
+      expect(mockPrismaBonsaiFindUnique).not.toHaveBeenCalled()
+    })
   })
 })
 

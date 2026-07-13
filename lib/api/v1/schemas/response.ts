@@ -197,6 +197,7 @@ export const postSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   userId: z.string(),
+  bonsaiId: z.string().nullable(),
   user: postAuthorWithStateSchema,
   media: z.array(mediaItemSchema),
   genres: z.array(genreItemSchema),
@@ -1436,7 +1437,7 @@ export type ReviewListResponse = z.infer<typeof reviewListResponseSchema>
 
 /** GET /api/v1/genres 200 */
 export const genreListResponseSchema = z.object({
-  items: z.array(shopGenreItemSchema),
+  items: z.array(genreItemSchema),
 })
 export type GenreListResponse = z.infer<typeof genreListResponseSchema>
 

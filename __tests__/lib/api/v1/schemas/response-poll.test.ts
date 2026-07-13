@@ -58,6 +58,7 @@ const basePost = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   userId: USER_ID,
+  bonsaiId: null,
   user: { id: USER_ID, nickname: 'TestUser', avatarUrl: null, isBlocked: false, isMuted: false },
   media: [],
   genres: [],

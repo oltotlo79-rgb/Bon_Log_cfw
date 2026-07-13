@@ -52,6 +52,7 @@ vi.mock('@/lib/services/post-write-service', () => ({
           genreIds: d['genreIds'] ?? [],
           mediaUrls: d['mediaUrls'] ?? [],
           mediaTypes: d['mediaTypes'] ?? [],
+          bonsaiId: d['bonsaiId'],
         },
       }
     },
@@ -91,6 +92,7 @@ const mockUpdatedPost = {
   id: VALID_POST_ID,
   content: '更新後の内容',
   userId: OWNER_ID,
+  bonsaiId: null,
   createdAt: new Date().toISOString(),
   user: { id: OWNER_ID, nickname: 'Owner', avatarUrl: null },
   genres: [],
@@ -166,6 +168,42 @@ describe('PATCH /api/v1/posts/[id]', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.id).toBe(VALID_POST_ID)
+  })
+
+  it('レスポンス JSON に bonsaiId が含まれる', async () => {
+    mockFetchCreatedPost.mockResolvedValue({
+      found: true,
+      post: { ...mockUpdatedPost, bonsaiId: 'bonsai-1' },
+    })
+    mockAttachMentionedUsersToOne.mockResolvedValue({
+      ...mockUpdatedPost,
+      bonsaiId: 'bonsai-1',
+      mentionedUsers: [],
+    })
+    const [req, params] = await makeAuthenticatedPatchRequest(
+      OWNER_ID, 'owner@example.com', VALID_POST_ID, { ...validPatchBody, bonsaiId: 'bonsai-1' },
+    )
+    const { PATCH } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await PATCH(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.bonsaiId).toBe('bonsai-1')
+  })
+
+  it('他人の盆栽 ID を指定（updatePostV1 が ERR_BONSAI_NOT_FOUND / 404）→ 404 NOT_FOUND', async () => {
+    const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+    mockUpdatePostV1.mockResolvedValue({ ok: false, error: ERR_BONSAI_NOT_FOUND, status: 404 })
+    const [req, params] = await makeAuthenticatedPatchRequest(
+      OWNER_ID, 'owner@example.com', VALID_POST_ID, { ...validPatchBody, bonsaiId: 'bonsai-not-mine' },
+    )
+    const { PATCH } = await import('@/app/api/v1/posts/[id]/route')
+    const res = await PATCH(req, params)
+
+    expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(body.error.code).toBe('NOT_FOUND')
+    expect(body.error.message).toBe(ERR_BONSAI_NOT_FOUND)
   })
 
   it('所有者でないユーザー（updatePostV1 が 403）→ 403', async () => {

@@ -96,6 +96,19 @@ describe('GET /api/v1/users/[id]/posts', () => {
     expect(body.items).toHaveLength(1)
   })
 
+  it('items[].bonsaiId がレスポンスに含まれる（post-include の formatPostForClient が spread する）', async () => {
+    const postWithBonsai = { ...mockPost, bonsaiId: 'bonsai-1' }
+    mockFetchUserPosts.mockResolvedValueOnce({ ok: true, posts: [postWithBonsai], nextCursor: undefined })
+    mockAttachMentionedUsers.mockResolvedValueOnce([{ ...postWithBonsai, mentionedUsers: [] }])
+    const [req, params] = await makeAuthenticatedRequest(VIEWER_ID, 'viewer@example.com')
+    const { GET } = await import('@/app/api/v1/users/[id]/posts/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items[0]?.bonsaiId).toBe('bonsai-1')
+  })
+
   it('nextCursor が null のとき null を返す', async () => {
     const [req, params] = await makeAuthenticatedRequest(VIEWER_ID, 'viewer@example.com')
     const { GET } = await import('@/app/api/v1/users/[id]/posts/route')

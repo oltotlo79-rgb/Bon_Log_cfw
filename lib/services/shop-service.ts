@@ -683,12 +683,12 @@ export async function createReviewV1(
  */
 export async function listGenresV1(query: ListGenresV1Query): Promise<{
   ok: true
-  items: Array<{ id: string; name: string }>
+  items: Array<{ id: string; name: string; category: string }>
 } | { ok: false; error: string }> {
   try {
     const genres = await prisma.genre.findMany({
       where: { type: query.type },
-      select: { id: true, name: true },
+      select: GENRE_MINIMAL_SELECT,
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }],
     })
 

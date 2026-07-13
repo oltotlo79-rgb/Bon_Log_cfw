@@ -1320,8 +1320,8 @@ describe('listGenresV1', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGenreFindMany.mockResolvedValue([
-      { id: 'genre-1', name: '松柏類' },
-      { id: 'genre-2', name: '雑木類' },
+      { id: 'genre-1', name: '松柏類', category: '樹種' },
+      { id: 'genre-2', name: '雑木類', category: '樹種' },
     ])
   })
 
@@ -1332,7 +1332,36 @@ describe('listGenresV1', () => {
     expect(result).toMatchObject({ ok: true })
     if (!result.ok) throw new Error('ok=false')
     expect(result.items).toHaveLength(2)
-    expect(result.items[0]).toMatchObject({ id: 'genre-1', name: '松柏類' })
+    expect(result.items[0]).toMatchObject({ id: 'genre-1', name: '松柏類', category: '樹種' })
+  })
+
+  it('items[].category が文字列で返る（type=post/shop 双方）', async () => {
+    const { listGenresV1 } = await import('@/lib/services/shop-service')
+
+    const shopResult = await listGenresV1({ type: 'shop' })
+    expect(shopResult).toMatchObject({ ok: true })
+    if (!shopResult.ok) throw new Error('ok=false')
+    for (const item of shopResult.items) {
+      expect(typeof item.category).toBe('string')
+    }
+
+    mockGenreFindMany.mockResolvedValue([
+      { id: 'genre-3', name: 'その他', category: 'カテゴリ' },
+    ])
+    const postResult = await listGenresV1({ type: 'post' })
+    expect(postResult).toMatchObject({ ok: true })
+    if (!postResult.ok) throw new Error('ok=false')
+    for (const item of postResult.items) {
+      expect(typeof item.category).toBe('string')
+    }
+  })
+
+  it('GENRE_MINIMAL_SELECT を通じて select に category が含まれる', async () => {
+    const { listGenresV1 } = await import('@/lib/services/shop-service')
+    await listGenresV1({ type: 'shop' })
+
+    const callArgs = mockGenreFindMany.mock.calls[0]?.[0] as { select: Record<string, unknown> }
+    expect(callArgs?.select).toMatchObject({ id: true, name: true, category: true })
   })
 
   it('type=shop のとき where.type が "shop" になる', async () => {

@@ -49,6 +49,7 @@ vi.mock('@/lib/services/post-write-service', () => ({
           genreIds: d['genreIds'] ?? [],
           mediaUrls: d['mediaUrls'] ?? [],
           mediaTypes: d['mediaTypes'] ?? [],
+          bonsaiId: d['bonsaiId'],
         },
       }
     },
@@ -81,6 +82,7 @@ const mockCreatedPost = {
   id: CREATED_POST_ID,
   content: 'テスト投稿',
   userId: AUTHOR_ID,
+  bonsaiId: null,
   createdAt: new Date().toISOString(),
   likeCount: 0,
   commentCount: 0,
@@ -139,6 +141,67 @@ describe('POST /api/v1/posts', () => {
     expect(res.status).toBe(201)
     const body = await res.json()
     expect(body.id).toBe(CREATED_POST_ID)
+  })
+
+  it('レスポンス JSON に bonsaiId が含まれる', async () => {
+    mockFetchCreatedPost.mockResolvedValue({
+      found: true,
+      post: { ...mockCreatedPost, bonsaiId: 'bonsai-1' },
+    })
+    mockAttachMentionedUsersToOne.mockResolvedValue({
+      ...mockCreatedPost,
+      bonsaiId: 'bonsai-1',
+      mentionedUsers: [],
+    })
+    const req = await makeAuthenticatedRequest(AUTHOR_ID, 'author@example.com', {
+      content: 'テスト投稿',
+      genreIds: [],
+      mediaUrls: [],
+      mediaTypes: [],
+      bonsaiId: 'bonsai-1',
+    })
+    const { POST } = await import('@/app/api/v1/posts/route')
+    const res = await POST(req)
+
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.bonsaiId).toBe('bonsai-1')
+  })
+
+  it('createPostV1 が盆栽所有権エラー（status 404）を返す → 404', async () => {
+    const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+    mockCreatePostV1.mockResolvedValue({ ok: false, error: ERR_BONSAI_NOT_FOUND, status: 404 })
+    const req = await makeAuthenticatedRequest(AUTHOR_ID, 'author@example.com', {
+      content: 'テスト',
+      genreIds: [],
+      mediaUrls: [],
+      mediaTypes: [],
+      bonsaiId: 'bonsai-not-mine',
+    })
+    const { POST } = await import('@/app/api/v1/posts/route')
+    const res = await POST(req)
+
+    expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(body.error.message).toBe(ERR_BONSAI_NOT_FOUND)
+    expect(body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('createPostV1 がサーバーエラー（status 500）を返す → 500 として伝播する（回帰防止）', async () => {
+    const { ERR_POST_CREATE_FAILED } = await import('@/lib/constants/errors')
+    mockCreatePostV1.mockResolvedValue({ ok: false, error: ERR_POST_CREATE_FAILED, status: 500 })
+    const req = await makeAuthenticatedRequest(AUTHOR_ID, 'author@example.com', {
+      content: 'テスト',
+      genreIds: [],
+      mediaUrls: [],
+      mediaTypes: [],
+    })
+    const { POST } = await import('@/app/api/v1/posts/route')
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error.message).toBe(ERR_POST_CREATE_FAILED)
   })
 
   it('createPostV1 がバリデーションエラー（status 400）を返す → 400 VALIDATION_ERROR', async () => {

@@ -95,6 +95,21 @@ describe('GET /api/v1/feed', () => {
     expect(body.isGuest).toBe(false)
   })
 
+  it('items[].bonsaiId がレスポンスに含まれる（post-include の formatPostForClient が spread する）', async () => {
+    mockFetchTimeline.mockResolvedValueOnce({
+      posts: [{ id: 'post-1', content: 'hello', bonsaiId: 'bonsai-1', user: { id: AUTHOR_ID, nickname: 'AuthorA', avatarUrl: null } }],
+      nextCursor: undefined,
+      isGuest: false,
+    })
+    const req = await makeAuthenticatedRequest('user-1')
+    const { GET } = await import('@/app/api/v1/feed/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items[0]?.bonsaiId).toBe('bonsai-1')
+  })
+
   it('fetchTimeline に nextCursor がある場合レスポンスに含まれる', async () => {
     mockFetchTimeline.mockResolvedValueOnce({
       posts: [{ id: 'post-a' }, { id: 'post-b' }],

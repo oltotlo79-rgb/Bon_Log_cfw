@@ -12,6 +12,7 @@ import {
   registerRequestSchema,
   updateProfileRequestSchema,
   createPostRequestSchema,
+  updatePostRequestSchema,
   listEventsQuerySchema,
   listShopsQuerySchema,
   createShopRequestSchema,
@@ -94,6 +95,38 @@ describe('createPostRequestSchema.poll.durationSeconds - VALID_POLL_DURATIONS re
       poll: { options: ['A', 'B'], durationSeconds: 12345 },
     })
     expect(result.success).toBe(false)
+  })
+})
+
+describe('createPostRequestSchema / updatePostRequestSchema - bonsaiId', () => {
+  it('createPostRequestSchema: bonsaiId を省略した場合は成功する（optional）', () => {
+    const result = createPostRequestSchema.safeParse({ content: '盆栽の紐付けなし投稿' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.bonsaiId).toBeUndefined()
+  })
+
+  it('createPostRequestSchema: bonsaiId に文字列を指定した場合は成功する', () => {
+    const result = createPostRequestSchema.safeParse({ content: '盆栽紐付け投稿', bonsaiId: 'bonsai-1' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.bonsaiId).toBe('bonsai-1')
+  })
+
+  it('createPostRequestSchema: bonsaiId に null を指定した場合は成功する', () => {
+    const result = createPostRequestSchema.safeParse({ content: '投稿', bonsaiId: null })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.bonsaiId).toBeNull()
+  })
+
+  it('updatePostRequestSchema: bonsaiId を省略した場合は成功する（現状維持）', () => {
+    const result = updatePostRequestSchema.safeParse({ content: '編集後' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.bonsaiId).toBeUndefined()
+  })
+
+  it('updatePostRequestSchema: bonsaiId に null を指定した場合は成功する（紐付け解除）', () => {
+    const result = updatePostRequestSchema.safeParse({ content: '編集後', bonsaiId: null })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.bonsaiId).toBeNull()
   })
 })
 

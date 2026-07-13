@@ -240,6 +240,8 @@ export const createPostRequestSchema = z.object({
   genreIds: z.array(z.string()).max(MAX_GENRES_PER_POST).default([]),
   mediaUrls: z.array(z.string()).default([]),
   mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+  /** 紐付ける盆栽の ID。投稿者自身が所有する盆栽のみ指定可（他人の盆栽 ID は 403/404）。 */
+  bonsaiId: z.string().nullable().optional(),
   poll: z
     .object({
       options: z.array(z.string().min(1).max(MAX_POLL_OPTION_LENGTH)).min(MIN_POLL_OPTIONS).max(MAX_POLL_OPTIONS),
@@ -289,6 +291,8 @@ export const updatePostRequestSchema = z.object({
   genreIds: z.array(z.string()).max(MAX_GENRES_PER_POST).default([]),
   mediaUrls: z.array(z.string()).default([]),
   mediaTypes: z.array(z.enum(['image', 'video'])).default([]),
+  /** 紐付ける盆栽の ID。未指定なら現状維持、null で紐付け解除。他人の盆栽 ID は 403/404。 */
+  bonsaiId: z.string().nullable().optional(),
 })
 export type UpdatePostRequest = z.infer<typeof updatePostRequestSchema>
 
