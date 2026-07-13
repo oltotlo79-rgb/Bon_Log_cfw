@@ -23,6 +23,7 @@ import { deleteMediaFiles } from '@/lib/services/media-cleanup'
 import { fetchPostDetail } from '@/lib/services/post-read-service'
 import { assertCanViewPost } from '@/lib/services/post-visibility'
 import { assertMediaUrlsFromOwnStorage } from '@/lib/services/media-url-validator'
+import { isOwnedBonsai } from '@/lib/services/bonsai-ownership'
 import logger from '@/lib/logger'
 import { z } from 'zod'
 import { mediaUrlListSchema, mediaTypeListSchema, type MediaType } from '@/lib/actions/schemas/common'
@@ -129,18 +130,6 @@ export type DeletePostResult =
 // ──────────────────────────────────────────────────
 // Service functions
 // ──────────────────────────────────────────────────
-
-/**
- * bonsaiId が投稿者本人の所有かを検証する。
- * 存在しない・他人所有のいずれも false（IDOR 対策として存在有無を区別せず秘匿する）。
- */
-async function isOwnedBonsai(bonsaiId: string, userId: string): Promise<boolean> {
-  const bonsai = await prisma.bonsai.findUnique({
-    where: { id: bonsaiId },
-    select: { userId: true },
-  })
-  return bonsai?.userId === userId
-}
 
 /**
  * 投稿を作成する。

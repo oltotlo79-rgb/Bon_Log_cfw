@@ -25,6 +25,7 @@ import { sanitizePostContent } from '@/lib/sanitize'
 import { actionError } from '@/types/action-result'
 import { validateMediaCounts, checkDailyPostLimit } from '@/lib/actions/utils'
 import { getMembershipLimits } from '@/lib/premium'
+import { isOwnedBonsai } from '@/lib/services/bonsai-ownership'
 import { mediaUrlListSchema, mediaTypeListSchema, type MediaType } from '@/lib/actions/schemas/common'
 import { getFormString } from '@/lib/utils/form-data'
 import {
@@ -44,6 +45,7 @@ import {
   ERR_POLL_OPTION_TOO_LONG,
   ERR_POST_CONTENT_TOO_LONG,
   ERR_GENRE_LIMIT,
+  ERR_BONSAI_NOT_FOUND,
 } from '@/lib/constants/errors'
 
 // Schemas
@@ -240,6 +242,13 @@ export async function applyCreatePostBusinessRules(
   // validateMediaCounts / checkDailyPostLimit は truthy = error 形のみを返す。
   const mediaValidation = await validateMediaCounts(mediaUrls, mediaTypes, limits)
   if (mediaValidation && !mediaValidation.success) return { ok: false, result: mediaValidation }
+
+  // bonsaiId 指定時のみ所有権を確認する（IDOR 対策: 他人所有の盆栽IDを
+  // 指定すると被害者のマイ盆栽タイムラインに投稿が混入するため）。
+  // 存在有無は区別せず秘匿する。
+  if (bonsaiId && !(await isOwnedBonsai(bonsaiId, userId))) {
+    return { ok: false, result: actionError(ERR_BONSAI_NOT_FOUND) }
+  }
 
   const pollValidation = validatePollOptions(pollOptionsRaw, pollDurationRaw)
   if (!pollValidation.success) return { ok: false, result: pollValidation }

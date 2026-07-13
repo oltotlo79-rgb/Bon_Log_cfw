@@ -201,6 +201,78 @@ describe('Post Actions', async () => {
     })
   })
 
+  describe('createPost - bonsaiId 所有権 (IDOR対策)', async () => {
+    it('他人所有の bonsaiId を指定すると ERR_BONSAI_NOT_FOUND で拒否され投稿は作成されない', async () => {
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: 'other-user-id' })
+
+      const { createPost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', 'テスト投稿')
+      formData.append('bonsaiId', 'bonsai-not-mine')
+
+      const result = await createPost(formData)
+
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe(ERR_BONSAI_NOT_FOUND)
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+    })
+
+    it('存在しない bonsaiId を指定しても ERR_BONSAI_NOT_FOUND で拒否される（存在有無を区別しない）', async () => {
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.bonsai.findUnique.mockResolvedValue(null)
+
+      const { createPost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', 'テスト投稿')
+      formData.append('bonsaiId', 'nonexistent-bonsai')
+
+      const result = await createPost(formData)
+
+      expect(result.success).toBe(false)
+      expect('error' in result && result.error).toBe(ERR_BONSAI_NOT_FOUND)
+      expect(mockPrisma.post.create).not.toHaveBeenCalled()
+    })
+
+    it('本人所有の bonsaiId を指定すると投稿が作成され bonsaiId が反映される', async () => {
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.bonsai.findUnique.mockResolvedValue({ userId: mockUser.id })
+      mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'bonsai-linked-post' })
+
+      const { createPost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', 'テスト投稿')
+      formData.append('bonsaiId', 'bonsai-mine')
+
+      const result = await createPost(formData)
+
+      expect(result.success).toBe(true)
+      expect(result.success && result.data?.postId).toBe('bonsai-linked-post')
+      expect(mockPrisma.bonsai.findUnique).toHaveBeenCalledWith({
+        where: { id: 'bonsai-mine' },
+        select: { userId: true },
+      })
+      const callArgs = mockPrisma.post.create.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+      expect(callArgs?.data?.bonsaiId).toBe('bonsai-mine')
+    })
+
+    it('bonsaiId 未指定なら所有権チェックをスキップし従来通り成功する', async () => {
+      mockPrisma.post.count.mockResolvedValue(0)
+      mockPrisma.post.create.mockResolvedValue({ ...mockPost, id: 'no-bonsai-post' })
+
+      const { createPost } = await import('@/lib/actions/post')
+      const formData = new FormData()
+      formData.append('content', 'テスト投稿')
+
+      const result = await createPost(formData)
+
+      expect(result.success).toBe(true)
+      expect(mockPrisma.bonsai.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
   describe('deletePost', async () => {
     it('認証なしの場合はエラーを返す', async () => {
       mockAuth.mockResolvedValue(null)

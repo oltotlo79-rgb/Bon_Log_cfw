@@ -39,6 +39,11 @@ vi.mock('@/lib/actions/utils', () => ({
   checkDailyPostLimit: (...args: unknown[]) => mockCheckDailyPostLimit(...args),
 }))
 
+const mockIsOwnedBonsai = vi.fn()
+vi.mock('@/lib/services/bonsai-ownership', () => ({
+  isOwnedBonsai: (...args: unknown[]) => mockIsOwnedBonsai(...args),
+}))
+
 const FREE_LIMITS = { maxPostLength: 500, maxImagesPerPost: 4, maxVideosPerPost: 1 }
 
 beforeEach(() => {
@@ -46,6 +51,7 @@ beforeEach(() => {
   mockGetMembershipLimits.mockResolvedValue(FREE_LIMITS)
   mockValidateMediaCounts.mockResolvedValue(undefined)
   mockCheckDailyPostLimit.mockResolvedValue(undefined)
+  mockIsOwnedBonsai.mockResolvedValue(false)
 })
 
 describe('validatePollOptions', () => {
@@ -365,5 +371,62 @@ describe('applyCreatePostBusinessRules', () => {
     if (!result.ok) {
       expect(result.result).toMatchObject({ error: ERR_CONTENT_REQUIRED })
     }
+  })
+
+  describe('bonsaiId 所有権検証 (IDOR対策)', () => {
+    it('他人所有の bonsaiId は ERR_BONSAI_NOT_FOUND を返し checkDailyPostLimit を消費しない', async () => {
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      mockIsOwnedBonsai.mockResolvedValue(false)
+      const { applyCreatePostBusinessRules } = await import('@/lib/actions/post-validation')
+      const result = await applyCreatePostBusinessRules(
+        baseShape({ bonsaiId: 'bonsai-not-mine' }),
+        'user1',
+      )
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.result).toMatchObject({ error: ERR_BONSAI_NOT_FOUND })
+      }
+      expect(mockIsOwnedBonsai).toHaveBeenCalledWith('bonsai-not-mine', 'user1')
+      expect(mockCheckDailyPostLimit).not.toHaveBeenCalled()
+    })
+
+    it('存在しない bonsaiId も ERR_BONSAI_NOT_FOUND を返す（存在有無を区別しない）', async () => {
+      const { ERR_BONSAI_NOT_FOUND } = await import('@/lib/constants/errors')
+      mockIsOwnedBonsai.mockResolvedValue(false)
+      const { applyCreatePostBusinessRules } = await import('@/lib/actions/post-validation')
+      const result = await applyCreatePostBusinessRules(
+        baseShape({ bonsaiId: 'nonexistent-bonsai' }),
+        'user1',
+      )
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.result).toMatchObject({ error: ERR_BONSAI_NOT_FOUND })
+      }
+    })
+
+    it('本人所有の bonsaiId は通過し data.bonsaiId に反映される', async () => {
+      mockIsOwnedBonsai.mockResolvedValue(true)
+      const { applyCreatePostBusinessRules } = await import('@/lib/actions/post-validation')
+      const result = await applyCreatePostBusinessRules(baseShape({ bonsaiId: 'bonsai-1' }), 'user1')
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.data.bonsaiId).toBe('bonsai-1')
+      }
+      expect(mockCheckDailyPostLimit).toHaveBeenCalled()
+    })
+
+    it('bonsaiId 未指定 (undefined) は isOwnedBonsai を呼ばず通過する', async () => {
+      const { applyCreatePostBusinessRules } = await import('@/lib/actions/post-validation')
+      const result = await applyCreatePostBusinessRules(baseShape({ bonsaiId: undefined }), 'user1')
+      expect(result.ok).toBe(true)
+      expect(mockIsOwnedBonsai).not.toHaveBeenCalled()
+    })
+
+    it('bonsaiId が null のときも isOwnedBonsai を呼ばず通過する', async () => {
+      const { applyCreatePostBusinessRules } = await import('@/lib/actions/post-validation')
+      const result = await applyCreatePostBusinessRules(baseShape({ bonsaiId: null }), 'user1')
+      expect(result.ok).toBe(true)
+      expect(mockIsOwnedBonsai).not.toHaveBeenCalled()
+    })
   })
 })
