@@ -12,7 +12,8 @@
 
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
-import { ROUTE_PRIVACY } from '@/lib/constants/routes'
+import { usePathname } from 'next/navigation'
+import { ROUTE_PRIVACY, ROUTE_MOBILE_ANDROID_PREFIX } from '@/lib/constants/routes'
 
 /** localStorage のキー (storage event で他タブと同期するため export する) */
 export const COOKIE_CONSENT_STORAGE_KEY = 'cookie-consent'
@@ -43,6 +44,7 @@ function setConsentLevel(level: Exclude<ConsentLevel, null>): void {
 }
 
 export function CookieConsent() {
+  const pathname = usePathname()
   const [visible, setVisible] = useState(() => {
     if (typeof window === 'undefined') return false
     return !getCookieConsent()
@@ -60,6 +62,10 @@ export function CookieConsent() {
     setConsentLevel('essential')
     setVisible(false)
   }, [])
+
+  // Android 版 minimal layout ページは Web 決済導線への到達経路を持たないため
+  // バナー自体を非表示にし、Web ページ (/privacy) へのリンクを露出させない
+  if (pathname?.startsWith(ROUTE_MOBILE_ANDROID_PREFIX)) return null
 
   if (!visible) return null
 

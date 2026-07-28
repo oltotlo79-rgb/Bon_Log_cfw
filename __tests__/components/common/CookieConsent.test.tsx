@@ -7,12 +7,21 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { usePathname } from 'next/navigation'
 
 import {
   CookieConsent,
   getCookieConsent,
   isTrackingAllowed,
 } from '@/components/common/CookieConsent'
+
+// グローバル setup (vitest.setup.tsx) の usePathname は固定値 '/' を返す arrow
+// function のためテスト内で上書きできない。CookieConsent が pathname 依存の
+// 分岐 (Android public ページでバナー抑止) を持つため、このファイルでは
+// vi.fn() ベースでモックし直し、テストごとに戻り値を切り替える。
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(() => '/'),
+}))
 
 const STORAGE_KEY = 'cookie-consent'
 
@@ -95,6 +104,7 @@ describe('CookieConsent UI', () => {
   beforeEach(() => {
     store = installLocalStorageMap()
     reloadMock.mockReset()
+    vi.mocked(usePathname).mockReturnValue('/')
     Object.defineProperty(window, 'location', {
       value: { ...originalLocation, reload: reloadMock },
       writable: true,
@@ -161,5 +171,50 @@ describe('CookieConsent UI', () => {
     render(<CookieConsent />)
     const link = screen.getByRole('link', { name: 'プライバシーポリシー' })
     expect(link).toHaveAttribute('href', '/privacy')
+  })
+})
+
+describe('CookieConsent: Android 専用ページでの抑止', () => {
+  let store: Map<string, string>
+
+  beforeEach(() => {
+    store = installLocalStorageMap()
+  })
+
+  it('/mobile/android/terms ではバナーを描画しない（null）', () => {
+    vi.mocked(usePathname).mockReturnValue('/mobile/android/terms')
+    const { container } = render(<CookieConsent />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('/mobile/android/privacy ではバナーを描画しない（null）', () => {
+    vi.mocked(usePathname).mockReturnValue('/mobile/android/privacy')
+    const { container } = render(<CookieConsent />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('/mobile/android/help ではバナーを描画しない（null）', () => {
+    vi.mocked(usePathname).mockReturnValue('/mobile/android/help')
+    const { container } = render(<CookieConsent />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('同意未保存でも /mobile/android 配下では抑止が優先される', () => {
+    store.clear()
+    vi.mocked(usePathname).mockReturnValue('/mobile/android/terms')
+    const { container } = render(<CookieConsent />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('/ では通常どおりバナーを表示する（抑止対象外）', () => {
+    vi.mocked(usePathname).mockReturnValue('/')
+    render(<CookieConsent />)
+    expect(screen.getByRole('dialog', { name: 'Cookie利用の同意' })).toBeInTheDocument()
+  })
+
+  it('/privacy（Web ページ）では通常どおりバナーを表示する（抑止対象外）', () => {
+    vi.mocked(usePathname).mockReturnValue('/privacy')
+    render(<CookieConsent />)
+    expect(screen.getByRole('dialog', { name: 'Cookie利用の同意' })).toBeInTheDocument()
   })
 })

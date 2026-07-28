@@ -43,6 +43,17 @@ export const ROUTE_TOKUSHOHO = '/tokushoho'
 export const ROUTE_ACCESSIBILITY = '/accessibility'
 export const ROUTE_ACCOUNT_DELETION = '/account-deletion'
 
+/**
+ * Android 専用 public ページ（Google Play 提出向け）。
+ * Native アプリの WebBrowser/Linking からログイン不要で開くため、
+ * PROTECTED_PATHS には含めない。本文は lib/constants/legal の
+ * ANDROID_LEGAL_DOCUMENTS を参照する想定（frontend 側でページ実装）。
+ */
+export const ROUTE_MOBILE_ANDROID_PREFIX = '/mobile/android'
+export const ROUTE_MOBILE_ANDROID_TERMS = `${ROUTE_MOBILE_ANDROID_PREFIX}/terms`
+export const ROUTE_MOBILE_ANDROID_PRIVACY = `${ROUTE_MOBILE_ANDROID_PREFIX}/privacy`
+export const ROUTE_MOBILE_ANDROID_HELP = `${ROUTE_MOBILE_ANDROID_PREFIX}/help`
+
 // ユーザー系
 export const ROUTE_NOTIFICATIONS = '/notifications'
 export const ROUTE_MESSAGES = '/messages'
