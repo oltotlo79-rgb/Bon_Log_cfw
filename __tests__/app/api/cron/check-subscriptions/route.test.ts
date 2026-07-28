@@ -25,6 +25,15 @@ vi.mock('@/lib/email', () => ({
   sendSubscriptionExpiredEmail: vi.fn(),
 }))
 
+// processExpiredSubscriptions (route.ts) は provider entitlement ベースの transition 検知を
+// lib/services/premium-entitlements に委譲する。この service 自体の単体テストは
+// __tests__/lib/services/premium-entitlements.test.ts でカバーするため、cron route の
+// テストではモックして「transition があった場合だけ副作用が起きる」契約のみを検証する。
+vi.mock('@/lib/services/premium-entitlements', () => ({
+  findUsersWithOverdueEntitlements: vi.fn(),
+  expireOverdueEntitlementsForUser: vi.fn(),
+}))
+
 vi.mock('@/lib/cron-auth', () => ({
   verifyCronAuth: vi.fn(),
 }))
@@ -102,9 +111,12 @@ describe('Cron Check Subscriptions API', () => {
     it('returns success with processedCount 0 when no expired users', async () => {
       const { verifyCronAuth } = await import('@/lib/cron-auth')
       const { prisma } = await import('@/lib/db')
+      const { findUsersWithOverdueEntitlements } = await import('@/lib/services/premium-entitlements')
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
-      // GET は「失効処理」と「期限間近の警告」で findMany を2回呼ぶ（どちらも空）
+      // 期限切れ entitlement を持つユーザーがいなければ processExpiredSubscriptions は即座に 0 を返す
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue([])
+      // 「期限間近の警告」側の findMany（空）
       vi.mocked(prisma.user.findMany).mockResolvedValue([])
       vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
 
@@ -122,6 +134,9 @@ describe('Cron Check Subscriptions API', () => {
       const { verifyCronAuth } = await import('@/lib/cron-auth')
       const { prisma } = await import('@/lib/db')
       const { sendSubscriptionExpiredEmail } = await import('@/lib/email')
+      const { findUsersWithOverdueEntitlements, expireOverdueEntitlementsForUser } = await import(
+        '@/lib/services/premium-entitlements'
+      )
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
 
@@ -130,12 +145,19 @@ describe('Cron Check Subscriptions API', () => {
         { id: 'user-2', email: 'user2@test.com', nickname: 'User2', premiumExpiresAt: new Date('2025-01-02') },
       ]
 
-      // 1回目=失効ユーザー、2回目=期限間近ユーザー（このテストでは空）
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue(['user-1', 'user-2'])
+      // 両ユーザーとも「premium→非premium」に transition したものとして扱う
+      vi.mocked(expireOverdueEntitlementsForUser).mockResolvedValue({
+        wasPremiumBefore: true,
+        isPremiumAfter: false,
+        premiumExpiresAt: null,
+        expiredCount: 1,
+      })
+      // 1回目=transition したユーザー（失効メール対象）、2回目=期限間近ユーザー（このテストでは空）
       vi.mocked(prisma.user.findMany)
         .mockResolvedValueOnce(expiredUsers as never)
         .mockResolvedValueOnce([] as never)
       vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
-      vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 2 } as never)
       vi.mocked(prisma.scheduledPost.updateMany).mockResolvedValue({ count: 1 } as never)
       vi.mocked(sendSubscriptionExpiredEmail).mockResolvedValue({ success: true } as never)
 
@@ -149,10 +171,15 @@ describe('Cron Check Subscriptions API', () => {
       expect(data.cancelledPostsCount).toBe(1)
       expect(data.emailsSent).toBe(2)
 
-      // Verify updateMany was called with expired user IDs
-      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      // Verify expireOverdueEntitlementsForUser was called per candidate user
+      expect(expireOverdueEntitlementsForUser).toHaveBeenCalledTimes(2)
+      expect(expireOverdueEntitlementsForUser).toHaveBeenCalledWith('user-1', expect.any(Date))
+      expect(expireOverdueEntitlementsForUser).toHaveBeenCalledWith('user-2', expect.any(Date))
+
+      // Verify transitioned users were looked up for email delivery
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: { id: { in: ['user-1', 'user-2'] } },
-        data: { isPremium: false },
+        select: { id: true, email: true, nickname: true },
       })
 
       // Verify scheduled posts were cancelled
@@ -170,10 +197,44 @@ describe('Cron Check Subscriptions API', () => {
       expect(sendSubscriptionExpiredEmail).toHaveBeenCalledWith('user2@test.com', 'User2')
     })
 
+    it('片方の provider のみ有効な場合は transition なしとして副作用を実行しない', async () => {
+      const { verifyCronAuth } = await import('@/lib/cron-auth')
+      const { prisma } = await import('@/lib/db')
+      const { sendSubscriptionExpiredEmail } = await import('@/lib/email')
+      const { findUsersWithOverdueEntitlements, expireOverdueEntitlementsForUser } = await import(
+        '@/lib/services/premium-entitlements'
+      )
+
+      vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue(['user-1'])
+      // Stripe entitlement は失効したが RevenueCat がまだ有効 → aggregate は isPremium=true のまま
+      vi.mocked(expireOverdueEntitlementsForUser).mockResolvedValue({
+        wasPremiumBefore: true,
+        isPremiumAfter: true,
+        premiumExpiresAt: new Date('2026-06-01'),
+        expiredCount: 1,
+      })
+      vi.mocked(prisma.user.findMany).mockResolvedValue([] as never)
+      vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
+
+      const { GET } = await import('@/app/api/cron/check-subscriptions/route')
+      const response = await GET(makeGetRequest('HMAC sig', '1700000000000'))
+
+      const data = await response.json()
+      expect(data.processedCount).toBe(0)
+      expect(data.cancelledPostsCount).toBe(0)
+      expect(data.emailsSent).toBe(0)
+      expect(prisma.scheduledPost.updateMany).not.toHaveBeenCalled()
+      expect(sendSubscriptionExpiredEmail).not.toHaveBeenCalled()
+    })
+
     it('counts email send failures', async () => {
       const { verifyCronAuth } = await import('@/lib/cron-auth')
       const { prisma } = await import('@/lib/db')
       const { sendSubscriptionExpiredEmail } = await import('@/lib/email')
+      const { findUsersWithOverdueEntitlements, expireOverdueEntitlementsForUser } = await import(
+        '@/lib/services/premium-entitlements'
+      )
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
 
@@ -182,11 +243,17 @@ describe('Cron Check Subscriptions API', () => {
         { id: 'user-2', email: 'user2@test.com', nickname: 'User2', premiumExpiresAt: new Date('2025-01-02') },
       ]
 
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue(['user-1', 'user-2'])
+      vi.mocked(expireOverdueEntitlementsForUser).mockResolvedValue({
+        wasPremiumBefore: true,
+        isPremiumAfter: false,
+        premiumExpiresAt: null,
+        expiredCount: 1,
+      })
       vi.mocked(prisma.user.findMany)
         .mockResolvedValueOnce(expiredUsers as never)
         .mockResolvedValueOnce([] as never)
       vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
-      vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 2 } as never)
       vi.mocked(prisma.scheduledPost.updateMany).mockResolvedValue({ count: 0 } as never)
       vi.mocked(sendSubscriptionExpiredEmail)
         .mockResolvedValueOnce({ success: true } as never)
@@ -206,15 +273,24 @@ describe('Cron Check Subscriptions API', () => {
       const { verifyCronAuth } = await import('@/lib/cron-auth')
       const { prisma } = await import('@/lib/db')
       const { sendSubscriptionExpiredEmail } = await import('@/lib/email')
+      const { findUsersWithOverdueEntitlements, expireOverdueEntitlementsForUser } = await import(
+        '@/lib/services/premium-entitlements'
+      )
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue(['user-1'])
+      vi.mocked(expireOverdueEntitlementsForUser).mockResolvedValue({
+        wasPremiumBefore: true,
+        isPremiumAfter: false,
+        premiumExpiresAt: null,
+        expiredCount: 1,
+      })
       vi.mocked(prisma.user.findMany)
         .mockResolvedValueOnce([
           { id: 'user-1', email: 'u1@test.com', nickname: 'U1', premiumExpiresAt: new Date('2025-01-01') },
         ] as never)
         .mockResolvedValueOnce([] as never)
       vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
-      vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never)
       vi.mocked(prisma.scheduledPost.updateMany).mockResolvedValue({ count: 0 } as never)
       vi.mocked(sendSubscriptionExpiredEmail).mockRejectedValue(new Error('SMTP down'))
 
@@ -230,6 +306,9 @@ describe('Cron Check Subscriptions API', () => {
       const { verifyCronAuth } = await import('@/lib/cron-auth')
       const { prisma } = await import('@/lib/db')
       const { sendSubscriptionExpiredEmail } = await import('@/lib/email')
+      const { findUsersWithOverdueEntitlements, expireOverdueEntitlementsForUser } = await import(
+        '@/lib/services/premium-entitlements'
+      )
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
 
@@ -241,11 +320,17 @@ describe('Cron Check Subscriptions API', () => {
         premiumExpiresAt: new Date('2025-01-01'),
       }))
 
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue(expiredUsers.map((u) => u.id))
+      vi.mocked(expireOverdueEntitlementsForUser).mockResolvedValue({
+        wasPremiumBefore: true,
+        isPremiumAfter: false,
+        premiumExpiresAt: null,
+        expiredCount: 1,
+      })
       vi.mocked(prisma.user.findMany)
         .mockResolvedValueOnce(expiredUsers as never)
         .mockResolvedValueOnce([] as never)
       vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
-      vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 120 } as never)
       vi.mocked(prisma.scheduledPost.updateMany).mockResolvedValue({ count: 0 } as never)
       vi.mocked(sendSubscriptionExpiredEmail).mockResolvedValue({ success: true } as never)
 
@@ -263,14 +348,14 @@ describe('Cron Check Subscriptions API', () => {
       const { prisma } = await import('@/lib/db')
       const { sendSubscriptionExpiringEmail } = await import('@/lib/email')
       const { createSystemNotificationsBulk } = await import('@/lib/services/notification-bulk')
+      const { findUsersWithOverdueEntitlements } = await import('@/lib/services/premium-entitlements')
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
-      // 1回目=失効（空）、2回目=期限間近（1名）
-      vi.mocked(prisma.user.findMany)
-        .mockResolvedValueOnce([] as never)
-        .mockResolvedValueOnce([
-          { id: 'user-9', email: 'u9@test.com', nickname: 'U9', premiumExpiresAt: new Date('2026-04-01') },
-        ] as never)
+      // 失効ユーザーなし（期限間近の警告フローのみ検証）
+      vi.mocked(findUsersWithOverdueEntitlements).mockResolvedValue([])
+      vi.mocked(prisma.user.findMany).mockResolvedValue([
+        { id: 'user-9', email: 'u9@test.com', nickname: 'U9', premiumExpiresAt: new Date('2026-04-01') },
+      ] as never)
       vi.mocked(prisma.notification.findMany).mockResolvedValue([] as never)
       vi.mocked(sendSubscriptionExpiringEmail).mockResolvedValue({ success: true } as never)
       vi.mocked(createSystemNotificationsBulk).mockResolvedValue({ attempted: 1, filtered: 0 })
@@ -292,10 +377,10 @@ describe('Cron Check Subscriptions API', () => {
 
     it('returns 500 on error', async () => {
       const { verifyCronAuth } = await import('@/lib/cron-auth')
-      const { prisma } = await import('@/lib/db')
+      const { findUsersWithOverdueEntitlements } = await import('@/lib/services/premium-entitlements')
 
       vi.mocked(verifyCronAuth).mockReturnValue({ valid: true })
-      vi.mocked(prisma.user.findMany).mockRejectedValue(new Error('DB error'))
+      vi.mocked(findUsersWithOverdueEntitlements).mockRejectedValue(new Error('DB error'))
 
       const { GET } = await import('@/app/api/cron/check-subscriptions/route')
       const response = await GET(makeGetRequest('HMAC sig', '1700000000000'))

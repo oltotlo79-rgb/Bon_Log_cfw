@@ -239,24 +239,31 @@ describe('Subscription Actions Edge Cases', () => {
   describe('cancelSubscriptionImmediately', () => {
     it('Stripe解約後にDB更新でisPremiumをfalseにする', async () => {
       mockPrisma.user.findUnique
-        .mockResolvedValueOnce({ isSuspended: false })
-        .mockResolvedValueOnce({
-          stripeSubscriptionId: 'sub_123',
-        })
+        .mockResolvedValueOnce({ isSuspended: false }) // requireActiveNonGuestUser内の停止チェック
+        .mockResolvedValueOnce({ stripeSubscriptionId: 'sub_123' }) // cancelSubscriptionImmediately本体の検索
+        .mockResolvedValueOnce({ isPremium: true }) // recomputeUserPremiumAggregate内の検索
       mockStripe.subscriptions.cancel.mockResolvedValueOnce({})
-      mockPrisma.user.update.mockResolvedValueOnce({})
+      mockPrisma.premiumEntitlement.findUnique.mockResolvedValueOnce(null)
+      mockPrisma.premiumEntitlement.upsert.mockResolvedValueOnce({
+        id: 'entitlement-1',
+        userId: 'u1',
+        provider: 'stripe',
+        status: 'expired',
+      })
+      mockPrisma.premiumEntitlement.findMany.mockResolvedValueOnce([])
+      mockPrisma.user.update.mockResolvedValue({})
 
       const { cancelSubscriptionImmediately } = await import('@/lib/actions/subscription')
       const result = await cancelSubscriptionImmediately()
 
       expect(result).toEqual({ success: true })
-      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(1, {
         where: { id: 'u1' },
-        data: {
-          isPremium: false,
-          stripeSubscriptionId: null,
-          premiumExpiresAt: null,
-        },
+        data: { stripeSubscriptionId: null },
+      })
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 'u1' },
+        data: { isPremium: false, premiumExpiresAt: null },
       })
     })
 

@@ -10,8 +10,12 @@ vi.mock('@/lib/stripe', () => ({
   },
 }))
 
-vi.mock('@/lib/db', () => ({
-  prisma: {
+// premiumEntitlement は applyEntitlementEvent / recomputeUserPremiumAggregate
+// (lib/services/premium-entitlements, 未モック=実実装が動く) から $transaction 経由で
+// 呼ばれる。$transaction コールバックには mockPrismaClient 自身を tx として渡すことで、
+// トップレベルの vi.fn() アサーションでトランザクション内呼び出しも捕捉できるようにする。
+vi.mock('@/lib/db', () => {
+  const mockPrismaClient = {
     user: {
       update: vi.fn(),
       findFirst: vi.fn(),
@@ -27,22 +31,20 @@ vi.mock('@/lib/db', () => ({
       create: vi.fn(),
       findFirst: vi.fn().mockResolvedValue(null),
     },
+    premiumEntitlement: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn(),
+    },
     // Webhook 冪等性ガード用
     webhookEvent: {
       create: vi.fn().mockResolvedValue({ id: 'we-1' }),
     },
-    $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
-      // インタラクティブトランザクションは tx を渡して呼ぶ
-      const tx = {
-        notification: {
-          findFirst: vi.fn().mockResolvedValue(null),
-          create: vi.fn().mockResolvedValue({ id: 'n-1' }),
-        },
-      }
-      return cb(tx)
-    }),
-  },
-}))
+    $transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(mockPrismaClient)),
+  }
+  return { prisma: mockPrismaClient }
+})
 
 // createNotification は通知ロジック単体テストでカバー済み。stripe webhook テストでは委譲を確認すれば十分。
 vi.mock('@/lib/actions/notification', () => ({
@@ -54,8 +56,10 @@ vi.mock('@/lib/services/notification-core', () => ({
 
 // idempotency helper も単体テストでカバー済み。webhook テストでは挙動を上書き。
 const mockEnsureWebhookEventOnce = vi.fn().mockResolvedValue({ alreadyProcessed: false })
+const mockDeleteWebhookEvent = vi.fn().mockResolvedValue(undefined)
 vi.mock('@/lib/services/webhook-idempotency', () => ({
   ensureWebhookEventOnce: (...args: unknown[]) => mockEnsureWebhookEventOnce(...args),
+  deleteWebhookEvent: (...args: unknown[]) => mockDeleteWebhookEvent(...args),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -148,6 +152,11 @@ describe('Stripe Webhook API', () => {
     const { stripe } = await import('@/lib/stripe')
     const { prisma } = await import('@/lib/db')
 
+    // 未来日時を使う: isEntitlementActive は expiresAt > now で有効性を判定するため、
+    // 固定の過去 unix 秒だと recomputeUserPremiumAggregate が「期限切れ」と正しく判定してしまう。
+    const futurePeriodEndSec = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60
+    const futurePeriodEndDate = new Date(futurePeriodEndSec * 1000)
+
     const mockEvent = {
       type: 'checkout.session.completed',
       data: {
@@ -166,7 +175,7 @@ describe('Stripe Webhook API', () => {
     vi.mocked(stripe.subscriptions.retrieve).mockResolvedValue({
       id: 'sub_123',
       status: 'active',
-      current_period_end: 1700000000,
+      current_period_end: futurePeriodEndSec,
     } as never)
     vi.mocked(stripe.invoices.retrieve).mockResolvedValue({
       payment_intent: 'pi_123',
@@ -175,18 +184,37 @@ describe('Stripe Webhook API', () => {
     } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
     vi.mocked(prisma.payment.create).mockResolvedValue({} as never)
+    // recomputeUserPremiumAggregate (実実装) が isPremium/premiumExpiresAt を
+    // 導出する際に参照する有効 entitlement 一覧
+    vi.mocked(prisma.premiumEntitlement.findMany).mockResolvedValueOnce([
+      { status: 'active', expiresAt: futurePeriodEndDate } as never,
+    ])
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
 
     expect(response.status).toBe(200)
-    expect(prisma.user.update).toHaveBeenCalledWith({
+    // legacy カラム更新（tx.user.update 1回目）: stripeCustomerId/stripeSubscriptionId のみ
+    expect(prisma.user.update).toHaveBeenNthCalledWith(1, {
       where: { id: 'user-1' },
-      data: expect.objectContaining({
-        isPremium: true,
+      data: {
         stripeCustomerId: 'cus_123',
         stripeSubscriptionId: 'sub_123',
-      }),
+      },
+    })
+    expect(prisma.premiumEntitlement.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_provider: { userId: 'user-1', provider: 'stripe' } },
+        update: expect.objectContaining({ status: 'active', providerRef: 'sub_123' }),
+      })
+    )
+    // aggregate 再計算（tx.user.update 2回目）: isPremium/premiumExpiresAt
+    expect(prisma.user.update).toHaveBeenNthCalledWith(2, {
+      where: { id: 'user-1' },
+      data: {
+        isPremium: true,
+        premiumExpiresAt: futurePeriodEndDate,
+      },
     })
     expect(prisma.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -222,11 +250,20 @@ describe('Stripe Webhook API', () => {
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: { stripeSubscriptionId: 'sub_123' },
     })
-    expect(prisma.user.update).toHaveBeenCalledWith({
+    expect(prisma.user.update).toHaveBeenNthCalledWith(1, {
+      where: { id: 'user-1' },
+      data: { stripeSubscriptionId: null },
+    })
+    expect(prisma.premiumEntitlement.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_provider: { userId: 'user-1', provider: 'stripe' } },
+        update: expect.objectContaining({ status: 'expired', expiresAt: null }),
+      })
+    )
+    expect(prisma.user.update).toHaveBeenNthCalledWith(2, {
       where: { id: 'user-1' },
       data: {
         isPremium: false,
-        stripeSubscriptionId: null,
         premiumExpiresAt: null,
       },
     })
@@ -378,6 +415,10 @@ describe('Stripe Webhook API', () => {
     vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(mockEvent as never)
     vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-1' } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
+    const expiresAt = new Date(mockEvent.data.object.current_period_end * 1000)
+    vi.mocked(prisma.premiumEntitlement.findMany).mockResolvedValueOnce([
+      { status: 'active', expiresAt } as never,
+    ])
 
     const { POST } = await import('@/app/api/webhooks/stripe/route')
     const response = await POST(makeRequest('{}', 'sig_valid'))
@@ -385,11 +426,18 @@ describe('Stripe Webhook API', () => {
     expect(response.status).toBe(200)
     const data = await response.json()
     expect(data.received).toBe(true)
+    expect(prisma.premiumEntitlement.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_provider: { userId: 'user-1', provider: 'stripe' } },
+        update: expect.objectContaining({ status: 'active', providerRef: 'sub_123' }),
+      })
+    )
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      data: expect.objectContaining({
+      data: {
         isPremium: true,
-      }),
+        premiumExpiresAt: expiresAt,
+      },
     })
   })
 

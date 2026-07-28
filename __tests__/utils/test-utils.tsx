@@ -1749,6 +1749,17 @@ export const createMockPrismaClient = () => {
     aggregate: vi.fn(),
   },
 
+  /**
+   * premiumEntitlementテーブルのモック
+   * provider (Stripe / RevenueCat) 別の有料会員権利
+   */
+  premiumEntitlement: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    upsert: vi.fn(),
+    updateMany: vi.fn(),
+  },
+
   // ============================================================
   // レビュー画像関連テーブル
   // ============================================================

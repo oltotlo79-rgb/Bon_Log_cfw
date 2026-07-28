@@ -10,18 +10,33 @@ import { NextRequest } from 'next/server'
 
 // ──────────────────────────────────────────────────
 // モック: DB
+//
+// processRevenueCatEvent は applyEntitlementEventAndRecompute (lib/services/premium-entitlements,
+// 未モック=実実装が動く) 経由で prisma.$transaction / premiumEntitlement を使う。
+// $transaction のコールバックには mockPrismaClient 自身を tx として渡し、トップレベルの
+// vi.fn() アサーションでトランザクション内呼び出しも捕捉できるようにする。
 // ──────────────────────────────────────────────────
 const mockUserFindUnique = vi.fn()
 const mockUserUpdate = vi.fn()
+const mockEntitlementFindUnique = vi.fn()
+const mockEntitlementUpsert = vi.fn()
+const mockEntitlementFindMany = vi.fn()
 
-vi.mock('@/lib/db', () => ({
-  prisma: {
+vi.mock('@/lib/db', () => {
+  const mockPrismaClient = {
     user: {
       findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
       update: (...args: unknown[]) => mockUserUpdate(...args),
     },
-  },
-}))
+    premiumEntitlement: {
+      findUnique: (...args: unknown[]) => mockEntitlementFindUnique(...args),
+      upsert: (...args: unknown[]) => mockEntitlementUpsert(...args),
+      findMany: (...args: unknown[]) => mockEntitlementFindMany(...args),
+    },
+    $transaction: (cb: (tx: unknown) => Promise<unknown>) => cb(mockPrismaClient),
+  }
+  return { prisma: mockPrismaClient }
+})
 
 // ──────────────────────────────────────────────────
 // モック: rate-limit
@@ -103,8 +118,14 @@ describe('POST /api/webhooks/revenuecat', () => {
     mockCheckRateLimit.mockResolvedValue({ success: true, remaining: 60, resetTime: Date.now() + 60_000 })
     mockEnsureWebhookEventOnce.mockResolvedValue({ alreadyProcessed: false })
     mockDeleteWebhookEvent.mockResolvedValue(undefined)
-    mockUserFindUnique.mockResolvedValue({ id: 'user-premium-1' })
+    // select が異なるだけで同じ mock 関数を processRevenueCatEvent の存在確認と
+    // recomputeUserPremiumAggregate (実実装) の両方から共有するため、両方に必要なフィールドを含める。
+    mockUserFindUnique.mockResolvedValue({ id: 'user-premium-1', isPremium: false })
     mockUserUpdate.mockResolvedValue({})
+    mockEntitlementFindUnique.mockResolvedValue(null)
+    mockEntitlementUpsert.mockResolvedValue({})
+    // 未設定時は「有効な entitlement なし」= isPremium false が既定の安全な挙動になるようにする
+    mockEntitlementFindMany.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -207,6 +228,9 @@ describe('POST /api/webhooks/revenuecat', () => {
 
   it('INITIAL_PURCHASE: isPremium=true + premiumExpiresAt 更新で 200', async () => {
     const expirationAtMs = Date.now() + 30 * 24 * 60 * 60 * 1000
+    mockEntitlementFindMany.mockResolvedValueOnce([
+      { status: 'active', expiresAt: new Date(expirationAtMs) },
+    ])
     const payload = validPayload({ type: 'INITIAL_PURCHASE', expiration_at_ms: expirationAtMs })
     const { POST } = await import('@/app/api/webhooks/revenuecat/route')
     const res = await POST(makeRequest(payload, TEST_SECRET))
@@ -221,6 +245,9 @@ describe('POST /api/webhooks/revenuecat', () => {
 
   it('RENEWAL: isPremium=true + premiumExpiresAt 更新で 200', async () => {
     const expirationAtMs = Date.now() + 30 * 24 * 60 * 60 * 1000
+    mockEntitlementFindMany.mockResolvedValueOnce([
+      { status: 'active', expiresAt: new Date(expirationAtMs) },
+    ])
     const payload = validPayload({ type: 'RENEWAL', expiration_at_ms: expirationAtMs })
     const { POST } = await import('@/app/api/webhooks/revenuecat/route')
     const res = await POST(makeRequest(payload, TEST_SECRET))
@@ -288,14 +315,17 @@ describe('POST /api/webhooks/revenuecat', () => {
   // H. expiration_at_ms が null の場合（RENEWAL など）
   // ──────────────────────────────────────────────────
 
-  it('RENEWAL で expiration_at_ms が null → isPremium=true だが premiumExpiresAt 更新なし', async () => {
+  it('RENEWAL で expiration_at_ms が null → isPremium=true だが premiumExpiresAt は null（期限不明）のまま', async () => {
+    // expiresAt が null の entitlement は「有効だが期限不明」を意味し、
+    // premiumExpiresAt は null のまま（無期限ではない）になる仕様（null semantics 参照）。
+    mockEntitlementFindMany.mockResolvedValueOnce([{ status: 'active', expiresAt: null }])
     const payload = validPayload({ type: 'RENEWAL', expiration_at_ms: null })
     const { POST } = await import('@/app/api/webhooks/revenuecat/route')
     const res = await POST(makeRequest(payload, TEST_SECRET))
     expect(res.status).toBe(200)
     expect(mockUserUpdate).toHaveBeenCalledWith({
       where: { id: 'user-premium-1' },
-      data: { isPremium: true },
+      data: { isPremium: true, premiumExpiresAt: null },
     })
   })
 })

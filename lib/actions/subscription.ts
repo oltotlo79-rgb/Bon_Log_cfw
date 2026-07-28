@@ -24,6 +24,7 @@ import { getAppUrl } from '@/lib/env'
 import { stripe, STRIPE_PRICE_ID_MONTHLY, STRIPE_PRICE_ID_YEARLY } from '@/lib/stripe'
 import { ROUTE_SETTINGS_SUBSCRIPTION } from '@/lib/constants/routes'
 import logger from '@/lib/logger'
+import { applyEntitlementEvent, recomputeUserPremiumAggregate } from '@/lib/services/premium-entitlements'
 
 /**
  * Stripe 課金系 Action で受け取る `priceType` の許容値。
@@ -217,14 +218,27 @@ export async function cancelSubscriptionImmediately() {
 
   try {
     await stripe.subscriptions.cancel(user.stripeSubscriptionId)
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        isPremium: false,
-        stripeSubscriptionId: null,
-        premiumExpiresAt: null,
-      },
+
+    // stripe entitlement を expired 確定し OR 集約で isPremium を再計算する（webhook の
+    // customer.subscription.deleted と同じ semantics）。RevenueCat 等、他 provider に
+    // 有効な entitlement がある二重購読ユーザーの premium を誤って剥奪しないため。
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { stripeSubscriptionId: null },
+      })
+      await applyEntitlementEvent(tx, {
+        userId,
+        provider: 'stripe',
+        status: 'expired',
+        cancelAtPeriodEnd: false,
+        expiresAt: null,
+        eventAt: new Date(),
+        eventId: null,
+      })
+      await recomputeUserPremiumAggregate(tx, userId)
     })
+
     revalidatePath(ROUTE_SETTINGS_SUBSCRIPTION)
     return actionSuccess()
   } catch (error) {

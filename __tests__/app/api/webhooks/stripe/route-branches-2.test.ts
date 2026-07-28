@@ -17,12 +17,16 @@ vi.mock('@/lib/stripe', () => ({
   },
 }))
 
-vi.mock('@/lib/db', () => ({
-  prisma: {
+// premiumEntitlement / $transaction は applyEntitlementEvent / recomputeUserPremiumAggregate
+// (lib/services/premium-entitlements, 未モック=実実装が動く) から呼ばれる。$transaction の
+// コールバックには mockPrismaClient 自身を tx として渡し、トップレベルの vi.fn() アサーションで
+// トランザクション内呼び出しも捕捉できるようにする。
+vi.mock('@/lib/db', () => {
+  const mockPrismaClient = {
     user: {
       update: vi.fn(),
       findFirst: vi.fn(),
-      findUnique: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue({ isPremium: false }),
     },
     payment: {
       create: vi.fn(),
@@ -34,11 +38,19 @@ vi.mock('@/lib/db', () => ({
       create: vi.fn(),
       findFirst: vi.fn().mockResolvedValue(null),
     },
+    premiumEntitlement: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn(),
+    },
     webhookEvent: {
       create: vi.fn().mockResolvedValue({ id: 'we-1' }),
     },
-  },
-}))
+    $transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(mockPrismaClient)),
+  }
+  return { prisma: mockPrismaClient }
+})
 
 const mockCreateNotification = vi.fn().mockResolvedValue({ success: true })
 vi.mock('@/lib/services/notification-core', () => ({

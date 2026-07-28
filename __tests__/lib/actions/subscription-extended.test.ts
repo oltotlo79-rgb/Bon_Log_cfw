@@ -299,11 +299,18 @@ describe('Subscription Actions Extended', async () => {
     it('サブスクリプションを即時解約できる', async () => {
       mockPrisma.user.findUnique
         .mockResolvedValueOnce({ isSuspended: false })
-        .mockResolvedValueOnce({
-          stripeSubscriptionId: 'sub_123',
-        })
+        .mockResolvedValueOnce({ stripeSubscriptionId: 'sub_123' })
+        .mockResolvedValueOnce({ isPremium: true })
       mockStripe.subscriptions.cancel.mockResolvedValueOnce({})
-      mockPrisma.user.update.mockResolvedValueOnce({})
+      mockPrisma.premiumEntitlement.findUnique.mockResolvedValueOnce(null)
+      mockPrisma.premiumEntitlement.upsert.mockResolvedValueOnce({
+        id: 'entitlement-1',
+        userId: 'u1',
+        provider: 'stripe',
+        status: 'expired',
+      })
+      mockPrisma.premiumEntitlement.findMany.mockResolvedValueOnce([])
+      mockPrisma.user.update.mockResolvedValue({})
 
       const { cancelSubscriptionImmediately } = await import('@/lib/actions/subscription')
       const result = await cancelSubscriptionImmediately()

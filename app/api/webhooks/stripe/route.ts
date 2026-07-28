@@ -3,10 +3,15 @@ import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 import { z } from 'zod'
+import type { EntitlementStatus } from '@prisma/client'
 import logger from '@/lib/logger'
 import { PREMIUM_FALLBACK_DAYS, ONE_DAY_MS, ONE_SECOND_MS } from '@/lib/constants/limits'
 import { createNotification } from '@/lib/services/notification-core'
 import { ensureWebhookEventOnce, deleteWebhookEvent } from '@/lib/services/webhook-idempotency'
+import {
+  applyEntitlementEvent,
+  recomputeUserPremiumAggregate,
+} from '@/lib/services/premium-entitlements'
 import { checkRateLimit } from '@/lib/rate-limit'
 import {
   API_ERR_WEBHOOK_NOT_CONFIGURED,
@@ -46,6 +51,8 @@ const stripeSubscriptionSchema = z.object({
       data: z.array(z.object({ current_period_end: z.number().int().optional() })).optional(),
     })
     .optional(),
+  // 「現在有効だが次回更新しない」状態（entitlement のメタデータとして保存する）
+  cancel_at_period_end: z.boolean().optional(),
 })
 
 /** Subscription の課金周期終了 unix 秒を、API バージョン差を吸収して取得する。 */
@@ -53,6 +60,19 @@ function getSubscriptionPeriodEnd(
   subscription: z.infer<typeof stripeSubscriptionSchema>,
 ): number | undefined {
   return subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end
+}
+
+/**
+ * Stripe の raw subscription status を PremiumEntitlement の status へ写像する。
+ *
+ * 既存実装（customer.subscription.updated ハンドラ）は `status === 'active'` の
+ * リテラル比較のみで isPremium を決めていたため、その挙動をそのまま踏襲する
+ * （trialing / past_due / unpaid / canceled / incomplete 等は全て非アクティブ扱い＝
+ * 猶予期間なしの既存仕様。ここで挙動を変更すると Stripe のみで購読中の既存 Web
+ * ユーザーの失効タイミングが変わってしまうため、意図的に変更しない）。
+ */
+function mapStripeStatusToEntitlementStatus(status: string): EntitlementStatus {
+  return status === 'active' ? 'active' : 'inactive'
 }
 
 // Stripe の invoice / payment_intent / subscription フィールドは expand 無しの場合は
@@ -140,6 +160,11 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  // out-of-order 防御の基準時刻。Stripe Event は常に top-level `created`（event 発生時刻・unix 秒）
+  // を持つため、これを providerEventAt として使う（古い expiration が新しい renewal の後に
+  // 届いても巻き戻さないための比較基準）。
+  const eventAt = new Date(event.created * ONE_SECOND_MS)
+
   switch (event.type) {
     // 決済完了 → 有料会員有効化
     case 'checkout.session.completed': {
@@ -179,14 +204,32 @@ export async function POST(request: NextRequest) {
 
           logger.info('currentPeriodEnd:', currentPeriodEnd, 'premiumExpiresAt:', premiumExpiresAt)
 
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              isPremium: true,
-              stripeCustomerId: customerId ?? null,
-              stripeSubscriptionId: subscriptionId,
-              premiumExpiresAt,
-            },
+          // legacy カラム（stripeCustomerId/stripeSubscriptionId）の更新・stripe entitlement の
+          // upsert・User aggregate 再計算を単一トランザクションで atomic に行う
+          // （途中失敗で provider record と aggregate が半端に commit されないようにするため）。
+          await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+              where: { id: userId },
+              data: {
+                stripeCustomerId: customerId ?? null,
+                stripeSubscriptionId: subscriptionId,
+              },
+            })
+            // 既存実装は checkout.session.completed 到達時点で subscription.status を問わず
+            // 有効化していたため、その挙動を踏襲し status は常に 'active' とする。
+            await applyEntitlementEvent(tx, {
+              userId,
+              provider: 'stripe',
+              providerRef: subscriptionId,
+              status: 'active',
+              cancelAtPeriodEnd: subParsed.data.cancel_at_period_end ?? false,
+              expiresAt: premiumExpiresAt,
+              eventAt,
+              eventId: event.id,
+            })
+            // aggregate の有効判定は「実処理時点の現在時刻」で行う（eventAt は out-of-order
+            // 判定専用の基準値であり、"今この瞬間 premium かどうか" の判定には使わない）。
+            await recomputeUserPremiumAggregate(tx, userId)
           })
 
           // 支払い履歴を記録（サブスクリプションの場合、invoiceから取得）
@@ -264,12 +307,18 @@ export async function POST(request: NextRequest) {
             ? new Date(currentPeriodEnd * ONE_SECOND_MS)
             : new Date(Date.now() + PREMIUM_FALLBACK_DAYS * ONE_DAY_MS)
 
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              isPremium: subscriptionStatus === 'active',
-              premiumExpiresAt,
-            },
+          await prisma.$transaction(async (tx) => {
+            await applyEntitlementEvent(tx, {
+              userId: user.id,
+              provider: 'stripe',
+              providerRef: subscriptionId,
+              status: mapStripeStatusToEntitlementStatus(subscriptionStatus),
+              cancelAtPeriodEnd: parsed.data.cancel_at_period_end ?? false,
+              expiresAt: premiumExpiresAt,
+              eventAt,
+              eventId: event.id,
+            })
+            await recomputeUserPremiumAggregate(tx, user.id)
           })
 
           logger.info(`User ${user.id} subscription updated: ${subscriptionStatus}`)
@@ -300,13 +349,21 @@ export async function POST(request: NextRequest) {
         })
 
         if (user) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              isPremium: false,
-              stripeSubscriptionId: null,
-              premiumExpiresAt: null,
-            },
+          await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+              where: { id: user.id },
+              data: { stripeSubscriptionId: null },
+            })
+            await applyEntitlementEvent(tx, {
+              userId: user.id,
+              provider: 'stripe',
+              status: 'expired',
+              cancelAtPeriodEnd: false,
+              expiresAt: null,
+              eventAt,
+              eventId: event.id,
+            })
+            await recomputeUserPremiumAggregate(tx, user.id)
           })
 
           logger.info(`User ${user.id} subscription deleted`)
@@ -426,11 +483,19 @@ export async function POST(request: NextRequest) {
                 ? new Date(currentPeriodEnd * ONE_SECOND_MS)
                 : new Date(Date.now() + PREMIUM_FALLBACK_DAYS * ONE_DAY_MS)
 
-              await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  premiumExpiresAt,
-                },
+              // 既存実装は isPremium に触れず premiumExpiresAt のみ延長していたため、
+              // entitlement 側も status は変更せず expiresAt のみ更新する
+              // （status を省略すると applyEntitlementEvent は既存値を維持する）。
+              await prisma.$transaction(async (tx) => {
+                await applyEntitlementEvent(tx, {
+                  userId: user.id,
+                  provider: 'stripe',
+                  providerRef: subscriptionId,
+                  expiresAt: premiumExpiresAt,
+                  eventAt,
+                  eventId: event.id,
+                })
+                await recomputeUserPremiumAggregate(tx, user.id)
               })
 
               logger.info(`User ${user.id} subscription renewed`)
@@ -493,9 +558,17 @@ export async function POST(request: NextRequest) {
         }
 
         if (user) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { isPremium: false, premiumExpiresAt: null },
+          await prisma.$transaction(async (tx) => {
+            await applyEntitlementEvent(tx, {
+              userId: user.id,
+              provider: 'stripe',
+              status: 'expired',
+              cancelAtPeriodEnd: false,
+              expiresAt: null,
+              eventAt,
+              eventId: event.id,
+            })
+            await recomputeUserPremiumAggregate(tx, user.id)
           })
 
           const notif = await createNotification({

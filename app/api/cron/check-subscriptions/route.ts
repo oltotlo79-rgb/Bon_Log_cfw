@@ -7,6 +7,10 @@ import { SUBSCRIPTION_EXPIRY_WARNING_DAYS, ONE_DAY_MS, SUBSCRIPTION_EMAIL_BATCH_
 import { SCHEDULED_POST_STATUS } from '@/lib/constants/status'
 import { logger } from '@/lib/logger'
 import { createSystemNotificationsBulk } from '@/lib/services/notification-bulk'
+import {
+  findUsersWithOverdueEntitlements,
+  expireOverdueEntitlementsForUser,
+} from '@/lib/services/premium-entitlements'
 
 // Vercel Cron Job用 - サブスクリプション期限切れチェック
 // cron: 0 1 * * * (毎日 1 時に実行)
@@ -42,42 +46,61 @@ async function sendEmailsInBatches<T>(
   return { sent, failed }
 }
 
-/** 期限切れプレミアムを失効させ、予約投稿をキャンセルし、失効メールを送る。 */
+/**
+ * 期限切れ provider entitlement を確定させ、User aggregate（isPremium/premiumExpiresAt）を
+ * 再計算する。実際に premium が true→false へ遷移したユーザーだけ、予約投稿キャンセル・
+ * 失効メール送信を行う。
+ *
+ * 一方の provider がまだ有効なら aggregate は true のまま維持され、副作用は実行されない
+ * （例: Stripe が期限切れでも RevenueCat が有効なら isPremium は true を維持）。
+ * 各 entitlement は本関数の呼び出しで 'expired' に確定するため、同じ transition の副作用が
+ * 複数回の cron 実行にまたがって重複することはない
+ * （@see lib/services/premium-entitlements.ts の expireOverdueEntitlementsForUser）。
+ */
 async function processExpiredSubscriptions(now: Date): Promise<{
   expiredCount: number
   cancelledPostsCount: number
   emailsSent: number
   emailsFailed: number
 }> {
-  const expiredUsers = await prisma.user.findMany({
-    where: { isPremium: true, premiumExpiresAt: { lt: now } },
-    select: { id: true, email: true, nickname: true, premiumExpiresAt: true },
-  })
+  const candidateUserIds = await findUsersWithOverdueEntitlements(now)
 
-  if (expiredUsers.length === 0) {
+  if (candidateUserIds.length === 0) {
     return { expiredCount: 0, cancelledPostsCount: 0, emailsSent: 0, emailsFailed: 0 }
   }
 
-  const userIds = expiredUsers.map((u) => u.id)
+  // 各ユーザーごとに「entitlement 失効確定 + aggregate 再計算」を単一トランザクションで行う。
+  // ユーザー単位の atomic な transition 判定が必要なため、bulk updateMany ではなくループになる
+  // （対象は他 provider が有効な限り再度 candidate にならないため、日次実行では小規模な想定）。
+  const transitionedUserIds: string[] = []
+  for (const userId of candidateUserIds) {
+    const result = await expireOverdueEntitlementsForUser(userId, now)
+    if (result.wasPremiumBefore && !result.isPremiumAfter) {
+      transitionedUserIds.push(userId)
+    }
+  }
 
-  // プレミアムステータスをリセット（stripe ID は再購読用に保持）
-  const result = await prisma.user.updateMany({
-    where: { id: { in: userIds } },
-    data: { isPremium: false },
+  if (transitionedUserIds.length === 0) {
+    return { expiredCount: 0, cancelledPostsCount: 0, emailsSent: 0, emailsFailed: 0 }
+  }
+
+  const transitionedUsers = await prisma.user.findMany({
+    where: { id: { in: transitionedUserIds } },
+    select: { id: true, email: true, nickname: true },
   })
 
   // 期限切れユーザーの pending 予約投稿をキャンセル
   const cancelledPosts = await prisma.scheduledPost.updateMany({
-    where: { userId: { in: userIds }, status: SCHEDULED_POST_STATUS.PENDING },
+    where: { userId: { in: transitionedUserIds }, status: SCHEDULED_POST_STATUS.PENDING },
     data: { status: SCHEDULED_POST_STATUS.CANCELLED },
   })
 
-  const { sent, failed } = await sendEmailsInBatches(expiredUsers, (user) =>
+  const { sent, failed } = await sendEmailsInBatches(transitionedUsers, (user) =>
     sendSubscriptionExpiredEmail(user.email, user.nickname)
   )
 
   return {
-    expiredCount: result.count,
+    expiredCount: transitionedUsers.length,
     cancelledPostsCount: cancelledPosts.count,
     emailsSent: sent,
     emailsFailed: failed,

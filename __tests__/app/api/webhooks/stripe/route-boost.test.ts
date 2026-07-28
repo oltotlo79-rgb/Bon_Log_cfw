@@ -57,6 +57,11 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
     vi.clearAllMocks()
     vi.resetModules()
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test123'
+    // mockPrisma はファイル内で使い回される単一インスタンスのため、clearAllMocks() では
+    // 前のテストで設定した mockResolvedValue（実装）が引き継がれてしまう。
+    // recomputeUserPremiumAggregate (実実装) が premiumEntitlement.findMany の戻り値に
+    // .filter を呼ぶため、未設定時は必ず空配列を返す安全なデフォルトに揃えておく。
+    mockPrisma.premiumEntitlement.findMany.mockResolvedValue([])
   })
 
   // ============================================================
@@ -85,18 +90,33 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
         status: 'active',
       })
       mockPrisma.user.update.mockResolvedValue({})
+      // recomputeUserPremiumAggregate (実実装) は対象 user の存在確認に findUnique を使う
+      mockPrisma.user.findUnique.mockResolvedValue({ isPremium: false })
+      // recomputeUserPremiumAggregate (実実装) が isPremium=true を導出するための有効 entitlement
+      mockPrisma.premiumEntitlement.findMany.mockResolvedValueOnce([
+        { status: 'active', expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      ])
 
       const { POST } = await import('@/app/api/webhooks/stripe/route')
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
       const data = await response.json()
 
       expect(data.received).toBe(true)
-      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      // 1回目: legacy カラム更新（stripeCustomerId/stripeSubscriptionId）
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(1, {
         where: { id: 'user-1' },
-        data: expect.objectContaining({
+        data: {
+          stripeCustomerId: 'cus_1',
+          stripeSubscriptionId: 'sub_1',
+        },
+      })
+      // 2回目: aggregate 再計算（isPremium/premiumExpiresAt、current_period_end 未定義のため 30 日後デフォルト）
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 'user-1' },
+        data: {
           isPremium: true,
           premiumExpiresAt: expect.any(Date),
-        }),
+        },
       })
       // 支払い履歴は作成されない（invoiceがnull）
       expect(mockPrisma.payment.create).not.toHaveBeenCalled()
@@ -157,6 +177,10 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       mockStripeWebhooksConstructEvent.mockReturnValue(mockEvent)
       mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' })
       mockPrisma.user.update.mockResolvedValue({})
+      mockPrisma.user.findUnique.mockResolvedValue({ isPremium: false })
+      mockPrisma.premiumEntitlement.findMany.mockResolvedValueOnce([
+        { status: 'active', expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      ])
 
       const { POST } = await import('@/app/api/webhooks/stripe/route')
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
@@ -165,10 +189,10 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       expect(data.received).toBe(true)
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: expect.objectContaining({
+        data: {
           isPremium: true,
           premiumExpiresAt: expect.any(Date),
-        }),
+        },
       })
     })
 
@@ -388,11 +412,15 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' })
       mockPrisma.payment.create.mockResolvedValue({})
       mockPrisma.user.update.mockResolvedValue({})
+      mockPrisma.user.findUnique.mockResolvedValue({ isPremium: false })
       // Zod スキーマは id / status を required。current_period_end だけ欠落させてデフォルト経路を踏む。
       mockStripeSubscriptionsRetrieve.mockResolvedValue({
         id: 'sub_1',
         status: 'active',
       })
+      mockPrisma.premiumEntitlement.findMany.mockResolvedValueOnce([
+        { status: 'active', expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      ])
 
       const { POST } = await import('@/app/api/webhooks/stripe/route')
       const response = await POST(createMockRequest(JSON.stringify(mockEvent), 'sig') as unknown as NextRequest)
@@ -402,6 +430,7 @@ describe('Stripe Webhook - ブランチカバレッジ向上', () => {
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: {
+          isPremium: true,
           premiumExpiresAt: expect.any(Date),
         },
       })
