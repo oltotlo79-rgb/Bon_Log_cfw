@@ -31,3 +31,22 @@ export function assertMediaUrlsFromOwnStorage(urls: readonly string[]): boolean 
 
   return urls.every((url) => allowedOrigins.some((origin) => url.startsWith(origin)))
 }
+
+/**
+ * 自社ストレージ由来の URL だけを残して返す（all-or-nothing ではなく個別フィルタ）。
+ *
+ * Why: アカウント削除時のストレージ削除 outbox（`StorageDeletionJob`）は、DB に保存された
+ * 任意の URL を無条件に削除対象へ入れると、不正な値が紛れ込んだ場合に外部ホストへ
+ * DELETE 相当の副作用（ストレージアダプタの解釈次第だが SSRF 的懸念を含む）を及ぼしうる。
+ * 1 件でも不許可なら全体を捨てる `assertMediaUrlsFromOwnStorage` と異なり、こちらは
+ * 不正な URL だけを黙って除外し、正当な URL の削除は継続させる。
+ *
+ * 許可プレフィックスが 1 件も取得できない場合（環境変数未設定等）は
+ * 検証をスキップして全件を返す（設定漏れで正規フローを壊さないため、既存関数と同方針）。
+ */
+export function filterOwnStorageUrls(urls: readonly string[]): string[] {
+  const allowedOrigins = getAllowedStorageOrigins()
+  if (allowedOrigins.length === 0) return [...urls]
+
+  return urls.filter((url) => allowedOrigins.some((origin) => url.startsWith(origin)))
+}

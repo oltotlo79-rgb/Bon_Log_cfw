@@ -175,6 +175,18 @@ describe('listBonsaiV1', () => {
 
     expect(result).toMatchObject({ ok: false, status: 500 })
   })
+
+  it('records の orderBy が recordAt desc + id desc の複合キー配列である（recordAt 同時刻のタイブレーク、項目9）', async () => {
+    mockBonsaiFindMany.mockResolvedValue([])
+
+    const { listBonsaiV1 } = await import('@/lib/services/bonsai-service')
+    await listBonsaiV1(OWNER_ID)
+
+    const call = mockBonsaiFindMany.mock.calls[0]?.[0] as {
+      include: { records: { orderBy: unknown } }
+    }
+    expect(call.include.records.orderBy).toEqual([{ recordAt: 'desc' }, { id: 'desc' }])
+  })
 })
 
 // ──────────────────────────────────────────────────

@@ -106,7 +106,8 @@ export async function listConversations(
         participants: {
           include: { user: USER_MINIMAL_RELATION },
         },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        // createdAt が同一になり得るため id をタイブレークに加え、lastMessage の選出を安定させる
+        messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: safeLimit,

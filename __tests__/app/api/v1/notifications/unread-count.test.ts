@@ -77,7 +77,7 @@ describe('GET /api/v1/notifications/unread-count', () => {
     const { GET } = await import('@/app/api/v1/notifications/unread-count/route')
     await GET(req)
 
-    expect(mockFetchUnreadNotificationCount).toHaveBeenCalledWith('user-abc')
+    expect(mockFetchUnreadNotificationCount).toHaveBeenCalledWith('user-abc', { excludeBlocked: true })
   })
 
   it('ゲストユーザーで 403 GUEST_NOT_ALLOWED', async () => {
@@ -154,5 +154,16 @@ describe('GET /api/v1/notifications/unread-count', () => {
       message: expect.any(String),
       status: expect.any(Number),
     })
+  })
+
+  it('fetchUnreadNotificationCount が例外を投げると 500 INTERNAL_ERROR を返す（fail-closed）', async () => {
+    mockFetchUnreadNotificationCount.mockRejectedValueOnce(new Error('relation lookup failed'))
+    const req = await makeAuthenticatedRequest('user-1', 'u@example.com')
+    const { GET } = await import('@/app/api/v1/notifications/unread-count/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error.code).toBe('INTERNAL_ERROR')
   })
 })

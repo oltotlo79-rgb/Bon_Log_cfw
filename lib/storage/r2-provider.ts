@@ -68,6 +68,13 @@ export class CloudflareR2StorageProvider implements StorageProvider {
       logger.log('R2 delete success:', url)
       return { success: true }
     } catch (err) {
+      // S3 互換 DELETE は本来キー不在でも 204 を返す仕様だが、実装差異に備えて
+      // 404 応答も idempotent success として扱う（呼び出し側の outbox worker が誤って
+      // リトライし続けないようにするため）。
+      if (err instanceof Error && /R2 DELETE failed: 404/.test(err.message)) {
+        logger.log('R2 delete: object already absent (idempotent success):', url)
+        return { success: true, notFound: true }
+      }
       logger.error('R2 delete error:', err)
       return { success: false, error: getStorageErrorMessage(err, '削除に失敗しました') }
     }

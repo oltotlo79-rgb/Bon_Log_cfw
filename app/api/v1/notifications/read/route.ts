@@ -7,12 +7,14 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { requireBearerUser, apiZodError, apiRateLimited } from '@/lib/api/v1'
+import { requireBearerUser, apiError, apiZodError, apiRateLimited } from '@/lib/api/v1'
 import { checkUserRateLimit } from '@/lib/rate-limit'
 import { z } from 'zod'
 import { cuidSchema } from '@/lib/actions/schemas/common'
 import { MAX_NOTIFICATION_READ_IDS } from '@/lib/constants/limits'
+import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
 import { markNotificationsRead, fetchUnreadNotificationCount } from '@/lib/services/notification-read-service'
+import logger from '@/lib/logger'
 
 const notificationReadBodySchema = z.object({
   ids: z
@@ -39,8 +41,17 @@ export async function PATCH(request: NextRequest) {
   const ids = parsed.data.ids && parsed.data.ids.length > 0 ? parsed.data.ids : undefined
   await markNotificationsRead(auth.userId, ids)
 
-  // 5. 操作後の未読数を返す（モバイル側バッジの即時更新に使う）
-  const unreadCount = await fetchUnreadNotificationCount(auth.userId)
-
-  return NextResponse.json({ success: true, unreadCount })
+  // 5. 操作後の未読数を返す（モバイル側バッジの即時更新に使う）。
+  //    ブロック双方向 + ミュートを除外。relation lookup 失敗時は fail-closed のため
+  //    例外を捕捉し typed 500 を返す（ブロック済み通知を件数に含めない）。
+  try {
+    const unreadCount = await fetchUnreadNotificationCount(auth.userId, { excludeBlocked: true })
+    return NextResponse.json({ success: true, unreadCount })
+  } catch (error) {
+    logger.error('PATCH /api/v1/notifications/read failed', {
+      error: error instanceof Error ? error.message : String(error),
+      userId: auth.userId,
+    })
+    return apiError(MOBILE_API_ERROR_CODES.INTERNAL_ERROR, 500)
+  }
 }

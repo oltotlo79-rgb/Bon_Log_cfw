@@ -11,23 +11,32 @@ import 'server-only'
 
 import { prisma } from '@/lib/db'
 import { USER_MINIMAL_RELATION } from '@/lib/prisma/shared-includes'
-import { getMutedUserIds } from '@/lib/actions/filter-helper'
+import { getMutedUserIds, getExcludedUserIds } from '@/lib/actions/filter-helper'
 import { normalizeCursorPagination } from '@/lib/actions/pagination'
+
+/**
+ * 通知の actor 除外オプション。
+ * 未指定/false は Web (`lib/actions/notification.ts`) と同一のミュートのみ除外（後方互換の既定値）。
+ * true は v1 API 専用: ブロック双方向 + ミュートを union で除外する。
+ */
+export type NotificationExclusionOptions = {
+  excludeBlocked?: boolean
+}
 
 /** fetchNotifications の内部クエリ形状（Prisma 推論型のエイリアス）。 */
 type NotificationQueryResult = Awaited<ReturnType<typeof queryNotifications>>
 
 async function queryNotifications(params: {
   userId: string
-  mutedUserIds: string[]
+  excludedUserIds: string[]
   safeCursor?: string
   safeLimit: number
 }) {
   return prisma.notification.findMany({
     where: {
       userId: params.userId,
-      ...(params.mutedUserIds.length > 0 && {
-        actorId: { notIn: params.mutedUserIds },
+      ...(params.excludedUserIds.length > 0 && {
+        actorId: { notIn: params.excludedUserIds },
       }),
     },
     include: {
@@ -51,20 +60,26 @@ export type NotificationsResult = {
 
 /**
  * ユーザーの通知一覧を返す。
- * ミュートユーザーからの通知は除外する（Web と同一フィルタ）。
+ * デフォルト（`options.excludeBlocked` 未指定）はミュートユーザーからの通知のみ除外する
+ * （Web `lib/actions/notification.ts` と同一フィルタ、fail-open）。
+ * `excludeBlocked: true`（v1 API 専用）はブロック双方向 + ミュートを union で除外し、
+ * relation lookup 失敗時は fail-closed（呼び出し元に例外を伝播し、対象通知を含む結果を返さない）。
  */
 export async function fetchNotifications(
   userId: string,
   cursor?: string,
   limit?: number,
+  options?: NotificationExclusionOptions,
 ): Promise<NotificationsResult> {
   const { cursor: safeCursor, limit: safeLimit } = normalizeCursorPagination({ cursor, limit })
 
-  const mutedUserIds = await getMutedUserIds(userId)
+  const excludedUserIds = options?.excludeBlocked
+    ? await getExcludedUserIds(userId, { blocked: true, blockedBy: true, muted: true })
+    : await getMutedUserIds(userId)
 
   const notifications = await queryNotifications({
     userId,
-    mutedUserIds,
+    excludedUserIds,
     safeCursor,
     safeLimit,
   })
@@ -96,17 +111,25 @@ export async function markNotificationsRead(userId: string, ids?: string[]): Pro
 
 /**
  * ユーザーの未読通知数を返す。
- * ミュートユーザーからの通知は除外する（Web と同一フィルタ）。
+ * デフォルト（`options.excludeBlocked` 未指定）はミュートユーザーからの通知のみ除外する
+ * （Web `lib/actions/notification.ts` と同一フィルタ、fail-open）。
+ * `excludeBlocked: true`（v1 API 専用）はブロック双方向 + ミュートを union で除外し、
+ * relation lookup 失敗時は fail-closed（呼び出し元に例外を伝播する）。
  */
-export async function fetchUnreadNotificationCount(userId: string): Promise<number> {
-  const mutedUserIds = await getMutedUserIds(userId)
+export async function fetchUnreadNotificationCount(
+  userId: string,
+  options?: NotificationExclusionOptions,
+): Promise<number> {
+  const excludedUserIds = options?.excludeBlocked
+    ? await getExcludedUserIds(userId, { blocked: true, blockedBy: true, muted: true })
+    : await getMutedUserIds(userId)
 
   return prisma.notification.count({
     where: {
       userId,
       isRead: false,
-      ...(mutedUserIds.length > 0 && {
-        actorId: { notIn: mutedUserIds },
+      ...(excludedUserIds.length > 0 && {
+        actorId: { notIn: excludedUserIds },
       }),
     },
   })

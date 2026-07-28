@@ -72,3 +72,13 @@ export const REPORT_STATUS = {
   DISMISSED: 'dismissed',
   AUTO_HIDDEN: 'auto_hidden',
 } as const
+
+// Storage deletion outbox job statuses (StorageDeletionJob.status)
+export const STORAGE_DELETION_JOB_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  DEAD_LETTER: 'dead_letter',
+} as const
+export type StorageDeletionJobStatusType =
+  typeof STORAGE_DELETION_JOB_STATUS[keyof typeof STORAGE_DELETION_JOB_STATUS]

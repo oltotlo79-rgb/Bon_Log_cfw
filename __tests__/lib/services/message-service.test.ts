@@ -116,6 +116,18 @@ describe('listConversations', () => {
     expect(callArgs?.skip).toBe(1)
   })
 
+  it('include.messages の orderBy は [{createdAt: desc}, {id: desc}]（同一 createdAt での lastMessage 選出の非決定性排除、項目9）', async () => {
+    mockConversationFindMany.mockResolvedValue([])
+
+    const { listConversations } = await import('@/lib/services/message-service')
+    await listConversations(USER_ID)
+
+    const callArgs = mockConversationFindMany.mock.calls[0]?.[0] as {
+      include: { messages: { orderBy: unknown } }
+    }
+    expect(callArgs.include.messages.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }])
+  })
+
   it('cursor 未指定: findMany に cursor/skip が渡らない', async () => {
     mockConversationFindMany.mockResolvedValue([])
 

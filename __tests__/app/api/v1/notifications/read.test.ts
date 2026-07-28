@@ -252,4 +252,23 @@ describe('PATCH /api/v1/notifications/read', () => {
 
     expect(res.status).toBe(200)
   })
+
+  it('既読化後の fetchUnreadNotificationCount に { excludeBlocked: true } が渡る（Track4）', async () => {
+    const req = await makeAuthenticatedRequest('user-1', 'u@example.com', {})
+    const { PATCH } = await import('@/app/api/v1/notifications/read/route')
+    await PATCH(req)
+
+    expect(mockFetchUnreadNotificationCount).toHaveBeenCalledWith('user-1', { excludeBlocked: true })
+  })
+
+  it('fetchUnreadNotificationCount が例外を投げると 500 INTERNAL_ERROR を返す（fail-closed）', async () => {
+    mockFetchUnreadNotificationCount.mockRejectedValueOnce(new Error('relation lookup failed'))
+    const req = await makeAuthenticatedRequest('user-1', 'u@example.com', {})
+    const { PATCH } = await import('@/app/api/v1/notifications/read/route')
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error.code).toBe('INTERNAL_ERROR')
+  })
 })

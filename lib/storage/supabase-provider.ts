@@ -200,6 +200,12 @@ export class SupabaseStorageProvider implements StorageProvider {
       )
 
       if (!response.ok) {
+        // オブジェクトが既に存在しない場合は idempotent success として扱う
+        // （R2/local の delete と同じ扱いに揃え、outbox worker の誤リトライを防ぐ）。
+        if (response.status === 404) {
+          logger.log('Supabase storage delete: object already absent (idempotent success):', url)
+          return { success: true, notFound: true }
+        }
         const error = await response.text()
         throw new Error(`Supabase delete failed: ${error}`)
       }

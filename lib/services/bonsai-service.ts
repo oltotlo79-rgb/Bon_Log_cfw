@@ -60,14 +60,16 @@ export type UpdateBonsaiV1Input = z.infer<typeof updateBonsaiV1Schema>
  */
 const BONSAI_LIST_INCLUDE = {
   records: {
-    orderBy: { recordAt: 'desc' as const },
+    // recordAt が同一日時になり得る（Native は記録日を日付単位に正規化して送る）ため
+    // id をタイブレークに加え、listBonsaiRecordsV1 の「最新記録」定義と一致させる
+    orderBy: [{ recordAt: 'desc' as const }, { id: 'desc' as const }],
     take: 1,
     include: {
       images: { orderBy: { sortOrder: 'asc' as const }, take: 1 },
     },
   },
   _count: { select: { records: true } },
-} as const
+}
 
 /** 詳細取得用 include（画像全件付き） */
 const BONSAI_DETAIL_INCLUDE = {

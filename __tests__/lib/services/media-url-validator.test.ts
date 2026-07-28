@@ -159,3 +159,55 @@ describe('assertMediaUrlsFromOwnStorage', () => {
     ).toBe(true)
   })
 })
+
+describe('filterOwnStorageUrls', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('空配列は空配列を返す', async () => {
+    vi.stubEnv('STORAGE_PROVIDER', 'local')
+    const { filterOwnStorageUrls } = await import('@/lib/services/media-url-validator')
+    expect(filterOwnStorageUrls([])).toEqual([])
+  })
+
+  it('local: 自社 URL のみ残し外部 URL は個別に除外する（all-or-nothing ではない）', async () => {
+    vi.stubEnv('STORAGE_PROVIDER', 'local')
+    const { filterOwnStorageUrls } = await import('@/lib/services/media-url-validator')
+    const result = filterOwnStorageUrls([
+      '/uploads/posts/ok1.webp',
+      'https://evil.example.com/tracker.gif',
+      '/uploads/posts/ok2.webp',
+    ])
+    expect(result).toEqual(['/uploads/posts/ok1.webp', '/uploads/posts/ok2.webp'])
+  })
+
+  it('全件が外部 URL の場合は空配列を返す', async () => {
+    vi.stubEnv('STORAGE_PROVIDER', 'local')
+    const { filterOwnStorageUrls } = await import('@/lib/services/media-url-validator')
+    expect(filterOwnStorageUrls(['https://evil.example.com/a.gif', 'https://evil2.example.com/b.gif'])).toEqual([])
+  })
+
+  it('r2: R2_PUBLIC_URL 設定時、自社ドメインのみ残す', async () => {
+    vi.stubEnv('STORAGE_PROVIDER', 'r2')
+    vi.stubEnv('R2_PUBLIC_URL', 'https://cdn.example.com')
+    vi.stubEnv('R2_ACCOUNT_ID', '')
+    vi.stubEnv('R2_BUCKET_NAME', '')
+    const { filterOwnStorageUrls } = await import('@/lib/services/media-url-validator')
+    const result = filterOwnStorageUrls([
+      'https://cdn.example.com/posts/a.webp',
+      'https://not-allowed.example.com/b.webp',
+    ])
+    expect(result).toEqual(['https://cdn.example.com/posts/a.webp'])
+  })
+
+  it('許可プレフィックスが 0 件（env 未設定）の場合は全件をそのまま返す（設定漏れで正規フローを壊さない）', async () => {
+    vi.stubEnv('STORAGE_PROVIDER', 'r2')
+    vi.stubEnv('R2_PUBLIC_URL', '')
+    vi.stubEnv('R2_ACCOUNT_ID', '')
+    vi.stubEnv('R2_BUCKET_NAME', '')
+    const { filterOwnStorageUrls } = await import('@/lib/services/media-url-validator')
+    const urls = ['https://anywhere.example.com/img.webp']
+    expect(filterOwnStorageUrls(urls)).toEqual(urls)
+  })
+})

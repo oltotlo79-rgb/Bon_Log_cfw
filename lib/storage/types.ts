@@ -14,6 +14,12 @@ export interface UploadResult {
 export interface DeleteResult {
   success: boolean
   error?: string
+  /**
+   * 削除対象オブジェクトが既に存在しなかった（404 相当）ことを示す。
+   * ストレージ削除は idempotent な操作として扱うため、この場合も `success: true` になる。
+   * 呼び出し側が「二重削除・再試行で実体が既に無かった」ケースを区別したい場合に参照する。
+   */
+  notFound?: boolean
 }
 
 /**

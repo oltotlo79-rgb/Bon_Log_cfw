@@ -102,7 +102,7 @@ describe('GET /api/v1/notifications', () => {
     const { GET } = await import('@/app/api/v1/notifications/route')
     await GET(req)
 
-    expect(mockFetchNotifications).toHaveBeenCalledWith('user-1', 'notif-cursor', 10)
+    expect(mockFetchNotifications).toHaveBeenCalledWith('user-1', 'notif-cursor', 10, { excludeBlocked: true })
   })
 
   it('limit が MAX_PAGE_LIMIT(100) を超えると 400 VALIDATION_ERROR', async () => {
@@ -189,5 +189,16 @@ describe('GET /api/v1/notifications', () => {
       message: expect.any(String),
       status: expect.any(Number),
     })
+  })
+
+  it('fetchNotifications が例外を投げると 500 INTERNAL_ERROR を返す（fail-closed）', async () => {
+    mockFetchNotifications.mockRejectedValueOnce(new Error('relation lookup failed'))
+    const req = await makeAuthenticatedRequest('user-1', 'u@example.com')
+    const { GET } = await import('@/app/api/v1/notifications/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error.code).toBe('INTERNAL_ERROR')
   })
 })

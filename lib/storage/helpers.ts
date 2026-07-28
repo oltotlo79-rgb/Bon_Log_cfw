@@ -41,3 +41,8 @@ const UNKNOWN_CONTENT_TYPE_FALLBACK = '.jpg'
 export function getExtension(contentType: string): string {
   return CONTENT_TYPE_EXTENSIONS[contentType] ?? UNKNOWN_CONTENT_TYPE_FALLBACK
 }
+
+/** Node.js の `fs` 系エラー（`code` プロパティを持つ Error）かどうかを絞り込む型ガード。 */
+export function isNodeErrnoException(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && 'code' in err
+}

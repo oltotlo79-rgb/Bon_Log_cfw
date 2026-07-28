@@ -20,8 +20,10 @@ const mockPrisma = {
 vi.mock('@/lib/db', () => ({ prisma: mockPrisma }))
 
 const mockGetMutedUserIds = vi.fn()
+const mockGetExcludedUserIds = vi.fn()
 vi.mock('@/lib/actions/filter-helper', () => ({
   getMutedUserIds: (...args: unknown[]) => mockGetMutedUserIds(...args),
+  getExcludedUserIds: (...args: unknown[]) => mockGetExcludedUserIds(...args),
 }))
 
 const mockNormalizeCursorPagination = vi.fn()
@@ -87,6 +89,7 @@ describe('fetchUnreadNotificationCount', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetMutedUserIds.mockResolvedValue([])
+    mockGetExcludedUserIds.mockResolvedValue([])
     mockPrisma.notification.count.mockResolvedValue(5)
   })
 
@@ -138,12 +141,63 @@ describe('fetchUnreadNotificationCount', () => {
       }),
     )
   })
+
+  // ── excludeBlocked オプション（v1 API 専用、Track4） ──
+
+  it('options 未指定はデフォルトでミュートのみ除外する（getExcludedUserIds は呼ばれない、Web 後方互換）', async () => {
+    mockGetMutedUserIds.mockResolvedValueOnce(['muted-1'])
+    const { fetchUnreadNotificationCount } = await import('@/lib/services/notification-read-service')
+    await fetchUnreadNotificationCount('user-1')
+
+    expect(mockGetMutedUserIds).toHaveBeenCalledWith('user-1')
+    expect(mockGetExcludedUserIds).not.toHaveBeenCalled()
+  })
+
+  it('excludeBlocked: true はブロック双方向 + ミュートの union を getExcludedUserIds 経由で取得する', async () => {
+    mockGetExcludedUserIds.mockResolvedValueOnce(['blocked-1', 'blockedby-1', 'muted-1'])
+    const { fetchUnreadNotificationCount } = await import('@/lib/services/notification-read-service')
+    await fetchUnreadNotificationCount('user-1', { excludeBlocked: true })
+
+    expect(mockGetExcludedUserIds).toHaveBeenCalledWith('user-1', {
+      blocked: true,
+      blockedBy: true,
+      muted: true,
+    })
+    expect(mockGetMutedUserIds).not.toHaveBeenCalled()
+    expect(mockPrisma.notification.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          actorId: { notIn: ['blocked-1', 'blockedby-1', 'muted-1'] },
+        }),
+      }),
+    )
+  })
+
+  it('excludeBlocked: false は明示的にもミュートのみ除外にフォールバックする', async () => {
+    mockGetMutedUserIds.mockResolvedValueOnce(['muted-1'])
+    const { fetchUnreadNotificationCount } = await import('@/lib/services/notification-read-service')
+    await fetchUnreadNotificationCount('user-1', { excludeBlocked: false })
+
+    expect(mockGetExcludedUserIds).not.toHaveBeenCalled()
+    expect(mockGetMutedUserIds).toHaveBeenCalledWith('user-1')
+  })
+
+  it('excludeBlocked: true で getExcludedUserIds が reject すると例外が伝播する（fail-closed）', async () => {
+    mockGetExcludedUserIds.mockRejectedValueOnce(new Error('relation lookup failed'))
+    const { fetchUnreadNotificationCount } = await import('@/lib/services/notification-read-service')
+
+    await expect(fetchUnreadNotificationCount('user-1', { excludeBlocked: true })).rejects.toThrow(
+      'relation lookup failed',
+    )
+    expect(mockPrisma.notification.count).not.toHaveBeenCalled()
+  })
 })
 
 describe('fetchNotifications', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetMutedUserIds.mockResolvedValue([])
+    mockGetExcludedUserIds.mockResolvedValue([])
     mockNormalizeCursorPagination.mockReturnValue({ cursor: undefined, limit: 20 })
     mockPrisma.notification.findMany.mockResolvedValue([
       { id: 'notif-1', type: 'like', isRead: false },
@@ -187,5 +241,46 @@ describe('fetchNotifications', () => {
     const result = await fetchNotifications('user-1')
 
     expect(result.nextCursor).toBeUndefined()
+  })
+
+  // ── excludeBlocked オプション（v1 API 専用、Track4） ──
+
+  it('options 未指定はデフォルトでミュートのみ除外する（getExcludedUserIds は呼ばれない、Web 後方互換）', async () => {
+    mockGetMutedUserIds.mockResolvedValueOnce(['muted-1'])
+    const { fetchNotifications } = await import('@/lib/services/notification-read-service')
+    await fetchNotifications('user-1')
+
+    expect(mockGetMutedUserIds).toHaveBeenCalledWith('user-1')
+    expect(mockGetExcludedUserIds).not.toHaveBeenCalled()
+  })
+
+  it('excludeBlocked: true はブロック双方向 + ミュートの union を where.actorId.notIn に適用する', async () => {
+    mockGetExcludedUserIds.mockResolvedValueOnce(['blocked-1', 'blockedby-1', 'muted-1'])
+    const { fetchNotifications } = await import('@/lib/services/notification-read-service')
+    await fetchNotifications('user-1', undefined, undefined, { excludeBlocked: true })
+
+    expect(mockGetExcludedUserIds).toHaveBeenCalledWith('user-1', {
+      blocked: true,
+      blockedBy: true,
+      muted: true,
+    })
+    expect(mockGetMutedUserIds).not.toHaveBeenCalled()
+    expect(mockPrisma.notification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          actorId: { notIn: ['blocked-1', 'blockedby-1', 'muted-1'] },
+        }),
+      }),
+    )
+  })
+
+  it('excludeBlocked: true で getExcludedUserIds が reject すると例外が伝播する（fail-closed、通知一覧を返さない）', async () => {
+    mockGetExcludedUserIds.mockRejectedValueOnce(new Error('relation lookup failed'))
+    const { fetchNotifications } = await import('@/lib/services/notification-read-service')
+
+    await expect(
+      fetchNotifications('user-1', undefined, undefined, { excludeBlocked: true }),
+    ).rejects.toThrow('relation lookup failed')
+    expect(mockPrisma.notification.findMany).not.toHaveBeenCalled()
   })
 })

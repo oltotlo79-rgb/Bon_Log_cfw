@@ -10,7 +10,7 @@ import path from 'path'
 import crypto from 'crypto'
 import logger from '@/lib/logger'
 import type { StorageProvider, UploadResult, DeleteResult } from './types'
-import { getStorageErrorMessage, getExtension } from './helpers'
+import { getStorageErrorMessage, getExtension, isNodeErrnoException } from './helpers'
 import { STORAGE_RANDOM_BYTES } from '@/lib/constants/limits'
 
 export class LocalStorageProvider implements StorageProvider {
@@ -56,6 +56,11 @@ export class LocalStorageProvider implements StorageProvider {
       logger.log('Local storage delete success:', url)
       return { success: true }
     } catch (err) {
+      // ファイルが既に存在しない場合は idempotent success として扱う（R2/S3 の DELETE 仕様と合わせる）。
+      if (isNodeErrnoException(err) && err.code === 'ENOENT') {
+        logger.log('Local storage delete: file already absent (idempotent success):', url)
+        return { success: true, notFound: true }
+      }
       logger.error('Local storage delete error:', err)
       return { success: false, error: getStorageErrorMessage(err, '削除に失敗しました') }
     }

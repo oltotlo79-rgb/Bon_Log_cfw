@@ -13,6 +13,7 @@ name: Scheduled Jobs (cron)
 on:
   schedule:
     - cron: '*/5 * * * *'  # publish-scheduled: 予約投稿の公開
+    - cron: '*/10 * * * *' # process-storage-deletions: アカウント削除ストレージ outbox 処理
     - cron: '0 * * * *'    # update-weather: 毎時の天気更新
     - cron: '0 1 * * *'    # check-subscriptions: サブスク確認（毎日 01:00 UTC）
     - cron: '0 0 1 * *'    # cleanup-events: イベント整理（毎月 1 日 00:00 UTC）
@@ -37,6 +38,15 @@ jobs:
       - run: |
           curl -fsS --retry 2 --max-time 60 -X GET \
             "$APP_URL/api/cron/publish-scheduled" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  process-storage-deletions:
+    if: github.event.schedule == '*/10 * * * *' || github.event.inputs.path == '/api/cron/process-storage-deletions'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS --retry 2 --max-time 60 -X GET \
+            "$APP_URL/api/cron/process-storage-deletions" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
   update-weather:
