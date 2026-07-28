@@ -104,9 +104,18 @@ export const logoutRequestSchema = z.object({
 })
 export type LogoutRequest = z.infer<typeof logoutRequestSchema>
 
-/** POST /api/v1/auth/google */
+/**
+ * POST /api/v1/auth/google
+ *
+ * termsAccepted / termsVersion は既存ユーザーのログイン/リンクでは不要（省略可）。
+ * Account/email が未知で新規 User を作成する場合のみ、termsAccepted === true かつ
+ * termsVersion === CURRENT_TERMS_VERSION（lib/constants/legal）を必須とする
+ * （route handler 側で検証。値不一致・省略時は TERMS_ACCEPTANCE_REQUIRED を返す）。
+ */
 export const googleRequestSchema = z.object({
   idToken: z.string().min(1),
+  termsAccepted: z.literal(true).optional(),
+  termsVersion: z.string().min(1).optional(),
 })
 export type GoogleRequest = z.infer<typeof googleRequestSchema>
 
@@ -171,7 +180,10 @@ export type SearchPostMediaTypeValue = (typeof SEARCH_POST_MEDIA_TYPE_VALUES)[nu
 
 /** GET /api/v1/search/posts — 投稿専用の追加フィルタを含む検索クエリパラメータ */
 export const searchPostsQuerySchema = searchQuerySchema.extend({
+  // 既存の後方互換 parameter。削除・改名・配列型への変更をしない（Native 契約）
   genreId: z.string().optional(),
+  // 新規: 反復クエリ (?genreIds=a&genreIds=b) による複数ジャンル OR 検索。空要素は 400 とする
+  genreIds: z.array(z.string().min(1)).optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   minLikes: z.coerce.number().int().min(0).optional(),

@@ -306,6 +306,8 @@ export const userProfileSchema = z.object({
   isBlocked: z.boolean(),
   /** 閲覧者が対象ユーザーをミュートしているか（自分自身の場合は false） */
   isMuted: z.boolean(),
+  /** 対象ユーザーが認証中の閲覧者をブロックしているか（isBlocked と逆方向。自分自身の場合は false） */
+  isBlockedByUser: z.boolean(),
   /** 対象ユーザーがプレミアム会員かどうか */
   isPremium: z.boolean(),
 })

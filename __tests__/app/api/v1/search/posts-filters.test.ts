@@ -65,6 +65,22 @@ async function makeFilterRequest(
   })
 }
 
+/** genreIds のような反復クエリパラメータ (?k=v1&k=v2) を組み立てるための拡張版リクエストヘルパー */
+async function makeMultiValueRequest(
+  userId: string,
+  params: Array<[string, string]>,
+): Promise<NextRequest> {
+  const { signAccessToken } = await import('@/lib/api/v1/jwt')
+  const token = await signAccessToken(userId)
+  const url = new URL('http://localhost/api/v1/search/posts')
+  for (const [k, v] of params) {
+    url.searchParams.append(k, v)
+  }
+  return new NextRequest(url.toString(), {
+    headers: { authorization: `Bearer ${token}` },
+  })
+}
+
 describe('GET /api/v1/search/posts — フィルタパラメータ（C-1）', () => {
   beforeEach(() => {
     vi.stubEnv('MOBILE_JWT_SECRET', VALID_SECRET)
@@ -110,6 +126,103 @@ describe('GET /api/v1/search/posts — フィルタパラメータ（C-1）', ()
       undefined,
       undefined,
     )
+  })
+
+  // ── genreIds（反復クエリ）フィルタ ──
+
+  it('genreIds=a&genreIds=b を渡すと fetchSearchPosts の第 3 引数が [a, b] になる', async () => {
+    const req = await makeMultiValueRequest('user-1', [
+      ['q', '松'],
+      ['genreIds', 'a'],
+      ['genreIds', 'b'],
+    ])
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    await GET(req)
+
+    const call = mockFetchSearchPosts.mock.calls[0]
+    expect(call?.[2]).toEqual(['a', 'b'])
+  })
+
+  it('genreId と genreIds を併用すると重複除去した和集合になる（genreId=a, genreIds=b,a → [a, b]）', async () => {
+    const req = await makeMultiValueRequest('user-1', [
+      ['q', '松'],
+      ['genreId', 'a'],
+      ['genreIds', 'b'],
+      ['genreIds', 'a'],
+    ])
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    await GET(req)
+
+    const call = mockFetchSearchPosts.mock.calls[0]
+    expect(call?.[2]).toEqual(['a', 'b'])
+  })
+
+  it('genreIds を 4 件以上渡しても受理される（MAX_GENRES_PER_POST は投稿ジャンル数の制約であり検索には非適用）', async () => {
+    const req = await makeMultiValueRequest('user-1', [
+      ['q', '松'],
+      ['genreIds', 'a'],
+      ['genreIds', 'b'],
+      ['genreIds', 'c'],
+      ['genreIds', 'd'],
+    ])
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    const call = mockFetchSearchPosts.mock.calls[0]
+    expect(call?.[2]).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('genreIds= のような空文字要素は 400 VALIDATION_ERROR になる', async () => {
+    const req = await makeMultiValueRequest('user-1', [
+      ['q', '松'],
+      ['genreIds', ''],
+    ])
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('genreIds= の 400 ではレート制限を消費しない（Zod エラー優先）', async () => {
+    const req = await makeMultiValueRequest('user-1', [
+      ['q', '松'],
+      ['genreIds', ''],
+    ])
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    await GET(req)
+
+    expect(mockCheckUserRateLimit).not.toHaveBeenCalled()
+  })
+
+  it('genreId・genreIds どちらのパラメータもない場合は第 3 引数が undefined になる', async () => {
+    const req = await makeFilterRequest('user-1', { q: '松' })
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    await GET(req)
+
+    const call = mockFetchSearchPosts.mock.calls[0]
+    expect(call?.[2]).toBeUndefined()
+  })
+
+  it('genreIds 付きでもレスポンス形状・cursor に回帰がない（200 + items + nextCursor）', async () => {
+    mockFetchSearchPosts.mockResolvedValueOnce({
+      posts: [{ id: 'p-1', content: '黒松の管理', user: { id: 'author-1', nickname: 'A', avatarUrl: null } }],
+      nextCursor: 'p-1',
+    })
+    const req = await makeMultiValueRequest('user-1', [
+      ['q', '黒松'],
+      ['genreIds', 'a'],
+      ['genreIds', 'b'],
+    ])
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(Array.isArray(body.items)).toBe(true)
+    expect(body.nextCursor).toBe('p-1')
   })
 
   // ── filters オブジェクト構築 ──
@@ -285,5 +398,21 @@ describe('GET /api/v1/search/posts — フィルタパラメータ（C-1）', ()
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(Array.isArray(body.items)).toBe(true)
+  })
+
+  it('投稿一覧の user オブジェクトに isBlockedByUser が混入しない（プロフィール専用フィールドの回帰防止）', async () => {
+    mockFetchSearchPosts.mockResolvedValueOnce({
+      posts: [{ id: 'p-1', content: '黒松の管理', user: { id: 'author-1', nickname: 'A', avatarUrl: null } }],
+      nextCursor: undefined,
+    })
+    const req = await makeFilterRequest('user-1', { q: '黒松' })
+    const { GET } = await import('@/app/api/v1/search/posts/route')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect('isBlockedByUser' in body.items[0].user).toBe(false)
+    expect(body.items[0].user.isBlocked).toBe(false)
+    expect(body.items[0].user.isMuted).toBe(false)
   })
 })

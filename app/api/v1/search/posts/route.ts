@@ -25,11 +25,13 @@ export async function GET(request: NextRequest) {
 
   // 2. クエリパラメータ検証
   const { searchParams } = request.nextUrl
+  const genreIdsFromQuery = searchParams.getAll('genreIds')
   const parsed = searchPostsQuerySchema.safeParse({
     q: searchParams.get('q') ?? '',
     cursor: searchParams.get('cursor') ?? undefined,
     limit: searchParams.has('limit') ? Number(searchParams.get('limit')) : undefined,
     genreId: searchParams.get('genreId') ?? undefined,
+    genreIds: genreIdsFromQuery.length > 0 ? genreIdsFromQuery : undefined,
     dateFrom: searchParams.get('dateFrom') ?? undefined,
     dateTo: searchParams.get('dateTo') ?? undefined,
     minLikes: searchParams.has('minLikes') ? Number(searchParams.get('minLikes')) : undefined,
@@ -42,7 +44,9 @@ export async function GET(request: NextRequest) {
   if (!rl.success) return apiRateLimited(rl)
 
   // 4. 投稿検索（ブロック・ミュート・非公開著者を除外）
-  const { genreId, dateFrom, dateTo, minLikes, mediaType } = parsed.data
+  const { genreId, genreIds, dateFrom, dateTo, minLikes, mediaType } = parsed.data
+  // legacy genreId と新規 genreIds は和集合・重複除去して OR-any 条件へ正規化する
+  const normalizedGenreIds = Array.from(new Set([...(genreId ? [genreId] : []), ...(genreIds ?? [])]))
 
   const hasFilter =
     dateFrom !== undefined ||
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
   const result = await fetchSearchPosts(
     parsed.data.q,
     auth.userId,
-    genreId ? [genreId] : undefined,
+    normalizedGenreIds.length > 0 ? normalizedGenreIds : undefined,
     parsed.data.cursor,
     parsed.data.limit,
     filters,

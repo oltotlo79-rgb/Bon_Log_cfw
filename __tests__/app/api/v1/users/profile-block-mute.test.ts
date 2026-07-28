@@ -182,3 +182,139 @@ describe('GET /api/v1/users/[id] — isBlocked / isMuted フィールド（v1.5.
     expect(mockMuteFindUnique).not.toHaveBeenCalled()
   })
 })
+
+describe('GET /api/v1/users/[id] — isBlockedByUser フィールド（v1.6.0）', () => {
+  beforeEach(() => {
+    vi.stubEnv('MOBILE_JWT_SECRET', VALID_SECRET)
+    vi.clearAllMocks()
+    mockUserFindUnique.mockResolvedValue({ id: 'viewer-1', isSuspended: false, email: 'viewer@example.com' })
+    mockCheckUserRateLimit.mockResolvedValue({ success: true, remaining: 59, resetTime: Date.now() + 60000 })
+    mockFetchUserProfile.mockResolvedValue({ found: true, user: mockUserProfile })
+    mockFollowFindMany.mockResolvedValue([])
+    mockFollowRequestFindMany.mockResolvedValue([])
+    mockMuteFindUnique.mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  // 方向マトリクス: viewer→target ブロック（isBlocked）と target→viewer ブロック（isBlockedByUser）は独立
+  it('ブロック関係なし: isBlocked:false, isBlockedByUser:false', async () => {
+    mockBlockFindUnique.mockResolvedValue(null)
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.isBlocked).toBe(false)
+    expect(body.isBlockedByUser).toBe(false)
+  })
+
+  it('viewer→target のみブロック: isBlocked:true, isBlockedByUser:false', async () => {
+    mockBlockFindUnique.mockImplementation(
+      (args: { where: { blockerId_blockedId: { blockerId: string; blockedId: string } } }) => {
+        const { blockerId, blockedId } = args.where.blockerId_blockedId
+        if (blockerId === 'viewer-1' && blockedId === 'user-target') {
+          return Promise.resolve({ blockerId: 'viewer-1' })
+        }
+        return Promise.resolve(null)
+      },
+    )
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.isBlocked).toBe(true)
+    expect(body.isBlockedByUser).toBe(false)
+  })
+
+  it('target→viewer のみブロック: isBlocked:false, isBlockedByUser:true', async () => {
+    mockBlockFindUnique.mockImplementation(
+      (args: { where: { blockerId_blockedId: { blockerId: string; blockedId: string } } }) => {
+        const { blockerId, blockedId } = args.where.blockerId_blockedId
+        if (blockerId === 'user-target' && blockedId === 'viewer-1') {
+          return Promise.resolve({ blockerId: 'user-target' })
+        }
+        return Promise.resolve(null)
+      },
+    )
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.isBlocked).toBe(false)
+    expect(body.isBlockedByUser).toBe(true)
+  })
+
+  it('双方向ブロック: isBlocked:true, isBlockedByUser:true', async () => {
+    mockBlockFindUnique.mockResolvedValue({ blockerId: 'someone' })
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.isBlocked).toBe(true)
+    expect(body.isBlockedByUser).toBe(true)
+  })
+
+  it('自分自身取得時は isBlockedByUser:false（reverse query 実行なし）', async () => {
+    const selfId = 'viewer-self'
+    mockUserFindUnique.mockResolvedValueOnce({ id: selfId, isSuspended: false, email: 'self@example.com' })
+    mockFetchUserProfile.mockResolvedValueOnce({
+      found: true,
+      user: { ...mockUserProfile, id: selfId },
+    })
+    const [req, params] = await makeAuthenticatedRequest(selfId, selfId)
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.isBlockedByUser).toBe(false)
+    expect(mockBlockFindUnique).not.toHaveBeenCalled()
+  })
+
+  it('404 のとき reverse block クエリは実行されない', async () => {
+    mockFetchUserProfile.mockResolvedValueOnce({ found: false })
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'ghost-user')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(404)
+    expect(mockBlockFindUnique).not.toHaveBeenCalled()
+  })
+
+  it('reverse block クエリが reject すると 500 を返し、プロフィール本体を含まない（fail-closed）', async () => {
+    mockBlockFindUnique.mockRejectedValue(new Error('DB error'))
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    const res = await GET(req, params)
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBeDefined()
+    expect(body.id).toBeUndefined()
+    expect(body.nickname).toBeUndefined()
+    expect(body.isBlockedByUser).toBeUndefined()
+  })
+
+  it('exact query assertion: block.findUnique に blockerId=targetId, blockedId=viewerId の複合キーが渡る', async () => {
+    mockBlockFindUnique.mockResolvedValue(null)
+    const [req, params] = await makeAuthenticatedRequest('viewer-1', 'user-target')
+    const { GET } = await import('@/app/api/v1/users/[id]/route')
+    await GET(req, params)
+
+    expect(mockBlockFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { blockerId_blockedId: { blockerId: 'user-target', blockedId: 'viewer-1' } },
+      }),
+    )
+  })
+})

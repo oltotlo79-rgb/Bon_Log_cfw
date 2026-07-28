@@ -194,6 +194,72 @@ describe('resolveBlockMuteStateForOne', () => {
   })
 })
 
+describe('resolveIsBlockedByUserForOne', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockBlockFindUnique.mockResolvedValue(null)
+    mockMuteFindUnique.mockResolvedValue(null)
+    mockBlockFindMany.mockResolvedValue([])
+    mockMuteFindMany.mockResolvedValue([])
+    mockFollowFindMany.mockResolvedValue([])
+    mockFollowRequestFindMany.mockResolvedValue([])
+  })
+
+  it('未ブロック時は { ok: true, isBlockedByUser: false } を返す', async () => {
+    mockBlockFindUnique.mockResolvedValueOnce(null)
+    const { resolveIsBlockedByUserForOne } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsBlockedByUserForOne(VIEWER, TARGET)
+    expect(result).toEqual({ ok: true, isBlockedByUser: false })
+  })
+
+  it('対象ユーザーが閲覧者をブロックしている場合 { ok: true, isBlockedByUser: true } を返す', async () => {
+    mockBlockFindUnique.mockResolvedValueOnce({ blockerId: TARGET })
+    const { resolveIsBlockedByUserForOne } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsBlockedByUserForOne(VIEWER, TARGET)
+    expect(result).toEqual({ ok: true, isBlockedByUser: true })
+  })
+
+  it('自分自身（viewerId === targetId）は { ok: true, isBlockedByUser: false } を返す（DB クエリなし）', async () => {
+    const { resolveIsBlockedByUserForOne } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsBlockedByUserForOne(VIEWER, VIEWER)
+    expect(result).toEqual({ ok: true, isBlockedByUser: false })
+    expect(mockBlockFindUnique).not.toHaveBeenCalled()
+  })
+
+  it('DB クエリがエラーを投げた場合 { ok: false } を返す（fail-closed、false に潰さない）', async () => {
+    mockBlockFindUnique.mockRejectedValueOnce(new Error('DB error'))
+    const { resolveIsBlockedByUserForOne } = await import('@/lib/api/v1/follow-state-resolver')
+    const result = await resolveIsBlockedByUserForOne(VIEWER, TARGET)
+    expect(result).toEqual({ ok: false })
+  })
+
+  it('block.findUnique に「対象→viewer」方向の複合キー（blockerId=target, blockedId=viewer）が渡される', async () => {
+    const { resolveIsBlockedByUserForOne } = await import('@/lib/api/v1/follow-state-resolver')
+    await resolveIsBlockedByUserForOne(VIEWER, TARGET)
+    expect(mockBlockFindUnique).toHaveBeenCalledWith({
+      where: { blockerId_blockedId: { blockerId: TARGET, blockedId: VIEWER } },
+      select: { blockerId: true },
+    })
+  })
+
+  it('resolveBlockMuteStateForOne（viewer→target 方向）とは逆のクエリを発行する', async () => {
+    const { resolveBlockMuteStateForOne, resolveIsBlockedByUserForOne } = await import(
+      '@/lib/api/v1/follow-state-resolver'
+    )
+    await resolveBlockMuteStateForOne(VIEWER, TARGET)
+    await resolveIsBlockedByUserForOne(VIEWER, TARGET)
+
+    expect(mockBlockFindUnique).toHaveBeenNthCalledWith(1, {
+      where: { blockerId_blockedId: { blockerId: VIEWER, blockedId: TARGET } },
+      select: { blockerId: true },
+    })
+    expect(mockBlockFindUnique).toHaveBeenNthCalledWith(2, {
+      where: { blockerId_blockedId: { blockerId: TARGET, blockedId: VIEWER } },
+      select: { blockerId: true },
+    })
+  })
+})
+
 describe('resolveBlockMuteStates（バッチ）', () => {
   const TARGET_A = 'target-a'
   const TARGET_B = 'target-b'

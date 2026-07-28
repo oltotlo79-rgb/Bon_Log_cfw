@@ -15,6 +15,7 @@ const VALID_SECRET = 'a'.repeat(64)
 const mockUserFindUnique = vi.fn()
 const mockFollowFindMany = vi.fn()
 const mockFollowRequestFindMany = vi.fn()
+const mockBlockFindUnique = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -26,6 +27,9 @@ vi.mock('@/lib/db', () => ({
     },
     followRequest: {
       findMany: (...args: unknown[]) => mockFollowRequestFindMany(...args),
+    },
+    block: {
+      findUnique: (...args: unknown[]) => mockBlockFindUnique(...args),
     },
   },
 }))
@@ -84,6 +88,8 @@ describe('GET /api/v1/users/[id]', () => {
     // デフォルトはフォロー関係なし（空配列）
     mockFollowFindMany.mockResolvedValue([])
     mockFollowRequestFindMany.mockResolvedValue([])
+    // デフォルトは Block/Mute なし（resolveBlockMuteStateForOne / resolveIsBlockedByUserForOne 共有）
+    mockBlockFindUnique.mockResolvedValue(null)
     // デフォルトは非プレミアム
     mockIsPremiumUser.mockResolvedValue(false)
   })

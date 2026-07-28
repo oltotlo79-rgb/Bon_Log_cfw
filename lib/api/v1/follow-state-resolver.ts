@@ -199,3 +199,35 @@ export async function resolveBlockMuteStateForOne(
     return { isBlocked: false, isMuted: false }
   }
 }
+
+export type IsBlockedByUserResult =
+  | { ok: true; isBlockedByUser: boolean }
+  | { ok: false }
+
+/**
+ * 「対象ユーザー → 閲覧者」方向の Block を解決する（プロフィール詳細専用）。
+ *
+ * resolveBlockMuteStateForOne（閲覧者 → 対象方向、投稿/コメント一覧含む複数 endpoint と
+ * 共有）とは逆方向であり、UserProfileResponse.isBlockedByUser 専用に新設する。
+ * 一覧系 resolver の fail-open（表示継続優先）とは異なり、ここは fail-closed とする。
+ * DB エラーを isBlockedByUser: false に潰すと、ブロック済み相手のプロフィールが
+ * 誤って通常表示されてしまうため、呼び出し元は ok: false を 500 として扱うこと。
+ */
+export async function resolveIsBlockedByUserForOne(
+  viewerId: string,
+  targetId: string,
+): Promise<IsBlockedByUserResult> {
+  if (viewerId === targetId) {
+    return { ok: true, isBlockedByUser: false }
+  }
+
+  try {
+    const block = await prisma.block.findUnique({
+      where: { blockerId_blockedId: { blockerId: targetId, blockedId: viewerId } },
+      select: { blockerId: true },
+    })
+    return { ok: true, isBlockedByUser: block !== null }
+  } catch {
+    return { ok: false }
+  }
+}

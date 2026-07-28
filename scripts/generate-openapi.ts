@@ -351,7 +351,7 @@ async function main() {
     'MobileApiErrorCode',
     mobileApiErrorCodeSchema.openapi({
       description:
-        'エラーコード enum（18 値）。モバイル側はこの enum からコード→メッセージ対応表を導出できる。',
+        'エラーコード enum（20 値）。モバイル側はこの enum からコード→メッセージ対応表を導出できる。',
     }),
   )
 
@@ -437,7 +437,15 @@ async function main() {
 
   const GoogleRequest = registry.register(
     'GoogleRequest',
-    googleRequestSchema.openapi({ description: 'Google ID トークン認証のリクエスト。' }),
+    googleRequestSchema.openapi({
+      description: [
+        'Google ID トークン認証のリクエスト。',
+        'termsAccepted / termsVersion は既存ユーザーのログイン・アカウントリンクでは不要（省略可）。',
+        'Account/email に一致する User が存在せず新規作成する場合のみ必須で、',
+        'termsAccepted === true かつ termsVersion が現行の利用規約バージョンと一致する場合のみ新規作成する。',
+        '省略・不一致の場合は 403 TERMS_ACCEPTANCE_REQUIRED を返す（User/Account/token は一切作成しない）。',
+      ].join('\n'),
+    }),
   )
 
   const PasswordResetRequest = registry.register(
@@ -486,6 +494,8 @@ async function main() {
       description: [
         '投稿検索クエリパラメータ。SearchQuery を拡張して投稿専用フィルタを追加。',
         `mediaType は ${SEARCH_POST_MEDIA_TYPE_VALUES.join(' / ')} のいずれか（image=画像あり / video=動画あり / none=テキストのみ）。`,
+        'genreId: 単一ジャンル ID フィルタ（既存・後方互換）。',
+        'genreIds: 複数ジャンル ID の OR-any フィルタ（反復クエリ genreIds=a&genreIds=b）。genreId と併用時は和集合・重複除去。',
       ].join('\n'),
     }),
   )
@@ -763,7 +773,13 @@ async function main() {
 
   const UserProfileResponse = registry.register(
     'UserProfileResponse',
-    userProfileSchema.openapi({ description: 'ユーザープロフィール取得レスポンス。' }),
+    userProfileSchema.openapi({
+      description: [
+        'ユーザープロフィール取得レスポンス。',
+        'isBlocked: 閲覧者 → 対象ユーザー方向のブロック。isBlockedByUser: 対象ユーザー → 閲覧者方向のブロック（逆方向、相互に導出しない）。',
+        'self（閲覧者自身のプロフィール）は isBlocked / isMuted / isBlockedByUser すべて false 固定。',
+      ].join('\n'),
+    }),
   )
 
   const SearchPostsResponse = registry.register(
@@ -1258,9 +1274,10 @@ async function main() {
       'Google Sign-In で取得した ID トークンを検証し、TokenPair を発行する。',
       '',
       'ユーザー解決フロー:',
-      "1. Account(provider='google', providerAccountId=sub) を検索",
-      '2. なければ email で User を検索し Account を作成してリンク',
-      '3. User も存在しなければ新規作成',
+      "1. Account(provider='google', providerAccountId=sub) を検索 — 既存ログインは termsAccepted 不要",
+      '2. なければ email で User を検索し Account を作成してリンク — 既存ユーザーは termsAccepted 不要',
+      '3. User も存在しなければ、termsAccepted === true かつ termsVersion が現行バージョンと一致する',
+      '   場合のみ新規作成する。不足・不一致の場合は何も作成せず 403 TERMS_ACCEPTANCE_REQUIRED を返す。',
     ].join('\n'),
     request: {
       body: {
@@ -1277,7 +1294,9 @@ async function main() {
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
       401: errorResponse('ID トークン不正 (AUTH_INVALID_TOKEN)'),
-      403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
+      403: errorResponse(
+        'アカウント停止 (ACCOUNT_SUSPENDED)、または新規ユーザー作成時の規約同意欠落・バージョン不一致 (TERMS_ACCEPTANCE_REQUIRED)',
+      ),
       429: rateLimitedResponse,
       503: errorResponse('サーバー設定エラー (SERVER_MISCONFIGURED)'),
     },
@@ -1614,6 +1633,10 @@ async function main() {
       'メールアドレスは返却しない。',
       '非公開アカウントはフォロワー以外には公開情報のみ返す（フォロワー数等は含む）。',
       'ゲストアカウントは 404 として扱う。',
+      '',
+      'isBlockedByUser: 対象ユーザーが認証中の閲覧者をブロックしているか（isBlocked とは逆方向、相互に導出しない）。',
+      '可視性 gate（404）通過後にのみ逆方向 Block を解決する。self は解決せず false 固定。',
+      '逆方向 Block の解決に失敗した場合はプロフィール本体を返さず 500 INTERNAL_ERROR とする（fail-closed）。',
     ].join('\n'),
     security: [{ bearerAuth: [] }],
     request: {
@@ -1628,6 +1651,7 @@ async function main() {
       403: errorResponse('アカウント停止 (ACCOUNT_SUSPENDED)'),
       404: errorResponse('ユーザーが存在しない (NOT_FOUND)'),
       429: rateLimitedResponse,
+      500: errorResponse('逆方向ブロック解決失敗など (INTERNAL_ERROR)'),
     },
   })
 
@@ -1829,7 +1853,11 @@ async function main() {
       `- mediaType: ${SEARCH_POST_MEDIA_TYPE_VALUES.join(' / ')}（image=画像あり / video=動画あり / none=テキストのみ）`,
       '- dateFrom / dateTo: ISO8601 日付（YYYY-MM-DD）での期間絞り込み',
       '- minLikes: 最低いいね数でフィルタ',
-      '- genreId: ジャンル ID で絞り込み',
+      '- genreId: ジャンル ID で絞り込み（既存・後方互換。削除・改名・配列化はしない）',
+      '- genreIds: 複数ジャンル ID の OR-any 絞り込み（反復クエリ genreIds=a&genreIds=b、style=form, explode=true）。',
+      '  投稿に選択ジャンルのいずれか 1 つ以上が付いていれば一致（AND-all ではない）。',
+      '  genreId と genreIds を同時指定した場合は和集合・重複除去して適用する。',
+      '  空要素（genreIds=）は 400 VALIDATION_ERROR。投稿作成の genreIds 3 件上限はここには適用されない。',
     ].join('\n'),
     security: [{ bearerAuth: [] }],
     request: {
@@ -1837,7 +1865,12 @@ async function main() {
         q: z.string().optional().openapi({ description: '検索キーワード' }),
         cursor: z.string().optional().openapi({ description: 'カーソル' }),
         limit: z.number().int().optional().openapi({ description: '取得上限件数' }),
-        genreId: z.string().optional().openapi({ description: 'ジャンル ID でフィルタ' }),
+        genreId: z.string().optional().openapi({ description: 'ジャンル ID でフィルタ（既存・後方互換）' }),
+        genreIds: z.array(z.string()).optional().openapi({
+          description:
+            '複数ジャンル ID で OR-any フィルタ（反復クエリ genreIds=a&genreIds=b）。genreId と併用時は和集合・重複除去。',
+          param: { style: 'form', explode: true },
+        }),
         dateFrom: z.string().optional().openapi({ description: '投稿日時の開始日（ISO8601 YYYY-MM-DD）' }),
         dateTo: z.string().optional().openapi({ description: '投稿日時の終了日（ISO8601 YYYY-MM-DD）' }),
         minLikes: z.number().int().min(0).optional().openapi({ description: '最低いいね数' }),
@@ -7294,7 +7327,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.36.0',
+      version: '1.37.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

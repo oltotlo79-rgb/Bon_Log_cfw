@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.36.0",
+    "version": "1.37.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -291,7 +291,8 @@
                   "CONFLICT",
                   "INTERNAL_ERROR",
                   "SERVER_MISCONFIGURED",
-                  "PREMIUM_REQUIRED"
+                  "PREMIUM_REQUIRED",
+                  "TERMS_ACCEPTANCE_REQUIRED"
                 ]
               },
               "message": {
@@ -334,9 +335,10 @@
           "CONFLICT",
           "INTERNAL_ERROR",
           "SERVER_MISCONFIGURED",
-          "PREMIUM_REQUIRED"
+          "PREMIUM_REQUIRED",
+          "TERMS_ACCEPTANCE_REQUIRED"
         ],
-        "description": "エラーコード enum（18 値）。モバイル側はこの enum からコード→メッセージ対応表を導出できる。"
+        "description": "エラーコード enum（20 値）。モバイル側はこの enum からコード→メッセージ対応表を導出できる。"
       },
       "LoginRequest": {
         "type": "object",
@@ -547,12 +549,22 @@
           "idToken": {
             "type": "string",
             "minLength": 1
+          },
+          "termsAccepted": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "termsVersion": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
           "idToken"
         ],
-        "description": "Google ID トークン認証のリクエスト。"
+        "description": "Google ID トークン認証のリクエスト。\ntermsAccepted / termsVersion は既存ユーザーのログイン・アカウントリンクでは不要（省略可）。\nAccount/email に一致する User が存在せず新規作成する場合のみ必須で、\ntermsAccepted === true かつ termsVersion が現行の利用規約バージョンと一致する場合のみ新規作成する。\n省略・不一致の場合は 403 TERMS_ACCEPTANCE_REQUIRED を返す（User/Account/token は一切作成しない）。"
       },
       "PasswordResetRequest": {
         "type": "object",
@@ -700,6 +712,13 @@
           "genreId": {
             "type": "string"
           },
+          "genreIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "dateFrom": {
             "type": "string"
           },
@@ -722,7 +741,7 @@
             ]
           }
         },
-        "description": "投稿検索クエリパラメータ。SearchQuery を拡張して投稿専用フィルタを追加。\nmediaType は image / video / none のいずれか（image=画像あり / video=動画あり / none=テキストのみ）。"
+        "description": "投稿検索クエリパラメータ。SearchQuery を拡張して投稿専用フィルタを追加。\nmediaType は image / video / none のいずれか（image=画像あり / video=動画あり / none=テキストのみ）。\ngenreId: 単一ジャンル ID フィルタ（既存・後方互換）。\ngenreIds: 複数ジャンル ID の OR-any フィルタ（反復クエリ genreIds=a&genreIds=b）。genreId と併用時は和集合・重複除去。"
       },
       "SearchHashtagsQuery": {
         "type": "object",
@@ -3792,6 +3811,9 @@
           "isMuted": {
             "type": "boolean"
           },
+          "isBlockedByUser": {
+            "type": "boolean"
+          },
           "isPremium": {
             "type": "boolean"
           }
@@ -3816,9 +3838,10 @@
           "isSelf",
           "isBlocked",
           "isMuted",
+          "isBlockedByUser",
           "isPremium"
         ],
-        "description": "ユーザープロフィール取得レスポンス。"
+        "description": "ユーザープロフィール取得レスポンス。\nisBlocked: 閲覧者 → 対象ユーザー方向のブロック。isBlockedByUser: 対象ユーザー → 閲覧者方向のブロック（逆方向、相互に導出しない）。\nself（閲覧者自身のプロフィール）は isBlocked / isMuted / isBlockedByUser すべて false 固定。"
       },
       "SearchPostsResponse": {
         "type": "object",
@@ -14948,7 +14971,7 @@
           "auth"
         ],
         "summary": "Google ID トークンでログイン",
-        "description": "Google Sign-In で取得した ID トークンを検証し、TokenPair を発行する。\n\nユーザー解決フロー:\n1. Account(provider='google', providerAccountId=sub) を検索\n2. なければ email で User を検索し Account を作成してリンク\n3. User も存在しなければ新規作成",
+        "description": "Google Sign-In で取得した ID トークンを検証し、TokenPair を発行する。\n\nユーザー解決フロー:\n1. Account(provider='google', providerAccountId=sub) を検索 — 既存ログインは termsAccepted 不要\n2. なければ email で User を検索し Account を作成してリンク — 既存ユーザーは termsAccepted 不要\n3. User も存在しなければ、termsAccepted === true かつ termsVersion が現行バージョンと一致する\n   場合のみ新規作成する。不足・不一致の場合は何も作成せず 403 TERMS_ACCEPTANCE_REQUIRED を返す。",
         "requestBody": {
           "required": true,
           "content": {
@@ -14991,7 +15014,7 @@
             }
           },
           "403": {
-            "description": "アカウント停止 (ACCOUNT_SUSPENDED)",
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、または新規ユーザー作成時の規約同意欠落・バージョン不一致 (TERMS_ACCEPTANCE_REQUIRED)",
             "content": {
               "application/json": {
                 "schema": {
@@ -16180,7 +16203,7 @@
           "users"
         ],
         "summary": "ユーザープロフィール取得",
-        "description": "指定 ID のユーザープロフィールを返す。\n\nメールアドレスは返却しない。\n非公開アカウントはフォロワー以外には公開情報のみ返す（フォロワー数等は含む）。\nゲストアカウントは 404 として扱う。",
+        "description": "指定 ID のユーザープロフィールを返す。\n\nメールアドレスは返却しない。\n非公開アカウントはフォロワー以外には公開情報のみ返す（フォロワー数等は含む）。\nゲストアカウントは 404 として扱う。\n\nisBlockedByUser: 対象ユーザーが認証中の閲覧者をブロックしているか（isBlocked とは逆方向、相互に導出しない）。\n可視性 gate（404）通過後にのみ逆方向 Block を解決する。self は解決せず false 固定。\n逆方向 Block の解決に失敗した場合はプロフィール本体を返さず 500 INTERNAL_ERROR とする（fail-closed）。",
         "security": [
           {
             "bearerAuth": []
@@ -16249,6 +16272,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "逆方向ブロック解決失敗など (INTERNAL_ERROR)",
             "content": {
               "application/json": {
                 "schema": {
@@ -16846,7 +16879,7 @@
           "search"
         ],
         "summary": "投稿検索",
-        "description": "キーワードで投稿を全文検索する。\n\n2 文字以上: pg_bigm trigram 検索。1 文字: LIKE フォールバック。\nブロック・ミュート・非公開・停止ユーザーの投稿は除外される。\n\nフィルタ:\n- mediaType: image / video / none（image=画像あり / video=動画あり / none=テキストのみ）\n- dateFrom / dateTo: ISO8601 日付（YYYY-MM-DD）での期間絞り込み\n- minLikes: 最低いいね数でフィルタ\n- genreId: ジャンル ID で絞り込み",
+        "description": "キーワードで投稿を全文検索する。\n\n2 文字以上: pg_bigm trigram 検索。1 文字: LIKE フォールバック。\nブロック・ミュート・非公開・停止ユーザーの投稿は除外される。\n\nフィルタ:\n- mediaType: image / video / none（image=画像あり / video=動画あり / none=テキストのみ）\n- dateFrom / dateTo: ISO8601 日付（YYYY-MM-DD）での期間絞り込み\n- minLikes: 最低いいね数でフィルタ\n- genreId: ジャンル ID で絞り込み（既存・後方互換。削除・改名・配列化はしない）\n- genreIds: 複数ジャンル ID の OR-any 絞り込み（反復クエリ genreIds=a&genreIds=b、style=form, explode=true）。\n  投稿に選択ジャンルのいずれか 1 つ以上が付いていれば一致（AND-all ではない）。\n  genreId と genreIds を同時指定した場合は和集合・重複除去して適用する。\n  空要素（genreIds=）は 400 VALIDATION_ERROR。投稿作成の genreIds 3 件上限はここには適用されない。",
         "security": [
           {
             "bearerAuth": []
@@ -16886,11 +16919,26 @@
           {
             "schema": {
               "type": "string",
-              "description": "ジャンル ID でフィルタ"
+              "description": "ジャンル ID でフィルタ（既存・後方互換）"
             },
             "required": false,
-            "description": "ジャンル ID でフィルタ",
+            "description": "ジャンル ID でフィルタ（既存・後方互換）",
             "name": "genreId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "複数ジャンル ID で OR-any フィルタ（反復クエリ genreIds=a&genreIds=b）。genreId と併用時は和集合・重複除去。"
+            },
+            "required": false,
+            "description": "複数ジャンル ID で OR-any フィルタ（反復クエリ genreIds=a&genreIds=b）。genreId と併用時は和集合・重複除去。",
+            "style": "form",
+            "explode": true,
+            "name": "genreIds",
             "in": "query"
           },
           {

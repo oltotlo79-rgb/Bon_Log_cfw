@@ -123,6 +123,65 @@ describe('fetchSearchPosts', () => {
     expect(result.posts).toEqual([])
     expect(result.nextCursor).toBeUndefined()
   })
+
+  describe('genreIds OR-any semantics（フィクスチャ、LIKEモード）', () => {
+    // 投稿 A: genre a のみ / B: genre b のみ / AB: a と b の両方 / C: genre c のみ
+    const fixturePosts = [
+      { id: 'post-a', genreIds: ['a'] },
+      { id: 'post-b', genreIds: ['b'] },
+      { id: 'post-ab', genreIds: ['a', 'b'] },
+      { id: 'post-c', genreIds: ['c'] },
+    ]
+
+    function makeFixturePost(fixture: (typeof fixturePosts)[number]) {
+      return {
+        ...makePost(fixture.id),
+        genres: fixture.genreIds.map((genreId) => ({ genreId })),
+      }
+    }
+
+    beforeEach(() => {
+      // where.AND に含まれる `genres.some.genreId.in` 条件で OR-any にフィルタする簡易実装。
+      // 実 DB の Prisma `some`/`in` 意味論を最小限にシミュレートする（フィクスチャ検証専用）。
+      mockPrisma.post.findMany.mockImplementation(
+        (args: { where?: { AND?: Array<Record<string, unknown>> } }) => {
+          const andConditions = args.where?.AND ?? []
+          const genreCondition = andConditions.find(
+            (c): c is { genres: { some: { genreId: { in: string[] } } } } =>
+              typeof c === 'object' && c !== null && 'genres' in c,
+          )
+          const allowedGenreIds = genreCondition?.genres.some.genreId.in
+          const matched = fixturePosts.filter(
+            (p) => !allowedGenreIds || p.genreIds.some((g) => allowedGenreIds.includes(g)),
+          )
+          return Promise.resolve(matched.map(makeFixturePost))
+        },
+      )
+    })
+
+    it('genreIds=[a, b] で OR-any 検索すると A・B・AB が返り C は返らない', async () => {
+      const { fetchSearchPosts } = await import('@/lib/services/search-service')
+      const result = await fetchSearchPosts('', VIEWER_ID, ['a', 'b'], undefined, 20)
+
+      const ids = result.posts.map((p) => p.id).sort()
+      expect(ids).toEqual(['post-a', 'post-ab', 'post-b'])
+    })
+
+    it('genreIds=[c] のみでは C だけが返る', async () => {
+      const { fetchSearchPosts } = await import('@/lib/services/search-service')
+      const result = await fetchSearchPosts('', VIEWER_ID, ['c'], undefined, 20)
+
+      const ids = result.posts.map((p) => p.id)
+      expect(ids).toEqual(['post-c'])
+    })
+
+    it('genreIds 未指定では全件が返る（フィルタなし）', async () => {
+      const { fetchSearchPosts } = await import('@/lib/services/search-service')
+      const result = await fetchSearchPosts('', VIEWER_ID, undefined, undefined, 20)
+
+      expect(result.posts).toHaveLength(4)
+    })
+  })
 })
 
 describe('fetchSearchUsers', () => {
