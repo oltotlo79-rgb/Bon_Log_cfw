@@ -7,17 +7,8 @@
 import { describe, it, expect } from 'vitest'
 import openapiSpec from '../../openapi/openapi.json'
 
-type OpenApiSchema = {
-  type: string
-  properties: Record<string, unknown>
-  required: string[]
-}
-
 describe('openapi.json — UserProfileResponse contract', () => {
-  const spec = openapiSpec as {
-    info: { version: string }
-    components: { schemas: Record<string, OpenApiSchema> }
-  }
+  const spec = openapiSpec
   const schema = spec.components.schemas.UserProfileResponse
 
   it('ドキュメントの version が 1.37.0 である', () => {
