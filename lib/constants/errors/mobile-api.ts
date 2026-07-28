@@ -22,6 +22,7 @@ import {
   ERR_NOT_FOUND,
   ERR_OPERATION_FAILED,
   ERR_VIDEO_PREMIUM_ONLY,
+  ERR_TERMS_ACCEPTANCE_REQUIRED,
 } from '@/lib/constants/errors'
 
 /**
@@ -70,6 +71,11 @@ export const MOBILE_API_ERROR_CODES = {
   SERVER_MISCONFIGURED: 'SERVER_MISCONFIGURED',
   /** プレミアム会員限定の操作（動画アップロード等） */
   PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',
+  /**
+   * Google 認証で未知ユーザーを新規作成する際、規約同意が欠落・不一致（バージョン不一致含む）。
+   * 既存ユーザーのログイン/リンクではこのエラーは発生しない。
+   */
+  TERMS_ACCEPTANCE_REQUIRED: 'TERMS_ACCEPTANCE_REQUIRED',
 } as const
 
 /** モバイル API エラーコードの型 */
@@ -101,4 +107,5 @@ export const MOBILE_API_ERROR_MESSAGES: Record<MobileApiErrorCode, string> = {
   INTERNAL_ERROR: ERR_OPERATION_FAILED,
   SERVER_MISCONFIGURED: 'サーバーの設定に問題があります。管理者にお問い合わせください',
   PREMIUM_REQUIRED: ERR_VIDEO_PREMIUM_ONLY,
+  TERMS_ACCEPTANCE_REQUIRED: ERR_TERMS_ACCEPTANCE_REQUIRED,
 } as const

@@ -25,6 +25,7 @@ import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
 import { getClientIpFromRequest } from '@/lib/utils/client-ip'
 import { logRegisterSuccess } from '@/lib/security-logger'
 import logger from '@/lib/logger'
+import { CURRENT_TERMS_VERSION } from '@/lib/constants/terms-version'
 
 export async function POST(request: NextRequest) {
   // 1. Zod バリデーション（rate limit より先に行い、不正入力で quota を消費しない）
@@ -48,9 +49,11 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. ユーザー作成 + 確認メール送信
+  // termsAccepted は registerRequestSchema で z.literal(true) 必須のため、
+  // ここに到達した時点で同意済み。証跡として現行バージョンを保存する。
   let result
   try {
-    result = await registerUserCore({ email, password, nickname })
+    result = await registerUserCore({ email, password, nickname, termsVersion: CURRENT_TERMS_VERSION })
   } catch (error) {
     logger.error('registerUserCore unexpected error:', error)
     return apiError(MOBILE_API_ERROR_CODES.INTERNAL_ERROR, 500)

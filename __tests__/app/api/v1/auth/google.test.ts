@@ -7,6 +7,7 @@
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
+import { CURRENT_TERMS_VERSION } from '@/lib/constants/terms-version'
 
 const VALID_SECRET = 'a'.repeat(64)
 
@@ -61,7 +62,10 @@ describe('POST /api/v1/auth/google', () => {
   beforeEach(() => {
     vi.stubEnv('MOBILE_JWT_SECRET', VALID_SECRET)
     vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id.apps.googleusercontent.com')
-    vi.clearAllMocks()
+    // WHY: clearAllMocks は呼び出し履歴のみ消し、mockResolvedValueOnce の未消費キューは
+    // 次テストへ持ち越されてしまう（早期 return するテストで特に顕在化）。
+    // resetAllMocks でキューごと完全にリセットし、各テストの再現性を担保する。
+    vi.resetAllMocks()
     mockRefreshTokenCreate.mockResolvedValue({})
     mockCreateRemoteJWKSet.mockReturnValue('mock-jwks')
   })
@@ -152,7 +156,13 @@ describe('POST /api/v1/auth/google', () => {
     mockUserCreate.mockResolvedValueOnce({ id: 'newly-created-user' })
 
     const { POST } = await import('@/app/api/v1/auth/google/route')
-    const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+    const res = await POST(
+      makeGoogleRequest({
+        idToken: 'valid-id-token',
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION,
+      })
+    )
 
     expect(res.status).toBe(200)
     expect(mockUserCreate).toHaveBeenCalledWith(
@@ -216,11 +226,134 @@ describe('POST /api/v1/auth/google', () => {
     mockUserCreate.mockResolvedValueOnce({ id: 'new-user-noname' })
 
     const { POST } = await import('@/app/api/v1/auth/google/route')
-    const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+    const res = await POST(
+      makeGoogleRequest({
+        idToken: 'valid-id-token',
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION,
+      })
+    )
 
     expect(res.status).toBe(200)
     const createArgs = mockUserCreate.mock.calls[0]
     const data = (createArgs as unknown[])[0] as { data: { nickname: string } }
     expect(data.data.nickname).toBe('test')
+  })
+
+  // 規約同意（Track2）
+  describe('未知ユーザー新規作成時の規約同意要求', () => {
+    it('termsAccepted 未指定で 403 TERMS_ACCEPTANCE_REQUIRED、user.create は呼ばれない', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique.mockResolvedValueOnce(null)
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+
+      expect(res.status).toBe(403)
+      const body = await res.json()
+      expect(body.error.code).toBe('TERMS_ACCEPTANCE_REQUIRED')
+      expect(mockUserCreate).not.toHaveBeenCalled()
+      expect(mockAccountCreate).not.toHaveBeenCalled()
+    })
+
+    it('termsAccepted: false は z.literal(true) を満たさず 400 VALIDATION_ERROR（user.create は呼ばれない）', async () => {
+      // WHY: googleRequestSchema.termsAccepted は z.literal(true).optional() のため、
+      // false は「未指定」と異なり Zod の時点で弾かれる（TERMS_ACCEPTANCE_REQUIRED には到達しない）。
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(
+        makeGoogleRequest({
+          idToken: 'valid-id-token',
+          termsAccepted: false,
+          termsVersion: CURRENT_TERMS_VERSION,
+        }),
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error.code).toBe('VALIDATION_ERROR')
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('termsVersion が旧バージョンで 403 TERMS_ACCEPTANCE_REQUIRED、user.create は呼ばれない', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique.mockResolvedValueOnce(null)
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(
+        makeGoogleRequest({
+          idToken: 'valid-id-token',
+          termsAccepted: true,
+          termsVersion: '2000-01-01',
+        }),
+      )
+
+      expect(res.status).toBe(403)
+      const body = await res.json()
+      expect(body.error.code).toBe('TERMS_ACCEPTANCE_REQUIRED')
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('termsAccepted: true かつ termsVersion が現行版で新規作成され、termsAcceptedAt(サーバー時刻)/termsVersion が保存される', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ isSuspended: false })
+      mockUserCreate.mockResolvedValueOnce({ id: 'newly-created-user-2' })
+
+      const before = new Date()
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(
+        makeGoogleRequest({
+          idToken: 'valid-id-token',
+          termsAccepted: true,
+          termsVersion: CURRENT_TERMS_VERSION,
+        }),
+      )
+      const after = new Date()
+
+      expect(res.status).toBe(200)
+      expect(mockUserCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            termsVersion: CURRENT_TERMS_VERSION,
+            termsAcceptedAt: expect.any(Date),
+          }),
+        }),
+      )
+      const createArgs = mockUserCreate.mock.calls[0]?.[0] as { data: { termsAcceptedAt: Date } }
+      expect(createArgs.data.termsAcceptedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+      expect(createArgs.data.termsAcceptedAt.getTime()).toBeLessThanOrEqual(after.getTime())
+    })
+
+    it('既存 Account(google, sub) 一致は同意なしでも従来どおり成功する（既存ユーザーは非対象）', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce({ userId: 'user-existing-account' })
+      mockUserFindUnique.mockResolvedValueOnce({ isSuspended: false })
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+
+      expect(res.status).toBe(200)
+      expect(mockUserCreate).not.toHaveBeenCalled()
+    })
+
+    it('既存 User・email 一致でのリンクは同意なしでも従来どおり成功する（既存ユーザーは非対象）', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique
+        .mockResolvedValueOnce({ id: 'user-email-match-2' })
+        .mockResolvedValueOnce({ isSuspended: false })
+      mockAccountCreate.mockResolvedValueOnce({})
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+
+      expect(res.status).toBe(200)
+      expect(mockUserCreate).not.toHaveBeenCalled()
+      expect(mockAccountCreate).toHaveBeenCalled()
+    })
   })
 })

@@ -62,6 +62,12 @@ export interface RegistrationInput {
   password: string
   nickname: string
   fingerprint?: string
+  /**
+   * 規約同意の証跡バージョン。指定された場合のみ termsAcceptedAt（サーバー時刻）と
+   * 併せて保存する。省略時（Web の既存呼び出し）は両カラムとも null のまま
+   * （既存ユーザーへの遡及もしない）。
+   */
+  termsVersion?: string
 }
 
 /**
@@ -73,7 +79,7 @@ export interface RegistrationInput {
 export async function registerUserCore(
   input: RegistrationInput,
 ): Promise<RegistrationResult> {
-  const { email, password, nickname, fingerprint } = input
+  const { email, password, nickname, fingerprint, termsVersion } = input
 
   if (isReservedNickname(nickname)) {
     return { ok: false, reason: 'nickname_reserved', message: ERR_NICKNAME_RESERVED }
@@ -109,6 +115,7 @@ export async function registerUserCore(
         email,
         password: hashedPassword,
         nickname,
+        ...(termsVersion && { termsAcceptedAt: new Date(), termsVersion }),
       },
     })
     userId = user.id

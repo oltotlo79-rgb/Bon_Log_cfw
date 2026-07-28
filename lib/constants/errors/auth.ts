@@ -65,3 +65,9 @@ export const ERR_INCORRECT_PASSWORD = 'パスワードが正しくありませ�
 /** メールアドレス変更（確認メール経由の二段階） */
 export const ERR_EMAIL_CHANGE_TOO_MANY = 'メールアドレス変更の要求が多すぎます。しばらく経ってからお試しください。'
 export const ERR_EMAIL_CHANGE_LINK_INVALID = 'メールアドレス変更の確認リンクが無効または期限切れです。もう一度お試しください。'
+
+/**
+ * Google 認証で未知ユーザーを新規作成する際、規約同意（termsAccepted + 現行 termsVersion）が
+ * 欠落・不一致だった場合のエラー。既存ユーザーのログイン/リンクではこのチェックを行わない。
+ */
+export const ERR_TERMS_ACCEPTANCE_REQUIRED = '利用規約への同意が必要です。最新の利用規約に同意のうえ、もう一度お試しください。'

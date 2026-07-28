@@ -8,12 +8,14 @@
  * ユーザー解決フロー:
  *   1. Account(provider='google', providerAccountId=sub) を検索
  *   2. なければ email で User を検索し Account を作成してリンク（allowDangerousEmailAccountLinking と同等）
- *   3. User も存在しなければ新規作成（nickname / emailVerified を Web の createUser イベントと同等に補完）
+ *   3. User も存在しなければ、termsAccepted === true かつ termsVersion === CURRENT_TERMS_VERSION の
+ *      場合のみ新規作成する（不足・不一致は User/Account/token を一切作らず TERMS_ACCEPTANCE_REQUIRED）
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
+import { Prisma } from '@prisma/client'
 import {
   apiError,
   apiZodError,
@@ -22,6 +24,7 @@ import { issueTokenPair } from '@/lib/api/v1/token-pair'
 import { googleRequestSchema } from '@/lib/api/v1/schemas'
 import { prisma } from '@/lib/db'
 import { MOBILE_API_ERROR_CODES } from '@/lib/constants/errors/mobile-api'
+import { CURRENT_TERMS_VERSION } from '@/lib/constants/terms-version'
 
 const GOOGLE_JWKS_URI = 'https://www.googleapis.com/oauth2/v3/certs'
 const GOOGLE_ISSUER_1 = 'accounts.google.com'
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return apiZodError(parsed.error)
   }
-  const { idToken } = parsed.data
+  const { idToken, termsAccepted, termsVersion } = parsed.data
 
   // 2. Google ID トークン検証（jose + JWKS）
   const clientId = process.env.GOOGLE_CLIENT_ID
@@ -80,7 +83,17 @@ export async function POST(request: NextRequest) {
   const { sub, email, name } = claimsParsed.data
 
   // 4. ユーザー解決（Account → email → 新規作成）
-  const userId = await resolveGoogleUser({ sub, email, name })
+  const resolveResult = await resolveGoogleUser({
+    sub,
+    email,
+    name,
+    termsAccepted,
+    termsVersion,
+  })
+  if (!resolveResult.ok) {
+    return apiError(MOBILE_API_ERROR_CODES.TERMS_ACCEPTANCE_REQUIRED, 403)
+  }
+  const userId = resolveResult.userId
 
   // 5. 停止チェック
   const user = await prisma.user.findUnique({
@@ -101,16 +114,27 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(tokenResult.tokenPair, { status: 200 })
 }
 
+type ResolveGoogleUserResult =
+  | { ok: true; userId: string }
+  | { ok: false; reason: 'terms_required' }
+
 /**
  * Google sub / email から User ID を解決する。
  * Web の PrismaAdapter + createUser イベントの挙動を再現する。
+ *
+ * 未知 User の新規作成は termsAccepted === true かつ termsVersion === CURRENT_TERMS_VERSION の
+ * 場合のみ行う（条件を満たさない場合は何も作成せず terms_required を返す）。
+ * User 作成時は Account 作成・termsAcceptedAt/termsVersion の保存を単一の
+ * `prisma.user.create`（ネスト書き込み）内で行い、同一トランザクションとして扱う。
  */
 async function resolveGoogleUser(params: {
   sub: string
   email: string
   name: string | undefined
-}): Promise<string> {
-  const { sub, email, name } = params
+  termsAccepted: true | undefined
+  termsVersion: string | undefined
+}): Promise<ResolveGoogleUserResult> {
+  const { sub, email, name, termsAccepted, termsVersion } = params
   const normalizedEmail = email.toLowerCase().trim()
 
   // 既存 Account(google, sub) を検索
@@ -120,7 +144,7 @@ async function resolveGoogleUser(params: {
   })
 
   if (existingAccount) {
-    return existingAccount.userId
+    return { ok: true, userId: existingAccount.userId }
   }
 
   // Account が無い: email でユーザーを検索してリンク
@@ -130,33 +154,87 @@ async function resolveGoogleUser(params: {
   })
 
   if (existingUser) {
+    return { ok: true, userId: await linkGoogleAccount(existingUser.id, sub) }
+  }
+
+  // User も存在しない: 現行版の規約同意が明示されている場合のみ新規作成する
+  const hasValidConsent = termsAccepted === true && termsVersion === CURRENT_TERMS_VERSION
+  if (!hasValidConsent) {
+    return { ok: false, reason: 'terms_required' }
+  }
+
+  const now = new Date()
+  try {
+    // Web の createUser イベントと同等に nickname + emailVerified を補完しつつ、
+    // Account 作成と termsAcceptedAt/termsVersion の保存を同一ネスト書き込みで行う。
+    const newUser = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        nickname: name ?? normalizedEmail.split('@')[0] ?? normalizedEmail,
+        emailVerified: now,
+        termsAcceptedAt: now,
+        termsVersion,
+        accounts: {
+          create: {
+            type: 'oauth',
+            provider: 'google',
+            providerAccountId: sub,
+          },
+        },
+      },
+      select: { id: true },
+    })
+    return { ok: true, userId: newUser.id }
+  } catch (error) {
+    // 並行リクエストが先に同一 User/Account を作成した場合の TOCTOU 対処。
+    // 孤立 User を残さないため、作成は諦めて既存の Account/User を再解決する。
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const raceAccount = await prisma.account.findUnique({
+        where: { provider_providerAccountId: { provider: 'google', providerAccountId: sub } },
+        select: { userId: true },
+      })
+      if (raceAccount) {
+        return { ok: true, userId: raceAccount.userId }
+      }
+
+      const raceUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      })
+      if (raceUser) {
+        return { ok: true, userId: await linkGoogleAccount(raceUser.id, sub) }
+      }
+    }
+    throw error
+  }
+}
+
+/**
+ * 既存 User に Google Account をリンクする。
+ * 並行リクエストが同一 Account を先にリンク済みの場合は再解決して userId を返す
+ * （二重リンク自体は unique 制約違反になるだけで、User には影響しない）。
+ */
+async function linkGoogleAccount(userId: string, sub: string): Promise<string> {
+  try {
     await prisma.account.create({
       data: {
-        userId: existingUser.id,
+        userId,
         type: 'oauth',
         provider: 'google',
         providerAccountId: sub,
       },
     })
-    return existingUser.id
+    return userId
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const existing = await prisma.account.findUnique({
+        where: { provider_providerAccountId: { provider: 'google', providerAccountId: sub } },
+        select: { userId: true },
+      })
+      if (existing) {
+        return existing.userId
+      }
+    }
+    throw error
   }
-
-  // User も存在しない: 新規作成（Web の createUser イベントと同等に nickname + emailVerified を補完）
-  const newUser = await prisma.user.create({
-    data: {
-      email: normalizedEmail,
-      nickname: name ?? normalizedEmail.split('@')[0] ?? normalizedEmail,
-      emailVerified: new Date(),
-      accounts: {
-        create: {
-          type: 'oauth',
-          provider: 'google',
-          providerAccountId: sub,
-        },
-      },
-    },
-    select: { id: true },
-  })
-
-  return newUser.id
 }

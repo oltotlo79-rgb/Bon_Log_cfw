@@ -222,6 +222,9 @@ model User {
   isPublic         Boolean   @default(true) @map("is_public")
   isSuspended      Boolean   @default(false) @map("is_suspended")
   suspendedAt      DateTime? @map("suspended_at")
+  // 規約同意の証跡（新規登録時に必須。既存ユーザーは nullable のまま遡及しない）
+  termsAcceptedAt  DateTime? @map("terms_accepted_at")
+  termsVersion     String?   @map("terms_version")
   // プロフィール先頭に固定する自分の投稿（任意・1 件）。投稿削除時は SetNull で自動解除。
   pinnedPostId     String?   @map("pinned_post_id")
   // 初回オンボーディング完了日時。null は未完了（ログイン後に一度だけ /onboarding へ誘導する判定に使う）。
@@ -274,8 +277,11 @@ model User {
   sentMessages             Message[]
 
   // Premium
-  scheduledPosts ScheduledPost[]
-  payments       Payment[]
+  scheduledPosts      ScheduledPost[]
+  payments            Payment[]
+  // provider (Stripe / RevenueCat / legacy) 別の有料権利。isPremium / premiumExpiresAt は
+  // これらの OR 集約結果を denormalize したもの（真実の源泉は premiumEntitlements 側）。
+  premiumEntitlements PremiumEntitlement[]
 
   // 下書き
   draftPosts DraftPost[]
@@ -369,6 +375,9 @@ model Post {
   poll          Poll?
   pinnedByUsers User[]           @relation("UserPinnedPost")
 
+  // 同一ユーザーによる同一投稿への重複リポストを DB レベルで一意化する。
+  // 通常投稿は repost_post_id IS NULL となり、Postgres は NULL を相異なる値として扱うため複数許容される。
+  @@unique([userId, repostPostId])
   @@index([userId])
   @@index([createdAt])
   @@index([isHidden])
@@ -379,9 +388,6 @@ model Post {
   @@index([userId, isHidden, createdAt(sort: Desc)])
   // モデレーション用クエリの最適化
   @@index([isHidden, userId])
-  // 同一ユーザーによる同一投稿への重複リポストを DB レベルで一意化する。
-  // 通常投稿は repost_post_id IS NULL となり、Postgres は NULL を相異なる値として扱うため複数許容される。
-  @@unique([userId, repostPostId])
   @@map("posts")
 }
 
@@ -639,6 +645,36 @@ model WebhookEvent {
   @@unique([provider, eventId])
   @@index([processedAt])
   @@map("webhook_events")
+}
+
+// ストレージ削除 outbox（transactional outbox パターン）。
+// アカウント削除トランザクション内で永続化し、cron worker が非同期に R2/local から実体を消す。
+// owner_user_id は User 削除後も行を残す必要があるため、意図的に FK を張らない（監査用の非 FK 値）。
+enum StorageDeletionJobStatus {
+  pending // 未処理 or リトライ待ち（next_attempt_at 到達で再試行対象）
+  processing // cron 実行中（クラッシュ時は stale ロックとして pending に戻される）
+  completed // 削除成功（404 / already-deleted も idempotent success として completed）
+  dead_letter // リトライ上限到達。運用者が status を pending に戻すことで再試行可能
+}
+
+model StorageDeletionJob {
+  id            String                   @id @default(cuid())
+  url           String                   @db.Text
+  ownerUserId   String?                  @map("owner_user_id")
+  status        StorageDeletionJobStatus @default(pending)
+  attemptCount  Int                      @default(0) @map("attempt_count")
+  nextAttemptAt DateTime                 @default(now()) @map("next_attempt_at")
+  lastError     String?                  @map("last_error") @db.Text
+  lockedAt      DateTime?                @map("locked_at")
+  completedAt   DateTime?                @map("completed_at")
+  createdAt     DateTime                 @default(now()) @map("created_at")
+  updatedAt     DateTime                 @updatedAt @map("updated_at")
+
+  // cron のバッチ取得クエリ (status + next_attempt_at) 用
+  @@index([status, nextAttemptAt])
+  // 運用調査（特定ユーザーの残存ジョブ確認）用
+  @@index([ownerUserId])
+  @@map("storage_deletion_jobs")
 }
 
 // プッシュ通知購読
@@ -949,6 +985,72 @@ model Payment {
 
   @@index([userId])
   @@map("payments")
+}
+
+// 有料会員 - provider (Stripe / RevenueCat) 別 entitlement
+//
+// User.isPremium / premiumExpiresAt は本テーブルの OR 集約結果を denormalize したもの。
+// 不変条件: 「User.isPremium = 当該 User に現在有効な PremiumEntitlement が 1 件以上存在する」。
+// 各 provider の webhook は自 provider の行だけを更新し、更新後は同一トランザクション内で
+// User 側 aggregate（recomputeUserPremiumAggregate）を再計算する
+// （@see lib/services/premium-entitlements.ts）。
+//
+// (userId, provider) を一意とし、provider ごとに現在の購読状態を 1 行で表す
+// （Stripe/RevenueCat とも、本サービスでは 1 ユーザーにつき同時に有効な購読は 1 本の前提）。
+model PremiumEntitlement {
+  id                String              @id @default(cuid())
+  userId            String              @map("user_id")
+  provider          EntitlementProvider
+  // provider 側の購読/権利識別子（Stripe: subscription id、RevenueCat: original_transaction_id）。
+  // legacy provider（出自不明の既存 isPremium=true ユーザーの backfill 分）では null になり得る。
+  providerRef       String?             @map("provider_ref")
+  productId         String?             @map("product_id")
+  status            EntitlementStatus
+  // true = 現在は有効だが次回更新しない（Stripe: cancel_at_period_end、RevenueCat: CANCELLATION）。
+  // aggregate 計算（isEntitlementActive）には影響しない。UI 表示用のメタデータ。
+  cancelAtPeriodEnd Boolean             @default(false) @map("cancel_at_period_end")
+  // 有効期限。null は「現在有効だが期限不明」（recomputeUserPremiumAggregate の null semantics 参照）
+  // または failed/expired 確定後のクリア済み状態を表す。
+  expiresAt         DateTime?           @map("expires_at")
+  // 最後に適用した provider event の発生時刻（Stripe: event.created、RevenueCat: event_timestamp_ms）。
+  // out-of-order 到着したイベントを無視するための基準値（適用の都度この値を更新する）。
+  providerEventAt   DateTime?           @map("provider_event_at")
+  // 最後に適用した provider event ID（監査・デバッグ用。webhook_events の冪等性とは別目的）。
+  lastEventId       String?             @map("last_event_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider, providerRef])
+  // cron の期限切れスイープ（status=active かつ expiresAt < now）用
+  @@index([status, expiresAt])
+  @@map("premium_entitlements")
+}
+
+enum EntitlementProvider {
+  stripe
+  revenuecat
+  // 既存 isPremium=true ユーザーのうち Stripe 識別子を持たない分の backfill 用
+  // （出自不明を一律 false にせず、監査可能な形で「現状維持」を表現する）
+  legacy
+
+  @@map("entitlement_provider")
+}
+
+enum EntitlementStatus {
+  // 現在有効（cancelAtPeriodEnd=true でも期限までは active のまま）
+  active
+  // provider 側で確定的に終了（Stripe: subscription deleted / 全額返金、RevenueCat: EXPIRATION）
+  // または cron の期限切れスイープにより expiresAt 超過で確定させたもの
+  expired
+  // provider 側ステータスが「有効」ではない状態（Stripe: past_due/trialing/unpaid 等）。
+  // 既存実装は subscription.status === 'active' 以外を即座に非プレミアム扱いにしていたため、
+  // その挙動を保つための中間状態（expired とは区別し、猶予期間中の巻き戻り上書きを避ける）。
+  inactive
+
+  @@map("entitlement_status")
 }
 
 // 有料会員 - 予約投稿
@@ -1928,15 +2030,15 @@ model HormoneTechnique {
 // 生トークンは保存せず SHA-256 ハッシュのみを保存することで DB 漏洩時のトークン再利用を防ぐ。
 // revokedAt が null かつ expiresAt 未到来のものだけが有効。
 model RefreshToken {
-  id          String    @id @default(cuid())
-  tokenHash   String    @unique @map("token_hash") @db.VarChar(64)
-  userId      String    @map("user_id")
-  expiresAt   DateTime  @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(64)
+  userId     String    @map("user_id")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
   // Phase 3: デバイス紐付け用予約カラム（現時点では未使用）
-  deviceId    String?   @map("device_id")
-  lastUsedAt  DateTime? @map("last_used_at")
+  deviceId   String?   @map("device_id")
+  lastUsedAt DateTime? @map("last_used_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
