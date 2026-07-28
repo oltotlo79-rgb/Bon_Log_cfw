@@ -15,12 +15,17 @@ import {
 } from '@/lib/constants/errors/mobile-api'
 import type { RateLimitResult } from './types'
 
-/** モバイル API v1 の統一エラーレスポンス本体 */
+/**
+ * モバイル API v1 の統一エラーレスポンス本体。
+ * details はごく一部のエンドポイント（例: 403 TERMS_ACCEPTANCE_REQUIRED の現行規約バージョン）が
+ * クライアントに機械可読な追加情報を渡すための optional 拡張。未設定なら JSON に出力されない。
+ */
 interface ApiErrorBody {
   error: {
     code: MobileApiErrorCode
     message: string
     status: number
+    details?: Record<string, string>
   }
 }
 
@@ -35,6 +40,22 @@ export function apiError(
 ): NextResponse<ApiErrorBody> {
   const resolvedMessage = message ?? MOBILE_API_ERROR_MESSAGES[code]
   const body: ApiErrorBody = { error: { code, status, message: resolvedMessage } }
+  return NextResponse.json(body, { status })
+}
+
+/**
+ * details 付きの統一形式エラー NextResponse を返す。
+ * details は message の代替ではなく、クライアントが機械的に読み取る追加情報専用
+ * （例: 403 TERMS_ACCEPTANCE_REQUIRED に現行規約バージョンを含める）。
+ */
+export function apiErrorWithDetails(
+  code: MobileApiErrorCode,
+  status: number,
+  details: Record<string, string>,
+  message?: string,
+): NextResponse<ApiErrorBody> {
+  const resolvedMessage = message ?? MOBILE_API_ERROR_MESSAGES[code]
+  const body: ApiErrorBody = { error: { code, status, message: resolvedMessage, details } }
   return NextResponse.json(body, { status })
 }
 

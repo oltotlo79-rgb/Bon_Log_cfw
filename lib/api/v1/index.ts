@@ -11,7 +11,7 @@ export type { AccessTokenClaims, JwtVerifyResult } from './jwt'
 export { requireBearerUser } from './auth-guard'
 export type { BearerAuthOptions } from './auth-guard'
 
-export { apiError, apiZodError, apiRateLimited } from './response'
+export { apiError, apiErrorWithDetails, apiZodError, apiRateLimited } from './response'
 
 export { apiPaginationSchema } from './pagination'
 export type { PaginatedResponse } from './pagination'

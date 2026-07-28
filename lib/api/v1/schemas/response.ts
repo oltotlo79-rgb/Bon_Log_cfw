@@ -2074,3 +2074,25 @@ export const apiErrorResponseSchema = z.object({
   }),
 })
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>
+
+/**
+ * POST /api/v1/auth/google 403 専用レスポンス。
+ * 共通 apiErrorResponseSchema の全 field を維持したうえで、
+ * details.currentTermsVersion（新規作成の再試行に必要な現行規約バージョン）を additive で追加する。
+ * ACCOUNT_SUSPENDED 等 details を伴わない 403 では details は省略される。
+ */
+export const googleAuthTermsRequiredResponseSchema = z.object({
+  error: z.object({
+    code: mobileApiErrorCodeSchema,
+    message: z.string(),
+    status: z.number().int(),
+    details: z
+      .object({
+        currentTermsVersion: z.string(),
+      })
+      .optional(),
+  }),
+})
+export type GoogleAuthTermsRequiredResponse = z.infer<
+  typeof googleAuthTermsRequiredResponseSchema
+>

@@ -18,6 +18,7 @@ import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { Prisma } from '@prisma/client'
 import {
   apiError,
+  apiErrorWithDetails,
   apiZodError,
 } from '@/lib/api/v1'
 import { issueTokenPair } from '@/lib/api/v1/token-pair'
@@ -91,7 +92,10 @@ export async function POST(request: NextRequest) {
     termsVersion,
   })
   if (!resolveResult.ok) {
-    return apiError(MOBILE_API_ERROR_CODES.TERMS_ACCEPTANCE_REQUIRED, 403)
+    // details.currentTermsVersion: クライアントが同意画面を出して正しい版で再送できるようにする
+    return apiErrorWithDetails(MOBILE_API_ERROR_CODES.TERMS_ACCEPTANCE_REQUIRED, 403, {
+      currentTermsVersion: CURRENT_TERMS_VERSION,
+    })
   }
   const userId = resolveResult.userId
 

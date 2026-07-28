@@ -356,4 +356,77 @@ describe('POST /api/v1/auth/google', () => {
       expect(mockAccountCreate).toHaveBeenCalled()
     })
   })
+
+  // 403 TERMS_ACCEPTANCE_REQUIRED の details.currentTermsVersion（Native の再送フロー用）
+  describe('403 TERMS_ACCEPTANCE_REQUIRED の details', () => {
+    it('termsAccepted 未指定で 403 の details.currentTermsVersion が現行版になる', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique.mockResolvedValueOnce(null)
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+
+      expect(res.status).toBe(403)
+      const body = await res.json()
+      expect(body.error.code).toBe('TERMS_ACCEPTANCE_REQUIRED')
+      expect(body.error.details.currentTermsVersion).toBe(CURRENT_TERMS_VERSION)
+    })
+
+    it('termsVersion が旧バージョンで 403 の details.currentTermsVersion が現行版になる', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique.mockResolvedValueOnce(null)
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(
+        makeGoogleRequest({
+          idToken: 'valid-id-token',
+          termsAccepted: true,
+          termsVersion: '2000-01-01',
+        }),
+      )
+
+      expect(res.status).toBe(403)
+      const body = await res.json()
+      expect(body.error.code).toBe('TERMS_ACCEPTANCE_REQUIRED')
+      expect(body.error.details.currentTermsVersion).toBe(CURRENT_TERMS_VERSION)
+    })
+
+    it('停止アカウントの 403 ACCOUNT_SUSPENDED には details が付与されない', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce({ userId: 'suspended-user-google-2' })
+      mockUserFindUnique.mockResolvedValueOnce({ isSuspended: true })
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(makeGoogleRequest({ idToken: 'valid-id-token' }))
+
+      expect(res.status).toBe(403)
+      const body = await res.json()
+      expect(body.error.code).toBe('ACCOUNT_SUSPENDED')
+      expect(body.error.details).toBeUndefined()
+    })
+
+    it('現行版で同意した場合は従来どおり 200 を返す（回帰）', async () => {
+      mockJwtVerify.mockResolvedValueOnce({ payload: validGoogleClaims })
+      mockAccountFindUnique.mockResolvedValueOnce(null)
+      mockUserFindUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ isSuspended: false })
+      mockUserCreate.mockResolvedValueOnce({ id: 'newly-created-user-3' })
+
+      const { POST } = await import('@/app/api/v1/auth/google/route')
+      const res = await POST(
+        makeGoogleRequest({
+          idToken: 'valid-id-token',
+          termsAccepted: true,
+          termsVersion: CURRENT_TERMS_VERSION,
+        }),
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(typeof body.accessToken).toBe('string')
+    })
+  })
 })

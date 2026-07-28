@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bon_Log Mobile API",
-    "version": "1.37.0",
+    "version": "1.38.0",
     "description": "盆栽 SNS「Bon_Log」のモバイルアプリ向け API。\n\n## 認証フロー\n\n1. POST /api/v1/auth/login でトークンペアを取得\n2. API リクエストに Authorization: Bearer <accessToken> を付与\n3. 401 AUTH_TOKEN_EXPIRED を受け取ったら POST /api/v1/auth/refresh でペアを更新\n4. 401 AUTH_REFRESH_TOKEN_REUSE_DETECTED はセキュリティ警告画面を表示して再ログインを促す\n\n## レート制限\n\n429 レスポンスには Retry-After ヘッダー（秒）が付与される。自動リトライは禁止。"
   },
   "servers": [
@@ -313,6 +313,67 @@
           "error"
         ],
         "description": "全エンドポイント共通エラーレスポンス形式。"
+      },
+      "GoogleAuthTermsRequiredResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "AUTH_REQUIRED",
+                  "AUTH_INVALID_TOKEN",
+                  "AUTH_TOKEN_EXPIRED",
+                  "AUTH_INVALID_CREDENTIALS",
+                  "AUTH_2FA_REQUIRED",
+                  "AUTH_2FA_INVALID_CODE",
+                  "AUTH_2FA_TICKET_EXPIRED",
+                  "AUTH_REFRESH_TOKEN_INVALID",
+                  "AUTH_REFRESH_TOKEN_REUSE_DETECTED",
+                  "ACCOUNT_SUSPENDED",
+                  "GUEST_NOT_ALLOWED",
+                  "EMAIL_NOT_VERIFIED",
+                  "VALIDATION_ERROR",
+                  "RATE_LIMITED",
+                  "NOT_FOUND",
+                  "CONFLICT",
+                  "INTERNAL_ERROR",
+                  "SERVER_MISCONFIGURED",
+                  "PREMIUM_REQUIRED",
+                  "TERMS_ACCEPTANCE_REQUIRED"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              },
+              "details": {
+                "type": "object",
+                "properties": {
+                  "currentTermsVersion": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currentTermsVersion"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "status"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "POST /api/v1/auth/google の 403 レスポンス（共通 ApiErrorResponse の全 field を維持した拡張）。\n新規ユーザー作成時のみ error.details.currentTermsVersion（現行の利用規約バージョン）が付与される。\nクライアントはこの値で同意画面を表示し、termsAccepted: true / termsVersion: <currentTermsVersion> を付けて再送すること。ACCOUNT_SUSPENDED 等 details を伴わない 403 では details は省略される。"
       },
       "MobileApiErrorCode": {
         "type": "string",
@@ -14971,7 +15032,7 @@
           "auth"
         ],
         "summary": "Google ID トークンでログイン",
-        "description": "Google Sign-In で取得した ID トークンを検証し、TokenPair を発行する。\n\nユーザー解決フロー:\n1. Account(provider='google', providerAccountId=sub) を検索 — 既存ログインは termsAccepted 不要\n2. なければ email で User を検索し Account を作成してリンク — 既存ユーザーは termsAccepted 不要\n3. User も存在しなければ、termsAccepted === true かつ termsVersion が現行バージョンと一致する\n   場合のみ新規作成する。不足・不一致の場合は何も作成せず 403 TERMS_ACCEPTANCE_REQUIRED を返す。",
+        "description": "Google Sign-In で取得した ID トークンを検証し、TokenPair を発行する。\n\nユーザー解決フロー:\n1. Account(provider='google', providerAccountId=sub) を検索 — 既存ログインは termsAccepted 不要\n2. なければ email で User を検索し Account を作成してリンク — 既存ユーザーは termsAccepted 不要\n3. User も存在しなければ、termsAccepted === true かつ termsVersion が現行バージョンと一致する\n   場合のみ新規作成する。不足・不一致の場合は何も作成せず 403 TERMS_ACCEPTANCE_REQUIRED を返す。\n\n403 受信時は error.details.currentTermsVersion（付与されている場合）を使って同意画面を表示し、\ntermsAccepted: true / termsVersion: <currentTermsVersion> を付けて再送すること。details は新規作成時（未知ユーザー）の同意欠落・バージョン不一致でのみ付与され、ACCOUNT_SUSPENDED では付与されない。",
         "requestBody": {
           "required": true,
           "content": {
@@ -15014,11 +15075,11 @@
             }
           },
           "403": {
-            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、または新規ユーザー作成時の規約同意欠落・バージョン不一致 (TERMS_ACCEPTANCE_REQUIRED)",
+            "description": "アカウント停止 (ACCOUNT_SUSPENDED)、または新規ユーザー作成時の規約同意欠落・バージョン不一致 (TERMS_ACCEPTANCE_REQUIRED、この場合のみ error.details.currentTermsVersion が付与される)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
+                  "$ref": "#/components/schemas/GoogleAuthTermsRequiredResponse"
                 }
               }
             }

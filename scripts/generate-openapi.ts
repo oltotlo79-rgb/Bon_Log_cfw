@@ -99,6 +99,7 @@ async function main() {
     successSchema,
     usersMeSchema,
     apiErrorResponseSchema,
+    googleAuthTermsRequiredResponseSchema,
     mobileApiErrorCodeSchema,
     feedResponseSchema,
     postSchema,
@@ -344,6 +345,18 @@ async function main() {
     'ApiErrorResponse',
     apiErrorResponseSchema.openapi({
       description: '全エンドポイント共通エラーレスポンス形式。',
+    }),
+  )
+
+  const GoogleAuthTermsRequiredResponse = registry.register(
+    'GoogleAuthTermsRequiredResponse',
+    googleAuthTermsRequiredResponseSchema.openapi({
+      description: [
+        'POST /api/v1/auth/google の 403 レスポンス（共通 ApiErrorResponse の全 field を維持した拡張）。',
+        '新規ユーザー作成時のみ error.details.currentTermsVersion（現行の利用規約バージョン）が付与される。',
+        'クライアントはこの値で同意画面を表示し、termsAccepted: true / termsVersion: <currentTermsVersion> を' +
+          '付けて再送すること。ACCOUNT_SUSPENDED 等 details を伴わない 403 では details は省略される。',
+      ].join('\n'),
     }),
   )
 
@@ -1278,6 +1291,11 @@ async function main() {
       '2. なければ email で User を検索し Account を作成してリンク — 既存ユーザーは termsAccepted 不要',
       '3. User も存在しなければ、termsAccepted === true かつ termsVersion が現行バージョンと一致する',
       '   場合のみ新規作成する。不足・不一致の場合は何も作成せず 403 TERMS_ACCEPTANCE_REQUIRED を返す。',
+      '',
+      '403 受信時は error.details.currentTermsVersion（付与されている場合）を使って同意画面を表示し、',
+      'termsAccepted: true / termsVersion: <currentTermsVersion> を付けて再送すること。' +
+        'details は新規作成時（未知ユーザー）の同意欠落・バージョン不一致でのみ付与され、' +
+        'ACCOUNT_SUSPENDED では付与されない。',
     ].join('\n'),
     request: {
       body: {
@@ -1294,9 +1312,16 @@ async function main() {
       },
       400: errorResponse('バリデーションエラー (VALIDATION_ERROR)'),
       401: errorResponse('ID トークン不正 (AUTH_INVALID_TOKEN)'),
-      403: errorResponse(
-        'アカウント停止 (ACCOUNT_SUSPENDED)、または新規ユーザー作成時の規約同意欠落・バージョン不一致 (TERMS_ACCEPTANCE_REQUIRED)',
-      ),
+      403: {
+        description:
+          'アカウント停止 (ACCOUNT_SUSPENDED)、または新規ユーザー作成時の規約同意欠落・バージョン不一致 ' +
+          '(TERMS_ACCEPTANCE_REQUIRED、この場合のみ error.details.currentTermsVersion が付与される)',
+        content: {
+          'application/json': {
+            schema: GoogleAuthTermsRequiredResponse,
+          },
+        },
+      },
       429: rateLimitedResponse,
       503: errorResponse('サーバー設定エラー (SERVER_MISCONFIGURED)'),
     },
@@ -7327,7 +7352,7 @@ async function main() {
     openapi: '3.1.0',
     info: {
       title: 'Bon_Log Mobile API',
-      version: '1.37.0',
+      version: '1.38.0',
       description: [
         '盆栽 SNS「Bon_Log」のモバイルアプリ向け API。',
         '',

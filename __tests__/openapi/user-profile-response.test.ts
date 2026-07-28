@@ -11,8 +11,8 @@ describe('openapi.json — UserProfileResponse contract', () => {
   const spec = openapiSpec
   const schema = spec.components.schemas.UserProfileResponse
 
-  it('ドキュメントの version が 1.37.0 である', () => {
-    expect(spec.info.version).toBe('1.37.0')
+  it('ドキュメントの version が 1.38.0 である', () => {
+    expect(spec.info.version).toBe('1.38.0')
   })
 
   it('UserProfileResponse に isBlockedByUser プロパティが boolean 型で定義されている', () => {
