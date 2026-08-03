@@ -1,17 +1,27 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import {
   scrapeExternalEvents,
   scrapeEventsByRegion,
   importSelectedEvents,
   type ImportableEvent,
 } from '@/lib/actions/event-import'
+import {
+  getEventFieldViolations,
+  type EventImportResult,
+} from '@/lib/validation/event-import'
 import { BONSAI_EVENT_SOURCES } from '@/lib/scraping/bonsai-events'
 import { PREFECTURES } from '@/lib/prefectures'
-import { SIMILAR_EVENT_TITLE_LENGTH } from '@/lib/constants/limits'
+import {
+  SIMILAR_EVENT_TITLE_LENGTH,
+  MAX_EVENT_TITLE_LENGTH,
+  MAX_EVENT_FIELD_LENGTH,
+} from '@/lib/constants/limits'
 import { ChevronRight } from 'lucide-react'
 import { EventEditFormModal } from './EventEditFormModal'
+import { EventViolationBadges } from './EventViolationBadges'
+import { EventImportResultPanel } from './EventImportResultPanel'
 import { MSG_ERROR_FALLBACK } from '@/lib/constants/messages'
 
 /**
@@ -34,8 +44,8 @@ export function EventImportClient() {
   const [isScraping, setIsScraping] = useState(false)
   // エラーメッセージ
   const [error, setError] = useState<string | null>(null)
-  // 成功メッセージ
-  const [success, setSuccess] = useState<string | null>(null)
+  // 直近のインポート結果（成功件数・切り詰め・取込不可の内訳）
+  const [importResult, setImportResult] = useState<EventImportResult | null>(null)
   // 除外された重複件数
   const [filteredCount, setFilteredCount] = useState<number>(0)
   // 選択された地方
@@ -45,13 +55,23 @@ export function EventImportClient() {
   // 表示モード（カード or テーブル）
   const [viewMode, setViewMode] = useState<ViewMode>('table')
 
+  // イベントごとの文字数超過（clipped/rejected）。events が変わるたびに再計算されるため、
+  // 編集モーダル・インライン編集で修正すると自動的にバッジが消える。
+  const violationsByEventId = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getEventFieldViolations>>()
+    for (const event of events) {
+      map.set(event.id, getEventFieldViolations(event))
+    }
+    return map
+  }, [events])
+
   /**
    * スクレイピング実行
    */
   const handleScrape = async () => {
     setIsScraping(true)
     setError(null)
-    setSuccess(null)
+    setImportResult(null)
     setEvents([])
     setSelectedIds(new Set())
     setFilteredCount(0)
@@ -67,10 +87,11 @@ export function EventImportClient() {
         const { events: scraped, filteredCount: filtered } = result.data!
         setEvents(scraped)
         setFilteredCount(filtered)
-        // 重複でないイベントを初期選択（類似イベントは選択しない）
+        // 重複でなく、取込不可（rejected）の違反も無いイベントのみ初期選択
         const nonDuplicateIds = new Set(
           scraped
             .filter((e) => !e.isDuplicate && e.startDate)
+            .filter((e) => !getEventFieldViolations(e).some((v) => v.kind === 'rejected'))
             .map((e) => e.id)
         )
         setSelectedIds(nonDuplicateIds)
@@ -154,20 +175,31 @@ export function EventImportClient() {
 
     startTransition(async () => {
       setError(null)
-      setSuccess(null)
+      setImportResult(null)
 
       const selectedEvents = events.filter((e) => selectedIds.has(e.id))
       const result = await importSelectedEvents(selectedEvents)
 
       if (!result.success) {
         setError(result.error ?? MSG_ERROR_FALLBACK)
-      } else {
-        const importedCount = result.data?.importedCount ?? 0
-        setSuccess(`${importedCount}件のイベントをインポートしました`)
-        // インポート済みを除去
-        setEvents((prev) => prev.filter((e) => !selectedIds.has(e.id)))
-        setSelectedIds(new Set())
+        return
       }
+
+      const { importedCount, clippedItems, rejectedItems } = result.data ?? {
+        importedCount: 0,
+        clippedItems: [],
+        rejectedItems: [],
+      }
+      setImportResult({ importedCount, clippedItems, rejectedItems })
+
+      // 取込不可（rejected）だったイベントは一覧に残し、修正して再送できるようにする
+      const rejectedIds = new Set(
+        rejectedItems
+          .map((item) => selectedEvents[item.index]?.id)
+          .filter((id): id is string => Boolean(id))
+      )
+      setEvents((prev) => prev.filter((e) => !selectedIds.has(e.id) || rejectedIds.has(e.id)))
+      setSelectedIds(rejectedIds)
     })
   }
 
@@ -271,10 +303,12 @@ export function EventImportClient() {
           {error}
         </div>
       )}
-      {success && (
-        <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
-          {success}
-        </div>
+      {importResult && (
+        <EventImportResultPanel
+          importedCount={importResult.importedCount}
+          clippedItems={importResult.clippedItems}
+          rejectedItems={importResult.rejectedItems}
+        />
       )}
 
       {events.length > 0 && (
@@ -342,6 +376,7 @@ export function EventImportClient() {
                           type="text"
                           value={event.title}
                           onChange={(e) => handleInlineUpdate(event.id, 'title', e.target.value)}
+                          maxLength={MAX_EVENT_TITLE_LENGTH}
                           className="w-full px-2 py-1 border rounded bg-background text-sm"
                         />
                         {event.duplicateType === 'similar' && (
@@ -351,6 +386,7 @@ export function EventImportClient() {
                             </span>
                           </div>
                         )}
+                        <EventViolationBadges violations={violationsByEventId.get(event.id) ?? []} />
                       </td>
                       <td className="px-2 py-1">
                         <input
@@ -387,6 +423,7 @@ export function EventImportClient() {
                           type="text"
                           value={event.city || ''}
                           onChange={(e) => handleInlineUpdate(event.id, 'city', e.target.value || null)}
+                          maxLength={MAX_EVENT_FIELD_LENGTH}
                           className="w-full px-2 py-1 border rounded bg-background text-sm"
                           placeholder="市区町村"
                         />
@@ -396,6 +433,7 @@ export function EventImportClient() {
                           type="text"
                           value={event.venue || ''}
                           onChange={(e) => handleInlineUpdate(event.id, 'venue', e.target.value || null)}
+                          maxLength={MAX_EVENT_FIELD_LENGTH}
                           className="w-full px-2 py-1 border rounded bg-background text-sm"
                           placeholder="会場名"
                         />
@@ -405,6 +443,7 @@ export function EventImportClient() {
                           type="text"
                           value={event.admissionFee || ''}
                           onChange={(e) => handleInlineUpdate(event.id, 'admissionFee', e.target.value || null)}
+                          maxLength={MAX_EVENT_FIELD_LENGTH}
                           className="w-full px-2 py-1 border rounded bg-background text-sm"
                           placeholder="無料/有料"
                         />
@@ -475,6 +514,8 @@ export function EventImportClient() {
                           ⚠️ 類似イベント: 「{event.similarEventTitle}」
                         </p>
                       )}
+
+                      <EventViolationBadges violations={violationsByEventId.get(event.id) ?? []} />
 
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span>

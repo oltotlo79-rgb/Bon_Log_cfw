@@ -6,7 +6,12 @@
  */
 
 import logger from '@/lib/logger'
-import { SCRAPING_DELAY_MS } from '@/lib/constants/limits'
+import {
+  SCRAPING_DELAY_MS,
+  MAX_EVENT_TITLE_LENGTH,
+  MAX_EVENT_DESCRIPTION_LENGTH,
+  MAX_EVENT_FIELD_LENGTH,
+} from '@/lib/constants/limits'
 
 /**
  * スクレイピング対象の地方とURL
@@ -54,6 +59,16 @@ export interface ScrapedEvent {
   sourceRegion: string
   /** 取得元URL */
   sourceUrl: string
+}
+
+/** 文字列を指定文字数までクリップする（外部サイト由来の長文入力への保護的上限）。 */
+function clipToLength(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, maxLength) : value
+}
+
+/** null 許容フィールド向けの {@link clipToLength}。 */
+function clipNullableToLength(value: string | null, maxLength: number): string | null {
+  return value === null ? null : clipToLength(value, maxLength)
 }
 
 /**
@@ -109,17 +124,18 @@ function parseEventFromHtml(html: string, sourceRegion: string, sourceUrl: strin
     // 即売ありチェック
     const hasSales = /即売|販売|売店/.test(content)
 
+    // 全抽出フィールドを保護的上限までクリップしてから格納する（Zod 検証以前に長大な値を排除するため）
     events.push({
-      title,
+      title: clipToLength(title, MAX_EVENT_TITLE_LENGTH),
       startDate,
       endDate,
-      prefecture,
-      city,
-      venue,
-      organizer,
-      admissionFee,
+      prefecture: clipNullableToLength(prefecture, MAX_EVENT_FIELD_LENGTH),
+      city: clipNullableToLength(city, MAX_EVENT_FIELD_LENGTH),
+      venue: clipNullableToLength(venue, MAX_EVENT_FIELD_LENGTH),
+      organizer: clipNullableToLength(organizer, MAX_EVENT_FIELD_LENGTH),
+      admissionFee: clipNullableToLength(admissionFee, MAX_EVENT_FIELD_LENGTH),
       hasSales,
-      description: content,
+      description: clipToLength(content, MAX_EVENT_DESCRIPTION_LENGTH),
       externalUrl: externalUrl || null,
       sourceRegion,
       sourceUrl,
@@ -267,14 +283,29 @@ function extractCity(content: string, venue: string | null): string | null {
 }
 
 /**
+ * 「主催」に続けて「主管／協賛／後援／入場／問合せ」等の後続セクション見出しが
+ * 同じ行に列記されるケースがあり、素朴な正規表現だと説明文の末尾まで丸ごと
+ * 主催者として捕捉してしまう。これらの見出し語のうち最も早く出現する位置で打ち切る。
+ */
+const ORGANIZER_STOP_WORDS = ['主管', '協賛', '後援', '入場', '問合', '問い合', '連絡', '☎']
+
+/**
  * 主催者を抽出
  */
 function extractOrganizer(content: string): string | null {
-  const match = content.match(/主催[／\/：:]\s*([^連絡☎\n]+)/)
-  if (match?.[1]) {
-    return match[1].trim()
-  }
-  return null
+  const match = content.match(/主催[／\/：:]\s*([^\n]+)/)
+  const captured = match?.[1]
+  if (!captured) return null
+
+  const stopIndex = ORGANIZER_STOP_WORDS.reduce((earliest, word) => {
+    const index = captured.indexOf(word)
+    if (index === -1) return earliest
+    return earliest === -1 ? index : Math.min(earliest, index)
+  }, -1)
+
+  const organizer = stopIndex === -1 ? captured : captured.slice(0, stopIndex)
+  const trimmed = organizer.trim()
+  return trimmed || null
 }
 
 /**

@@ -364,7 +364,10 @@ describe('Event Import Actions', async () => {
       expect(result).toMatchObject({ error: 'インポート中にエラーが発生しました' })
     })
 
-    it('titleがMAX_EVENT_TITLE_LENGTHを超える場合はZodバリデーションでERR_INVALID_INPUTを返す', async () => {
+    it('titleが101文字（ソフト上限超過・ハード上限内）の場合はクリップして取込成功する', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+      mockPrisma.event.createMany.mockResolvedValue({ count: 1 })
+
       const events = [
         {
           id: 'temp-1',
@@ -389,11 +392,20 @@ describe('Event Import Actions', async () => {
       const { importSelectedEvents } = await import('@/lib/actions/event-import')
       const result = await importSelectedEvents(events)
 
-      expect(result).toMatchObject({ error: expect.any(String) })
-      expect(mockPrisma.event.createMany).not.toHaveBeenCalled()
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data!.importedCount).toBe(1)
+        expect(result.data!.clippedItems).toHaveLength(1)
+        expect(result.data!.clippedItems[0]).toMatchObject({
+          index: 0,
+          violations: [expect.objectContaining({ field: 'title', kind: 'clipped' })],
+        })
+        expect(result.data!.rejectedItems).toHaveLength(0)
+      }
+      expect(mockPrisma.event.createMany).toHaveBeenCalled()
     })
 
-    it('型不一致（hasSalesが文字列）の入力はZodバリデーションで弾かれる', async () => {
+    it('型不一致（hasSalesが文字列）の入力は個別に reject され、他の取込は継続する', async () => {
       const events = [
         {
           id: 'temp-1',
@@ -405,7 +417,7 @@ describe('Event Import Actions', async () => {
           venue: null,
           organizer: null,
           admissionFee: null,
-          hasSales: 'yes' as any,
+          hasSales: 'yes' as unknown as boolean,
           description: '',
           externalUrl: null,
           sourceRegion: '関東',
@@ -418,8 +430,104 @@ describe('Event Import Actions', async () => {
       const { importSelectedEvents } = await import('@/lib/actions/event-import')
       const result = await importSelectedEvents(events)
 
-      expect(result).toMatchObject({ error: expect.any(String) })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data!.importedCount).toBe(0)
+        expect(result.data!.rejectedItems).toHaveLength(1)
+        expect(result.data!.rejectedItems[0]).toMatchObject({
+          index: 0,
+          title: 'テストイベント',
+        })
+      }
+      // 有効なイベントが1件も無いため早期returnし、createManyは呼ばれない
       expect(mockPrisma.event.createMany).not.toHaveBeenCalled()
+    })
+
+    it('正常・clipped・rejectedが混在する配列: 正常とclippedのみ取込まれ、rejectedはrejectedItemsに記録される（1件不良で全滅しない）', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+      mockPrisma.event.createMany.mockResolvedValue({ count: 2 })
+
+      const events = [
+        {
+          id: 'temp-normal',
+          title: '正常イベント',
+          startDate: '2025-05-01T00:00:00.000Z',
+          endDate: null,
+          prefecture: '東京都',
+          city: null,
+          venue: null,
+          organizer: null,
+          admissionFee: null,
+          hasSales: false,
+          description: '',
+          externalUrl: null,
+          sourceRegion: '関東',
+          sourceUrl: 'https://example.com',
+          isDuplicate: false,
+          duplicateType: null,
+        },
+        {
+          id: 'temp-clipped',
+          title: 'クリップイベント',
+          startDate: '2025-05-02T00:00:00.000Z',
+          endDate: null,
+          prefecture: '東京都',
+          city: null,
+          venue: null,
+          organizer: 'あ'.repeat(249),
+          admissionFee: null,
+          hasSales: false,
+          description: '',
+          externalUrl: null,
+          sourceRegion: '関東',
+          sourceUrl: 'https://example.com',
+          isDuplicate: false,
+          duplicateType: null,
+        },
+        {
+          id: 'temp-rejected',
+          title: '不良イベント',
+          startDate: '2025-05-03T00:00:00.000Z',
+          endDate: null,
+          prefecture: '東京都',
+          city: null,
+          venue: null,
+          organizer: null,
+          admissionFee: null,
+          hasSales: 'yes' as unknown as boolean,
+          description: '',
+          externalUrl: null,
+          sourceRegion: '関東',
+          sourceUrl: 'https://example.com',
+          isDuplicate: false,
+          duplicateType: null,
+        },
+      ]
+
+      const { importSelectedEvents } = await import('@/lib/actions/event-import')
+      const result = await importSelectedEvents(events)
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data!.importedCount).toBe(2)
+        expect(result.data!.clippedItems).toHaveLength(1)
+        expect(result.data!.clippedItems[0]).toMatchObject({
+          index: 1,
+          title: 'クリップイベント',
+        })
+        expect(result.data!.rejectedItems).toHaveLength(1)
+        expect(result.data!.rejectedItems[0]).toMatchObject({
+          index: 2,
+          title: '不良イベント',
+        })
+      }
+      expect(mockPrisma.event.createMany).toHaveBeenCalledTimes(1)
+      const createManyArg = mockPrisma.event.createMany.mock.calls[0]![0]
+      expect(createManyArg.data).toHaveLength(2)
+      expect(createManyArg.data.map((e: { title: string }) => e.title)).toEqual([
+        '正常イベント',
+        'クリップイベント',
+      ])
     })
 
     it('選択イベント数がMAX_IMPORT_EVENTS_COUNTを超える場合はERR_INVALID_INPUTを返す', async () => {
@@ -478,6 +586,51 @@ describe('Event Import Actions', async () => {
       const result = await importSelectedEvents(events)
 
       expect(result.success).toBe(true)
+    })
+
+    it('配列要素に null が混在しても throw せず、他の要素の取込は継続する（null要素は空タイトルで rejectedItems に記録される契約）', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+      mockPrisma.event.createMany.mockResolvedValue({ count: 2 })
+
+      const validEvent = (id: string, title: string, startDate: string) => ({
+        id,
+        title,
+        startDate,
+        endDate: null,
+        prefecture: '東京都',
+        city: null,
+        venue: null,
+        organizer: null,
+        admissionFee: null,
+        hasSales: false,
+        description: '',
+        externalUrl: null,
+        sourceRegion: '関東',
+        sourceUrl: 'https://example.com',
+        isDuplicate: false,
+        duplicateType: null,
+      })
+
+      const { importSelectedEvents } = await import('@/lib/actions/event-import')
+
+      const events = [
+        validEvent('temp-1', '有効イベント1', '2025-05-01T00:00:00.000Z'),
+        null,
+        validEvent('temp-2', '有効イベント2', '2025-05-02T00:00:00.000Z'),
+      ] as unknown as Parameters<typeof importSelectedEvents>[0]
+
+      const result = await importSelectedEvents(events)
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data!.importedCount).toBe(2)
+        expect(result.data!.rejectedItems).toHaveLength(1)
+        expect(result.data!.rejectedItems[0]).toMatchObject({
+          index: 1,
+          title: '',
+        })
+      }
+      expect(mockPrisma.event.createMany).toHaveBeenCalledTimes(1)
     })
   })
 

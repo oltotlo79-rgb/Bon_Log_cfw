@@ -10,6 +10,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  MAX_EVENT_TITLE_LENGTH,
+  MAX_EVENT_FIELD_LENGTH,
+  MAX_EVENT_DESCRIPTION_LENGTH,
+  MAX_EVENT_URL_LENGTH,
+} from '@/lib/constants/limits'
 
 type EventEditFormModalProps = {
   event: ImportableEvent | null
@@ -88,6 +94,7 @@ function EventEditForm({
           value={formData.title}
           onChange={(e) => updateField('title', e.target.value)}
           required
+          maxLength={MAX_EVENT_TITLE_LENGTH}
           className="w-full px-3 py-2 border rounded-lg bg-background"
         />
       </div>
@@ -136,6 +143,7 @@ function EventEditForm({
             type="text"
             value={formData.city || ''}
             onChange={(e) => updateField('city', e.target.value || null)}
+            maxLength={MAX_EVENT_FIELD_LENGTH}
             className="w-full px-3 py-2 border rounded-lg bg-background"
           />
         </div>
@@ -147,6 +155,7 @@ function EventEditForm({
           type="text"
           value={formData.venue || ''}
           onChange={(e) => updateField('venue', e.target.value || null)}
+          maxLength={MAX_EVENT_FIELD_LENGTH}
           className="w-full px-3 py-2 border rounded-lg bg-background"
         />
       </div>
@@ -157,6 +166,7 @@ function EventEditForm({
           type="text"
           value={formData.organizer || ''}
           onChange={(e) => updateField('organizer', e.target.value || null)}
+          maxLength={MAX_EVENT_FIELD_LENGTH}
           className="w-full px-3 py-2 border rounded-lg bg-background"
         />
       </div>
@@ -169,6 +179,7 @@ function EventEditForm({
             value={formData.admissionFee || ''}
             onChange={(e) => updateField('admissionFee', e.target.value || null)}
             placeholder="例: 無料、500円"
+            maxLength={MAX_EVENT_FIELD_LENGTH}
             className="w-full px-3 py-2 border rounded-lg bg-background"
           />
         </div>
@@ -191,6 +202,7 @@ function EventEditForm({
           value={formData.description || ''}
           onChange={(e) => updateField('description', e.target.value)}
           rows={4}
+          maxLength={MAX_EVENT_DESCRIPTION_LENGTH}
           className="w-full px-3 py-2 border rounded-lg bg-background resize-none"
         />
       </div>
@@ -201,6 +213,7 @@ function EventEditForm({
           type="url"
           value={formData.externalUrl || ''}
           onChange={(e) => updateField('externalUrl', e.target.value || null)}
+          maxLength={MAX_EVENT_URL_LENGTH}
           className="w-full px-3 py-2 border rounded-lg bg-background"
         />
       </div>

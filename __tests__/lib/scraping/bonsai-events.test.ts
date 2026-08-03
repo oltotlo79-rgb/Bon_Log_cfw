@@ -369,6 +369,104 @@ describe('Bonsai Events Scraping', () => {
     })
   })
 
+  describe('主催者抽出（extractOrganizer の停止条件・回帰テスト）', () => {
+    it('「主管／協賛／…」等の後続見出しが同じ行にある場合、最先出現位置で打ち切られる', async () => {
+      // 実際の回帰事例: 主催者に続けて「主管／秋雅展実行委員会 協賛／…」が同じ行に列記され、
+      // 素朴な正規表現だと説明文末尾まで丸ごと主催者として捕捉してしまっていた。
+      const mockHtml = `
+        <div class="event_area">
+          <span>秋雅展</span>
+          <p>主催／(公社)全日本小品盆栽協会 主管／秋雅展実行委員会 協賛／地元商店会 入場無料</p>
+        </div>
+      `
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(mockHtml),
+      })
+
+      const events = await scrapeEventsFromRegion('https://example.com', '関東', ['東京都'])
+
+      expect(events[0]!.organizer).toBe('(公社)全日本小品盆栽協会')
+    })
+
+    it('「連絡」で打ち切られる（従来の停止語）', async () => {
+      const mockHtml = `
+        <div class="event_area">
+          <span>展示会</span>
+          <p>主催／地域盆栽同好会 連絡先はこちら</p>
+        </div>
+      `
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(mockHtml),
+      })
+
+      const events = await scrapeEventsFromRegion('https://example.com', '関東', ['東京都'])
+
+      expect(events[0]!.organizer).toBe('地域盆栽同好会')
+    })
+
+    it('停止語が無い場合は行全体を主催者として抽出する', async () => {
+      const mockHtml = `
+        <div class="event_area">
+          <span>展示会</span>
+          <p>主催／日本盆栽協会</p>
+        </div>
+      `
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(mockHtml),
+      })
+
+      const events = await scrapeEventsFromRegion('https://example.com', '関東', ['東京都'])
+
+      expect(events[0]!.organizer).toBe('日本盆栽協会')
+    })
+
+    it('停止語が無い長大な主催者名は MAX_EVENT_FIELD_LENGTH（200文字）までクリップされる', async () => {
+      // Zod 検証以前に、スクレイピング層でも保護的にクリップされることを確認する
+      // （lib/validation/event-import.ts のクリップとは独立した防御層）。
+      const longOrganizer = 'あ'.repeat(249)
+      const mockHtml = `
+        <div class="event_area">
+          <span>展示会</span>
+          <p>主催／${longOrganizer}</p>
+        </div>
+      `
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(mockHtml),
+      })
+
+      const events = await scrapeEventsFromRegion('https://example.com', '関東', ['東京都'])
+
+      expect(events[0]!.organizer).not.toBeNull()
+      expect(events[0]!.organizer).toHaveLength(200)
+    })
+
+    it('「主催／」自体が無い場合は null を返す', async () => {
+      const mockHtml = `
+        <div class="event_area">
+          <span>展示会</span>
+          <p>内容だけで主催情報なし</p>
+        </div>
+      `
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(mockHtml),
+      })
+
+      const events = await scrapeEventsFromRegion('https://example.com', '関東', ['東京都'])
+
+      expect(events[0]!.organizer).toBeNull()
+    })
+  })
+
   describe('scrapeAllEvents', () => {
     it('全地方からイベントを取得する', async () => {
       // 各地方に対してモックを設定

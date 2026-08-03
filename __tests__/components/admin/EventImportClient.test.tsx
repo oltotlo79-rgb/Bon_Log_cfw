@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '../../utils/test-utils'
+import { render, screen, waitFor, fireEvent, within } from '../../utils/test-utils'
 import userEvent from '@testing-library/user-event'
 import { EventImportClient } from '@/app/admin/events/import/EventImportClient'
 
@@ -261,7 +261,10 @@ describe('EventImportClient', () => {
     mockScrapeExternalEvents.mockResolvedValue({
       success: true, data: { events: mockEvents, filteredCount: 0 },
     })
-    mockImportSelectedEvents.mockResolvedValue({ success: true, data: { importedCount: 1 } })
+    mockImportSelectedEvents.mockResolvedValue({
+      success: true,
+      data: { importedCount: 1, clippedItems: [], rejectedItems: [] },
+    })
     const user = userEvent.setup()
     render(<EventImportClient />)
 
@@ -297,7 +300,10 @@ describe('EventImportClient', () => {
     mockScrapeExternalEvents.mockResolvedValue({
       success: true, data: { events: mockEvents, filteredCount: 0 },
     })
-    mockImportSelectedEvents.mockResolvedValue({ success: true, data: { importedCount: 1 } })
+    mockImportSelectedEvents.mockResolvedValue({
+      success: true,
+      data: { importedCount: 1, clippedItems: [], rejectedItems: [] },
+    })
     const user = userEvent.setup()
     render(<EventImportClient />)
 
@@ -312,6 +318,83 @@ describe('EventImportClient', () => {
     await waitFor(() => {
       expect(screen.getByText('1件のイベントをインポートしました')).toBeInTheDocument()
     })
+  })
+
+  it('インポート結果にclippedItemsがある場合は切り詰め警告パネルが表示される', async () => {
+    mockScrapeExternalEvents.mockResolvedValue({
+      success: true, data: { events: mockEvents, filteredCount: 0 },
+    })
+    mockImportSelectedEvents.mockResolvedValue({
+      success: true,
+      data: {
+        importedCount: 1,
+        clippedItems: [
+          {
+            index: 0,
+            title: 'テスト展示会',
+            violations: [{ field: 'organizer', kind: 'clipped', actualLength: 249, maxLength: 200 }],
+          },
+        ],
+        rejectedItems: [],
+      },
+    })
+    const user = userEvent.setup()
+    render(<EventImportClient />)
+
+    await user.click(screen.getByText('イベント情報を取得'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/インポート/)).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText(/インポート/))
+
+    await waitFor(() => {
+      expect(screen.getByText('1件は一部フィールドを切り詰めて取込みました')).toBeInTheDocument()
+      expect(screen.getByText(/主催者 249\/200文字/)).toBeInTheDocument()
+    })
+  })
+
+  it('インポート結果にrejectedItemsがある場合は取込不可パネルが表示され、当該イベントが再選択された状態で一覧に残る', async () => {
+    mockScrapeExternalEvents.mockResolvedValue({
+      success: true, data: { events: mockEvents, filteredCount: 0 },
+    })
+    mockImportSelectedEvents.mockResolvedValue({
+      success: true,
+      data: {
+        importedCount: 1,
+        clippedItems: [],
+        rejectedItems: [
+          {
+            index: 1,
+            title: '類似展示会',
+            violations: [{ field: 'organizer', kind: 'rejected', actualLength: 2500, maxLength: 2000 }],
+          },
+        ],
+      },
+    })
+    const user = userEvent.setup()
+    render(<EventImportClient />)
+
+    await user.click(screen.getByText('イベント情報を取得'))
+
+    // 「類似展示会」（event-2）はデフォルトで未選択（isDuplicate）なので、
+    // rejectedItems の index が selectedEvents 配列上で event-2 を指すよう明示的に選択する
+    await waitFor(() => {
+      expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(1)
+    })
+    const rowCheckboxes = screen.getAllByRole('checkbox').filter((cb) => !(cb as HTMLInputElement).disabled)
+    await user.click(rowCheckboxes[rowCheckboxes.length - 1]!)
+
+    await user.click(screen.getByText(/インポート/))
+
+    await waitFor(() => {
+      expect(screen.getByText('1件は取込できませんでした')).toBeInTheDocument()
+      expect(screen.getByText(/主催者 2500\/2000文字/)).toBeInTheDocument()
+    })
+
+    // rejected だったイベントは一覧に残る（取込済みイベントのみ消える）
+    expect(screen.getByDisplayValue('類似展示会')).toBeInTheDocument()
   })
 
   it('インポートエラー時にエラーメッセージが表示される', async () => {
@@ -874,5 +957,118 @@ describe('EventImportClient', () => {
     await waitFor(() => {
       expect(screen.getByText(/類似: 既存の類似展示会/)).toBeInTheDocument()
     })
+  })
+
+  // ============================================================
+  // 追加テスト: 文字数違反(clipped/rejected)の初期選択除外・バッジ表示・編集による解消
+  // ============================================================
+
+  it('rejected 違反を含む行は初期選択から除外され、他の有効行（clippedを含む）は選択される', async () => {
+    const okEvent = { ...mockEvents[0], id: 'ok-event' }
+    const clippedEvent = {
+      ...mockEvents[0],
+      id: 'clipped-event',
+      title: 'クリップイベント',
+      organizer: 'あ'.repeat(249), // ソフト上限(200)超過・ハード上限(2000)内 → clipped
+    }
+    const rejectedEvent = {
+      ...mockEvents[0],
+      id: 'rejected-event',
+      title: '違反イベント',
+      organizer: 'あ'.repeat(2001), // ハード上限(2000)超過 → rejected
+    }
+    mockScrapeExternalEvents.mockResolvedValue({
+      success: true,
+      data: { events: [okEvent, clippedEvent, rejectedEvent], filteredCount: 0 },
+    })
+    const user = userEvent.setup()
+    render(<EventImportClient />)
+
+    await user.click(screen.getByText('イベント情報を取得'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/2件選択中/)).toBeInTheDocument()
+    })
+
+    const okRow = screen.getByDisplayValue('テスト展示会').closest('tr')!
+    const okCheckbox = within(okRow).getAllByRole('checkbox')[0] as HTMLInputElement
+    expect(okCheckbox.checked).toBe(true)
+
+    const clippedRow = screen.getByDisplayValue('クリップイベント').closest('tr')!
+    const clippedCheckbox = within(clippedRow).getAllByRole('checkbox')[0] as HTMLInputElement
+    expect(clippedCheckbox.checked).toBe(true)
+
+    const rejectedRow = screen.getByDisplayValue('違反イベント').closest('tr')!
+    const rejectedCheckbox = within(rejectedRow).getAllByRole('checkbox')[0] as HTMLInputElement
+    expect(rejectedCheckbox.checked).toBe(false)
+  })
+
+  it('一覧行に clipped/rejected の違反バッジが表示される', async () => {
+    const clippedEvent = {
+      ...mockEvents[0],
+      id: 'clipped-event',
+      title: 'クリップイベント',
+      organizer: 'あ'.repeat(249),
+    }
+    const rejectedEvent = {
+      ...mockEvents[0],
+      id: 'rejected-event',
+      title: '違反イベント',
+      organizer: 'あ'.repeat(2001),
+    }
+    mockScrapeExternalEvents.mockResolvedValue({
+      success: true,
+      data: { events: [clippedEvent, rejectedEvent], filteredCount: 0 },
+    })
+    const user = userEvent.setup()
+    render(<EventImportClient />)
+
+    await user.click(screen.getByText('イベント情報を取得'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/主催者 249\/200文字/)).toBeInTheDocument()
+      expect(screen.getByText(/取込不可: 主催者が長すぎます/)).toBeInTheDocument()
+    })
+  })
+
+  it('編集で違反を解消するとバッジが消える', async () => {
+    const clippedEvent = {
+      ...mockEvents[0],
+      id: 'clipped-event',
+      title: 'クリップイベント',
+      organizer: 'あ'.repeat(249),
+    }
+    mockScrapeExternalEvents.mockResolvedValue({
+      success: true,
+      data: { events: [clippedEvent], filteredCount: 0 },
+    })
+    const user = userEvent.setup()
+    render(<EventImportClient />)
+
+    await user.click(screen.getByText('イベント情報を取得'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/主催者 249\/200文字/)).toBeInTheDocument()
+    })
+
+    // 詳細編集モーダルを開き、主催者を短くして保存
+    await user.click(screen.getByText('詳細'))
+
+    await waitFor(() => {
+      expect(screen.getByText('イベント情報を編集')).toBeInTheDocument()
+    })
+
+    const organizerInput = screen.getByDisplayValue('あ'.repeat(249))
+    await user.clear(organizerInput)
+    await user.type(organizerInput, '短い主催者')
+
+    await user.click(screen.getByText('保存'))
+
+    await waitFor(() => {
+      expect(screen.queryByText('イベント情報を編集')).not.toBeInTheDocument()
+    })
+
+    expect(screen.queryByText(/主催者.*\/200文字/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/切り詰めて取込/)).not.toBeInTheDocument()
   })
 })

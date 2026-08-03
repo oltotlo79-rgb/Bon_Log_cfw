@@ -7,7 +7,7 @@
 
 'use server'
 
-import { z } from 'zod'
+import type { ZodError } from 'zod'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import {
@@ -20,14 +20,14 @@ import logger from '@/lib/logger'
 import { requireAdmin, actionSuccess, actionError, type ActionResult } from '@/lib/actions/utils'
 import { ERR_EVENTS_NOT_FOUND, ERR_SCRAPING_FAILED, ERR_REGION_NOT_FOUND, ERR_NO_EVENTS_SELECTED, ERR_IMPORT_FAILED, ERR_INVALID_INPUT } from '@/lib/constants/errors'
 import { ROUTE_EVENTS, ROUTE_ADMIN_EVENTS } from '@/lib/constants/routes'
+import { EVENT_TITLE_SIMILARITY_PREFIX_LENGTH, MAX_EVENT_TITLE_LENGTH, MAX_IMPORT_EVENTS_COUNT } from '@/lib/constants/limits'
 import {
-  EVENT_TITLE_SIMILARITY_PREFIX_LENGTH,
-  MAX_EVENT_TITLE_LENGTH,
-  MAX_EVENT_DESCRIPTION_LENGTH,
-  MAX_EVENT_FIELD_LENGTH,
-  MAX_EVENT_URL_LENGTH,
-  MAX_IMPORT_EVENTS_COUNT,
-} from '@/lib/constants/limits'
+  importableEventSchema,
+  getEventFieldViolations,
+  type EventImportResult,
+  type EventImportItemIssue,
+  type EventFieldViolation,
+} from '@/lib/validation/event-import'
 
 /**
  * 重複タイプの定義
@@ -314,48 +314,88 @@ export async function scrapeEventsByRegion(
   }
 }
 
-const importableEventSchema = z.object({
-  id: z.string().min(1).max(MAX_EVENT_FIELD_LENGTH),
-  title: z.string().min(1).max(MAX_EVENT_TITLE_LENGTH),
-  startDate: z.string().nullable(),
-  endDate: z.string().nullable(),
-  prefecture: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
-  city: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
-  venue: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
-  organizer: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
-  admissionFee: z.string().max(MAX_EVENT_FIELD_LENGTH).nullable(),
-  hasSales: z.boolean(),
-  description: z.string().max(MAX_EVENT_DESCRIPTION_LENGTH),
-  externalUrl: z.string().max(MAX_EVENT_URL_LENGTH).nullable(),
-  sourceRegion: z.string().max(MAX_EVENT_FIELD_LENGTH),
-  sourceUrl: z.string().max(MAX_EVENT_URL_LENGTH),
-  isDuplicate: z.boolean(),
-  duplicateType: z.enum(['exact', 'similar']).nullable(),
-  similarEventTitle: z.string().max(MAX_EVENT_TITLE_LENGTH).optional(),
-})
+/**
+ * title が不明なレベルの型不一致（title 自体が文字列でない等）で reject された場合の
+ * 表示用フォールバック。安全に文字列へ丸めるため、文字列でなければ空文字を返す。
+ */
+function toDisplayTitle(title: unknown): string {
+  return typeof title === 'string' ? title.slice(0, MAX_EVENT_TITLE_LENGTH) : ''
+}
 
-const importSelectedEventsSchema = z.array(importableEventSchema).max(MAX_IMPORT_EVENTS_COUNT)
+/**
+ * getEventFieldViolations は文字数違反のみを検出するため、型不一致など
+ * それ以外の理由で reject された場合に Zod issue から補完的な violation を組み立てる。
+ */
+function violationsFromZodIssues(error: ZodError): EventFieldViolation[] {
+  return error.issues.map((issue) => ({
+    field: issue.path.map(String).join('.') || 'unknown',
+    kind: 'rejected' as const,
+    actualLength: 0,
+    maxLength: 0,
+  }))
+}
 
 /**
  * 選択されたイベントをインポート
+ *
+ * 配列レベルでは型・件数のみを防御的に検証し（DoS ガード）、各イベントは
+ * 個別に safeParse する。1 件の不良データで配列全体を拒否せず、
+ * クリップして取り込む／reject して報告のどちらかを行い処理を継続する。
  */
 export async function importSelectedEvents(
   events: ImportableEvent[]
-): Promise<ActionResult<{ importedCount: number }>> {
+): Promise<ActionResult<EventImportResult>> {
   // 管理者チェック
   const admin = await requireAdmin('events:manage')
   if ('error' in admin) return actionError(admin.error)
   const userId = admin.userId
 
-  if (!events || events.length === 0) {
-    return actionError(ERR_NO_EVENTS_SELECTED)
-  }
-
-  const parsed = importSelectedEventsSchema.safeParse(events)
-  if (!parsed.success) {
+  if (!Array.isArray(events)) {
     return actionError(ERR_INVALID_INPUT)
   }
-  events = parsed.data
+  if (events.length === 0) {
+    return actionError(ERR_NO_EVENTS_SELECTED)
+  }
+  if (events.length > MAX_IMPORT_EVENTS_COUNT) {
+    return actionError(ERR_INVALID_INPUT)
+  }
+
+  const clippedItems: EventImportItemIssue[] = []
+  const rejectedItems: EventImportItemIssue[] = []
+  const validatedEvents: ImportableEvent[] = []
+
+  events.forEach((event, index) => {
+    const parsed = importableEventSchema.safeParse(event)
+
+    if (parsed.success) {
+      // 違反判定は clip 前の生値（event）で行う。parsed.data は既に soft 上限で
+      // クリップ済みのため、そちらを渡すと clipped 判定が常に false になってしまう。
+      const violations = getEventFieldViolations(event)
+      if (violations.length > 0) {
+        clippedItems.push({ index, title: parsed.data.title, violations })
+      }
+      validatedEvents.push(parsed.data)
+      return
+    }
+
+    // safeParse 失敗時のみ violations を導出する。要素が null 等の非オブジェクトだと
+    // getEventFieldViolations / event.title への直接アクセスが例外になるためガードする。
+    const isRecord = typeof event === 'object' && event !== null
+    const title = isRecord ? toDisplayTitle(event.title) : ''
+    const violations = isRecord ? getEventFieldViolations(event) : []
+
+    rejectedItems.push({
+      index,
+      title,
+      violations: violations.length > 0 ? violations : violationsFromZodIssues(parsed.error),
+    })
+  })
+
+  if (validatedEvents.length === 0) {
+    return actionSuccess({ importedCount: 0, clippedItems, rejectedItems })
+  }
+
+  events = validatedEvents
 
   try {
     // 1) 有効なイベントのみを抽出（startDate 必須）
@@ -365,7 +405,7 @@ export async function importSelectedEvents(
         typeof event.startDate === 'string' && event.startDate.length > 0,
     )
     if (validEvents.length === 0) {
-      return actionSuccess({ importedCount: 0 })
+      return actionSuccess({ importedCount: 0, clippedItems, rejectedItems })
     }
 
     // 2) 既存イベントを一括取得（N+1 回避）
@@ -410,7 +450,7 @@ export async function importSelectedEvents(
       }))
 
     if (toCreate.length === 0) {
-      return actionSuccess({ importedCount: 0 })
+      return actionSuccess({ importedCount: 0, clippedItems, rejectedItems })
     }
 
     const { count } = await prisma.event.createMany({ data: toCreate })
@@ -419,7 +459,7 @@ export async function importSelectedEvents(
     revalidatePath(ROUTE_EVENTS)
     revalidatePath(ROUTE_ADMIN_EVENTS)
 
-    return actionSuccess({ importedCount: count })
+    return actionSuccess({ importedCount: count, clippedItems, rejectedItems })
   } catch (error) {
     logger.error('Import error:', error)
     return actionError(ERR_IMPORT_FAILED)
